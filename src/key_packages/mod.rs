@@ -172,12 +172,12 @@ impl KeyPackage {
     }
 
     /// Get a reference to the credential.
-    pub(crate) fn get_credential(&self) -> &Credential {
+    pub(crate) fn credential(&self) -> &Credential {
         &self.credential
     }
 
     /// Get a reference to the HPKE init key.
-    pub(crate) fn get_hpke_init_key(&self) -> &HPKEPublicKey {
+    pub(crate) fn hpke_init_key(&self) -> &HPKEPublicKey {
         &self.hpke_init_key
     }
 
@@ -187,12 +187,12 @@ impl KeyPackage {
     }
 
     /// Get a reference to the `Ciphersuite`.
-    pub(crate) fn get_cipher_suite(&self) -> CiphersuiteName {
+    pub(crate) fn cipher_suite(&self) -> CiphersuiteName {
         self.cipher_suite
     }
 
     /// Get a reference to the extensions of this key package.
-    pub fn get_extensions_ref(&self) -> &[Box<dyn Extension>] {
+    pub fn extensions(&self) -> &[Box<dyn Extension>] {
         &self.extensions
     }
 

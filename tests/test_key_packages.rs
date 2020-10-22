@@ -32,7 +32,7 @@ macro_rules! key_package_generation {
                 Vec::new(),
             );
 
-            let extensions = kpb.get_key_package().get_extensions_ref();
+            let extensions = kpb.get_key_package().extensions();
 
             // The capabilities extension must be present and valid.
             // It's added automatically.

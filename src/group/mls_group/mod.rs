@@ -226,7 +226,7 @@ impl Api for MlsGroup {
         for i in 0..tree.leaf_count().as_usize() {
             let node = &tree.nodes[NodeIndex::from(i).as_usize()];
             let credential = if let Some(kp) = &node.key_package {
-                kp.get_credential()
+                kp.credential()
             } else {
                 panic!("Missing key package");
             };

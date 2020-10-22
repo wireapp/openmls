@@ -605,7 +605,7 @@ impl RatchetTree {
                     self.nodes[d.as_usize()].node = Some(parent_node);
                 }
             }
-            added_members.push((leaf_index, new_kp.get_credential().clone()));
+            added_members.push((leaf_index, new_kp.credential().clone()));
         }
         // Add the remaining nodes.
         let mut new_nodes = Vec::with_capacity(num_new_kp * 2);
@@ -616,7 +616,7 @@ impl RatchetTree {
                 Node::new_leaf(Some((*add_proposal).clone())),
             ]);
             let node_index = NodeIndex::from(leaf_index);
-            added_members.push((node_index, add_proposal.get_credential().clone()));
+            added_members.push((node_index, add_proposal.credential().clone()));
             leaf_index += 2;
         }
         self.nodes.extend(new_nodes);

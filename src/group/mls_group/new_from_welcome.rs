@@ -43,7 +43,7 @@ impl MlsGroup {
         } else {
             return Err(WelcomeError::JoinerSecretNotFound);
         };
-        if ciphersuite_name != key_package.get_cipher_suite() {
+        if ciphersuite_name != key_package.cipher_suite() {
             return Err(WelcomeError::CiphersuiteMismatch);
         }
 
@@ -79,7 +79,7 @@ impl MlsGroup {
         let signer_key_package = signer_node.key_package.unwrap();
         let payload = group_info.unsigned_payload().unwrap();
         if !signer_key_package
-            .get_credential()
+            .credential()
             .verify(&payload, &group_info.signature)
         {
             return Err(WelcomeError::InvalidGroupInfoSignature);
