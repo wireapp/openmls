@@ -31,7 +31,7 @@ fn create_commit_optional_path() {
         Credential::from(MLSCredentialType::Basic(bob_credential)), // TODO: this consumes the credential!
         Vec::new(),
     );
-    let bob_key_package = bob_key_package_bundle.get_key_package();
+    let bob_key_package = bob_key_package_bundle.key_package();
 
     let alice_update_key_package_bundle = KeyPackageBundle::new(
         ciphersuite_name,
@@ -39,7 +39,7 @@ fn create_commit_optional_path() {
         Credential::from(MLSCredentialType::Basic(alice_credential)),
         Vec::new(),
     );
-    let alice_update_key_package = alice_update_key_package_bundle.get_key_package();
+    let alice_update_key_package = alice_update_key_package_bundle.key_package();
 
     // Alice creates a group
     let group_id = [1, 2, 3, 4];
@@ -129,7 +129,7 @@ fn basic_group_setup() {
         Credential::from(MLSCredentialType::Basic(bob_credential)), // TODO: this consumes the credential!
         Vec::new(),
     );
-    let bob_key_package = bob_key_package_bundle.get_key_package();
+    let bob_key_package = bob_key_package_bundle.key_package();
 
     let alice_key_package_bundle = KeyPackageBundle::new(
         ciphersuite_name,

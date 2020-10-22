@@ -304,17 +304,17 @@ impl KeyPackageBundle {
     }
 
     /// Get a reference to the `KeyPackage`.
-    pub fn get_key_package(&self) -> &KeyPackage {
+    pub fn key_package(&self) -> &KeyPackage {
         &self.key_package
     }
 
     /// Get a reference to the `KeyPackage`.
-    pub fn get_key_package_ref_mut(&mut self) -> &mut KeyPackage {
+    pub fn key_package_mut(&mut self) -> &mut KeyPackage {
         &mut self.key_package
     }
 
     /// Get a reference to the `HPKEPrivateKey`.
-    pub fn get_private_key(&self) -> &HPKEPrivateKey {
+    pub fn private_key(&self) -> &HPKEPrivateKey {
         &self.private_key
     }
 }

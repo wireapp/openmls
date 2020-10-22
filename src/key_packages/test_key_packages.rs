@@ -16,7 +16,7 @@ fn generate_key_package() {
         vec![],
     );
     // This is invalid because the lifetime extension is missing.
-    assert!(!kpb.get_key_package().verify());
+    assert!(!kpb.key_package().verify());
 
     // Now with a lifetime the key package should be valid.
     let lifetime_extension = Box::new(LifetimeExtension::new(60));
@@ -27,7 +27,7 @@ fn generate_key_package() {
         vec![lifetime_extension],
     );
     std::thread::sleep(std::time::Duration::from_secs(1));
-    assert!(kpb.get_key_package().verify());
+    assert!(kpb.key_package().verify());
 
     // Now we add an invalid lifetime.
     let lifetime_extension = Box::new(LifetimeExtension::new(0));
@@ -38,7 +38,7 @@ fn generate_key_package() {
         vec![lifetime_extension],
     );
     std::thread::sleep(std::time::Duration::from_secs(1));
-    assert!(!kpb.get_key_package().verify());
+    assert!(!kpb.key_package().verify());
 }
 
 #[test]
@@ -60,17 +60,17 @@ fn test_codec() {
     );
 
     // Encode and decode the key package.
-    let enc = kpb.get_key_package().encode_detached().unwrap();
+    let enc = kpb.key_package().encode_detached().unwrap();
 
     // Decoding fails because this is not a valid key package
     let kp = KeyPackage::decode(&mut Cursor::new(&enc));
     assert_eq!(kp.err(), Some(CodecError::DecodingError));
 
     // Add lifetime extension to make it valid.
-    let kp = kpb.get_key_package_ref_mut();
+    let kp = kpb.key_package_mut();
     kp.add_extension(Box::new(LifetimeExtension::new(60)));
     kp.sign(&ciphersuite, signature_keypair.get_private_key());
-    let enc = kpb.get_key_package().encode_detached().unwrap();
+    let enc = kpb.key_package().encode_detached().unwrap();
 
     // Now it's valid.
     let kp = KeyPackage::decode(&mut Cursor::new(&enc)).unwrap();
@@ -94,21 +94,21 @@ fn key_package_id_extension() {
         credential,
         vec![Box::new(LifetimeExtension::new(60))],
     );
-    assert!(kpb.get_key_package().verify());
+    assert!(kpb.key_package().verify());
 
     // Add an ID to the key package.
     let id = [1, 2, 3, 4];
-    kpb.get_key_package_ref_mut()
+    kpb.key_package_mut()
         .add_extension(Box::new(KeyIDExtension::new(&id)));
 
     // This is invalid now.
-    assert!(!kpb.get_key_package().verify());
+    assert!(!kpb.key_package().verify());
 
     // Sign it to make it valid.
-    kpb.get_key_package_ref_mut()
+    kpb.key_package_mut()
         .sign(&ciphersuite, signature_keypair.get_private_key());
-    assert!(kpb.get_key_package().verify());
+    assert!(kpb.key_package().verify());
 
     // Check ID
-    assert_eq!(&id[..], &kpb.get_key_package().get_id().unwrap()[..]);
+    assert_eq!(&id[..], &kpb.key_package().get_id().unwrap()[..]);
 }

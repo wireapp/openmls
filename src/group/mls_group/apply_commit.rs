@@ -85,13 +85,11 @@ impl MlsGroup {
             }
             if is_own_commit {
                 // Find the right KeyPackageBundle among the pending bundles
-                let own_kpb_index = match pending_kpbs
-                    .iter()
-                    .position(|kpb| kpb.get_key_package() == kp)
-                {
-                    Some(i) => i,
-                    None => return Err(ApplyCommitError::MissingOwnKeyPackage),
-                };
+                let own_kpb_index =
+                    match pending_kpbs.iter().position(|kpb| kpb.key_package() == kp) {
+                        Some(i) => i,
+                        None => return Err(ApplyCommitError::MissingOwnKeyPackage),
+                    };
                 let own_kpb = pending_kpbs.remove(own_kpb_index);
                 provisional_tree
                     .replace_private_tree(own_kpb, &self.group_context.serialize())

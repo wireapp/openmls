@@ -70,7 +70,7 @@ impl RatchetTree {
     pub(crate) fn new(ciphersuite_name: CiphersuiteName, kpb: KeyPackageBundle) -> RatchetTree {
         let nodes = vec![Node {
             node_type: NodeType::Leaf,
-            key_package: Some(kpb.get_key_package().clone()),
+            key_package: Some(kpb.key_package().clone()),
             node: None,
         }];
         let private_tree = PrivateTree::new(
@@ -112,7 +112,7 @@ impl RatchetTree {
         }
 
         // Find the own node in the list of nodes.
-        let own_node_index = find_kp_in_tree(kpb.get_key_package(), node_options)?;
+        let own_node_index = find_kp_in_tree(kpb.key_package(), node_options)?;
 
         // Build a full set of nodes for the tree based on the potentially incomplete
         // input nodes.
@@ -659,7 +659,7 @@ impl RatchetTree {
             if sender_index == self.get_own_node_index() {
                 let own_kpb_index = match updates_key_package_bundles
                     .iter()
-                    .position(|kpb| kpb.get_key_package() == &update_proposal.key_package)
+                    .position(|kpb| kpb.key_package() == &update_proposal.key_package)
                 {
                     Some(i) => i,
                     // We lost the KeyPackageBundle apparently
