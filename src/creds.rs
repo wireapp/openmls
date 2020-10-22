@@ -56,7 +56,7 @@ impl Identity {
         self.ciphersuite
             .verify(signature, self.keypair.get_public_key(), payload)
     }
-    pub fn get_signature_key_pair(&self) -> &SignatureKeypair {
+    pub fn key_pair(&self) -> &SignatureKeypair {
         &self.keypair
     }
 }

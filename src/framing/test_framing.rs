@@ -82,18 +82,12 @@ fn context_presence() {
     };
     let serialized_context = context.encode_detached().unwrap();
     let signature_input = MLSPlaintextTBS::new_from(&orig, Some(serialized_context.clone()));
-    orig.signature = signature_input.sign(
-        &ciphersuite,
-        identity.get_signature_key_pair().get_private_key(),
-    );
+    orig.signature = signature_input.sign(&ciphersuite, identity.key_pair().get_private_key());
     assert!(orig.verify(Some(serialized_context.clone()), &credential));
     assert!(!orig.verify(None, &credential));
 
     let signature_input = MLSPlaintextTBS::new_from(&orig, None);
-    orig.signature = signature_input.sign(
-        &ciphersuite,
-        identity.get_signature_key_pair().get_private_key(),
-    );
+    orig.signature = signature_input.sign(&ciphersuite, identity.key_pair().get_private_key());
     assert!(!orig.verify(Some(serialized_context), &credential));
     assert!(orig.verify(None, &credential));
 }

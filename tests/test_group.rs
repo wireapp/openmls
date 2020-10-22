@@ -20,14 +20,14 @@ fn create_commit_optional_path() {
     // Generate KeyPackages
     let alice_key_package_bundle = KeyPackageBundle::new(
         ciphersuite_name,
-        &alice_identity.get_signature_key_pair().get_private_key(), // TODO: bad API, we shouldn't have to get the private key out here (this function shouldn't exist!)
+        &alice_identity.key_pair().get_private_key(), // TODO: bad API, we shouldn't have to get the private key out here (this function shouldn't exist!)
         Credential::from(MLSCredentialType::Basic(alice_credential.clone())), // TODO: this consumes the credential!
         Vec::new(),
     );
 
     let bob_key_package_bundle = KeyPackageBundle::new(
         ciphersuite_name,
-        &bob_identity.get_signature_key_pair().get_private_key(), // TODO: bad API, we shouldn't have to get the private key out here (this function shouldn't exist!)
+        &bob_identity.key_pair().get_private_key(), // TODO: bad API, we shouldn't have to get the private key out here (this function shouldn't exist!)
         Credential::from(MLSCredentialType::Basic(bob_credential)), // TODO: this consumes the credential!
         Vec::new(),
     );
@@ -35,7 +35,7 @@ fn create_commit_optional_path() {
 
     let alice_update_key_package_bundle = KeyPackageBundle::new(
         ciphersuite_name,
-        &alice_identity.get_signature_key_pair().get_private_key(), // TODO: bad API, we shouldn't have to get the private key out here (this function shouldn't exist!)
+        &alice_identity.key_pair().get_private_key(), // TODO: bad API, we shouldn't have to get the private key out here (this function shouldn't exist!)
         Credential::from(MLSCredentialType::Basic(alice_credential)),
         Vec::new(),
     );
@@ -48,21 +48,21 @@ fn create_commit_optional_path() {
     // Alice adds Bob
     let bob_add_proposal = group_alice_1234.create_add_proposal(
         group_aad,
-        &alice_identity.get_signature_key_pair().get_private_key(),
+        &alice_identity.key_pair().get_private_key(),
         bob_key_package.clone(),
     );
 
     // Alice updates
     let alice_update_proposal = group_alice_1234.create_update_proposal(
         group_aad,
-        &alice_identity.get_signature_key_pair().get_private_key(),
+        &alice_identity.key_pair().get_private_key(),
         alice_update_key_package.clone(),
     );
 
     // Only AddProposals
     let (commit_mls_plaintext, _welcome_option) = match group_alice_1234.create_commit(
         group_aad,
-        &alice_identity.get_signature_key_pair().get_private_key(),
+        &alice_identity.key_pair().get_private_key(),
         vec![bob_add_proposal.clone()],
         false,
     ) {
@@ -78,7 +78,7 @@ fn create_commit_optional_path() {
     // Only AddProposals with forced self update
     let (commit_mls_plaintext, _welcome_option) = match group_alice_1234.create_commit(
         group_aad,
-        &alice_identity.get_signature_key_pair().get_private_key(),
+        &alice_identity.key_pair().get_private_key(),
         vec![bob_add_proposal],
         true,
     ) {
@@ -95,7 +95,7 @@ fn create_commit_optional_path() {
     // Own UpdateProposal
     let (commit_mls_plaintext, _welcome_option) = match group_alice_1234.create_commit(
         group_aad,
-        &alice_identity.get_signature_key_pair().get_private_key(),
+        &alice_identity.key_pair().get_private_key(),
         vec![alice_update_proposal],
         true,
     ) {
@@ -125,7 +125,7 @@ fn basic_group_setup() {
     // Generate KeyPackages
     let bob_key_package_bundle = KeyPackageBundle::new(
         ciphersuite_name,
-        &bob_identity.get_signature_key_pair().get_private_key(), // TODO: bad API, we shouldn't have to get the private key out here (this function shouldn't exist!)
+        &bob_identity.key_pair().get_private_key(), // TODO: bad API, we shouldn't have to get the private key out here (this function shouldn't exist!)
         Credential::from(MLSCredentialType::Basic(bob_credential)), // TODO: this consumes the credential!
         Vec::new(),
     );
@@ -133,7 +133,7 @@ fn basic_group_setup() {
 
     let alice_key_package_bundle = KeyPackageBundle::new(
         ciphersuite_name,
-        &alice_identity.get_signature_key_pair().get_private_key(), // TODO: bad API, we shouldn't have to get the private key out here (this function shouldn't exist!)
+        &alice_identity.key_pair().get_private_key(), // TODO: bad API, we shouldn't have to get the private key out here (this function shouldn't exist!)
         Credential::from(MLSCredentialType::Basic(alice_credential)),
         Vec::new(),
     );
@@ -145,12 +145,12 @@ fn basic_group_setup() {
     // Alice adds Bob
     let bob_add_proposal = group_alice_1234.create_add_proposal(
         group_aad,
-        &alice_identity.get_signature_key_pair().get_private_key(),
+        &alice_identity.key_pair().get_private_key(),
         bob_key_package.clone(),
     );
     let _commit = match group_alice_1234.create_commit(
         group_aad,
-        &alice_identity.get_signature_key_pair().get_private_key(),
+        &alice_identity.key_pair().get_private_key(),
         vec![bob_add_proposal],
         true,
     ) {
