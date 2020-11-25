@@ -208,21 +208,6 @@ impl Signable for GroupInfo {
     }
 }
 
-pub struct PathSecret {
-    pub path_secret: Secret,
-}
-
-impl Codec for PathSecret {
-    fn encode(&self, buffer: &mut Vec<u8>) -> Result<(), CodecError> {
-        self.path_secret.encode(buffer)?;
-        Ok(())
-    }
-    fn decode(cursor: &mut Cursor) -> Result<Self, CodecError> {
-        let path_secret = Secret::decode(cursor)?;
-        Ok(PathSecret { path_secret })
-    }
-}
-
 pub struct GroupSecrets {
     pub joiner_secret: JoinerSecret,
     pub path_secret: Option<PathSecret>,

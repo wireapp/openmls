@@ -1,7 +1,5 @@
 use log::error;
 
-use evercrypt::rand_util::*;
-
 use crate::ciphersuite::*;
 use crate::codec::*;
 use crate::config::{Config, ProtocolVersion};
@@ -10,6 +8,8 @@ use crate::extensions::{
     CapabilitiesExtension, Extension, ExtensionStruct, ExtensionType, LifetimeExtension,
     ParentHashExtension,
 };
+use crate::tree::private_tree::LeafSecret;
+use crate::tree::private_tree::PathSecret;
 
 mod codec;
 pub mod errors;
@@ -213,16 +213,19 @@ impl KeyPackage {
 }
 
 #[derive(Debug)]
+/// The `KeyPackageBundle` contains the private key material corresponding to
+/// the `KeyPackage` it contains. After placing it in a `PrivateTree`, the
+/// `PathSecret` is removed to achieve forward secrecy.
 pub struct KeyPackageBundle {
     pub(crate) key_package: KeyPackage,
-    pub(crate) private_key: HPKEPrivateKey,
-    pub(crate) leaf_secret: Secret,
+    private_key: HPKEPrivateKey,
+    leaf_path_secret: Option<PathSecret>,
 }
 
 /// Public `KeyPackageBundle` functions.
 impl KeyPackageBundle {
     /// Create a new `KeyPackageBundle` with a fresh `HPKEKeyPair`.
-    /// See `new_with_keypair` for details.
+    /// See `new_from_leaf_secret` for details.
     ///
     /// Returns a new `KeyPackageBundle`.
     pub fn new(
@@ -232,12 +235,12 @@ impl KeyPackageBundle {
     ) -> Result<Self, KeyPackageError> {
         debug_assert!(!ciphersuites.is_empty());
         let ciphersuite = Config::ciphersuite(ciphersuites[0]).unwrap();
-        let leaf_secret = Secret::from(get_random_vec(ciphersuite.hash_length()));
+        let leaf_secret = LeafSecret::random(ciphersuite.hash_length());
         Self::new_from_leaf_secret(ciphersuites, credential_bundle, extensions, leaf_secret)
     }
 
     /// Create a new `KeyPackageBundle` for the given `ciphersuite`, `identity`,
-    /// and `extensions`, using the given HPKE `key_pair`.
+    /// and `extensions`, using the given `LeafSecret`.
     ///
     /// Note that the capabilities extension gets added automatically, based on
     /// the configuration. The ciphersuite for this key package bundle is the
@@ -249,12 +252,11 @@ impl KeyPackageBundle {
     /// extensions of the same type.
     ///
     /// Returns a new `KeyPackageBundle`.
-    pub fn new_with_keypair(
+    pub fn new_from_leaf_secret(
         ciphersuites: &[CiphersuiteName],
         credential_bundle: &CredentialBundle,
         mut extensions: Vec<Box<dyn Extension>>,
-        key_pair: HPKEKeyPair,
-        leaf_secret: Secret,
+        leaf_secret: LeafSecret,
     ) -> Result<Self, KeyPackageError> {
         if ciphersuites.is_empty() {
             let error = KeyPackageError::NoCiphersuitesSupplied;
@@ -317,13 +319,15 @@ impl KeyPackageBundle {
         {
             extensions.push(Box::new(LifetimeExtension::default()));
         }
+        let ciphersuite = Config::ciphersuite(ciphersuites[0])?;
+        let (key_pair, path_secret) = leaf_secret.to_key_pair_and_path_secret(ciphersuite);
         let (private_key, public_key) = key_pair.into_keys();
         let key_package =
             KeyPackage::new(ciphersuites[0], public_key, credential_bundle, extensions)?;
         Ok(KeyPackageBundle {
             key_package,
             private_key,
-            leaf_secret,
+            leaf_path_secret: Some(path_secret),
         })
     }
 
@@ -333,68 +337,26 @@ impl KeyPackageBundle {
     }
 }
 
-/// Private `KeyPackageBundle` functions.
-impl KeyPackageBundle {
-    fn new_from_leaf_secret(
-        ciphersuites: &[CiphersuiteName],
-        credential_bundle: &CredentialBundle,
-        extensions: Vec<Box<dyn Extension>>,
-        leaf_secret: Secret,
-    ) -> Result<Self, KeyPackageError> {
-        if ciphersuites.is_empty() {
-            let error = KeyPackageError::NoCiphersuitesSupplied;
-            error!(
-                "Error creating new KeyPackageBundle: No Ciphersuites specified {:?}",
-                error
-            );
-            return Err(error);
-        }
-
-        let ciphersuite = Config::ciphersuite(ciphersuites[0]).unwrap();
-        let leaf_node_secret = Self::derive_leaf_node_secret(ciphersuite, &leaf_secret);
-        let keypair = ciphersuite.derive_hpke_keypair(&leaf_node_secret);
-        Self::new_with_keypair(
-            ciphersuites,
-            credential_bundle,
-            extensions,
-            keypair,
-            leaf_secret,
-        )
-    }
-
-    /// Assembles a new KeyPackageBundle from a KeyPackage, a HPKEPrivateKey,
-    /// and a leaf secret
-    fn new_from_values(
-        key_package: KeyPackage,
-        private_key: HPKEPrivateKey,
-        leaf_secret: Secret,
-    ) -> Self {
-        Self {
-            key_package,
-            private_key,
-            leaf_secret,
-        }
-    }
-}
-
 /// Crate visible `KeyPackageBundle` functions.
 impl KeyPackageBundle {
     /// Replace the init key in the `KeyPackage` with a random one and return a
     /// `KeyPackageBundle` with the corresponding secret values
     pub(crate) fn from_rekeyed_key_package(
         ciphersuite: &Ciphersuite,
-        key_package: &KeyPackage,
+        key_package: KeyPackage,
     ) -> Self {
-        let leaf_secret = Secret::from(get_random_vec(ciphersuite.hash_length()));
-        let leaf_node_secret = Self::derive_leaf_node_secret(ciphersuite, &leaf_secret);
-        let (private_key, public_key) = ciphersuite
-            .derive_hpke_keypair(&leaf_node_secret)
-            .into_keys();
+        let leaf_secret = LeafSecret::random(ciphersuite.hash_length());
+        let (key_pair, leaf_path_secret) = leaf_secret.to_key_pair_and_path_secret(ciphersuite);
+        let (private_key, public_key) = key_pair.into_keys();
 
         // Generate new keypair and replace it in current KeyPackage
-        let mut new_key_package = key_package.clone();
+        let mut new_key_package = key_package;
         new_key_package.set_hpke_init_key(public_key);
-        KeyPackageBundle::new_from_values(new_key_package, private_key, leaf_secret)
+        KeyPackageBundle {
+            key_package: new_key_package,
+            private_key,
+            leaf_path_secret: Some(leaf_path_secret),
+        }
     }
 
     /// Update the private key in the bundle.
@@ -413,13 +375,13 @@ impl KeyPackageBundle {
     }
 
     /// Get a reference to the `HPKEPrivateKey`.
-    pub(crate) fn get_private_key_ref(&self) -> &HPKEPrivateKey {
+    pub(crate) fn private_key(&self) -> &HPKEPrivateKey {
         &self.private_key
     }
 
     /// Get a reference to the `leaf_secret`.
-    pub(crate) fn leaf_secret(&self) -> &Secret {
-        &self.leaf_secret
+    pub(crate) fn consume_leaf_path_secret(&self) -> PathSecret {
+        self.leaf_path_secret.expect("Library error: Attempting to take a path secret from a `KeyPackageBundle` that was already taken.")
     }
 
     /// This function derives the leaf_node_secret from the leaf_secret as

@@ -36,7 +36,7 @@ impl MlsGroup {
         let (mut group_info, member_secret, path_secret_option) = Self::decrypt_group_info(
             &ciphersuite,
             &egs,
-            key_package_bundle.get_private_key_ref(),
+            key_package_bundle.private_key(),
             welcome.get_encrypted_group_info_ref(),
         )?;
 
