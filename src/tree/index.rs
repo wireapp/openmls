@@ -43,6 +43,26 @@ impl Index<NodeIndex> for Vec<Node> {
     }
 }
 
+impl Index<&NodeIndex> for Vec<Node> {
+    type Output = Node;
+
+    fn index(&self, node_index: &NodeIndex) -> &Self::Output {
+        &self[node_index.as_usize()]
+    }
+}
+
+impl IndexMut<NodeIndex> for Vec<Node> {
+    fn index_mut(&mut self, node_index: NodeIndex) -> &mut Self::Output {
+        &mut self[node_index.as_usize()]
+    }
+}
+
+impl IndexMut<&NodeIndex> for Vec<Node> {
+    fn index_mut(&mut self, node_index: &NodeIndex) -> &mut Self::Output {
+        &mut self[node_index.as_usize()]
+    }
+}
+
 #[derive(Debug, Ord, PartialOrd, Eq, PartialEq, Copy, Clone)]
 pub struct LeafIndex(u32);
 
@@ -99,7 +119,7 @@ impl Index<LeafIndex> for Vec<Node> {
 
 impl IndexMut<LeafIndex> for Vec<Node> {
     fn index_mut(&mut self, leaf_index: LeafIndex) -> &mut Self::Output {
-        &mut self[NodeIndex::from(leaf_index).as_usize()]
+        &mut self[NodeIndex::from(leaf_index)]
     }
 }
 
