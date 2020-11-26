@@ -679,7 +679,7 @@ impl RatchetTree {
                     None => return Err(TreeError::InvalidArguments),
                 };
                 // Update the private tree with new values
-                self.private_tree = PrivateTree::from_key_package_bundle(sender_index, &own_kpb);
+                self.private_tree = PrivateTree::from_key_package_bundle(sender_index, own_kpb);
             }
         }
         for queued_proposal in proposal_queue

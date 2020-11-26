@@ -57,12 +57,18 @@ impl PrivateTree {
         let leaf_node_secret = KeyPackageBundle::derive_leaf_node_secret(ciphersuite, &leaf_secret);
         let keypair = ciphersuite.derive_hpke_keypair(&leaf_node_secret);
         let (private_key, _) = keypair.into_keys();
-
+        let commit_secret = hkdf_expand_label(
+            ciphersuite,
+            leaf_secret,
+            "path",
+            &[],
+            ciphersuite.hash_length(),
+        );
         Self {
             node_index,
             hpke_private_key: Some(private_key),
             path_keys: PathKeys::default(),
-            commit_secret: Secret::new_empty_secret(),
+            commit_secret,
             path_secrets: Vec::default(),
         }
     }
