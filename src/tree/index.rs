@@ -35,6 +35,14 @@ impl From<LeafIndex> for NodeIndex {
     }
 }
 
+impl Index<NodeIndex> for Vec<Node> {
+    type Output = Node;
+
+    fn index(&self, node_index: NodeIndex) -> &Self::Output {
+        &self[node_index.as_usize()]
+    }
+}
+
 #[derive(Debug, Ord, PartialOrd, Eq, PartialEq, Copy, Clone)]
 pub struct LeafIndex(u32);
 
@@ -85,7 +93,7 @@ impl Index<LeafIndex> for Vec<Node> {
     /// same leaf, but in the array representing the tree as opposed to the one
     /// only containing the leaves.
     fn index(&self, leaf_index: LeafIndex) -> &Self::Output {
-        &self[NodeIndex::from(leaf_index).as_usize()]
+        &self[NodeIndex::from(leaf_index)]
     }
 }
 
