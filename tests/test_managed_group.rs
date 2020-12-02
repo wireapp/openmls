@@ -144,6 +144,8 @@ fn error_occured(managed_group: &ManagedGroup, error: ManagedGroupError) {
 ///  - Bob leaves
 #[test]
 fn managed_group_operations() {
+    pretty_env_logger::init();
+
     for ciphersuite in Config::supported_ciphersuites() {
         let group_id = GroupId::from_slice(b"Test Group");
 
