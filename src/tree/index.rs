@@ -1,8 +1,8 @@
-use std::ops::{Index, IndexMut};
+use serde::{Deserialize, Serialize};
+use std::ops::Index;
+use std::ops::IndexMut;
 
 use crate::codec::*;
-
-use super::*;
 
 #[derive(
     Debug, Ord, PartialOrd, Eq, PartialEq, Copy, Clone, Hash, Default, Serialize, Deserialize,
@@ -36,8 +36,50 @@ impl From<LeafIndex> for NodeIndex {
     }
 }
 
+impl From<&LeafIndex> for NodeIndex {
+    fn from(node_index: &LeafIndex) -> NodeIndex {
+        NodeIndex(node_index.as_u32() * 2)
+    }
+}
+
+impl<T> Index<NodeIndex> for Vec<T> {
+    type Output = T;
+
+    fn index(&self, node_index: NodeIndex) -> &Self::Output {
+        &self[node_index.as_usize()]
+    }
+}
+
+impl<T> IndexMut<NodeIndex> for Vec<T> {
+    fn index_mut(&mut self, node_index: NodeIndex) -> &mut Self::Output {
+        &mut self[node_index.as_usize()]
+    }
+}
+
+impl<T> Index<&NodeIndex> for Vec<T> {
+    type Output = T;
+
+    fn index(&self, node_index: &NodeIndex) -> &Self::Output {
+        &self[node_index.as_usize()]
+    }
+}
+
+impl<T> IndexMut<&NodeIndex> for Vec<T> {
+    fn index_mut(&mut self, node_index: &NodeIndex) -> &mut Self::Output {
+        &mut self[node_index.as_usize()]
+    }
+}
+
+impl NodeIndex {
+    /// Returns `true` if the `NodeIndex` corresponds to a leaf and `false`
+    /// otherwise.
+    pub(crate) fn is_leaf(&self) -> bool {
+        self.as_usize() % 2 == 0
+    }
+}
+
 #[derive(
-    Debug, Default, Ord, PartialOrd, Hash, Eq, PartialEq, Copy, Clone, Serialize, Deserialize,
+    Debug, Ord, PartialOrd, Eq, PartialEq, Hash, Copy, Clone, Default, Serialize, Deserialize,
 )]
 pub struct LeafIndex(u32);
 
@@ -80,21 +122,21 @@ impl From<NodeIndex> for LeafIndex {
     }
 }
 
-impl Index<LeafIndex> for Vec<Node> {
-    type Output = Node;
+impl<T> Index<LeafIndex> for Vec<T> {
+    type Output = T;
 
     /// This converts a `LeafIndex`, which points to a particular leaf in the
     /// vector of leaves in a tree, to a `NodeIndex`, i.e. it makes it point the
     /// same leaf, but in the array representing the tree as opposed to the one
     /// only containing the leaves.
     fn index(&self, leaf_index: LeafIndex) -> &Self::Output {
-        &self[NodeIndex::from(leaf_index).as_usize()]
+        &self[NodeIndex::from(leaf_index)]
     }
 }
 
-impl IndexMut<LeafIndex> for Vec<Node> {
+impl<T> IndexMut<LeafIndex> for Vec<T> {
     fn index_mut(&mut self, leaf_index: LeafIndex) -> &mut Self::Output {
-        &mut self[NodeIndex::from(leaf_index).as_usize()]
+        &mut self[NodeIndex::from(leaf_index)]
     }
 }
 
@@ -102,4 +144,24 @@ impl Codec for LeafIndex {
     fn encode(&self, buffer: &mut Vec<u8>) -> Result<(), CodecError> {
         self.0.encode(buffer)
     }
+}
+
+#[test]
+fn test_indices() {
+    let mut vector = vec![1, 2, 3];
+    let index = NodeIndex::from(0u32);
+    assert_eq!(vector[index], 1);
+    assert_eq!(vector[&index], 1);
+
+    vector[index] = 2;
+    assert_eq!(vector[index], 2);
+
+    vector[&index] = 2;
+    assert_eq!(vector[&index], 2);
+
+    let leaf_index = LeafIndex::from(1u32);
+    assert_eq!(vector[leaf_index], 3);
+
+    vector[leaf_index] = 4;
+    assert_eq!(vector[leaf_index], 4);
 }
