@@ -91,7 +91,6 @@ impl<T: PartialEq> BinaryTree<T> {
     }
 
     pub(crate) fn sibling(&self, index: NodeIndex) -> Result<NodeIndex, BinaryTreeError> {
-        let size = self.leaf_count();
         let p = self.parent(index)?;
         match index.cmp(&p) {
             Ordering::Less => self.right(p),
@@ -103,7 +102,6 @@ impl<T: PartialEq> BinaryTree<T> {
     // Ordered from leaf to root
     // Includes neither leaf nor root
     pub(crate) fn dirpath(&self, index: NodeIndex) -> Result<Vec<NodeIndex>, BinaryTreeError> {
-        let size = self.leaf_count();
         let r = self.root();
         if index == r {
             return Ok(vec![]);
