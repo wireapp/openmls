@@ -1,6 +1,8 @@
 use crate::ciphersuite::CryptoError;
 use crate::config::ConfigError;
 
+use super::binary_tree::errors::BinaryTreeError;
+
 implement_error! {
     pub enum TreeError {
         Simple {
@@ -13,6 +15,17 @@ implement_error! {
                 "See [`ConfigError`](`crate::config::ConfigError`) for details.",
             PathSecretDecryptionError(CryptoError) =
                 "Error while decrypting `PathSecret`.",
+            InvalidTreeOperation(BinaryTreeError) =
+                "Error while performing an operation on the public tree.",
         }
+    }
+}
+
+implement_error! {
+    pub enum NodeError {
+        Simple {
+            InvalidNodeType = "Invalid node type.",
+        }
+        Complex {}
     }
 }

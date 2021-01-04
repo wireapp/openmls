@@ -22,117 +22,91 @@ impl From<u8> for NodeType {
     }
 }
 
-#[derive(Debug, PartialEq, Clone, Serialize, Deserialize)]
-pub struct Node {
-    pub node_type: NodeType,
-    // The node only holds public values.
-    // The private HPKE keys are stored in the `PrivateTree`.
-    pub(crate) key_package: Option<KeyPackage>,
-    pub(crate) node: Option<ParentNode>,
+#[derive(Debug, PartialEq, Clone)]
+pub(crate) enum NodeContent {
+    Leaf(KeyPackage),
+    Parent(ParentNode),
+}
+
+#[derive(PartialEq, Clone, Debug, Serialize, Deserialize)]
+pub struct ParentNode {
+    public_key: HPKEPublicKey,
+    unmerged_leaves: Vec<u32>,
+    parent_hash: Vec<u8>,
+}
+
+#[derive(PartialEq, Clone, Debug, Serialize, Deserialize)]
+pub enum Node {
+    Leaf(KeyPackage),
+    Parent(ParentNode),
 }
 
 impl Node {
-    pub fn new_leaf(kp_option: Option<KeyPackage>) -> Self {
-        Node {
-            node_type: NodeType::Leaf,
-            key_package: kp_option,
-            node: None,
+    pub fn public_key(&self) -> Option<&HPKEPublicKey> {
+        match self {
+            Node::Leaf(key_package) => Some(key_package.hpke_init_key()),
+            Node::Parent(parent_node) => Some(&parent_node.public_key()),
         }
     }
-    pub fn new_blank_parent_node() -> Self {
-        Node {
-            node_type: NodeType::Parent,
-            key_package: None,
-            node: None,
-        }
-    }
-    pub fn public_hpke_key(&self) -> Option<&HPKEPublicKey> {
-        match self.node_type {
-            NodeType::Leaf => {
-                if let Some(ref kp) = self.key_package {
-                    Some(kp.hpke_init_key())
-                } else {
-                    None
-                }
-            }
-            NodeType::Parent => {
-                if let Some(ref parent_node) = self.node {
-                    Some(&parent_node.public_key)
-                } else {
-                    None
-                }
-            }
-            NodeType::Default => None,
-        }
-    }
-    pub fn blank(&mut self) {
-        self.key_package = None;
-        self.node = None;
-    }
-    pub fn is_blank(&self) -> bool {
-        self.key_package.is_none() && self.node.is_none()
-    }
+
     pub fn hash(&self, ciphersuite: &Ciphersuite) -> Option<Vec<u8>> {
-        if let Some(parent_node) = &self.node {
-            let payload = parent_node.encode_detached().unwrap();
-            let node_hash = ciphersuite.hash(&payload);
-            Some(node_hash)
-        } else {
-            None
+        match self {
+            Node::Parent(parent_node) => {
+                let payload = parent_node.encode_detached().unwrap();
+                let node_hash = ciphersuite.hash(&payload);
+                Some(node_hash)
+            }
+            Node::Leaf(_) => None,
         }
     }
 
     // TODO: #98 should this really return a vec?
     pub fn parent_hash(&self) -> Option<Vec<u8>> {
-        if self.is_blank() {
-            return None;
-        }
-        match self.node_type {
-            NodeType::Parent => {
-                if let Some(node) = &self.node {
-                    Some(node.parent_hash.clone())
-                } else {
-                    None
-                }
-            }
-            NodeType::Leaf => {
-                if let Some(key_package) = &self.key_package {
-                    let parent_hash_extension =
-                        key_package.extension_with_type(ExtensionType::ParentHash);
-                    match parent_hash_extension {
-                        Some(phe) => {
-                            let phe = match phe.to_parent_hash_extension() {
-                                Ok(phe) => phe,
-                                Err(_) => return None,
-                            };
-                            Some(phe.parent_hash().to_vec())
-                        }
-                        None => None,
+        match self {
+            Node::Parent(parent_node) => Some(parent_node.parent_hash.clone()),
+            Node::Leaf(key_package) => {
+                let parent_hash_extension =
+                    key_package.extension_with_type(ExtensionType::ParentHash);
+                match parent_hash_extension {
+                    Some(phe) => {
+                        let phe = match phe.to_parent_hash_extension() {
+                            Ok(phe) => phe,
+                            Err(_) => return None,
+                        };
+                        Some(phe.parent_hash().to_vec())
                     }
-                } else {
-                    None
+                    None => None,
                 }
             }
-            _ => None,
         }
     }
 
-    /// Get a reference to the key package in this node.
-    pub fn key_package(&self) -> Option<&KeyPackage> {
-        self.key_package.as_ref()
+    /// Obtain a `KeyPackage` from a `Node`. Returns a `NodeError` if the given
+    /// node is a `ParentNode`.
+    pub(crate) fn as_leaf_node(&self) -> Result<&KeyPackage, NodeError> {
+        match self {
+            Node::Leaf(key_package) => Ok(key_package),
+            Node::Parent(_) => Err(NodeError::InvalidNodeType),
+        }
     }
 
-    /// Get a mutable reference to the key package in this node.
-    pub(crate) fn key_package_mut(&mut self) -> Option<&mut KeyPackage> {
-        self.key_package.as_mut()
+    /// Obtain a `KeyPackage` from a `Node`. Returns a `NodeError` if the given
+    /// node is a `ParentNode`.
+    pub(crate) fn as_leaf_node_mut(&mut self) -> Result<&mut KeyPackage, NodeError> {
+        match self {
+            Node::Leaf(key_package) => Ok(key_package),
+            Node::Parent(_) => Err(NodeError::InvalidNodeType),
+        }
     }
-}
 
-#[derive(Debug, PartialEq, Clone, Serialize, Deserialize)]
-pub struct ParentNode {
-    public_key: HPKEPublicKey,
-    unmerged_leaves: Vec<u32>,
-    parent_hash: Vec<u8>,
+    /// Obtain a `ParentNode` from a `Node`. Returns a `NodeError` if the given
+    /// node is a `Leaf`.
+    pub(crate) fn as_parent_node(&self) -> Result<&ParentNode, NodeError> {
+        match self {
+            Node::Leaf(_) => Err(NodeError::InvalidNodeType),
+            Node::Parent(parent_node) => Ok(parent_node),
+        }
+    }
 }
 
 impl ParentNode {

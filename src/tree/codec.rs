@@ -12,20 +12,32 @@ impl Codec for NodeType {
 
 impl Codec for Node {
     fn encode(&self, buffer: &mut Vec<u8>) -> Result<(), CodecError> {
-        self.node_type.encode(buffer)?;
-        self.key_package.encode(buffer)?;
-        self.node.encode(buffer)?;
+        match self {
+            Node::Leaf(kp) => {
+                NodeType::Leaf.encode(buffer)?;
+                kp.encode(buffer)?;
+            }
+            Node::Parent(parent) => {
+                NodeType::Parent.encode(buffer)?;
+                parent.encode(buffer)?;
+            }
+        };
         Ok(())
     }
     fn decode(cursor: &mut Cursor) -> Result<Self, CodecError> {
         let node_type = NodeType::decode(cursor)?;
-        let key_package = Option::<KeyPackage>::decode(cursor)?;
-        let node = Option::<ParentNode>::decode(cursor)?;
-        Ok(Node {
-            node_type,
-            key_package,
-            node,
-        })
+        let node = match node_type {
+            NodeType::Leaf => {
+                let key_package = KeyPackage::decode(cursor)?;
+                Node::Leaf(key_package)
+            }
+            NodeType::Parent => {
+                let parent_node = ParentNode::decode(cursor)?;
+                Node::Parent(parent_node)
+            }
+            NodeType::Default => return Err(CodecError::DecodingError),
+        };
+        Ok(node)
     }
 }
 
