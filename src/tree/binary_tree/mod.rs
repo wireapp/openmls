@@ -2,6 +2,8 @@ use std::cmp::Ordering;
 
 use crate::{prelude::LeafIndex, tree::index::NodeIndex};
 
+pub(crate) use serde::{Deserialize, Serialize};
+
 use self::errors::BinaryTreeError;
 use self::utils::*;
 
@@ -13,18 +15,18 @@ pub(crate) mod utils;
 /// A binary tree in the array (vector) representation used in the MLS spec.
 /// Note, that this is not a full implementation of a binary tree, but rather
 /// only enables the operations needed by MLS.
-#[derive(Debug, Clone)]
-pub struct BinaryTree<T> {
+#[derive(Clone, PartialEq, Debug, Serialize, Deserialize)]
+pub struct BinaryTree<T: PartialEq> {
     nodes: Vec<T>,
 }
 
-impl<T> From<Vec<T>> for BinaryTree<T> {
+impl<T: PartialEq> From<Vec<T>> for BinaryTree<T> {
     fn from(nodes: Vec<T>) -> Self {
         BinaryTree { nodes }
     }
 }
 
-impl<T> BinaryTree<T> {
+impl<T: PartialEq> BinaryTree<T> {
     /// Get the size of the tree.
     pub(crate) fn size(&self) -> NodeIndex {
         NodeIndex::from(self.nodes.len())
