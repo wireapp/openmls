@@ -26,6 +26,7 @@ use node::*;
 use private_tree::{PathSecrets, PrivateTree};
 pub use secret_tree::SecretTypeError;
 
+use self::blanked_tree::*;
 use self::private_tree::CommitSecret;
 pub(crate) use serde::{
     de::{self, MapAccess, SeqAccess, Visitor},
@@ -60,28 +61,25 @@ pub struct RatchetTree {
     /// All nodes in the tree.
     /// Note that these only hold public values.
     /// Private values are stored in the `private_tree`.
-    pub nodes: Vec<Node>,
+    pub public_tree: BlankedTree<Node>,
 
     /// This holds all private values in the tree.
     /// See `PrivateTree` for details.
     private_tree: PrivateTree,
 }
 
-implement_persistence!(RatchetTree, nodes, private_tree);
+implement_persistence!(RatchetTree, public_tree, private_tree);
 
 impl RatchetTree {
     /// Create a new empty `RatchetTree`.
     pub(crate) fn new(ciphersuite: &'static Ciphersuite, kpb: KeyPackageBundle) -> RatchetTree {
-        let nodes = vec![Node {
-            node_type: NodeType::Leaf,
-            key_package: Some(kpb.key_package().clone()),
-            node: None,
-        }];
+        let nodes = vec![Some(Node::Leaf(kpb.key_package().clone()))];
         let private_tree = PrivateTree::from_key_package_bundle(NodeIndex::from(0u32), &kpb);
+        let public_tree = BlankedTree::from(nodes);
 
         RatchetTree {
             ciphersuite,
-            nodes,
+            public_tree,
             private_tree,
         }
     }
@@ -91,7 +89,7 @@ impl RatchetTree {
     pub(crate) fn new_from_public_tree(ratchet_tree: &RatchetTree) -> Self {
         RatchetTree {
             ciphersuite: ratchet_tree.ciphersuite,
-            nodes: ratchet_tree.nodes.clone(),
+            public_tree: ratchet_tree.public_tree.clone(),
             private_tree: PrivateTree::new(ratchet_tree.private_tree.node_index()),
         }
     }
@@ -109,7 +107,7 @@ impl RatchetTree {
         ) -> Result<NodeIndex, TreeError> {
             for (i, node_option) in nodes.iter().enumerate() {
                 if let Some(node) = node_option {
-                    if let Some(kp) = &node.key_package {
+                    if let Node::Leaf(kp) = &node {
                         if kp == key_package {
                             return Ok(NodeIndex::from(i));
                         }
@@ -122,18 +120,8 @@ impl RatchetTree {
         // Find the own node in the list of nodes.
         let own_node_index = find_kp_in_tree(kpb.key_package(), node_options)?;
 
-        // Build a full set of nodes for the tree based on the potentially incomplete
-        // input nodes.
-        let mut nodes = Vec::with_capacity(node_options.len());
-        for (i, node_option) in node_options.iter().enumerate() {
-            if let Some(node) = node_option.clone() {
-                nodes.push(node);
-            } else if i % 2 == 0 {
-                nodes.push(Node::new_leaf(None));
-            } else {
-                nodes.push(Node::new_blank_parent_node());
-            }
-        }
+        // Create a blanked tree from the input nodes.
+        let public_tree = BlankedTree::from(node_options.to_vec());
 
         // Build private tree
         let private_tree = PrivateTree::from_key_package_bundle(own_node_index, &kpb);
@@ -141,7 +129,7 @@ impl RatchetTree {
         // Build tree.
         Ok(RatchetTree {
             ciphersuite,
-            nodes,
+            public_tree,
             private_tree,
         })
     }
@@ -157,73 +145,45 @@ impl RatchetTree {
     }
 
     fn tree_size(&self) -> NodeIndex {
-        NodeIndex::from(self.nodes.len())
+        NodeIndex::from(self.public_tree.size())
     }
 
     /// Get a vector with all nodes in the tree, containing `None` for blank
     /// nodes.
-    pub fn public_key_tree(&self) -> Vec<Option<&Node>> {
-        let mut tree = vec![];
-        for node in self.nodes.iter() {
-            if node.is_blank() {
-                tree.push(None)
-            } else {
-                tree.push(Some(node))
-            }
-        }
-        tree
+    pub fn public_key_tree(&self) -> &Vec<Option<Node>> {
+        self.public_tree.nodes()
     }
 
     /// Get a vector with a copy of all nodes in the tree, containing `None` for
     /// blank nodes.
     pub fn public_key_tree_copy(&self) -> Vec<Option<Node>> {
-        self.public_key_tree()
-            .iter()
-            .map(|&n| match n {
-                Some(v) => Some(v.clone()),
-                None => None,
-            })
-            .collect()
+        self.public_key_tree().clone()
     }
 
     pub fn leaf_count(&self) -> LeafIndex {
         self.tree_size().into()
     }
 
-    fn resolve(&self, index: NodeIndex, exclusion_list: &HashSet<&NodeIndex>) -> Vec<NodeIndex> {
-        let size = self.leaf_count();
-
-        if self.nodes[index.as_usize()].node_type == NodeType::Leaf {
-            if self.nodes[index.as_usize()].is_blank() || exclusion_list.contains(&index) {
-                return vec![];
-            } else {
-                return vec![index];
+    fn resolve(
+        &self,
+        index: NodeIndex,
+        exclusion_list: &HashSet<&NodeIndex>,
+    ) -> Result<Vec<NodeIndex>, TreeError> {
+        let predicate = |i, node: &Node| match node {
+            Node::Leaf(_) => vec![i],
+            Node::Parent(parent_node) => {
+                let mut unmerged_leaves: Vec<NodeIndex> = vec![i];
+                unmerged_leaves.extend(
+                    parent_node
+                        .unmerged_leaves()
+                        .iter()
+                        .map(|n| NodeIndex::from(*n)),
+                );
+                unmerged_leaves
             }
-        }
+        };
 
-        if !self.nodes[index.as_usize()].is_blank() {
-            let mut unmerged_leaves = vec![index];
-            let node = &self.nodes[index.as_usize()].node.as_ref();
-            unmerged_leaves.extend(
-                node.unwrap()
-                    .unmerged_leaves()
-                    .iter()
-                    .map(|n| NodeIndex::from(*n)),
-            );
-            return unmerged_leaves;
-        }
-
-        let mut left = self.resolve(
-            treemath::left(index).expect("resolve: TreeMath error when computing left child."),
-            exclusion_list,
-        );
-        let right = self.resolve(
-            treemath::right(index, size)
-                .expect("resolve: TreeMath error when computing right child."),
-            exclusion_list,
-        );
-        left.extend(right);
-        left
+        Ok(self.public_tree.resolve(&index, &predicate)?)
     }
 
     /// Get the index of the own node.
@@ -233,40 +193,24 @@ impl RatchetTree {
 
     /// Get a reference to the own key package.
     pub fn own_key_package(&self) -> &KeyPackage {
-        let own_node = &self.nodes[self.own_node_index().as_usize()];
-        own_node.key_package.as_ref().unwrap()
+        // We can unwrap here, because our own index should always be within the
+        // tree.
+        let own_node_option = &self.public_tree.node(&self.own_node_index()).unwrap();
+        // We can unwrap here, because our own leaf can't be blank.
+        let own_node = own_node_option.as_ref().unwrap();
+        // We can unwrap here, because we know the leaf node is indeed a `Leaf`.
+        own_node.as_leaf_node().unwrap()
     }
 
     /// Get a mutable reference to the own key package.
     fn own_key_package_mut(&mut self) -> &mut KeyPackage {
-        let own_node = self
-            .nodes
-            .get_mut(self.private_tree.node_index().as_usize())
-            .unwrap();
-        own_node.key_package_mut().unwrap()
-    }
-
-    fn blank_member(&mut self, index: NodeIndex) {
-        let size = self.leaf_count();
-        self.nodes[index.as_usize()].blank();
-        self.nodes[treemath::root(size).as_usize()].blank();
-        for index in treemath::direct_path_root(index, size)
-            .expect("blank_member: TreeMath error when computing direct path.")
-        {
-            self.nodes[index.as_usize()].blank();
-        }
-    }
-
-    fn free_leaves(&self) -> Vec<NodeIndex> {
-        let mut free_leaves = vec![];
-        for i in 0..self.leaf_count().as_usize() {
-            // TODO use an iterator instead
-            let leaf_index = LeafIndex::from(i);
-            if self.nodes[leaf_index].is_blank() {
-                free_leaves.push(NodeIndex::from(leaf_index));
-            }
-        }
-        free_leaves
+        // We can unwrap here, because our own index should always be within the
+        // tree.
+        let own_node_option = self.public_tree.node_mut(&self.own_node_index()).unwrap();
+        // We can unwrap here, because our own leaf can't be blank.
+        let own_node = own_node_option.as_ref().unwrap();
+        // We can unwrap here, because we know the leaf node is indeed a `Leaf`.
+        own_node.as_leaf_node_mut().unwrap()
     }
 
     /// 7.7. Update Paths
