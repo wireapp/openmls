@@ -6,13 +6,11 @@ use super::{
     index::{LeafIndex, NodeIndex},
 };
 
-pub(crate) struct BlankedTree<T: Clone> {
-    tree: BinaryTree<Option<T>>,
-}
+pub type BlankedTree<T> = BinaryTree<Option<T>>;
 
-impl<T: Clone> BlankedTree<T> {
+impl<T: Clone + PartialEq> BlankedTree<T> {
     pub(crate) fn is_blank(&self, index: &NodeIndex) -> Result<bool, BinaryTreeError> {
-        Ok(self.tree.node(index)?.is_none())
+        Ok(self.node(index)?.is_none())
     }
 
     /// Given a node index, check if the given predicate evaluates to a
@@ -28,12 +26,10 @@ impl<T: Clone> BlankedTree<T> {
     where
         F: Fn(NodeIndex, &T) -> Vec<NodeIndex>,
     {
-        let node = self.tree.node(node_index)?;
+        let node = self.node(node_index)?;
         if node.is_none() && !node_index.is_leaf() {
-            let mut left_resolution =
-                self.resolve(&self.tree.left(*node_index).unwrap(), predicate)?;
-            let right_resolution =
-                self.resolve(&self.tree.right(*node_index).unwrap(), predicate)?;
+            let mut left_resolution = self.resolve(&self.left(*node_index).unwrap(), predicate)?;
+            let right_resolution = self.resolve(&self.right(*node_index).unwrap(), predicate)?;
             left_resolution.extend(right_resolution);
             Ok(left_resolution)
         } else {
@@ -44,7 +40,7 @@ impl<T: Clone> BlankedTree<T> {
 
     /// Blank the node with the given index.
     pub(crate) fn blank(&mut self, index: &NodeIndex) -> Result<(), BinaryTreeError> {
-        *self.tree.node_mut(index)? = None;
+        *self.node_mut(index)? = None;
         Ok(())
     }
 
@@ -53,10 +49,10 @@ impl<T: Clone> BlankedTree<T> {
         &mut self,
         node_index: &NodeIndex,
     ) -> Result<(), BinaryTreeError> {
-        if node_index == &self.tree.root() {
+        if node_index == &self.root() {
             Ok(self.blank(node_index)?)
         } else {
-            let parent = self.tree.parent(*node_index)?;
+            let parent = self.parent(*node_index)?;
             Ok(self.blank_direct_path(&parent)?)
         }
     }
@@ -75,14 +71,14 @@ impl<T: Clone> BlankedTree<T> {
         F: Fn(&mut Option<T>, U) -> U,
     {
         // If it's the root node, use the defaults as input.
-        if node_index == &self.tree.root() {
+        if node_index == &self.root() {
             // If it's a blank, just return the default.
-            let node = self.tree.node_mut(node_index)?;
+            let node = self.node_mut(node_index)?;
             Ok(f(node, U::default()))
         } else {
-            let parent = self.tree.parent(*node_index)?;
+            let parent = self.parent(*node_index)?;
             let parent_result = self.direct_path_map(&parent, f)?;
-            Ok(f(self.tree.node_mut(node_index)?, parent_result))
+            Ok(f(self.node_mut(node_index)?, parent_result))
         }
     }
 
@@ -98,13 +94,13 @@ impl<T: Clone> BlankedTree<T> {
     where
         F: Fn(&Option<T>, &NodeIndex, &U, &U) -> U,
     {
-        let node = self.tree.node(node_index)?;
+        let node = self.node(node_index)?;
         if node_index.is_leaf() {
             Ok(f(node, node_index, &U::default(), &U::default()))
         } else {
-            let left_node = self.tree.left(*node_index)?;
+            let left_node = self.left(*node_index)?;
             let left_result = self.fold_tree(&left_node, f)?;
-            let right_node = self.tree.right(*node_index)?;
+            let right_node = self.right(*node_index)?;
             let right_result = self.fold_tree(&right_node, f)?;
             Ok(f(node, node_index, &left_result, &right_result))
         }
@@ -112,12 +108,12 @@ impl<T: Clone> BlankedTree<T> {
 
     fn free_leaves(&self) -> Vec<LeafIndex> {
         let mut free_leaves = Vec::new();
-        for index in 0..self.tree.leaf_count().as_usize() {
+        for index in 0..self.leaf_count().as_usize() {
             // This makes sure that we have the correct index.
             let leaf_index = LeafIndex::from(NodeIndex::from(index));
             // We can unwrap here, because index is scoped to be within the
             // tree.
-            if self.tree.leaf(&leaf_index).unwrap().is_some() {
+            if self.leaf(&leaf_index).unwrap().is_some() {
                 free_leaves.push(leaf_index);
             }
         }
@@ -126,18 +122,21 @@ impl<T: Clone> BlankedTree<T> {
 
     /// Remove fully-blank subtrees on the right side.
     pub(crate) fn trim(&mut self) {
-        let mut right_most_index = self.tree.size().as_usize() - 1;
+        let mut right_most_index = self.size().as_usize() - 1;
         // We can unwrap here, because the right-most index is always within the
         // tree.
         while self.is_blank(&NodeIndex::from(right_most_index)).unwrap() {
-            self.tree.remove();
+            self.remove();
             right_most_index -= 1;
         }
     }
 
     /// Add a number of leaves into the first blank leaves. If not enough blank
     /// leaves exist, the tree is extended using blanks as intermediate nodes.
-    pub(crate) fn add(&mut self, mut new_nodes: Vec<T>) -> Result<Vec<NodeIndex>, BinaryTreeError> {
+    pub(crate) fn add_blanked(
+        &mut self,
+        mut new_nodes: Vec<T>,
+    ) -> Result<Vec<NodeIndex>, BinaryTreeError> {
         let mut added_members = Vec::with_capacity(new_nodes.len());
 
         // Add new nodes for key packages into existing free leaves.
@@ -148,15 +147,14 @@ impl<T: Clone> BlankedTree<T> {
             // We can unwrap here, because `leaf_node_index` is part of
             // `free_leaves`, which in turn only contains indices that are
             // within the tree.
-            self.tree
-                .replace(&NodeIndex::from(leaf_index), Some(new_node.clone()))
+            self.replace(&NodeIndex::from(leaf_index), Some(new_node.clone()))
                 .unwrap();
             added_members.push(NodeIndex::from(leaf_index));
         }
         // Add the remaining nodes.
-        let mut leaf_index = self.tree.size().as_usize() + 1;
+        let mut leaf_index = self.size().as_usize() + 1;
         for new_node in new_nodes.iter().skip(free_leaves_len) {
-            self.tree.add(vec![None, Some(new_node.clone())]);
+            self.add(vec![None, Some(new_node.clone())]);
             let node_index = NodeIndex::from(leaf_index);
             added_members.push(node_index);
             leaf_index += 2;
