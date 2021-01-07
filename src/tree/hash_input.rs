@@ -36,7 +36,7 @@ use crate::key_packages::KeyPackage;
 
 pub struct ParentNodeHashInput<'a> {
     node_index: u32,
-    parent_node: &'a Option<ParentNode>,
+    parent_node: Option<&'a ParentNode>,
     left_hash: &'a [u8],
     right_hash: &'a [u8],
 }
@@ -44,7 +44,7 @@ pub struct ParentNodeHashInput<'a> {
 impl<'a> ParentNodeHashInput<'a> {
     pub fn new(
         node_index: u32,
-        parent_node: &'a Option<ParentNode>,
+        parent_node: Option<&'a ParentNode>,
         left_hash: &'a [u8],
         right_hash: &'a [u8],
     ) -> Self {
@@ -63,11 +63,11 @@ impl<'a> ParentNodeHashInput<'a> {
 
 pub struct LeafNodeHashInput<'a> {
     node_index: &'a NodeIndex,
-    key_package: &'a Option<KeyPackage>,
+    key_package: Option<&'a KeyPackage>,
 }
 
 impl<'a> LeafNodeHashInput<'a> {
-    pub fn new(node_index: &'a NodeIndex, key_package: &'a Option<KeyPackage>) -> Self {
+    pub fn new(node_index: &'a NodeIndex, key_package: Option<&'a KeyPackage>) -> Self {
         Self {
             node_index,
             key_package,

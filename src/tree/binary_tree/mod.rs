@@ -219,6 +219,7 @@ impl<T: PartialEq> BinaryTree<T> {
 
     /// Truncate the tree to size `size` by removing nodes on the right until
     /// the tree has reached size `size`.
+    #[cfg(test)]
     pub(crate) fn truncate(&mut self, size: usize) {
         self.nodes.truncate(size);
     }

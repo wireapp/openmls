@@ -257,13 +257,14 @@ impl MlsGroup {
         &mut self,
         mls_ciphertext: &MLSCiphertext,
     ) -> Result<MLSPlaintext, MLSCiphertextError> {
-        let tree = self.tree();
+        let tree = &self.tree().public_tree;
         let mut indexed_members = HashMap::new();
         for i in 0..tree.leaf_count().as_usize() {
             let leaf_index = LeafIndex::from(i);
-            let node = &tree.nodes[leaf_index];
-            if let Some(kp) = node.key_package.as_ref() {
-                indexed_members.insert(leaf_index, kp.credential());
+            // We can unwrap here, as the index is scoped by the size of the
+            // tree.
+            if let Some(leaf) = &tree.leaf(&leaf_index).unwrap() {
+                indexed_members.insert(leaf_index, leaf.as_leaf_node().unwrap().credential());
             }
         }
 

@@ -92,17 +92,16 @@ impl<T: Clone + PartialEq> BlankedTree<T> {
         f: &F,
     ) -> Result<U, BinaryTreeError>
     where
-        F: Fn(&Option<T>, &NodeIndex, &U, &U) -> U,
+        F: Fn(&NodeIndex, &U, &U) -> U,
     {
-        let node = self.node(node_index)?;
         if node_index.is_leaf() {
-            Ok(f(node, node_index, &U::default(), &U::default()))
+            Ok(f(node_index, &U::default(), &U::default()))
         } else {
             let left_node = self.left(*node_index)?;
             let left_result = self.fold_tree(&left_node, f)?;
             let right_node = self.right(*node_index)?;
             let right_result = self.fold_tree(&right_node, f)?;
-            Ok(f(node, node_index, &left_result, &right_result))
+            Ok(f(node_index, &left_result, &right_result))
         }
     }
 
@@ -133,10 +132,9 @@ impl<T: Clone + PartialEq> BlankedTree<T> {
 
     /// Add a number of leaves into the first blank leaves. If not enough blank
     /// leaves exist, the tree is extended using blanks as intermediate nodes.
-    pub(crate) fn add_blanked(
-        &mut self,
-        mut new_nodes: Vec<T>,
-    ) -> Result<Vec<NodeIndex>, BinaryTreeError> {
+    /// Finally, the tree is trimmed after the operation. The returned vector
+    /// contains the indices of the newly added leaves.
+    pub(crate) fn add_blanked(&mut self, mut new_nodes: Vec<T>) -> Vec<NodeIndex> {
         let mut added_members = Vec::with_capacity(new_nodes.len());
 
         // Add new nodes for key packages into existing free leaves.
@@ -152,14 +150,15 @@ impl<T: Clone + PartialEq> BlankedTree<T> {
             added_members.push(NodeIndex::from(leaf_index));
         }
         // Add the remaining nodes.
-        let mut leaf_index = self.size().as_usize() + 1;
-        for new_node in new_nodes.iter().skip(free_leaves_len) {
+        let mut leaf_index = self.size().as_usize() + 2;
+        for new_node in new_nodes.drain(free_leaves_len..new_nodes.len()) {
             self.add(vec![None, Some(new_node.clone())]);
             let node_index = NodeIndex::from(leaf_index);
             added_members.push(node_index);
             leaf_index += 2;
         }
         self.trim();
-        Ok(added_members)
+        debug_assert!(self. fed)
+        added_members
     }
 }

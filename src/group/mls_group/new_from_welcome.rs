@@ -97,8 +97,28 @@ impl MlsGroup {
         }
 
         // Verify GroupInfo signature
-        let signer_node = tree.nodes[group_info.signer_index()].clone();
-        let signer_key_package = signer_node.key_package.unwrap();
+        // Check if the signer is within the tree.
+        if group_info.signer_index().as_usize() > tree.public_tree.leaf_count().as_usize() {
+            return Err(WelcomeError::InvalidRatchetTree(TreeError::InvalidTree));
+        }
+        // We can unwrap here, as we've checked if the signer index is within
+        // the tree.
+        let signer_node_option = tree
+            .public_tree
+            .leaf(&group_info.signer_index())
+            .unwrap()
+            .clone();
+        // Check that the signer's node is not blank.
+        let signer_key_package = if let Some(node) = signer_node_option {
+            // Check that the signer's node is indeed a leaf.
+            if let Node::Leaf(key_package) = node {
+                key_package
+            } else {
+                return Err(WelcomeError::InvalidRatchetTree(TreeError::InvalidTree));
+            }
+        } else {
+            return Err(WelcomeError::InvalidRatchetTree(TreeError::InvalidTree));
+        };
         let payload = group_info.unsigned_payload().unwrap();
         if !signer_key_package
             .credential()

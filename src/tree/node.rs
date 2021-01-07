@@ -42,10 +42,10 @@ pub enum Node {
 }
 
 impl Node {
-    pub fn public_key(&self) -> Option<&HPKEPublicKey> {
+    pub fn public_key(&self) -> &HPKEPublicKey {
         match self {
-            Node::Leaf(key_package) => Some(key_package.hpke_init_key()),
-            Node::Parent(parent_node) => Some(&parent_node.public_key()),
+            Node::Leaf(key_package) => key_package.hpke_init_key(),
+            Node::Parent(parent_node) => parent_node.public_key(),
         }
     }
 
@@ -147,5 +147,14 @@ impl Codec for ParentNode {
             unmerged_leaves,
             parent_hash,
         })
+    }
+}
+
+impl Codec for &ParentNode {
+    fn encode(&self, buffer: &mut Vec<u8>) -> Result<(), CodecError> {
+        self.public_key.encode(buffer)?;
+        encode_vec(VecSize::VecU32, buffer, &self.unmerged_leaves)?;
+        encode_vec(VecSize::VecU8, buffer, &self.parent_hash)?;
+        Ok(())
     }
 }

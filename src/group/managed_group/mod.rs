@@ -331,12 +331,12 @@ impl<'a> ManagedGroup<'a> {
     /// Gets the current list of members
     pub fn members(&self) -> Vec<Credential> {
         let mut members: Vec<Credential> = vec![];
-        let tree = self.group.tree();
-        let leaf_count = self.group.tree().leaf_count();
-        for index in 0..leaf_count.as_usize() {
-            let leaf = &tree.nodes[LeafIndex::from(index)];
-            if let Some(leaf_node) = leaf.key_package() {
-                members.push(leaf_node.credential().clone());
+        let tree = &self.group.tree().public_tree;
+        for index in 0..tree.leaf_count().as_usize() {
+            // We can unwrap here, as the index is scoped by the size of the
+            // tree.
+            if let Some(leaf) = &tree.leaf(&LeafIndex::from(index)).unwrap() {
+                members.push(leaf.as_leaf_node().unwrap().credential().clone());
             }
         }
         members
@@ -928,9 +928,13 @@ impl<'a> ManagedGroup<'a> {
         let leaf_count = self.group.tree().leaf_count();
         for index in 0..leaf_count.as_usize() {
             let leaf_index = LeafIndex::from(index);
-            let leaf = &tree.nodes[leaf_index];
-            if let Some(leaf_node) = leaf.key_package() {
-                indexed_members.insert(leaf_index, leaf_node.credential().clone());
+            // We can unwrap here, as the index is scoped by the size of the
+            // tree.
+            if let Some(leaf) = &tree.public_tree.leaf(&leaf_index).unwrap() {
+                indexed_members.insert(
+                    leaf_index,
+                    leaf.as_leaf_node().unwrap().credential().clone(),
+                );
             }
         }
         indexed_members

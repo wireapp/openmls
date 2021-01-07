@@ -184,20 +184,18 @@ macro_rules! implement_enum_display {
 pub fn _print_tree(tree: &RatchetTree, message: &str) {
     let factor = 3;
     println!("{}", message);
-    for (i, node) in tree.nodes.iter().enumerate() {
+    for (i, node_option) in tree.public_tree.nodes().iter().enumerate() {
         let level = treemath::level(NodeIndex::from(i));
         print!("{:04}", i);
-        if !node.is_blank() {
-            let (key_bytes, parent_hash_bytes) = match node.node_type {
-                NodeType::Leaf => {
-                    print!("\tL");
-                    let key_bytes = if let Some(kp) = &node.key_package {
-                        kp.hpke_init_key().as_slice()
-                    } else {
-                        &[]
-                    };
-                    let parent_hash_bytes = if let Some(kp) = &node.key_package {
-                        if let Some(phe) = kp.extension_with_type(ExtensionType::ParentHash) {
+        match node_option {
+            Some(node) => {
+                let (key_bytes, parent_hash_bytes) = match node {
+                    Node::Leaf(key_package) => {
+                        print!("\tL");
+                        let key_bytes = key_package.hpke_init_key().as_slice();
+                        let parent_hash_bytes = if let Some(phe) =
+                            key_package.extension_with_type(ExtensionType::ParentHash)
+                        {
                             let parent_hash_extension: &ParentHashExtension = phe
                                 .as_any()
                                 .downcast_ref::<ParentHashExtension>()
@@ -205,58 +203,52 @@ pub fn _print_tree(tree: &RatchetTree, message: &str) {
                             parent_hash_extension.parent_hash().to_vec()
                         } else {
                             vec![]
-                        }
-                    } else {
-                        vec![]
-                    };
-                    (key_bytes, parent_hash_bytes)
-                }
-                NodeType::Parent => {
-                    if treemath::root(tree.leaf_count()) == NodeIndex::from(i) {
-                        print!("\tP(R)");
-                    } else {
-                        print!("\tP");
+                        };
+                        (key_bytes, parent_hash_bytes)
                     }
-                    let key_bytes = if let Some(n) = &node.node {
-                        n.public_key().as_slice()
-                    } else {
-                        &[]
-                    };
-                    let parent_hash_bytes = if let Some(ph) = node.parent_hash() {
-                        ph
-                    } else {
-                        vec![]
-                    };
-                    (key_bytes, parent_hash_bytes)
+                    Node::Parent(parent_node) => {
+                        if treemath::root(tree.leaf_count()) == NodeIndex::from(i) {
+                            print!("\tP(R)");
+                        } else {
+                            print!("\tP");
+                        }
+                        let key_bytes = parent_node.public_key().as_slice();
+                        let parent_hash_bytes = if let Some(ph) = node.parent_hash() {
+                            ph
+                        } else {
+                            vec![]
+                        };
+                        (key_bytes, parent_hash_bytes)
+                    }
+                };
+                if !key_bytes.is_empty() {
+                    print!("\tPK: {}", _bytes_to_hex(&key_bytes));
+                } else {
+                    print!("\tPK:\t\t\t");
                 }
-                _ => unreachable!(),
-            };
-            if !key_bytes.is_empty() {
-                print!("\tPK: {}", _bytes_to_hex(&key_bytes));
-            } else {
-                print!("\tPK:\t\t\t");
-            }
 
-            if !parent_hash_bytes.is_empty() {
-                print!("\tPH: {}", _bytes_to_hex(&parent_hash_bytes));
-            } else {
-                print!("\tPH:\t\t\t\t\t\t\t\t");
+                if !parent_hash_bytes.is_empty() {
+                    print!("\tPH: {}", _bytes_to_hex(&parent_hash_bytes));
+                } else {
+                    print!("\tPH:\t\t\t\t\t\t\t\t");
+                }
+                print!("\t| ");
+                for _ in 0..level * factor {
+                    print!(" ");
+                }
+                print!("◼︎");
             }
-            print!("\t| ");
-            for _ in 0..level * factor {
-                print!(" ");
+            None => {
+                if treemath::root(tree.leaf_count()) == NodeIndex::from(i) {
+                    print!("\tB(R)\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t| ");
+                } else {
+                    print!("\tB\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t| ");
+                }
+                for _ in 0..level * factor {
+                    print!(" ");
+                }
+                print!("❑");
             }
-            print!("◼︎");
-        } else {
-            if treemath::root(tree.leaf_count()) == NodeIndex::from(i) {
-                print!("\tB(R)\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t| ");
-            } else {
-                print!("\tB\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t| ");
-            }
-            for _ in 0..level * factor {
-                print!(" ");
-            }
-            print!("❑");
         }
         println!();
     }

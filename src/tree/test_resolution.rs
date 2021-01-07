@@ -28,11 +28,7 @@ fn test_exclusion_list() {
                 KeyPackageBundle::new(&[ciphersuite.name()], &credential_bundle, vec![]).unwrap();
 
             // We build a leaf node from the key packages
-            let leaf_node = Node {
-                node_type: NodeType::Leaf,
-                key_package: Some(key_package_bundle.key_package().clone()),
-                node: None,
-            };
+            let leaf_node = Node::Leaf(key_package_bundle.key_package().clone());
             key_package_bundles.push(key_package_bundle);
             nodes.push(Some(leaf_node));
             // We skip the last parent node (trees should always end with a leaf node)
@@ -53,6 +49,7 @@ fn test_exclusion_list() {
         let exclusion_list = HashSet::new();
         let full_resolution = tree
             .resolve(root, &exclusion_list)
+            .unwrap()
             .iter()
             .map(|node_index| node_index.as_usize())
             .collect::<Vec<usize>>();
@@ -68,6 +65,7 @@ fn test_exclusion_list() {
         let exclusion_list = HashSet::from_iter(exclusion_list_node_indexes.iter());
         let filtered_resultion = tree
             .resolve(root, &exclusion_list)
+            .unwrap()
             .iter()
             .map(|node_index| node_index.as_usize())
             .collect::<Vec<usize>>();
