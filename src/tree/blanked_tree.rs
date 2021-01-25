@@ -112,7 +112,7 @@ impl<T: Clone + PartialEq> BlankedTree<T> {
             let leaf_index = LeafIndex::from(NodeIndex::from(index));
             // We can unwrap here, because index is scoped to be within the
             // tree.
-            if self.leaf(&leaf_index).unwrap().is_some() {
+            if self.leaf(&leaf_index).unwrap().is_none() {
                 free_leaves.push(leaf_index);
             }
         }
@@ -150,7 +150,7 @@ impl<T: Clone + PartialEq> BlankedTree<T> {
             added_members.push(NodeIndex::from(leaf_index));
         }
         // Add the remaining nodes.
-        let mut leaf_index = self.size().as_usize() + 2;
+        let mut leaf_index = self.size().as_usize() + 1;
         for new_node in new_nodes.drain(free_leaves_len..new_nodes.len()) {
             self.add(vec![None, Some(new_node.clone())]);
             let node_index = NodeIndex::from(leaf_index);

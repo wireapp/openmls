@@ -736,8 +736,12 @@ impl RatchetTree {
                 match node_option.take() {
                     Some(mut node) => {
                         match node {
-                            // If it's a leaf node, just return the hash.
-                            Node::Leaf(_) => hash,
+                            // If it's a leaf node, put the node back and return
+                            // the hash.
+                            Node::Leaf(_) => {
+                                node_option.replace(node);
+                                hash
+                            }
                             Node::Parent(ref mut parent_node) => {
                                 parent_node.set_parent_hash(hash);
                                 let hash = node.hash(&ciphersuite).unwrap();
