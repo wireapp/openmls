@@ -158,7 +158,6 @@ impl<T: Clone + PartialEq> BlankedTree<T> {
             leaf_index += 2;
         }
         self.trim();
-        debug_assert!(self. fed)
         added_members
     }
 }
