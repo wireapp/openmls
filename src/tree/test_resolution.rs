@@ -105,11 +105,7 @@ fn test_original_child_resolution() {
                 KeyPackageBundle::new(&[ciphersuite.name()], &credential_bundle, vec![]).unwrap();
 
             // We build a leaf node from the key packages
-            let leaf_node = Node {
-                node_type: NodeType::Leaf,
-                key_package: Some(key_package_bundle.key_package().clone()),
-                node: None,
-            };
+            let leaf_node = Node::Leaf(key_package_bundle.key_package().clone());
             key_package_bundles.push(key_package_bundle);
             nodes.push(Some(leaf_node));
             // We skip the last parent node (trees should always end with a leaf node)
@@ -148,15 +144,11 @@ fn test_original_child_resolution() {
         let (_private_key, public_key) = ciphersuite
             .derive_hpke_keypair(&Secret::random(ciphersuite.hash_length()))
             .into_keys();
-        let new_root_node = Node {
-            node_type: NodeType::Parent,
-            node: Some(ParentNode {
-                parent_hash: vec![],
-                public_key,
-                unmerged_leaves: ROOT_UNMERGED_LEAVES.to_vec(),
-            }),
-            key_package: None,
-        };
+        let new_root_node = Node::Parent(ParentNode {
+            parent_hash: vec![],
+            public_key,
+            unmerged_leaves: ROOT_UNMERGED_LEAVES.to_vec(),
+        });
         tree.nodes[root_index] = new_root_node;
 
         // Populate the expected public key list

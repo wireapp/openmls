@@ -20,11 +20,7 @@ fn test_parent_hash() {
                 KeyPackageBundle::new(&[ciphersuite.name()], &credential_bundle, vec![]).unwrap();
 
             // We build a leaf node from the key packages
-            let leaf_node = Node {
-                node_type: NodeType::Leaf,
-                key_package: Some(key_package_bundle.key_package().clone()),
-                node: None,
-            };
+            let leaf_node = Node::Leaf(key_package_bundle.key_package().clone());
             key_package_bundles.push(key_package_bundle);
             nodes.push(Some(leaf_node));
             // We skip the last parent node (trees should always end with a leaf node)
@@ -50,11 +46,7 @@ fn test_parent_hash() {
                     .derive_hpke_keypair(&Secret::random(ciphersuite.hash_length()))
                     .into_keys();
                 let parent_node = ParentNode::new(public_key, &[], &[]);
-                let node = Node {
-                    key_package: None,
-                    node: Some(parent_node),
-                    node_type: NodeType::Parent,
-                };
+                let node = Node::Parent(parent_node);
                 tree.nodes[index] = node;
             }
         }

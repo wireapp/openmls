@@ -16,6 +16,8 @@ impl NodeIndex {
     pub fn as_usize(self) -> usize {
         self.0 as usize
     }
+    /// Returns `true` if the `NodeIndex` corresponds to a leaf and `false`
+    /// otherwise.
     pub fn is_leaf(&self) -> bool {
         self.0 % 2 == 0
     }
@@ -73,14 +75,6 @@ impl<T> Index<&NodeIndex> for Vec<T> {
 impl<T> IndexMut<&NodeIndex> for Vec<T> {
     fn index_mut(&mut self, node_index: &NodeIndex) -> &mut Self::Output {
         &mut self[node_index.as_usize()]
-    }
-}
-
-impl NodeIndex {
-    /// Returns `true` if the `NodeIndex` corresponds to a leaf and `false`
-    /// otherwise.
-    pub(crate) fn is_leaf(&self) -> bool {
-        self.as_usize() % 2 == 0
     }
 }
 
@@ -151,34 +145,6 @@ impl<T> Index<LeafIndex> for Vec<T> {
 impl<T> IndexMut<LeafIndex> for Vec<T> {
     fn index_mut(&mut self, leaf_index: LeafIndex) -> &mut Self::Output {
         &mut self[NodeIndex::from(leaf_index)]
-    }
-}
-
-impl Index<NodeIndex> for Vec<Node> {
-    type Output = Node;
-
-    fn index(&self, node_index: NodeIndex) -> &Self::Output {
-        &self[node_index.as_usize()]
-    }
-}
-
-impl IndexMut<NodeIndex> for Vec<Node> {
-    fn index_mut(&mut self, node_index: NodeIndex) -> &mut Self::Output {
-        &mut self[node_index.as_usize()]
-    }
-}
-
-impl Index<&NodeIndex> for Vec<Node> {
-    type Output = Node;
-
-    fn index(&self, node_index: &NodeIndex) -> &Self::Output {
-        &self[node_index.as_usize()]
-    }
-}
-
-impl IndexMut<&NodeIndex> for Vec<Node> {
-    fn index_mut(&mut self, node_index: &NodeIndex) -> &mut Self::Output {
-        &mut self[node_index.as_usize()]
     }
 }
 

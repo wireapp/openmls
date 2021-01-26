@@ -225,24 +225,12 @@ pub fn _print_tree(tree: &RatchetTree, message: &str) {
                         };
                         (key_bytes, parent_hash_bytes)
                     }
-                    let key_bytes = if let Some(n) = &node.node {
-                        n.public_key().as_slice()
-                    } else {
-                        &[]
-                    };
-                    let parent_hash_bytes = if let Some(ph) = node.parent_hash() {
-                        ph.to_vec()
-                    } else {
-                        vec![]
-                    };
-                    (key_bytes, parent_hash_bytes)
+                };
+                if !key_bytes.is_empty() {
+                    print!("\tPK: {}", _bytes_to_hex(&key_bytes));
+                } else {
+                    print!("\tPK:\t\t\t");
                 }
-            };
-            if !key_bytes.is_empty() {
-                print!("\tPK: {}", _bytes_to_hex(&key_bytes));
-            } else {
-                print!("\tPK:\t\t\t");
-            }
 
                 if !parent_hash_bytes.is_empty() {
                     print!("\tPH: {}", _bytes_to_hex(&parent_hash_bytes));

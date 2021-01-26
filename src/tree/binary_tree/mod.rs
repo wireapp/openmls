@@ -1,6 +1,6 @@
-use std::cmp::Ordering;
+use std::{cmp::Ordering, convert::TryFrom};
 
-use crate::{prelude::LeafIndex, tree::index::NodeIndex};
+use crate::{tree::index::LeafIndex, tree::index::NodeIndex};
 
 pub(crate) use serde::{Deserialize, Serialize};
 
@@ -34,7 +34,8 @@ impl<T: PartialEq> BinaryTree<T> {
 
     /// Get the number of leaves in the tree.
     pub(crate) fn leaf_count(&self) -> LeafIndex {
-        LeafIndex::from(self.size())
+        // We unwrap here, because we assume the tree to be full.
+        LeafIndex::try_from(self.size()).unwrap()
     }
 
     pub(crate) fn root(&self) -> NodeIndex {
@@ -207,14 +208,24 @@ impl<T: PartialEq> BinaryTree<T> {
     }
 
     /// Add nodes to the tree on the right side such that the tree is still
-    /// left-balanced.
-    pub(crate) fn add(&mut self, nodes: Vec<T>) {
+    /// left-balanced. The number of nodes added has to be even, as we want the
+    /// tree to remain full.
+    pub(crate) fn add(&mut self, nodes: Vec<T>) -> Result<(), BinaryTreeError> {
+        if nodes.len() % 2 != 0 {
+            return Err(BinaryTreeError::TreeNotFull);
+        }
         self.nodes.extend(nodes);
+        Ok(())
     }
 
     /// Remove the right-most node.
-    pub(crate) fn remove(&mut self) {
-        self.nodes.pop();
+    pub(crate) fn remove(&mut self, nodes_to_remove: usize) -> Result<(), BinaryTreeError> {
+        if nodes_to_remove % 2 != 0 {
+            return Err(BinaryTreeError::TreeNotFull);
+        }
+        self.nodes
+            .drain(self.nodes.len() - nodes_to_remove..self.nodes.len());
+        Ok(())
     }
 
     /// Truncate the tree to size `size` by removing nodes on the right until
@@ -241,6 +252,11 @@ impl<T: PartialEq> BinaryTree<T> {
     /// Get a reference to a leaf of the tree by index.
     pub(crate) fn leaf(&self, leaf_index: &LeafIndex) -> Result<&T, BinaryTreeError> {
         self.node(&NodeIndex::from(leaf_index))
+    }
+
+    /// Get a mutable reference to a leaf of the tree by index.
+    pub(crate) fn leaf_mut(&self, leaf_index: &LeafIndex) -> Result<&mut T, BinaryTreeError> {
+        self.node_mut(&NodeIndex::from(leaf_index))
     }
 
     /// Given two nodes `origin` and `target`, return the index of the node in

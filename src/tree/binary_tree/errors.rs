@@ -6,6 +6,7 @@ implement_error! {
             IndexOutOfBounds = "Input index is out of bounds.",
             LeafHasNoChildren = "Attempting to access the child of a leaf.",
             RootHasNoParent = "Attempting to access the parent of the root.",
+            TreeNotFull = "Attempting to modify the tree such that it's not full anymore.",
         }
         Complex {}
     }

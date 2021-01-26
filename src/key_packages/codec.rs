@@ -32,11 +32,3 @@ impl Codec for KeyPackage {
         Ok(kp)
     }
 }
-
-impl Codec for &KeyPackage {
-    fn encode(&self, buffer: &mut Vec<u8>) -> Result<(), CodecError> {
-        buffer.append(&mut self.unsigned_payload()?);
-        self.signature.encode(buffer)?;
-        Ok(())
-    }
-}

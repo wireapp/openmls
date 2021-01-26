@@ -81,7 +81,7 @@ impl RatchetTree {
     /// Create a new empty `RatchetTree`.
     pub(crate) fn new(ciphersuite: &'static Ciphersuite, kpb: KeyPackageBundle) -> RatchetTree {
         let nodes = vec![Some(Node::Leaf(kpb.key_package().clone()))];
-        let private_tree = PrivateTree::from_key_package_bundle(NodeIndex::from(0u32), &kpb);
+        let private_tree = PrivateTree::from_key_package_bundle(LeafIndex::from(0u32), &kpb);
         let public_tree = BlankedTree::from(nodes);
         let private_tree = PrivateTree::from_key_package_bundle(LeafIndex::from(0u32), &kpb);
 
@@ -98,7 +98,7 @@ impl RatchetTree {
         RatchetTree {
             ciphersuite: ratchet_tree.ciphersuite,
             public_tree: ratchet_tree.public_tree.clone(),
-            private_tree: PrivateTree::new(ratchet_tree.private_tree.node_index()),
+            private_tree: PrivateTree::new(ratchet_tree.own_node_index()),
         }
     }
 
@@ -200,6 +200,7 @@ impl RatchetTree {
             }
         };
         Ok(self.public_tree.resolve(&index, &predicate)?)
+    }
 
     // Compute the resolution for a given node index. Nodes listed in the
     // `exclusion_list` are substracted from the final resolution.
@@ -246,7 +247,7 @@ impl RatchetTree {
     pub fn own_key_package(&self) -> &KeyPackage {
         // We can unwrap here, because our own index should always be within the
         // tree.
-        let own_node_option = &self.public_tree.node(&self.own_node_index()).unwrap();
+        let own_node_option = &self.public_tree.leaf(&self.own_node_index()).unwrap();
         // We can unwrap here, because our own leaf can't be blank.
         let own_node = own_node_option.as_ref().unwrap();
         // We can unwrap here, because we know the leaf node is indeed a `Leaf`.
@@ -257,7 +258,7 @@ impl RatchetTree {
     fn own_key_package_mut(&mut self) -> &mut KeyPackage {
         // We can unwrap here, because our own index should always be within the
         // tree.
-        let own_node_option = self.public_tree.node_mut(&self.own_node_index()).unwrap();
+        let own_node_option = self.public_tree.leaf_mut(&self.own_node_index()).unwrap();
         // We can unwrap here, because our own leaf can't be blank.
         let own_node = own_node_option.as_mut().unwrap();
         // We can unwrap here, because we know the leaf node is indeed a `Leaf`.
@@ -279,7 +280,7 @@ impl RatchetTree {
         group_context: &[u8],
         new_leaves_indexes: HashSet<&NodeIndex>,
     ) -> Result<&CommitSecret, TreeError> {
-        let own_index = self.own_node_index();
+        let own_index: NodeIndex = self.own_node_index().into();
         // Make `sender` a node index, making it easier to handle.
         let sender = NodeIndex::from(sender);
 
@@ -451,14 +452,14 @@ impl RatchetTree {
         let key_package = key_package_bundle.key_package().clone();
         let ciphersuite = key_package.ciphersuite();
         // Compute the direct path and keypairs along it
-        let own_index = self.own_node_index();
+        let own_index: NodeIndex = self.own_node_index().into();
         // We can unwrap here, because we know that `own_index` is within the
         // tree.
         let direct_path_root = self.public_tree.direct_path_root(own_index).unwrap();
         // Update private tree and merge corresponding public keys.
         let (private_tree, new_public_keys) = PrivateTree::new_with_keys(
             ciphersuite,
-            own_index,
+            self.own_node_index(),
             key_package_bundle,
             &direct_path_root,
         );
@@ -660,13 +661,13 @@ impl RatchetTree {
         for queued_proposal in proposal_queue.filtered_by_type(ProposalType::Update) {
             has_updates = true;
             let update_proposal = &queued_proposal.proposal().as_update().unwrap();
-            let sender_index = queued_proposal.sender().to_node_index();
+            let sender_index = queued_proposal.sender().to_leaf_index();
             // Blank the direct path of that leaf node
-            self.public_tree.blank_direct_path(&sender_index)?;
+            self.public_tree.blank_direct_path(&sender_index.into())?;
             // Prepare leaf node
             let leaf_node = Some(Node::Leaf(update_proposal.key_package.clone()));
             // Replace the leaf node
-            self.public_tree.replace(&sender_index, leaf_node)?;
+            self.public_tree.replace(&sender_index.into(), leaf_node)?;
             // Check if it is a self-update
             if sender_index == self.own_node_index() {
                 let own_kpb = match updates_key_package_bundles
@@ -726,7 +727,10 @@ impl RatchetTree {
     /// hash has successfully been verified and `false` otherwise.
     pub fn verify_parent_hash(&self, index: NodeIndex, node: &Node) -> Result<(), ParentHashError> {
         // "Let L and R be the left and right children of P, respectively"
-        let left = treemath::left(index).map_err(|_| ParentHashError::InputNotParentNode)?;
+        let left = self
+            .public_tree
+            .left(index)
+            .map_err(|_| ParentHashError::InputNotParentNode)?;
         let right = treemath::right(index, self.leaf_count()).unwrap();
         // Extract the parent hash field
         let parent_hash_field = match node.parent_hash() {
@@ -735,20 +739,24 @@ impl RatchetTree {
         };
         // Current hash with right child resolution
         let current_hash_right =
-            ParentHashInput::new(&self, index, right, parent_hash_field)?.hash(&self.ciphersuite);
+            ParentHashInput::new(&self, index, right, &parent_hash_field)?.hash(&self.ciphersuite);
 
         // "If L.parent_hash is equal to the Parent Hash of P with Co-Path Child R, the check passes"
-        if let Some(left_parent_hash_field) = self.nodes[left].parent_hash() {
-            if left_parent_hash_field == current_hash_right {
+        // We can unwrap here, because we know that `left` only returns indices within the tree.
+        if let Some(node) = self.public_tree.node(&left).unwrap() {
+            // We can unwrap here, because we know it's a parent node.
+            if node.parent_hash().unwrap() == current_hash_right {
                 return Ok(());
             }
         }
 
         // "If R is blank, replace R with its left child until R is either non-blank or a leaf node"
         let mut child = right;
-        while self.nodes[child].is_blank() && child.is_parent() {
+        // We can unwrap here,because we know that the right child is within the
+        // tree.
+        while self.public_tree.node(&child).unwrap().is_some() && child.is_parent() {
             // Unwrapping here is safe, because we know it is a full parent node
-            child = treemath::left(child).unwrap();
+            child = self.public_tree.left(child).unwrap();
         }
         let right = child;
 
@@ -758,14 +766,16 @@ impl RatchetTree {
         }
 
         // Current hash with left child resolution
-        let current_hash_left = ParentHashInput::new(&self, index, left, parent_hash_field)
+        let current_hash_left = ParentHashInput::new(&self, index, left, &parent_hash_field)
             // Unwrapping here is safe, since we can be sure the node is not blank
             .unwrap()
             .hash(&self.ciphersuite);
 
         // "If R.parent_hash is equal to the Parent Hash of P with Co-Path Child L, the check passes"
-        if let Some(right_parent_hash_field) = self.nodes[right].parent_hash() {
-            if right_parent_hash_field == current_hash_left {
+        // We can unwrap here, because we know that `right` only returns indices within the tree.
+        if let Some(node) = self.public_tree.node(&right).unwrap() {
+            // We can unwrap here, because we know it's a parent node.
+            if node.parent_hash().unwrap() == current_hash_left {
                 return Ok(());
             }
         }

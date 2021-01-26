@@ -94,8 +94,9 @@ impl Node {
         }
     }
 
-    /// Obtain a `KeyPackage` from a `Node`. Returns a `NodeError` if the given
-    /// node is a `ParentNode`.
+    /// Obtain a reference to the `KeyPackage` corresponding to a `Node` that
+    /// you know is a leaf node. Returns a `NodeError` if the given node is a
+    /// `ParentNode`.
     pub(crate) fn as_leaf_node(&self) -> Result<&KeyPackage, NodeError> {
         match self {
             Node::Leaf(key_package) => Ok(key_package),
@@ -103,8 +104,9 @@ impl Node {
         }
     }
 
-    /// Obtain a `KeyPackage` from a `Node`. Returns a `NodeError` if the given
-    /// node is a `ParentNode`.
+    /// Obtain a mutable reference to the `KeyPackage` corresponding to a `Node`
+    /// that you know is a leaf node. Returns a `NodeError` if the given node is
+    /// a `ParentNode`.
     pub(crate) fn as_leaf_node_mut(&mut self) -> Result<&mut KeyPackage, NodeError> {
         match self {
             Node::Leaf(key_package) => Ok(key_package),
@@ -112,12 +114,25 @@ impl Node {
         }
     }
 
-/// Content of a parent node.
-#[derive(Debug, PartialEq, Clone, Serialize, Deserialize)]
-pub struct ParentNode {
-    pub(crate) public_key: HPKEPublicKey,
-    pub(crate) unmerged_leaves: Vec<u32>,
-    pub(crate) parent_hash: Vec<u8>,
+    /// Obtain a reference to the `ParentNode` corresponding to a `Node` that
+    /// you know is a parent node. Returns a `NodeError` if the given node is a
+    /// `LeafNode`.
+    pub(crate) fn as_parent_node(&self) -> Result<&ParentNode, NodeError> {
+        match self {
+            Node::Parent(parent_node) => Ok(parent_node),
+            Node::Leaf(_) => Err(NodeError::InvalidNodeType),
+        }
+    }
+
+    /// Obtain a mutable reference to the `ParentNode` corresponding to a `Node` that
+    /// you know is a parent node. Returns a `NodeError` if the given node is a
+    /// `LeafNode`.
+    pub(crate) fn as_parent_node_mut(&mut self) -> Result<&mut ParentNode, NodeError> {
+        match self {
+            Node::Parent(parent_node) => Ok(parent_node),
+            Node::Leaf(_) => Err(NodeError::InvalidNodeType),
+        }
+    }
 }
 
 impl ParentNode {
@@ -144,14 +159,5 @@ impl ParentNode {
     /// Adds a leaf to the node's unmerged leaves
     pub fn add_unmerged_leaf(&mut self, leaf: u32) {
         self.unmerged_leaves.push(leaf);
-    }
-}
-
-impl Codec for &ParentNode {
-    fn encode(&self, buffer: &mut Vec<u8>) -> Result<(), CodecError> {
-        self.public_key.encode(buffer)?;
-        encode_vec(VecSize::VecU32, buffer, &self.unmerged_leaves)?;
-        encode_vec(VecSize::VecU8, buffer, &self.parent_hash)?;
-        Ok(())
     }
 }
