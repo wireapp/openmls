@@ -35,9 +35,14 @@ mod extensions;
 pub mod framing;
 pub mod group;
 mod key_packages;
-mod messages;
+pub mod messages;
 mod schedule;
 pub mod tree;
 
+pub use crate::tree::node;
+
 /// Single place, re-exporting the most used public functions.
 pub mod prelude;
+
+#[cfg(test)]
+mod test_util;

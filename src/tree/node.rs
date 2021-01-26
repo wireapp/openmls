@@ -1,23 +1,36 @@
 use crate::ciphersuite::*;
-use crate::codec::*;
 use crate::extensions::*;
 
 use super::*;
+use std::convert::TryFrom;
 
+/// Node type. Can be either `Leaf` or `Parent`.
 #[derive(PartialEq, Clone, Copy, Debug, Serialize, Deserialize)]
 #[repr(u8)]
 pub enum NodeType {
     Leaf = 0,
     Parent = 1,
-    Default = 255,
 }
 
-impl From<u8> for NodeType {
-    fn from(value: u8) -> Self {
+impl NodeType {
+    /// Returns `true` if the node type is `Leaf` and `false` otherwise.
+    pub fn is_leaf(&self) -> bool {
+        self == &NodeType::Leaf
+    }
+
+    /// Returns `true` if the node type is `Parent` and `false` otherwise.
+    pub fn is_parent(&self) -> bool {
+        self == &NodeType::Parent
+    }
+}
+
+impl TryFrom<u8> for NodeType {
+    type Error = &'static str;
+    fn try_from(value: u8) -> Result<Self, Self::Error> {
         match value {
-            0 => NodeType::Leaf,
-            1 => NodeType::Parent,
-            _ => NodeType::Default,
+            0 => Ok(NodeType::Leaf),
+            1 => Ok(NodeType::Parent),
+            _ => Err("Unknown node type."),
         }
     }
 }
@@ -99,17 +112,16 @@ impl Node {
         }
     }
 
-    /// Obtain a `ParentNode` from a `Node`. Returns a `NodeError` if the given
-    /// node is a `Leaf`.
-    pub(crate) fn as_parent_node(&self) -> Result<&ParentNode, NodeError> {
-        match self {
-            Node::Leaf(_) => Err(NodeError::InvalidNodeType),
-            Node::Parent(parent_node) => Ok(parent_node),
-        }
-    }
+/// Content of a parent node.
+#[derive(Debug, PartialEq, Clone, Serialize, Deserialize)]
+pub struct ParentNode {
+    pub(crate) public_key: HPKEPublicKey,
+    pub(crate) unmerged_leaves: Vec<u32>,
+    pub(crate) parent_hash: Vec<u8>,
 }
 
 impl ParentNode {
+    /// Creates a new `ParentNode` from the provided values.
     pub fn new(public_key: HPKEPublicKey, unmerged_leaves: &[u32], parent_hash: &[u8]) -> Self {
         Self {
             public_key,
@@ -117,36 +129,21 @@ impl ParentNode {
             parent_hash: parent_hash.to_vec(),
         }
     }
+    /// Returns the node's HPKE public key
     pub fn public_key(&self) -> &HPKEPublicKey {
         &self.public_key
     }
+    /// Sets the node's parent hash
     pub fn set_parent_hash(&mut self, hash: Vec<u8>) {
         self.parent_hash = hash;
     }
+    /// Returns the node's unmerged leaves
     pub fn unmerged_leaves(&self) -> &[u32] {
         &self.unmerged_leaves
     }
-    pub fn unmerged_leaves_mut(&mut self) -> &mut Vec<u32> {
-        &mut self.unmerged_leaves
-    }
-}
-
-impl Codec for ParentNode {
-    fn encode(&self, buffer: &mut Vec<u8>) -> Result<(), CodecError> {
-        self.public_key.encode(buffer)?;
-        encode_vec(VecSize::VecU32, buffer, &self.unmerged_leaves)?;
-        encode_vec(VecSize::VecU8, buffer, &self.parent_hash)?;
-        Ok(())
-    }
-    fn decode(cursor: &mut Cursor) -> Result<Self, CodecError> {
-        let public_key = HPKEPublicKey::decode(cursor)?;
-        let unmerged_leaves = decode_vec(VecSize::VecU32, cursor)?;
-        let parent_hash = decode_vec(VecSize::VecU8, cursor)?;
-        Ok(ParentNode {
-            public_key,
-            unmerged_leaves,
-            parent_hash,
-        })
+    /// Adds a leaf to the node's unmerged leaves
+    pub fn add_unmerged_leaf(&mut self, leaf: u32) {
+        self.unmerged_leaves.push(leaf);
     }
 }
 
