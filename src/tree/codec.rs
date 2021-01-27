@@ -41,7 +41,6 @@ impl Codec for Node {
                 let parent_node = ParentNode::decode(cursor)?;
                 Node::Parent(parent_node)
             }
-            NodeType::Default => return Err(CodecError::DecodingError),
         };
         Ok(node)
     }
@@ -49,9 +48,9 @@ impl Codec for Node {
 
 impl Codec for ParentNode {
     fn encode(&self, buffer: &mut Vec<u8>) -> Result<(), CodecError> {
-        self.public_key.encode(buffer)?;
-        encode_vec(VecSize::VecU32, buffer, &self.unmerged_leaves)?;
-        encode_vec(VecSize::VecU8, buffer, &self.parent_hash)?;
+        self.public_key().encode(buffer)?;
+        encode_vec(VecSize::VecU32, buffer, &self.unmerged_leaves())?;
+        encode_vec(VecSize::VecU8, buffer, &self.parent_hash())?;
         Ok(())
     }
     fn decode(cursor: &mut Cursor) -> Result<Self, CodecError> {

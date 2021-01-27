@@ -1,6 +1,8 @@
 //! This module provides a layer of abstraction over a simple binary tree that
 //! is "blank-aware".
 
+use std::convert::TryFrom;
+
 use super::{
     binary_tree::{errors::BinaryTreeError, BinaryTree},
     index::{LeafIndex, NodeIndex},
@@ -108,8 +110,7 @@ impl<T: Clone + PartialEq> BlankedTree<T> {
     fn free_leaves(&self) -> Vec<LeafIndex> {
         let mut free_leaves = Vec::new();
         for index in 0..self.leaf_count().as_usize() {
-            // This makes sure that we have the correct index.
-            let leaf_index = LeafIndex::from(NodeIndex::from(index));
+            let leaf_index = LeafIndex::from(index);
             // We can unwrap here, because index is scoped to be within the
             // tree.
             if self.leaf(&leaf_index).unwrap().is_none() {
@@ -124,9 +125,13 @@ impl<T: Clone + PartialEq> BlankedTree<T> {
         let mut right_most_index = self.size().as_usize() - 1;
         // We can unwrap here, because the right-most index is always within the
         // tree.
-        while self.is_blank(&NodeIndex::from(right_most_index)).unwrap() {
-            self.remove();
-            right_most_index -= 1;
+        while self.is_blank(&NodeIndex::from(right_most_index)).unwrap()
+            && self
+                .is_blank(&NodeIndex::from(right_most_index - 1))
+                .unwrap()
+        {
+            self.remove(2);
+            right_most_index -= 2;
         }
     }
 

@@ -55,10 +55,12 @@ impl<'a> ParentHashInput<'a> {
         child_index: NodeIndex,
         parent_hash: &'a [u8],
     ) -> Result<Self, ParentHashError> {
-        let public_key = match tree.nodes[index].public_hpke_key() {
-            Some(pk) => pk,
-            None => return Err(ParentHashError::EmptyParentNode),
-        };
+        let public_key = tree
+            .public_tree
+            .node(&index)?
+            .ok_or(ParentHashError::BlankNode)?
+            .as_parent_node()?
+            .public_key();
         let original_child_resolution = tree.original_child_resolution(child_index);
         Ok(Self {
             public_key,
@@ -120,16 +122,21 @@ impl<'a> ParentNodeTreeHashInput<'a> {
 impl RatchetTree {
     /// The list of HPKEPublicKey values of the nodes in the resolution of `index`
     /// but with the `unmerged_leaves` of the parent node omitted.
-    pub(crate) fn original_child_resolution(&self, index: NodeIndex) -> Vec<&HPKEPublicKey> {
+    pub(crate) fn original_child_resolution(
+        &self,
+        index: NodeIndex,
+    ) -> Result<Vec<&HPKEPublicKey>, TreeError> {
         // Build the exclusion list that consists of the unmerged leaves of the parent
         // node
         let mut unmerged_leaves = vec![];
         // If the current index is not the root, we collect the unmerged leaves of the
         // parent
         if let Ok(parent_index) = treemath::parent(index, self.leaf_count()) {
-            // Check if the parent node is not blank
-            if let Some(parent_node) = &self.nodes[parent_index].node {
-                for index in &parent_node.unmerged_leaves {
+            // Check if the target node is not blank
+            if let Some(node) = self.public_tree.node(&parent_index)? {
+                // Check if the target node is a parent.
+                let parent_node = node.as_parent_node().map_err(|_| TreeError::InvalidTree)?;
+                for index in parent_node.unmerged_leaves() {
                     unmerged_leaves.push(NodeIndex::from(*index as usize));
                 }
             }
@@ -138,13 +145,22 @@ impl RatchetTree {
         let exclusion_list: HashSet<&NodeIndex> = unmerged_leaves.iter().collect();
 
         // Compute the resolution for the index with the exclusion list
-        let resolution = self.resolve(index, &exclusion_list);
+        let resolution = self.resolve(index, &exclusion_list)?;
 
         // Build the list of HPKE public keys by iterating over the resolution
-        resolution
+        Ok(resolution
             .iter()
-            .map(|index| self.nodes[*index].public_hpke_key().unwrap())
-            .collect()
+            .map(|index| {
+                self.public_tree
+                    .node(index)
+                    // We can unwrap here, because every index in the resolution
+                    // should be within the tree.
+                    .unwrap()
+                    // We can unwrap again, because nodes in the resolution can't be blank.
+                    .unwrap()
+                    .public_key()
+            })
+            .collect())
     }
 
     /// Computes the parent hashes for a leaf node and returns the parent hash for
@@ -178,7 +194,7 @@ impl RatchetTree {
                 node_parent_hash(tree, parent, index)
             };
             // If the current node is a parent, replace the parent hash in that node
-            let current_node = &mut tree.nodes[index];
+            let current_node = &mut tree.public_tree.node(index)?;
             // Get the parent node
             if let Some(mut parent_node) = current_node.node.take() {
                 // Set the parent hash

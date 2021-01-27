@@ -282,14 +282,16 @@ impl RatchetTree {
     ) -> Result<&CommitSecret, TreeError> {
         let own_index: NodeIndex = self.own_node_index().into();
         // Make `sender` a node index, making it easier to handle.
-        let sender = NodeIndex::from(sender);
+        let sender_node_index = NodeIndex::from(sender);
 
         // Find common ancestor of own leaf and sender leaf
-        let common_ancestor_index = self.public_tree.common_ancestor(sender, own_index)?;
+        let common_ancestor_index = self
+            .public_tree
+            .common_ancestor(sender_node_index, own_index)?;
 
         // Calculate sender direct path & co-path, common path
-        let sender_direct_path = self.public_tree.direct_path_root(sender)?;
-        let sender_co_path = self.public_tree.copath(sender)?;
+        let sender_direct_path = self.public_tree.direct_path_root(sender_node_index)?;
+        let sender_co_path = self.public_tree.copath(sender_node_index)?;
 
         // Find the position of the common ancestor in the sender's direct path
         let common_ancestor_sender_dirpath_index = &sender_direct_path
@@ -375,10 +377,10 @@ impl RatchetTree {
         self.merge_direct_path_keys(update_path, sender_direct_path)?;
         self.merge_public_keys(&new_path_public_keys, &common_path)?;
         self.public_tree.replace(
-            &NodeIndex::from(sender),
+            &sender_node_index,
             Some(Node::Leaf(update_path.leaf_key_package.clone())),
         )?;
-        self.compute_parent_hash(NodeIndex::from(sender))?;
+        self.set_parent_hashes(sender);
 
         // TODO: Do we really want to return the commit secret here?
         Ok(self.private_tree.commit_secret())
@@ -787,14 +789,24 @@ impl RatchetTree {
     /// Verify the parent hashes of the tree nodes. Returns `true` if all parent
     /// hashes have successfully been verified and `false` otherwise.
     pub fn verify_parent_hashes(&self) -> bool {
-        self.nodes.iter().enumerate().all(|(index, node)| {
-            if NodeIndex::from(index).is_parent() && node.is_full_parent() {
-                self.verify_parent_hash(NodeIndex::from(index), node)
-                    .is_ok()
-            } else {
-                true
-            }
-        })
+        self.public_tree
+            .nodes()
+            .iter()
+            .enumerate()
+            .all(|(index, node_option)| {
+                // Only verify non-blank nodes.
+                if let Some(node) = node_option {
+                    // Only verify parent nodes.
+                    if NodeIndex::from(index).is_parent() {
+                        self.verify_parent_hash(NodeIndex::from(index), node)
+                            .is_ok()
+                    } else {
+                        true
+                    }
+                } else {
+                    true
+                }
+            })
     }
 }
 

@@ -156,6 +156,10 @@ impl ParentNode {
     pub fn unmerged_leaves(&self) -> &[u32] {
         &self.unmerged_leaves
     }
+    /// Returns the node's parent hash.
+    pub fn parent_hash(&self) -> &[u8] {
+        &self.parent_hash
+    }
     /// Adds a leaf to the node's unmerged leaves
     pub fn add_unmerged_leaf(&mut self, leaf: u32) {
         self.unmerged_leaves.push(leaf);
