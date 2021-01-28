@@ -1,8 +1,6 @@
 //! This module provides a layer of abstraction over a simple binary tree that
 //! is "blank-aware".
 
-use std::convert::TryFrom;
-
 use super::{
     binary_tree::{errors::BinaryTreeError, BinaryTree},
     index::{LeafIndex, NodeIndex},
@@ -129,8 +127,11 @@ impl<T: Clone + PartialEq> BlankedTree<T> {
             && self
                 .is_blank(&NodeIndex::from(right_most_index - 1))
                 .unwrap()
+            && self.size() > NodeIndex::from(2 as usize)
         {
-            self.remove(2);
+            // We can unwrap here, because we know that the outtermost nodes are
+            // blank and the tree is large enough to remove two nodes.
+            self.remove(2).unwrap();
             right_most_index -= 2;
         }
     }

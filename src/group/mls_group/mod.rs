@@ -287,10 +287,11 @@ impl MlsGroup {
     pub fn verify_signature(&self, mls_plaintext: &MLSPlaintext) -> Result<(), MLSPlaintextError> {
         let tree = self.tree();
 
-        let node = &tree
+        let node = tree
             .public_tree
             .leaf(&mls_plaintext.sender())
             .or(Err(MLSPlaintextError::UnknownSender))?
+            .as_ref()
             .ok_or(MLSPlaintextError::UnknownSender)?;
         let credential = node
             .as_leaf_node()

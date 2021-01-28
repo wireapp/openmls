@@ -222,6 +222,8 @@ impl<T: PartialEq> BinaryTree<T> {
     pub(crate) fn remove(&mut self, nodes_to_remove: usize) -> Result<(), BinaryTreeError> {
         if nodes_to_remove % 2 != 0 {
             return Err(BinaryTreeError::TreeNotFull);
+        } else if nodes_to_remove > self.size().as_usize() {
+            return Err(BinaryTreeError::NotEnoughNodes);
         }
         self.nodes
             .drain(self.nodes.len() - nodes_to_remove..self.nodes.len());
@@ -255,7 +257,7 @@ impl<T: PartialEq> BinaryTree<T> {
     }
 
     /// Get a mutable reference to a leaf of the tree by index.
-    pub(crate) fn leaf_mut(&self, leaf_index: &LeafIndex) -> Result<&mut T, BinaryTreeError> {
+    pub(crate) fn leaf_mut(&mut self, leaf_index: &LeafIndex) -> Result<&mut T, BinaryTreeError> {
         self.node_mut(&NodeIndex::from(leaf_index))
     }
 

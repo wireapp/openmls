@@ -47,7 +47,9 @@ fn test_parent_hash() {
                     .into_keys();
                 let parent_node = ParentNode::new(public_key, &[], &[]);
                 let node = Node::Parent(parent_node);
-                tree.nodes[index] = node;
+                tree.public_tree
+                    .replace(&NodeIndex::from(index), Some(node))
+                    .unwrap();
             }
         }
 
@@ -55,7 +57,18 @@ fn test_parent_hash() {
         let original_parent_hash = tree.set_parent_hashes(LeafIndex::from(0usize));
 
         // Swap two leaf nodes in the left & right part of the tree
-        tree.nodes.swap(15, 47);
+        let node_15 = tree
+            .public_tree
+            .replace(
+                &NodeIndex::from(15 as usize),
+                tree.public_tree
+                    .node(&NodeIndex::from(47 as usize))
+                    .unwrap()
+                    .clone(),
+            )
+            .unwrap();
+        tree.public_tree
+            .replace(&NodeIndex::from(47 as usize), node_15);
 
         // Compute the parent hash again to verify it has changed
         let leaf_swap_parent_hash = tree.set_parent_hashes(LeafIndex::from(0usize));

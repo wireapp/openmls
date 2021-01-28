@@ -172,7 +172,7 @@ impl RatchetTree {
 
     /// Returns the number of leaves in a tree
     pub fn leaf_count(&self) -> LeafIndex {
-        treemath::leaf_count(self.tree_size())
+        self.public_tree.leaf_count()
     }
 
     fn resolve(
@@ -424,8 +424,10 @@ impl RatchetTree {
             )
             .unwrap();
 
-        // Compute the parent hash extension and update the KeyPackage and sign it
-        let parent_hash = self.set_parent_hashes(own_index);
+        // Compute the parent hash extension and update the KeyPackage and sign
+        // it. We can unwrap here, because we know that the own index is within
+        // the tree.
+        let parent_hash = self.set_parent_hashes(own_index).unwrap();
         let key_package = self.own_key_package_mut();
         key_package.update_parent_hash(&parent_hash);
         // Sign the KeyPackage
@@ -494,7 +496,9 @@ impl RatchetTree {
         group_context: &[u8],
         new_leaves_indexes: HashSet<&NodeIndex>,
     ) -> Result<Vec<UpdatePathNode>, TreeError> {
-        let copath = treemath::copath(self.private_tree.leaf_index().into(), self.leaf_count())
+        let copath = self
+            .public_tree
+            .copath(self.private_tree.leaf_index().into())
             .expect("encrypt_to_copath: Error when computing copath.");
         // Return if the length of the copath is zero
         if copath.is_empty() {
@@ -733,7 +737,7 @@ impl RatchetTree {
             .public_tree
             .left(index)
             .map_err(|_| ParentHashError::InputNotParentNode)?;
-        let right = treemath::right(index, self.leaf_count()).unwrap();
+        let right = self.public_tree.right(index).unwrap();
         // Extract the parent hash field
         let parent_hash_field = match node.parent_hash() {
             Some(parent_hash) => parent_hash,

@@ -152,7 +152,7 @@ impl<'key_store_lifetime> Client<'key_store_lifetime> {
         for (index, leaf) in tree.iter().enumerate() {
             if index % 2 == 0 {
                 if let Some(leaf_node) = leaf {
-                    let key_package = leaf_node.key_package().unwrap();
+                    let key_package = leaf_node.as_leaf_node().unwrap();
                     members.push((index / 2, key_package.credential().clone()));
                 }
             }

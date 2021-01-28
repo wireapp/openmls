@@ -131,12 +131,12 @@ fn test_original_child_resolution() {
         let expected_public_keys_full = LEFT_CHILD_RESOLUTION
             .iter()
             .filter(|index| nodes[**index].is_some())
-            .map(|index| nodes[*index].as_ref().unwrap().public_hpke_key().unwrap())
+            .map(|index| nodes[*index].as_ref().unwrap().public_key())
             .collect::<Vec<&HPKEPublicKey>>();
 
         // Since the root node has no unmerged leaves, we expect all keys to be returned
         assert_eq!(
-            tree.original_child_resolution(left_child_index),
+            tree.original_child_resolution(left_child_index).unwrap(),
             expected_public_keys_full
         );
 
@@ -144,24 +144,26 @@ fn test_original_child_resolution() {
         let (_private_key, public_key) = ciphersuite
             .derive_hpke_keypair(&Secret::random(ciphersuite.hash_length()))
             .into_keys();
-        let new_root_node = Node::Parent(ParentNode {
-            parent_hash: vec![],
+        let new_root_node = Node::Parent(ParentNode::new(
             public_key,
-            unmerged_leaves: ROOT_UNMERGED_LEAVES.to_vec(),
-        });
-        tree.nodes[root_index] = new_root_node;
+            &ROOT_UNMERGED_LEAVES.to_vec(),
+            &vec![],
+        ));
+        tree.public_tree
+            .replace(&root_index, Some(new_root_node))
+            .unwrap();
 
         // Populate the expected public key list
         let expected_public_keys_filtered = EXPECTED_CHILD_RESOLUTION
             .iter()
             .filter(|index| nodes[**index].is_some())
-            .map(|index| nodes[*index].as_ref().unwrap().public_hpke_key().unwrap())
+            .map(|index| nodes[*index].as_ref().unwrap().public_key())
             .collect::<Vec<&HPKEPublicKey>>();
 
         // Since the root node now has unmerged leaves, we expect only certain public
         // keys to be returned
         assert_eq!(
-            tree.original_child_resolution(left_child_index),
+            tree.original_child_resolution(left_child_index).unwrap(),
             expected_public_keys_filtered
         );
     }

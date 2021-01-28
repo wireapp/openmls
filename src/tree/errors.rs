@@ -38,8 +38,8 @@ implement_error! {
             BlankNode = "The parent node was blank.",
         }
         Complex {
-            InvalidTree(BinaryTreeError) =
-                "Something went wrong while operating on the binary tree. For more information, see `BinaryTreeError`.",
+            InvalidTree(TreeError) =
+                "Something went wrong while operating on the tree. For more information, see `TreeError`.",
             WrongNodeType(NodeError) = "The given Node was not of the expected type.",
         }
     }

@@ -35,12 +35,6 @@ impl TryFrom<u8> for NodeType {
     }
 }
 
-#[derive(Debug, PartialEq, Clone)]
-pub(crate) enum NodeContent {
-    Leaf(KeyPackage),
-    Parent(ParentNode),
-}
-
 #[derive(PartialEq, Clone, Debug, Serialize, Deserialize)]
 pub struct ParentNode {
     public_key: HPKEPublicKey,
@@ -97,7 +91,7 @@ impl Node {
     /// Obtain a reference to the `KeyPackage` corresponding to a `Node` that
     /// you know is a leaf node. Returns a `NodeError` if the given node is a
     /// `ParentNode`.
-    pub(crate) fn as_leaf_node(&self) -> Result<&KeyPackage, NodeError> {
+    pub fn as_leaf_node(&self) -> Result<&KeyPackage, NodeError> {
         match self {
             Node::Leaf(key_package) => Ok(key_package),
             Node::Parent(_) => Err(NodeError::InvalidNodeType),
@@ -107,7 +101,7 @@ impl Node {
     /// Obtain a mutable reference to the `KeyPackage` corresponding to a `Node`
     /// that you know is a leaf node. Returns a `NodeError` if the given node is
     /// a `ParentNode`.
-    pub(crate) fn as_leaf_node_mut(&mut self) -> Result<&mut KeyPackage, NodeError> {
+    pub fn as_leaf_node_mut(&mut self) -> Result<&mut KeyPackage, NodeError> {
         match self {
             Node::Leaf(key_package) => Ok(key_package),
             Node::Parent(_) => Err(NodeError::InvalidNodeType),
@@ -117,7 +111,7 @@ impl Node {
     /// Obtain a reference to the `ParentNode` corresponding to a `Node` that
     /// you know is a parent node. Returns a `NodeError` if the given node is a
     /// `LeafNode`.
-    pub(crate) fn as_parent_node(&self) -> Result<&ParentNode, NodeError> {
+    pub fn as_parent_node(&self) -> Result<&ParentNode, NodeError> {
         match self {
             Node::Parent(parent_node) => Ok(parent_node),
             Node::Leaf(_) => Err(NodeError::InvalidNodeType),
@@ -127,7 +121,7 @@ impl Node {
     /// Obtain a mutable reference to the `ParentNode` corresponding to a `Node` that
     /// you know is a parent node. Returns a `NodeError` if the given node is a
     /// `LeafNode`.
-    pub(crate) fn as_parent_node_mut(&mut self) -> Result<&mut ParentNode, NodeError> {
+    pub fn as_parent_node_mut(&mut self) -> Result<&mut ParentNode, NodeError> {
         match self {
             Node::Parent(parent_node) => Ok(parent_node),
             Node::Leaf(_) => Err(NodeError::InvalidNodeType),

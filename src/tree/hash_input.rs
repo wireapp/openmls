@@ -57,11 +57,13 @@ impl<'a> ParentHashInput<'a> {
     ) -> Result<Self, ParentHashError> {
         let public_key = tree
             .public_tree
-            .node(&index)?
+            .node(&index)
+            .map_err(|_| TreeError::InvalidTree)?
+            .as_ref()
             .ok_or(ParentHashError::BlankNode)?
             .as_parent_node()?
             .public_key();
-        let original_child_resolution = tree.original_child_resolution(child_index);
+        let original_child_resolution = tree.original_child_resolution(child_index)?;
         Ok(Self {
             public_key,
             parent_hash,
@@ -75,11 +77,11 @@ impl<'a> ParentHashInput<'a> {
 }
 pub struct LeafNodeHashInput<'a> {
     pub(crate) node_index: &'a NodeIndex,
-    pub(crate) key_package: &'a Option<KeyPackage>,
+    pub(crate) key_package: Option<&'a KeyPackage>,
 }
 
 impl<'a> LeafNodeHashInput<'a> {
-    pub(crate) fn new(node_index: &'a NodeIndex, key_package: &'a Option<KeyPackage>) -> Self {
+    pub(crate) fn new(node_index: &'a NodeIndex, key_package: Option<&'a KeyPackage>) -> Self {
         Self {
             node_index,
             key_package,
@@ -92,7 +94,7 @@ impl<'a> LeafNodeHashInput<'a> {
 }
 pub struct ParentNodeTreeHashInput<'a> {
     pub(crate) node_index: u32,
-    pub(crate) parent_node: &'a Option<ParentNode>,
+    pub(crate) parent_node: Option<&'a ParentNode>,
     pub(crate) left_hash: &'a [u8],
     pub(crate) right_hash: &'a [u8],
 }
@@ -100,7 +102,7 @@ pub struct ParentNodeTreeHashInput<'a> {
 impl<'a> ParentNodeTreeHashInput<'a> {
     pub(crate) fn new(
         node_index: u32,
-        parent_node: &'a Option<ParentNode>,
+        parent_node: Option<&'a ParentNode>,
         left_hash: &'a [u8],
         right_hash: &'a [u8],
     ) -> Self {
@@ -156,6 +158,7 @@ impl RatchetTree {
                     // We can unwrap here, because every index in the resolution
                     // should be within the tree.
                     .unwrap()
+                    .as_ref()
                     // We can unwrap again, because nodes in the resolution can't be blank.
                     .unwrap()
                     .public_key()
@@ -165,18 +168,18 @@ impl RatchetTree {
 
     /// Computes the parent hashes for a leaf node and returns the parent hash for
     /// the parent hash extension
-    pub(crate) fn set_parent_hashes(&mut self, index: LeafIndex) -> Vec<u8> {
+    pub(crate) fn set_parent_hashes(&mut self, index: LeafIndex) -> Result<Vec<u8>, TreeError> {
         // Recursive helper function used to calculate parent hashes
         fn node_parent_hash(
             tree: &mut RatchetTree,
             index: NodeIndex,
             former_index: NodeIndex,
-        ) -> Vec<u8> {
+        ) -> Result<Vec<u8>, TreeError> {
             let tree_size = tree.leaf_count();
             let root = treemath::root(tree_size);
             // When the group only has one member, there are no parent nodes
             if tree.leaf_count().as_usize() <= 1 {
-                return vec![];
+                return Ok(vec![]);
             }
 
             // Calculate the sibling of the former index
@@ -191,30 +194,30 @@ impl RatchetTree {
                 // It is ok to use `unwrap()` here, since we already checked that the index is
                 // not the root
                 let parent = treemath::parent(index, tree_size).unwrap();
-                node_parent_hash(tree, parent, index)
+                node_parent_hash(tree, parent, index)?
             };
-            // If the current node is a parent, replace the parent hash in that node
-            let current_node = &mut tree.public_tree.node(index)?;
+            // If the current node is a parent, replace the parent hash in that
+            // node. If it's blank, we throw an error, as it should not be blank
+            // when computing parent hashes.
+            let current_node = tree
+                .public_tree
+                .node_mut(&index)?
+                .take()
+                .ok_or(TreeError::InvalidTree)?;
             // Get the parent node
-            if let Some(mut parent_node) = current_node.node.take() {
+            let result = if let Node::Parent(mut parent_node) = current_node {
                 // Set the parent hash
                 parent_node.set_parent_hash(parent_hash);
-                // Put the node back in the tree
-                tree.nodes[index].node = Some(parent_node);
                 // Calculate the parent hash of the current node and return it
-                ParentHashInput::new(
-                    tree,
-                    index,
-                    former_index_sibling,
-                    &tree.nodes[index].node.as_ref().unwrap().parent_hash,
-                )
-                // It is ok to use `unwrap()` here, since we can be sure the node is not blank
-                .unwrap()
-                .hash(tree.ciphersuite)
+                ParentHashInput::new(tree, index, former_index_sibling, parent_node.parent_hash())
+                    // It is ok to use `unwrap()` here, since we can be sure the node is not blank
+                    .unwrap()
+                    .hash(tree.ciphersuite)
             // Otherwise we reached the leaf level, just return the hash
             } else {
                 parent_hash
-            }
+            };
+            Ok(result)
         }
         // The same index is used for the former index here, since that parameter is
         // ignored when starting with a leaf node
@@ -227,29 +230,30 @@ impl RatchetTree {
     pub(crate) fn tree_hash(&self) -> Vec<u8> {
         // Recursive helper function to the tree hashes for a node
         fn node_hash(tree: &RatchetTree, index: NodeIndex) -> Vec<u8> {
-            let node = &tree.nodes[index];
+            // We can unwrap here, because this function is private and only
+            // called on indices within the tree.
+            let node_option = tree.public_tree.node(&index).unwrap().as_ref();
             // Depending on the node type, we calculate the hash differently
-            match node.node_type {
+            if index.is_leaf() {
                 // For leaf nodes we just need the index and the KeyPackage
-                NodeType::Leaf => {
-                    let leaf_node_hash = LeafNodeHashInput::new(&index, &node.key_package);
-                    leaf_node_hash.hash(tree.ciphersuite)
-                }
+                let key_package_option = node_option.map(|node| node.as_leaf_node().unwrap());
+                let leaf_node_hash = LeafNodeHashInput::new(&index, key_package_option);
+                leaf_node_hash.hash(tree.ciphersuite)
+            } else {
                 // For parent nodes we need the hash of the two children as well
-                NodeType::Parent => {
-                    // Unwrapping here is safe, because parent nodes always have children
-                    let left = treemath::left(index).unwrap();
-                    let left_hash = node_hash(tree, left);
-                    let right = treemath::right(index, tree.leaf_count()).unwrap();
-                    let right_hash = node_hash(tree, right);
-                    let parent_node_hash = ParentNodeTreeHashInput::new(
-                        index.as_u32(),
-                        &node.node,
-                        &left_hash,
-                        &right_hash,
-                    );
-                    parent_node_hash.hash(tree.ciphersuite)
-                }
+                let parent_node_option = node_option.map(|node| node.as_parent_node().unwrap());
+                // Unwrapping here is safe, because parent nodes always have children
+                let left = treemath::left(index).unwrap();
+                let left_hash = node_hash(tree, left);
+                let right = treemath::right(index, tree.leaf_count()).unwrap();
+                let right_hash = node_hash(tree, right);
+                let parent_node_hash = ParentNodeTreeHashInput::new(
+                    index.as_u32(),
+                    parent_node_option,
+                    &left_hash,
+                    &right_hash,
+                );
+                parent_node_hash.hash(tree.ciphersuite)
             }
         }
         // We start with the root and traverse the tree downwards
