@@ -68,7 +68,8 @@ fn test_parent_hash() {
             )
             .unwrap();
         tree.public_tree
-            .replace(&NodeIndex::from(47 as usize), node_15);
+            .replace(&NodeIndex::from(47 as usize), node_15)
+            .unwrap();
 
         // Compute the parent hash again to verify it has changed
         let leaf_swap_parent_hash = tree.set_parent_hashes(LeafIndex::from(0usize));

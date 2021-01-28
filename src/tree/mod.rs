@@ -81,7 +81,6 @@ impl RatchetTree {
     /// Create a new empty `RatchetTree`.
     pub(crate) fn new(ciphersuite: &'static Ciphersuite, kpb: KeyPackageBundle) -> RatchetTree {
         let nodes = vec![Some(Node::Leaf(kpb.key_package().clone()))];
-        let private_tree = PrivateTree::from_key_package_bundle(LeafIndex::from(0u32), &kpb);
         let public_tree = BlankedTree::from(nodes);
         let private_tree = PrivateTree::from_key_package_bundle(LeafIndex::from(0u32), &kpb);
 
@@ -380,7 +379,7 @@ impl RatchetTree {
             &sender_node_index,
             Some(Node::Leaf(update_path.leaf_key_package.clone())),
         )?;
-        self.set_parent_hashes(sender);
+        self.set_parent_hashes(sender)?;
 
         // TODO: Do we really want to return the commit secret here?
         Ok(self.private_tree.commit_secret())
@@ -477,7 +476,9 @@ impl RatchetTree {
         self.public_tree
             .replace(&own_index, Some(Node::Leaf(key_package.clone())))
             .unwrap();
-        self.set_parent_hashes(self.own_node_index());
+        // We can unwrap here, because the own node index is within the tree and
+        // the nodesin the direct path are all non-blank.
+        self.set_parent_hashes(self.own_node_index()).unwrap();
         if let Some(new_leaves_indexes) = new_leaves_indexes_option {
             let update_path_nodes = self
                 .encrypt_to_copath(new_public_keys, group_context, new_leaves_indexes)

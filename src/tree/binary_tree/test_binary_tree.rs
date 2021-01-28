@@ -18,7 +18,7 @@ fn test_basic_operations() {
     // Clone so we can compare later.
     let mut new_tree = tree.clone();
     // Add new nodes to the tree.
-    new_tree.add(new_nodes.clone());
+    new_tree.add(new_nodes.clone()).unwrap();
     let new_tree_size = new_tree.size().as_usize();
 
     // Compare sizes of old and new tree.
