@@ -16,43 +16,38 @@ defaults:
     working-directory: openmls
 
 jobs:
-  tests:
+  macos-tests:
     strategy:
       fail-fast: false
       matrix:
-        os:
-          - macos-latest
-          - ubuntu-latest
-          - windows-latest
-    runs-on: ${{ matrix.os }}
+        target:
+          - x86_64-apple-darwin
+          - aarch64-apple-darwin
+          - aarch64-apple-ios
+    runs-on: macos-latest
     steps:
       - uses: actions/checkout@v2
         with:
           ref: ${{ github.event.pull_request.head.sha }}
       - name: Setup MacOS
-        if: matrix.os == 'macos-latest'
         run: |
+          brew install pkg-config
           sudo rm -Rf /Library/Developer/CommandLineTools/SDKs/*
           sudo xcode-select -s /Applications/Xcode_12.4.app
           rustup target install aarch64-apple-darwin
           rustup target install aarch64-apple-ios
       - name: Tests
-        run: cargo test --verbose
-      - name: Apple Silicon Build
-        if: matrix.os == 'macos-latest'
         run: |
-          cargo build --target aarch64-apple-darwin --tests --verbose
-          cargo build --release --target aarch64-apple-darwin --tests --verbose
-      - name: iOS build
-        if: matrix.os == 'macos-latest'
-        run: |
-          cargo build --target aarch64-apple-ios --tests --verbose
-          cargo build --release --target aarch64-apple-ios --tests --verbose
-  cross-build:
+          cargo test --target ${{ matrix.target }} --verbose
+  linux-tests:
     runs-on: ubuntu-latest
     strategy:
+      fail-fast: false
       matrix:
         include:
+          # 64-bit Linux
+          - target: x86_64-unknown-linux-gnu
+            rust: stable
           # 32-bit Linux
           - target: i686-unknown-linux-gnu
             rust: stable
@@ -60,11 +55,13 @@ jobs:
           # wasm
           - target: wasm32-unknown-unknown
             rust: stable
-          # ARM64 Android
+          # ARM64 Linux
           - target: aarch64-linux-android
             rust: stable
-          # ARM64 iOS
-          - target: aarch64-apple-ios
+            deps: sudo apt update && sudo apt install gcc-aarch64-linux-gnu
+            rustflags: "-C linker=aarch64-linux-gnu-gcc"
+          # ARM64 Android
+          - target: aarch64-linux-android
             rust: stable
     steps:
       - uses: actions/checkout@v1
@@ -75,8 +72,28 @@ jobs:
           profile: minimal
           override: true
       - run: ${{ matrix.deps }}
-      - run: cargo build --target ${{ matrix.target }}
-      - run: cargo build --target ${{ matrix.target }} --release
+      - name: Linux Tests
+        env:
+          RUSTFLAGS: ${{ matrix.rustflags }}
+        run: cargo test --target ${{ matrix.target }}
+  windows-tests:
+    runs-on: windows-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          target:
+            - x86_64-pc-windows-msvc
+            - i686-pc-windows-msvc
+    steps:
+      - uses: actions/checkout@v1
+      - uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          target: ${{ matrix.target }}
+          profile: minimal
+          override: true
+      - run: cargo test --target ${{ matrix.target }}
   checks:
     runs-on: ubuntu-latest
     steps:
