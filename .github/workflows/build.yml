@@ -16,7 +16,7 @@ defaults:
     working-directory: openmls
 
 jobs:
-  build:
+  release-build:
     strategy:
       fail-fast: false
       matrix:
@@ -27,13 +27,9 @@ jobs:
           # Windows
           - i686-pc-windows-msvc
           - x86_64-pc-windows-msvc
-          # macOS
-          - x86_64-apple-darwin
-          - aarch64-apple-darwin
           # Linux
           - x86-unknown-linux-gnu
           - i686-unknown-linux-gnu
-          - aarch64-unknown-linux-gnu
           # Android
           - aarch64-linux-android
           # iOS
@@ -44,9 +40,21 @@ jobs:
           # Compile iOS sim on macOS
           - os: macos-latest
             arch: aarch64-apple-ios-sim
+          # Compile to darwin targets on macOS
+          - os: macos-latest
+            arch: x86_64-apple-darwin
+          - os: macos-latest
+            arch: aarch64-apple-darwin
+          # Use specific linker in some cases
+          - os: ubuntu-latest
+            arch: aarch64-unknown-linux-gnu
+            rustflags: "-C linker=aarch64-linux-gnu-gcc"
     runs-on: ${{ matrix.os }}
     steps:
+      # Import msvc components for ms targets
+      - uses: ilammy/msvc-dev-cmd@v1
       - uses: actions/checkout@v2
+      # Install the required target
       - uses: actions-rs/toolchain@v1
         with:
           toolchain: stable
@@ -55,7 +63,46 @@ jobs:
           components: rustfmt, clippy
       - name: Build Release
         run: cargo build --release --verbose --target ${{ matrix.arch }}
+
+  test-build:
+    strategy:
+      fail-fast: false
+      matrix:
+        os:
+          - ubuntu-latest
+        arch:
+          # Windows
+          - i686-pc-windows-msvc
+          - x86_64-pc-windows-msvc
+          # Linux
+          - x86-unknown-linux-gnu
+          - i686-unknown-linux-gnu
+          # WASM
+          - wasm32-unknown-unknown
+        include:
+          # Compile to darwin targets on macOS
+          - os: macos-latest
+            arch: x86_64-apple-darwin
+          - os: macos-latest
+            arch: aarch64-apple-darwin
+          # Use specific linker in some cases
+          - os: ubuntu-latest
+            arch: aarch64-unknown-linux-gnu
+            rustflags: "-C linker=aarch64-linux-gnu-gcc"
+    runs-on: ${{ matrix.os }}
+    steps:
+      # Import msvc components for ms targets
+      - uses: ilammy/msvc-dev-cmd@v1
+      - uses: actions/checkout@v2
+      # Install the required target
+      - uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          override: true
+          target: ${{ matrix.arch }}
+          components: rustfmt, clippy
       - name: Build Test
+        env: RUSTFLAGS: ${{ matrix.rustflags }}
         run: cargo test --no-run --verbose --target ${{ matrix.arch }}
       - uses: actions/upload-artifact@v2
         with:
