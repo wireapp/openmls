@@ -16,7 +16,7 @@ defaults:
     working-directory: openmls
 
 jobs:
-  release-build:
+  build:
     strategy:
       fail-fast: false
       matrix:
@@ -53,5 +53,7 @@ jobs:
           override: true
           target: ${{ matrix.arch }}
           components: rustfmt, clippy
-      - name: Build Release
+      - name: Build debug
+        run: cargo build --verbose --target ${{ matrix.arch }}
+      - name: Build release
         run: cargo build --release --verbose --target ${{ matrix.arch }}

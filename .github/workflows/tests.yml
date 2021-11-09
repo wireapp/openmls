@@ -36,9 +36,12 @@ jobs:
           sudo xcode-select -s /Applications/Xcode_12.4.app
           rustup target install aarch64-apple-darwin
           rustup target install aarch64-apple-ios
-      - name: Tests
+      - name: Tests debug build
         run: |
           cargo test --target ${{ matrix.target }} --verbose
+      - name: Tests release build
+        run: |
+          cargo test --target ${{ matrix.target }} --verbose --release
   linux-tests:
     runs-on: ubuntu-latest
     strategy:
@@ -72,19 +75,24 @@ jobs:
           profile: minimal
           override: true
       - run: ${{ matrix.deps }}
-      - name: Linux Tests
+      - name: Tests debug build
         env:
           RUSTFLAGS: ${{ matrix.rustflags }}
-        run: cargo test --target ${{ matrix.target }}
+        run: |
+          cargo test --target ${{ matrix.target }} --verbose
+      - name: Tests release build
+        env:
+          RUSTFLAGS: ${{ matrix.rustflags }}
+        run: |
+          cargo test --target ${{ matrix.target }} --verbose --release
   windows-tests:
     runs-on: windows-latest
     strategy:
       fail-fast: false
       matrix:
-        include:
-          target:
-            - x86_64-pc-windows-msvc
-            - i686-pc-windows-msvc
+        target:
+          - x86_64-pc-windows-msvc
+          - i686-pc-windows-msvc
     steps:
       - uses: actions/checkout@v1
       - uses: actions-rs/toolchain@v1
@@ -93,7 +101,12 @@ jobs:
           target: ${{ matrix.target }}
           profile: minimal
           override: true
-      - run: cargo test --target ${{ matrix.target }}
+      - name: Tests debug build
+        run: |
+          cargo test --target ${{ matrix.target }} --verbose
+      - name: Tests release build
+        run: |
+          cargo test --target ${{ matrix.target }} --verbose --release
   checks:
     runs-on: ubuntu-latest
     steps:
