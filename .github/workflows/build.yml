@@ -47,6 +47,9 @@ jobs:
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v2
+      - uses: actions-rs/toolchain@v1
+        with:
+          target: ${{ matrix.arch }}
       - name: Build Release
         run: cargo build --release --verbose --target ${{ matrix.arch }}
       - name: Build Test
