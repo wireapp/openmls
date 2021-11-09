@@ -52,7 +52,7 @@ jobs:
           toolchain: stable
           override: true
           target: ${{ matrix.arch }}
-          componensts: rustfmt, clippy
+          components: rustfmt, clippy
       - name: Build Release
         run: cargo build --release --verbose --target ${{ matrix.arch }}
       - name: Build Test
