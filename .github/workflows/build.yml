@@ -48,9 +48,9 @@ jobs:
     steps:
       - uses: actions/checkout@v2
       - name: Build Release
-        run: cargo build --release --verbose --target $ARCH
+        run: cargo build --release --verbose --target ${{ matrix.arch }}
       - name: Build Test
-        run: cargo test --no-run --verbose --target $ARCH
+        run: cargo test --no-run --verbose --target ${{ matrix.arch }}
       - uses: actions/upload-artifact@v2
         with:
           name: ${{ matrix.arch }}_test_artifact
