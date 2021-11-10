@@ -7,6 +7,9 @@ on:
   pull_request:
     branches:
       - main
+  workflow_dispatch:
+    branches:
+      - main
 
 env:
   CARGO_TERM_COLOR: always
@@ -35,6 +38,25 @@ jobs:
       - name: Tests release build
         run: |
           cargo test --verbose --release
+        # Test 32 bit builds on linux and windows
+      - name: Tests 32bit windows debug build
+        if: matrix.os == 'windows-latest'
+        run: |
+          cargo test --verbose --target i686-pc-windows-msvc
+      - name: Tests 32bit windows release build
+        if: matrix.os == 'windows-latest'
+        run: |
+          cargo test --verbose --release --target i686-pc-windows-msvc
+      - name: Tests 32bit linux debug build
+        if: matrix.os == 'ubuntu-latest'
+        run: |
+          sudo apt update && sudo apt install gcc-multilib
+          cargo test --verbose --target i686-unknown-linux-gnu
+      - name: Tests 32bit linux release build
+        if: matrix.os == 'ubuntu-latest'
+        run: |
+          sudo apt update && sudo apt install gcc-multilib
+          cargo test --verbose --release --target i686-unknown-linux-gnu
   checks:
     runs-on: ubuntu-latest
     steps:
