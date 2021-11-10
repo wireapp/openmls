@@ -7,6 +7,9 @@ on:
   pull_request:
     branches:
       - main
+  workflow_dispatch:
+    branches:
+      - main
 
 env:
   CARGO_TERM_COLOR: always
@@ -48,6 +51,7 @@ jobs:
       - uses: actions-rs/toolchain@v1
         with:
           toolchain: stable
+          profile: minimal
           override: true
           target: ${{ matrix.arch }}
       - name: Build debug
