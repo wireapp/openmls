@@ -18,10 +18,22 @@ A WIP Rust implementation of [Messaging Layer Security](https://github.com/mlswg
 
 ### Supported platforms
 
-- linux x86_64
-- linux arm32
-- linux arm64
-- macOS x86_64
+OpenMLS is built and tested on the CI for the following rust targets.
+
+- x86_64-unknown-linux-gnu
+- i686-unknown-linux-gnu
+- x86_64-pc-windows-msvc
+- i686-pc-windows-msvc
+- x86_64-apple-darwin
+
+In addition, the CI builds (but doesn't test) the following rust targets.
+
+- aarch64-apple-darwin
+- aarch64-unknown-linux-gnu
+- aarch64-linux-android
+- aarch64-apple-ios
+- aarch64-apple-ios-sim
+- wasm32-unknown-unknown
 
 ### Dependencies
 
