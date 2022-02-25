@@ -11,7 +11,8 @@
 [![Book][book-release-badge]][book-release-link]
 ![Rust Version][rustc-image]
 
-*OpenMLS* is a Rust implementation of [Messaging Layer Security](https://github.com/mlswg/mls-protocol/blob/master/draft-ietf-mls-protocol.md) based on draft 12+.
+_OpenMLS_ is a Rust implementation of [Messaging Layer Security](https://github.com/mlswg/mls-protocol/blob/master/draft-ietf-mls-protocol.md) based on draft 12+.
+
 <!-- The introduction of the book imports the lines up until here (line 14), excluding the headline and separately the lines below (starting from line 17). If the line numbers change here, please modify the imported lines in the book.-->
 
 ## Supported ciphersuites
@@ -42,7 +43,7 @@ The Github CI also builds (but doesn't test) the following rust targets.
 - aarch64-apple-ios-sim
 - wasm32-unknown-unknown
 
-OpenMLS only supports 32 and 64 bit platforms.
+OpenMLS supports 32 bit platforms and above.
 
 ## Cryptography Dependencies
 
@@ -53,6 +54,7 @@ can bring their own implementation. See [traits](https://github.com/openmls/open
 details.
 
 ## Working on OpenMLS
+
 For more details when working on OpenMLS itself please see the [Developer.md].
 
 [chat-image]: https://img.shields.io/badge/zulip-join_chat-blue.svg?style=for-the-badge&logo=zulip
@@ -68,4 +70,4 @@ For more details when working on OpenMLS itself please see the [Developer.md].
 [codecov-image]: https://img.shields.io/codecov/c/github/openmls/openmls/main?logo=codecov&style=for-the-badge
 [gh-tests-image]: https://img.shields.io/github/workflow/status/openmls/openmls/Tests/main?label=Tests&style=for-the-badge&logo=github
 [gh-deploy-docs-image]: https://img.shields.io/github/workflow/status/openmls/openmls/Deploy%20Docs/main?label=Deploy%20Docs&logo=github&style=for-the-badge
-[Developer.md]: https://github.com/openmls/openmls/blob/main/Developer.md
+[developer.md]: https://github.com/openmls/openmls/blob/main/Developer.md
