@@ -186,16 +186,18 @@ impl DecryptedMessage {
             // Preconfigured senders are not supported yet #106/#151.
             Sender::Preconfigured(_) => unimplemented!(),
             Sender::NewMember => {
-                // Since this allows only commits to have a sender type `Member`, it checks
+                // Since this allows only commits or external Add proposals to have a sender type `NewMember`, it checks
                 // ValSem112
-                if let MlsPlaintextContentType::Commit(commit) = self.plaintext().content() {
-                    if let Some(path) = commit.path() {
-                        Ok(path.leaf_key_package().credential().clone())
-                    } else {
-                        Err(ValidationError::NoPath)
+                // ValSem113
+                match self.plaintext().content() {
+                    MlsPlaintextContentType::Commit(commit) => match commit.path.as_ref() {
+                        Some(path) => Ok(path.leaf_key_package().credential().clone()),
+                        None => Err(ValidationError::NoPath),
+                    },
+                    MlsPlaintextContentType::Proposal(Proposal::Add(add)) => {
+                        Ok(add.key_package.credential().clone())
                     }
-                } else {
-                    Err(ValidationError::NotACommit)
+                    _ => Err(ValidationError::NotACommitOrExternalAddProposal),
                 }
             }
         }
