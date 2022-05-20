@@ -10,6 +10,7 @@ use crate::{
     },
     error::LibraryError,
     group::errors::ValidationError,
+    messages::external_proposals::ExternalProposal,
 };
 
 use super::*;
@@ -185,6 +186,33 @@ impl MlsPlaintext {
             membership_key,
             backend,
         )
+    }
+
+    /// This constructor builds an `MlsPlaintext` containing an External Proposal.
+    /// The sender type is either `Sender::Preconfigured` or `Sender::NewMember`.
+    pub(crate) fn member_external_proposal(
+        framing_parameters: FramingParameters,
+        sender: Sender,
+        proposal: ExternalProposal,
+        credential_bundle: &CredentialBundle,
+        group_id: GroupId,
+        epoch: GroupEpoch,
+        backend: &impl OpenMlsCryptoProvider,
+    ) -> Result<Self, LibraryError> {
+        let payload = Payload {
+            payload: MlsPlaintextContentType::Proposal(proposal.into()),
+            content_type: ContentType::Proposal,
+        };
+
+        let message = MlsPlaintextTbs::new(
+            framing_parameters.wire_format(),
+            group_id,
+            epoch,
+            sender,
+            vec![].into(),
+            payload,
+        );
+        message.sign(backend, credential_bundle)
     }
 
     /// This constructor builds an `MlsPlaintext` containing a Commit. If the

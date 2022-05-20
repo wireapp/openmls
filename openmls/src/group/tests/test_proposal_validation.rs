@@ -8,6 +8,7 @@ use rstest::*;
 use rstest_reuse::{self, *};
 use tls_codec::{Deserialize, Serialize};
 
+use crate::prelude::ExternalProposal;
 use crate::{
     ciphersuite::{hash_ref::ProposalRef, signable::Signable, *},
     credentials::*,
@@ -91,22 +92,48 @@ struct ProposalValidationTestSetup {
     bob_group: MlsGroup,
 }
 
+// Creates a standalone group
+fn new_test_group(
+    identity: &str,
+    wire_format_policy: WireFormatPolicy,
+    ciphersuite: Ciphersuite,
+    backend: &impl OpenMlsCryptoProvider,
+) -> MlsGroup {
+    let group_id = GroupId::from_slice(b"Test Group");
+
+    // Generate credential bundles
+    let credential = generate_credential_bundle(
+        identity.into(),
+        CredentialType::Basic,
+        ciphersuite.signature_algorithm(),
+        backend,
+    )
+    .unwrap();
+
+    // Generate KeyPackages
+    let key_package =
+        generate_key_package_bundle(&[ciphersuite], &credential, vec![], backend).unwrap();
+
+    // Define the MlsGroup configuration
+    let mls_group_config = MlsGroupConfig::builder()
+        .wire_format_policy(wire_format_policy)
+        .build();
+
+    let kpr = key_package
+        .hash_ref(backend.crypto())
+        .expect("Could not hash KeyPackage.");
+
+    MlsGroup::new(backend, &mls_group_config, group_id, kpr.as_slice()).unwrap()
+}
+
 // Validation test setup
 fn validation_test_setup(
     wire_format_policy: WireFormatPolicy,
     ciphersuite: Ciphersuite,
     backend: &impl OpenMlsCryptoProvider,
 ) -> ProposalValidationTestSetup {
-    let group_id = GroupId::from_slice(b"Test Group");
-
-    // Generate credential bundles
-    let alice_credential = generate_credential_bundle(
-        "Alice".into(),
-        CredentialType::Basic,
-        ciphersuite.signature_algorithm(),
-        backend,
-    )
-    .expect("An unexpected error occurred.");
+    // === Alice creates a group ===
+    let mut alice_group = new_test_group("Alice", wire_format_policy, ciphersuite, backend);
 
     let bob_credential = generate_credential_bundle(
         "Bob".into(),
@@ -116,32 +143,9 @@ fn validation_test_setup(
     )
     .expect("An unexpected error occurred.");
 
-    // Generate KeyPackages
-    let alice_key_package =
-        generate_key_package_bundle(&[ciphersuite], &alice_credential, vec![], backend)
-            .expect("An unexpected error occurred.");
-
     let bob_key_package =
         generate_key_package_bundle(&[ciphersuite], &bob_credential, vec![], backend)
             .expect("An unexpected error occurred.");
-
-    // Define the MlsGroup configuration
-
-    let mls_group_config = MlsGroupConfig::builder()
-        .wire_format_policy(wire_format_policy)
-        .build();
-
-    // === Alice creates a group ===
-    let mut alice_group = MlsGroup::new(
-        backend,
-        &mls_group_config,
-        group_id,
-        alice_key_package
-            .hash_ref(backend.crypto())
-            .expect("Could not hash KeyPackage.")
-            .as_slice(),
-    )
-    .expect("An unexpected error occurred.");
 
     let (_message, welcome) = alice_group
         .add_members(backend, &[bob_key_package])
@@ -150,6 +154,11 @@ fn validation_test_setup(
     alice_group
         .merge_pending_commit()
         .expect("error merging pending commit");
+
+    // Define the MlsGroup configuration
+    let mls_group_config = MlsGroupConfig::builder()
+        .wire_format_policy(wire_format_policy)
+        .build();
 
     let bob_group = MlsGroup::new_from_welcome(
         backend,
@@ -2107,7 +2116,7 @@ fn test_valsem112(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider
 
     assert_eq!(
         err,
-        ParseMessageError::ValidationError(ValidationError::NotACommit)
+        ParseMessageError::ValidationError(ValidationError::NotACommitOrExternalAddProposal)
     );
 
     // We can't test with sender type Preconfigured, since that currently panics
@@ -2122,3 +2131,81 @@ fn test_valsem112(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider
         .process_unverified_message(unverified_message, None, backend)
         .expect("Unexpected error.");
 }
+
+/// ValSem113
+/// External Add Proposal:
+/// The sender of an external add proposal must be of type NewMember
+#[apply(ciphersuites_and_backends)]
+fn test_valsem113(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider) {
+    let mut alice_group = new_test_group(
+        "Alice",
+        PURE_PLAINTEXT_WIRE_FORMAT_POLICY,
+        ciphersuite,
+        backend,
+    );
+
+    // Generate credential bundles
+    let bob_credential = generate_credential_bundle(
+        "Bob".into(),
+        CredentialType::Basic,
+        ciphersuite.signature_algorithm(),
+        backend,
+    )
+    .unwrap();
+
+    let bob_credential_bundle_key = bob_credential
+        .signature_key()
+        .tls_serialize_detached()
+        .unwrap();
+    let bob_credential_bundle: CredentialBundle = backend
+        .key_store()
+        .read(&bob_credential_bundle_key)
+        .unwrap();
+
+    // Generate KeyPackages
+    let bob_key_package =
+        generate_key_package_bundle(&[ciphersuite], &bob_credential, vec![], backend).unwrap();
+    let bob_kpr = bob_key_package.hash_ref(backend.crypto()).unwrap();
+
+    // Bob (not in the group) crafts an external proposal to request addition to Alice's group
+    let external_add_proposal = ExternalProposal::new_add(
+        bob_key_package,
+        // We can't test with sender type Preconfigured, since that currently panics
+        // with `unimplemented`.
+        // TODO This test should thus be extended when fixing #106.
+        None,
+        alice_group.group_id().clone(),
+        alice_group.epoch(),
+        &bob_credential_bundle,
+        backend,
+    )
+    .unwrap();
+
+    // positive test
+    assert!(alice_group
+        .parse_message(external_add_proposal.into(), backend)
+        .is_ok());
+
+    let remove_proposal = alice_group
+        .propose_remove_member(backend, &bob_kpr)
+        .unwrap();
+
+    let serialized_remove_proposal = remove_proposal.tls_serialize_detached().unwrap();
+    let mut remove_proposal =
+        VerifiableMlsPlaintext::tls_deserialize(&mut serialized_remove_proposal.as_slice())
+            .unwrap();
+
+    // Craft an hypothetical remove proposal with sender type NewMember
+    remove_proposal.set_sender(Sender::NewMember);
+
+    // Fails because only external Add proposal can have sender type NewMember
+    assert_eq!(
+        alice_group
+            .parse_message(remove_proposal.into(), backend)
+            .unwrap_err(),
+        ParseMessageError::ValidationError(ValidationError::NotACommitOrExternalAddProposal)
+    );
+}
+
+#[test]
+fn odwif() {}
