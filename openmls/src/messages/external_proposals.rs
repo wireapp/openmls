@@ -22,6 +22,7 @@ use openmls_traits::OpenMlsCryptoProvider;
 ///
 /// This `enum` contains the different external proposals in its variants.
 /// Not yet implemented: `Remove` & `ReInit`
+#[non_exhaustive]
 pub enum ExternalProposal {
     /// Proposes adding a client to a group.
     /// Newly added client can be either the sender itself or not.
