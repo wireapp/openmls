@@ -210,9 +210,9 @@ pub enum ValidationError {
     /// Message epoch differs from the group's epoch.
     #[error("Message epoch differs from the group's epoch.")]
     WrongEpoch,
-    /// The MlsPlaintext is not a Commit despite the sender begin of type NewMember.
-    #[error("The MlsPlaintext is not a Commit despite the sender begin of type NewMember.")]
-    NotACommit,
+    /// The MlsPlaintext is not a Commit or an external Add proposal despite the sender begin of type NewMember.
+    #[error("The MlsPlaintext is not a Commit or an external Add proposal despite the sender begin of type NewMember.")]
+    NotACommitOrExternalAddProposal,
     /// The Commit doesn't have a path despite the sender being of type NewMember.
     #[error("The Commit doesn't have a path despite the sender being of type NewMember.")]
     NoPath,
