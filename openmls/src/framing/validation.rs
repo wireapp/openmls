@@ -187,7 +187,6 @@ impl DecryptedMessage {
             Sender::Preconfigured(_) => unimplemented!(),
             Sender::NewMember => {
                 // Since this allows only commits or external Add proposals to have a sender type `NewMember`, it checks
-                // ValSem112
                 // ValSem112 & ValSem113
                 match self.plaintext().content() {
                     MlsPlaintextContentType::Commit(commit) => match commit.path.as_ref() {
