@@ -6,3 +6,10 @@ delivery-service/ds/target
 **/Cargo.lock
 *.code-workspace
 /test_vectors/
+
+### IntelliJ IDEA ###
+.idea
+*.iws
+*.iml
+*.ipr
+out/
