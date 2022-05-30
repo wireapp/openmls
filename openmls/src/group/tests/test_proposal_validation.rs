@@ -1615,9 +1615,8 @@ fn test_valsem109(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider
     // proposal by bob that changes his identity.
 
     // We begin by creating a KPB with a different identity.
-    let new_cb = CredentialBundle::new(
+    let new_cb = CredentialBundle::new_basic(
         "Bobby".into(),
-        CredentialType::Basic,
         ciphersuite.signature_algorithm(),
         backend,
     )

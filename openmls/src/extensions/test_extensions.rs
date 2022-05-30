@@ -96,16 +96,14 @@ fn ratchet_tree_extension(ciphersuite: Ciphersuite, backend: &impl OpenMlsCrypto
     let framing_parameters = FramingParameters::new(group_aad, WireFormat::MlsPlaintext);
 
     // Define credential bundles
-    let alice_credential_bundle = CredentialBundle::new(
+    let alice_credential_bundle = CredentialBundle::new_basic(
         "Alice".into(),
-        CredentialType::Basic,
         ciphersuite.signature_algorithm(),
         backend,
     )
     .expect("An unexpected error occurred.");
-    let bob_credential_bundle = CredentialBundle::new(
+    let bob_credential_bundle = CredentialBundle::new_basic(
         "Bob".into(),
-        CredentialType::Basic,
         ciphersuite.signature_algorithm(),
         backend,
     )

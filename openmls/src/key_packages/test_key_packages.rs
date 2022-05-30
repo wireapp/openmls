@@ -6,9 +6,8 @@ use crate::{extensions::*, key_packages::*};
 
 #[apply(ciphersuites_and_backends)]
 fn generate_key_package(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider) {
-    let credential_bundle = CredentialBundle::new(
+    let credential_bundle = CredentialBundle::new_basic(
         vec![1, 2, 3],
-        CredentialType::Basic,
         ciphersuite.into(),
         backend,
     )
@@ -56,7 +55,7 @@ fn decryption_key_index_computation(
 ) {
     let id = vec![1, 2, 3];
     let credential_bundle =
-        CredentialBundle::new(id, CredentialType::Basic, ciphersuite.into(), backend)
+        CredentialBundle::new_basic(id, ciphersuite.into(), backend)
             .expect("An unexpected error occurred.");
     let mut kpb = KeyPackageBundle::new(&[ciphersuite], &credential_bundle, backend, Vec::new())
         .expect("An unexpected error occurred.")
@@ -81,7 +80,7 @@ fn decryption_key_index_computation(
 fn key_package_id_extension(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider) {
     let id = vec![1, 2, 3];
     let credential_bundle =
-        CredentialBundle::new(id, CredentialType::Basic, ciphersuite.into(), backend)
+        CredentialBundle::new_basic(id, ciphersuite.into(), backend)
             .expect("An unexpected error occurred.");
     let kpb = KeyPackageBundle::new(
         &[ciphersuite],
@@ -117,9 +116,8 @@ fn test_mismatch(backend: &impl OpenMlsCryptoProvider) {
     let ciphersuite_name = Ciphersuite::MLS_128_DHKEMX25519_AES128GCM_SHA256_Ed25519;
     let signature_scheme = SignatureScheme::ECDSA_SECP256R1_SHA256;
 
-    let credential_bundle = CredentialBundle::new(
+    let credential_bundle = CredentialBundle::new_basic(
         vec![1, 2, 3],
-        CredentialType::Basic,
         signature_scheme,
         backend,
     )
@@ -135,9 +133,8 @@ fn test_mismatch(backend: &impl OpenMlsCryptoProvider) {
     let ciphersuite_name = Ciphersuite::MLS_128_DHKEMX25519_AES128GCM_SHA256_Ed25519;
     let signature_scheme = SignatureScheme::ED25519;
 
-    let credential_bundle = CredentialBundle::new(
+    let credential_bundle = CredentialBundle::new_basic(
         vec![1, 2, 3],
-        CredentialType::Basic,
         signature_scheme,
         backend,
     )

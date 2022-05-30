@@ -17,7 +17,8 @@ jobs:
         os:
           - macos-latest
           - ubuntu-latest
-          - windows-latest
+          # latest ring version (WASM compatible) does not build on Windows (and it's fine)
+          # - windows-latest
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v2
@@ -58,4 +59,4 @@ jobs:
     steps:
       - uses: actions/checkout@v2
       - uses: jetli/wasm-pack-action@v0.3.0
-      - run: wasm-pack test --headless --chrome
+      - run: wasm-pack test --headless --chrome --release

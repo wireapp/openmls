@@ -8,13 +8,12 @@ wasm_bindgen_test_configure!(run_in_browser);
 
 fn generate_credential_bundle(
     identity: Vec<u8>,
-    credential_type: CredentialType,
     signature_algorithm: SignatureScheme,
     backend: &impl OpenMlsCryptoProvider,
 ) -> Result<Credential, CredentialError> {
     // ANCHOR: create_credential_bundle
     let credential_bundle =
-        CredentialBundle::new(identity, credential_type, signature_algorithm, backend)?;
+        CredentialBundle::new_basic(identity, signature_algorithm, backend)?;
     // ANCHOR_END: create_credential_bundle
     // ANCHOR: store_credential_bundle
     let credential = credential_bundle.credential().clone();
@@ -100,7 +99,6 @@ fn book_operations(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvide
     // Generate credential bundles
     let alice_credential = generate_credential_bundle(
         "Alice".into(),
-        CredentialType::Basic,
         ciphersuite.signature_algorithm(),
         backend,
     )
@@ -108,7 +106,6 @@ fn book_operations(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvide
 
     let bob_credential = generate_credential_bundle(
         "Bob".into(),
-        CredentialType::Basic,
         ciphersuite.signature_algorithm(),
         backend,
     )
@@ -116,7 +113,6 @@ fn book_operations(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvide
 
     let charlie_credential = generate_credential_bundle(
         "Charlie".into(),
-        CredentialType::Basic,
         ciphersuite.signature_algorithm(),
         backend,
     )
@@ -1087,7 +1083,6 @@ fn test_empty_input_errors(ciphersuite: Ciphersuite, backend: &impl OpenMlsCrypt
     // Generate credential bundles
     let alice_credential = generate_credential_bundle(
         "Alice".into(),
-        CredentialType::Basic,
         ciphersuite.signature_algorithm(),
         backend,
     )

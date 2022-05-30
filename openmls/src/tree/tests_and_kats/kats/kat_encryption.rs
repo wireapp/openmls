@@ -81,7 +81,7 @@ use crate::{
     ciphersuite::Secret, messages::proposals::RemoveProposal, tree::index::SecretTreeLeafIndex,
 };
 use crate::{
-    credentials::{CredentialBundle, CredentialType},
+    credentials::CredentialBundle,
     framing::*,
     group::*,
     key_packages::KeyPackageBundle,
@@ -142,9 +142,8 @@ fn group(
     ciphersuite: Ciphersuite,
     backend: &impl OpenMlsCryptoProvider,
 ) -> (CoreGroup, CredentialBundle) {
-    let credential_bundle = CredentialBundle::new(
+    let credential_bundle = CredentialBundle::new_basic(
         "Kreator".into(),
-        CredentialType::Basic,
         SignatureScheme::from(ciphersuite),
         backend,
     )
@@ -166,9 +165,8 @@ fn receiver_group(
     backend: &impl OpenMlsCryptoProvider,
     group_id: &GroupId,
 ) -> CoreGroup {
-    let credential_bundle = CredentialBundle::new(
+    let credential_bundle = CredentialBundle::new_basic(
         "Receiver".into(),
-        CredentialType::Basic,
         SignatureScheme::from(ciphersuite),
         backend,
     )
