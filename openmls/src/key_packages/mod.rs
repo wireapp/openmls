@@ -34,9 +34,8 @@
 //! let ciphersuite = Ciphersuite::MLS_128_DHKEMX25519_AES128GCM_SHA256_Ed25519;
 //! let backend = OpenMlsRustCrypto::default();
 //!
-//! let credential_bundle = CredentialBundle::new(
+//! let credential_bundle = CredentialBundle::new_basic(
 //!     b"Sasha".to_vec(),
-//!     CredentialType::Basic,
 //!     SignatureScheme::from(ciphersuite),
 //!     &backend,
 //! )
@@ -372,7 +371,7 @@ impl KeyPackage {
         credential_bundle: &CredentialBundle,
         extensions: Vec<Extension>,
     ) -> Result<Self, KeyPackageNewError> {
-        if SignatureScheme::from(ciphersuite) != credential_bundle.credential().signature_scheme() {
+        if Ok(SignatureScheme::from(ciphersuite)) != credential_bundle.credential().signature_scheme() {
             return Err(KeyPackageNewError::CiphersuiteSignatureSchemeMismatch);
         }
         let key_package = KeyPackagePayload {
@@ -597,9 +596,7 @@ impl KeyPackageBundle {
             return Err(error);
         }
 
-        if SignatureScheme::from(ciphersuites[0])
-            != credential_bundle.credential().signature_scheme()
-        {
+        if Ok(SignatureScheme::from(ciphersuites[0])) != credential_bundle.credential().signature_scheme() {
             return Err(KeyPackageBundleNewError::CiphersuiteSignatureSchemeMismatch);
         }
 

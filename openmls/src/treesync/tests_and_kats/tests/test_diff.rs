@@ -3,7 +3,7 @@ use rstest::*;
 use rstest_reuse::apply;
 
 use crate::{
-    credentials::{CredentialBundle, CredentialType},
+    credentials::{CredentialBundle},
     key_packages::KeyPackageBundle,
     treesync::{node::Node, TreeSync},
 };
@@ -13,9 +13,8 @@ use openmls_rust_crypto::OpenMlsRustCrypto;
 // Verifies that when we add a leaf to a tree with blank leaf nodes, the leaf will be added at the leftmost free leaf index
 #[apply(ciphersuites_and_backends)]
 fn test_free_leaf_computation(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider) {
-    let cb_0 = CredentialBundle::new(
+    let cb_0 = CredentialBundle::new_basic(
         "leaf0".as_bytes().to_vec(),
-        CredentialType::Basic,
         ciphersuite.signature_algorithm(),
         backend,
     )
@@ -24,9 +23,8 @@ fn test_free_leaf_computation(ciphersuite: Ciphersuite, backend: &impl OpenMlsCr
     let kpb_0 =
         KeyPackageBundle::new(&[ciphersuite], &cb_0, backend, vec![]).expect("error creating kpb");
 
-    let cb_3 = CredentialBundle::new(
+    let cb_3 = CredentialBundle::new_basic(
         "leaf3".as_bytes().to_vec(),
-        CredentialType::Basic,
         ciphersuite.signature_algorithm(),
         backend,
     )
@@ -49,9 +47,8 @@ fn test_free_leaf_computation(ciphersuite: Ciphersuite, backend: &impl OpenMlsCr
 
     // Create and add a new leaf. It should go to leaf index 1
 
-    let cb_2 = CredentialBundle::new(
+    let cb_2 = CredentialBundle::new_basic(
         "leaf2".as_bytes().to_vec(),
-        CredentialType::Basic,
         ciphersuite.signature_algorithm(),
         backend,
     )

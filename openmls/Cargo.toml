@@ -26,11 +26,16 @@ getrandom = { version = "0.2", features = ["js"] }
 itertools = { version = "0.10", optional = true }
 openmls_rust_crypto = { version = "0.1.0", path = "../openmls_rust_crypto", optional = true }
 openmls_evercrypt = { version = "0.1.0", path = "../evercrypt_backend", optional = true }
-rstest = {version = "^0.15", optional = true}
-rstest_reuse = {version = "0.4", optional = true}
+rstest = { version = "^0.15", optional = true }
+rstest_reuse = { version = "0.4", optional = true }
 thiserror = "^1.0"
 backtrace = "0.3"
 fluvio-wasm-timer = "0.2"
+
+[dependencies.x509-parser]
+git = "https://github.com/wireapp/x509-parser"
+branch = "master"
+features = ["verify", "validate"]
 
 [target.'cfg(not(target_family = "wasm"))'.dependencies]
 rayon = "^1.5.0"
