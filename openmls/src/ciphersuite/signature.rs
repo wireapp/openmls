@@ -16,8 +16,10 @@ pub struct Signature {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[cfg_attr(any(feature = "test-utils", test), derive(PartialEq))]
 pub struct SignaturePrivateKey {
-    signature_scheme: SignatureScheme,
-    value: Vec<u8>,
+    /// cipher used for signing
+    pub signature_scheme: SignatureScheme,
+    /// key raw bytes
+    pub value: Vec<u8>,
 }
 
 /// A public signature key.

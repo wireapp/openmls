@@ -1,7 +1,7 @@
 use core_group::{create_commit_params::CreateCommitParams, proposals::ProposalStore};
 use openmls_traits::types::SignatureScheme;
 
-use crate::{credentials::CredentialType, test_utils::*};
+use crate::test_utils::*;
 
 use super::*;
 
@@ -10,9 +10,8 @@ use super::*;
 fn build_create_commit_params(backend: &impl OpenMlsCryptoProvider) {
     let framing_parameters: FramingParameters =
         FramingParameters::new(&[1, 2, 3], WireFormat::MlsCiphertext);
-    let credential_bundle: &CredentialBundle = &CredentialBundle::new(
+    let credential_bundle: &CredentialBundle = &CredentialBundle::new_basic(
         vec![4, 5, 6],
-        CredentialType::Basic,
         SignatureScheme::ED25519,
         backend,
     )

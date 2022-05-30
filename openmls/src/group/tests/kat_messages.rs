@@ -59,9 +59,8 @@ pub struct MessagesTestVector {
 pub fn generate_test_vector(ciphersuite: Ciphersuite) -> MessagesTestVector {
     let crypto = OpenMlsRustCrypto::default();
     let ciphersuite_name = ciphersuite;
-    let credential_bundle = CredentialBundle::new(
+    let credential_bundle = CredentialBundle::new_basic(
         b"OpenMLS rocks".to_vec(),
-        CredentialType::Basic,
         SignatureScheme::from(ciphersuite_name),
         &crypto,
     )
@@ -131,9 +130,8 @@ pub fn generate_test_vector(ciphersuite: Ciphersuite) -> MessagesTestVector {
     };
 
     // Create proposal to add a user
-    let joiner_credential_bundle = CredentialBundle::new(
+    let joiner_credential_bundle = CredentialBundle::new_basic(
         b"MLS rocks".to_vec(),
-        CredentialType::Basic,
         SignatureScheme::from(ciphersuite_name),
         &crypto,
     )

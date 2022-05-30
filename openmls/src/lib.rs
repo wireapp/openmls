@@ -22,7 +22,7 @@
 //!     backend: &impl OpenMlsCryptoProvider,
 //! ) -> Result<Credential, CredentialError> {
 //!     let credential_bundle =
-//!         CredentialBundle::new(identity, credential_type, signature_algorithm, backend)?;
+//!         CredentialBundle::new_basic(identity, signature_algorithm, backend)?;
 //!     let credential_id =  credential_bundle.credential()
 //!         .signature_key()
 //!         .tls_serialize_detached()

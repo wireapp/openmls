@@ -94,9 +94,8 @@ pub(crate) fn setup(config: TestSetupConfig, backend: &impl OpenMlsCryptoProvide
         // signature scheme), as well as 10 KeyPackages per ciphersuite.
         for ciphersuite in client.ciphersuites {
             // Create a credential_bundle for the given ciphersuite.
-            let credential_bundle = CredentialBundle::new(
+            let credential_bundle = CredentialBundle::new_basic(
                 client.name.as_bytes().to_vec(),
-                CredentialType::Basic,
                 SignatureScheme::from(ciphersuite),
                 backend,
             )
@@ -340,11 +339,11 @@ fn test_setup(backend: &impl OpenMlsCryptoProvider) {
 // Helper function to generate a CredentialBundle
 pub(super) fn generate_credential_bundle(
     identity: Vec<u8>,
-    credential_type: CredentialType,
+    _credential_type: CredentialType,
     signature_scheme: SignatureScheme,
     backend: &impl OpenMlsCryptoProvider,
 ) -> Result<Credential, CredentialError> {
-    let cb = CredentialBundle::new(identity, credential_type, signature_scheme, backend)?;
+    let cb = CredentialBundle::new_basic(identity, signature_scheme, backend)?;
     let credential = cb.credential().clone();
     backend
         .key_store()

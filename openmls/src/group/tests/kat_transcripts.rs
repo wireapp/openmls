@@ -63,9 +63,8 @@ pub fn generate_test_vector(ciphersuite: Ciphersuite) -> TranscriptTestVector {
     );
 
     // Build plaintext commit message.
-    let credential_bundle = CredentialBundle::new(
+    let credential_bundle = CredentialBundle::new_basic(
         b"client".to_vec(),
-        CredentialType::Basic,
         SignatureScheme::from(ciphersuite),
         &crypto,
     )

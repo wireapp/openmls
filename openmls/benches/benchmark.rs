@@ -18,9 +18,8 @@ fn criterion_kp_bundle(c: &mut Criterion, backend: &impl OpenMlsCryptoProvider) 
             move |b| {
                 b.iter_with_setup(
                     || {
-                        CredentialBundle::new(
+                        CredentialBundle::new_basic(
                             vec![1, 2, 3],
-                            CredentialType::Basic,
                             ciphersuite.signature_algorithm(),
                             backend,
                         )

@@ -8,7 +8,7 @@ use rstest::*;
 use rstest_reuse::{self, *};
 
 use crate::{
-    credentials::{CredentialBundle, CredentialType},
+    credentials::{CredentialBundle},
     framing::{MessageDecryptionError, ProcessedMessage},
     group::{errors::*, *},
     key_packages::KeyPackageBundle,
@@ -22,9 +22,8 @@ fn test_past_secrets_in_group(ciphersuite: Ciphersuite, backend: &impl OpenMlsCr
 
         // Generate credential bundles
 
-        let alice_credential_bundle = CredentialBundle::new(
+        let alice_credential_bundle = CredentialBundle::new_basic(
             "Alice".into(),
-            CredentialType::Basic,
             ciphersuite.signature_algorithm(),
             backend,
         )
@@ -41,9 +40,8 @@ fn test_past_secrets_in_group(ciphersuite: Ciphersuite, backend: &impl OpenMlsCr
             )
             .expect("An unexpected error occurred.");
 
-        let bob_credential_bundle = CredentialBundle::new(
+        let bob_credential_bundle = CredentialBundle::new_basic(
             "Bob".into(),
-            CredentialType::Basic,
             ciphersuite.signature_algorithm(),
             backend,
         )

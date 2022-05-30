@@ -101,7 +101,7 @@ impl tls_codec::Deserialize for Proposal {
         let proposal_type = match ProposalType::try_from(u16::tls_deserialize(bytes)?) {
             Ok(proposal_type) => proposal_type,
             Err(e) => {
-                return Err(tls_codec::Error::DecodingError(format!(
+                return Err(Error::DecodingError(format!(
                     "Deserialization error {}",
                     e
                 )))
@@ -118,7 +118,7 @@ impl tls_codec::Deserialize for Proposal {
             ProposalType::ExternalInit => Ok(Proposal::ExternalInit(
                 ExternalInitProposal::tls_deserialize(bytes)?,
             )),
-            ProposalType::AppAck => Err(tls_codec::Error::DecodingError(
+            ProposalType::AppAck => Err(Error::DecodingError(
                 "App ack is not supported yet in OpenMLS.".to_string(),
             )),
             ProposalType::GroupContextExtensions => Ok(Proposal::GroupContextExtensions(

@@ -31,9 +31,8 @@ use crate::{
 /// This tests serializing/deserializing MlsPlaintext
 #[apply(ciphersuites_and_backends)]
 fn codec_plaintext(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider) {
-    let credential_bundle = CredentialBundle::new(
+    let credential_bundle = CredentialBundle::new_basic(
         vec![7, 8, 9],
-        CredentialType::Basic,
         ciphersuite.signature_algorithm(),
         backend,
     )
@@ -81,9 +80,8 @@ fn codec_plaintext(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvide
 /// This tests serializing/deserializing MlsCiphertext
 #[apply(ciphersuites_and_backends)]
 fn codec_ciphertext(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider) {
-    let credential_bundle = CredentialBundle::new(
+    let credential_bundle = CredentialBundle::new_basic(
         vec![7, 8, 9],
-        CredentialType::Basic,
         ciphersuite.signature_algorithm(),
         backend,
     )
@@ -161,9 +159,8 @@ fn codec_ciphertext(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvid
 #[apply(ciphersuites_and_backends)]
 fn wire_format_checks(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider) {
     let configuration = &SenderRatchetConfiguration::default();
-    let credential_bundle = CredentialBundle::new(
+    let credential_bundle = CredentialBundle::new_basic(
         vec![7, 8, 9],
-        CredentialType::Basic,
         ciphersuite.signature_algorithm(),
         backend,
     )
@@ -307,9 +304,8 @@ fn wire_format_checks(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProv
 
 #[apply(ciphersuites_and_backends)]
 fn membership_tag(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider) {
-    let credential_bundle = CredentialBundle::new(
+    let credential_bundle = CredentialBundle::new_basic(
         vec![7, 8, 9],
-        CredentialType::Basic,
         ciphersuite.signature_algorithm(),
         backend,
     )
@@ -369,23 +365,20 @@ fn unknown_sender(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider
     let configuration = &SenderRatchetConfiguration::default();
 
     // Define credential bundles
-    let alice_credential_bundle = CredentialBundle::new(
+    let alice_credential_bundle = CredentialBundle::new_basic(
         "Alice".into(),
-        CredentialType::Basic,
         ciphersuite.signature_algorithm(),
         backend,
     )
     .expect("An unexpected error occurred.");
-    let bob_credential_bundle = CredentialBundle::new(
+    let bob_credential_bundle = CredentialBundle::new_basic(
         "Bob".into(),
-        CredentialType::Basic,
         ciphersuite.signature_algorithm(),
         backend,
     )
     .expect("An unexpected error occurred.");
-    let charlie_credential_bundle = CredentialBundle::new(
+    let charlie_credential_bundle = CredentialBundle::new_basic(
         "Charlie".into(),
-        CredentialType::Basic,
         ciphersuite.signature_algorithm(),
         backend,
     )
@@ -579,16 +572,14 @@ fn confirmation_tag_presence(ciphersuite: Ciphersuite, backend: &impl OpenMlsCry
     let framing_parameters = FramingParameters::new(group_aad, WireFormat::MlsPlaintext);
 
     // Define credential bundles
-    let alice_credential_bundle = CredentialBundle::new(
+    let alice_credential_bundle = CredentialBundle::new_basic(
         "Alice".into(),
-        CredentialType::Basic,
         ciphersuite.signature_algorithm(),
         backend,
     )
     .expect("An unexpected error occurred.");
-    let bob_credential_bundle = CredentialBundle::new(
+    let bob_credential_bundle = CredentialBundle::new_basic(
         "Bob".into(),
-        CredentialType::Basic,
         ciphersuite.signature_algorithm(),
         backend,
     )
@@ -683,16 +674,14 @@ fn invalid_plaintext_signature(ciphersuite: Ciphersuite, backend: &impl OpenMlsC
     let framing_parameters = FramingParameters::new(group_aad, WireFormat::MlsPlaintext);
 
     // Define credential bundles
-    let alice_credential_bundle = CredentialBundle::new(
+    let alice_credential_bundle = CredentialBundle::new_basic(
         "Alice".into(),
-        CredentialType::Basic,
         ciphersuite.signature_algorithm(),
         backend,
     )
     .expect("An unexpected error occurred.");
-    let bob_credential_bundle = CredentialBundle::new(
+    let bob_credential_bundle = CredentialBundle::new_basic(
         "Bob".into(),
-        CredentialType::Basic,
         ciphersuite.signature_algorithm(),
         backend,
     )
