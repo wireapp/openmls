@@ -1,5 +1,5 @@
 use crate::{
-    credentials::{CredentialBundle, CredentialType},
+    credentials::CredentialBundle,
     framing::{FramingParameters, WireFormat},
     group::GroupId,
     key_packages::KeyPackageBundle,
@@ -27,16 +27,14 @@ fn test_external_init(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProv
     let framing_parameters = FramingParameters::new(group_aad, WireFormat::MlsPlaintext);
 
     // Define credential bundles
-    let alice_credential_bundle = CredentialBundle::new(
+    let alice_credential_bundle = CredentialBundle::new_basic(
         "Alice".into(),
-        CredentialType::Basic,
         ciphersuite.signature_algorithm(),
         backend,
     )
     .expect("An unexpected error occurred.");
-    let bob_credential_bundle = CredentialBundle::new(
+    let bob_credential_bundle = CredentialBundle::new_basic(
         "Bob".into(),
-        CredentialType::Basic,
         ciphersuite.signature_algorithm(),
         backend,
     )
@@ -102,9 +100,8 @@ fn test_external_init(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProv
 
     // Now set up charly and try to init externally.
     // Define credential bundles
-    let charly_credential_bundle = CredentialBundle::new(
+    let charly_credential_bundle = CredentialBundle::new_basic(
         "Charly".into(),
-        CredentialType::Basic,
         ciphersuite.signature_algorithm(),
         backend,
     )
@@ -268,9 +265,8 @@ fn test_external_init_single_member_group(
     let framing_parameters = FramingParameters::new(group_aad, WireFormat::MlsPlaintext);
 
     // Define credential bundles
-    let alice_credential_bundle = CredentialBundle::new(
+    let alice_credential_bundle = CredentialBundle::new_basic(
         "Alice".into(),
-        CredentialType::Basic,
         ciphersuite.signature_algorithm(),
         backend,
     )
@@ -294,9 +290,8 @@ fn test_external_init_single_member_group(
 
     // Now set up charly and try to init externally.
     // Define credential bundles
-    let charly_credential_bundle = CredentialBundle::new(
+    let charly_credential_bundle = CredentialBundle::new_basic(
         "Charly".into(),
-        CredentialType::Basic,
         ciphersuite.signature_algorithm(),
         backend,
     )

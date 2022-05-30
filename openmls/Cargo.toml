@@ -33,6 +33,11 @@ thiserror = "^1.0"
 backtrace = "0.3"
 fluvio-wasm-timer = "0.2"
 
+[dependencies.x509-parser]
+git = "https://github.com/wireapp/x509-parser"
+branch = "master"
+features = ["verify", "validate"]
+
 [target.'cfg(not(target_family = "wasm"))'.dependencies]
 rayon = "^1.5.0"
 

@@ -166,7 +166,7 @@ impl Commit {
 )]
 pub struct ConfirmationTag(pub(crate) Mac);
 
-#[derive(TlsDeserialize, TlsSerialize, TlsSize)]
+#[derive(Debug, TlsDeserialize, TlsSerialize, TlsSize)]
 pub(crate) struct GroupInfoPayload {
     group_id: GroupId,
     epoch: GroupEpoch,
@@ -231,6 +231,7 @@ impl Signable for GroupInfoPayload {
 ///   opaque signature<0..2^16-1>;
 /// } GroupInfo;
 /// ```
+#[derive(Debug)]
 pub(crate) struct GroupInfo {
     payload: GroupInfoPayload,
     signature: Signature,

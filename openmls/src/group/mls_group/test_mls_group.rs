@@ -18,10 +18,10 @@ use crate::{
 fn generate_credential_bundle(
     key_store: &impl OpenMlsCryptoProvider,
     identity: Vec<u8>,
-    credential_type: CredentialType,
+    _credential_type: CredentialType,
     signature_scheme: SignatureScheme,
 ) -> Result<Credential, CredentialError> {
-    let cb = CredentialBundle::new(identity, credential_type, signature_scheme, key_store)?;
+    let cb = CredentialBundle::new_basic(identity, signature_scheme, key_store)?;
     let credential = cb.credential().clone();
     key_store
         .key_store()

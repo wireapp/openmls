@@ -7,7 +7,7 @@ use crate::{
         hash_ref::{KeyPackageRef, ProposalRef},
         Secret,
     },
-    credentials::{CredentialBundle, CredentialType},
+    credentials::{CredentialBundle},
     extensions::{Extension, ExtensionType, ExternalKeyIdExtension, RequiredCapabilitiesExtension},
     framing::sender::Sender,
     framing::{FramingParameters, MlsPlaintext, WireFormat},
@@ -30,9 +30,8 @@ fn setup_client(
     ciphersuite: Ciphersuite,
     backend: &impl OpenMlsCryptoProvider,
 ) -> (CredentialBundle, KeyPackageBundle) {
-    let credential_bundle = CredentialBundle::new(
+    let credential_bundle = CredentialBundle::new_basic(
         id.into(),
-        CredentialType::Basic,
         ciphersuite.signature_algorithm(),
         backend,
     )

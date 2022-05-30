@@ -18,16 +18,14 @@ fn create_commit_optional_path(ciphersuite: Ciphersuite, backend: &impl OpenMlsC
     let framing_parameters = FramingParameters::new(group_aad, WireFormat::MlsPlaintext);
 
     // Define identities
-    let alice_credential_bundle = CredentialBundle::new(
+    let alice_credential_bundle = CredentialBundle::new_basic(
         "Alice".into(),
-        CredentialType::Basic,
         ciphersuite.signature_algorithm(),
         backend,
     )
     .expect("An unexpected error occurred.");
-    let bob_credential_bundle = CredentialBundle::new(
+    let bob_credential_bundle = CredentialBundle::new_basic(
         "Bob".into(),
-        CredentialType::Basic,
         ciphersuite.signature_algorithm(),
         backend,
     )
@@ -208,16 +206,14 @@ fn basic_group_setup(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvi
     let framing_parameters = FramingParameters::new(group_aad, WireFormat::MlsPlaintext);
 
     // Define credential bundles
-    let alice_credential_bundle = CredentialBundle::new(
+    let alice_credential_bundle = CredentialBundle::new_basic(
         "Alice".into(),
-        CredentialType::Basic,
         ciphersuite.signature_algorithm(),
         backend,
     )
     .expect("An unexpected error occurred.");
-    let bob_credential_bundle = CredentialBundle::new(
+    let bob_credential_bundle = CredentialBundle::new_basic(
         "Bob".into(),
-        CredentialType::Basic,
         ciphersuite.signature_algorithm(),
         backend,
     )
@@ -288,16 +284,14 @@ fn group_operations(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvid
     let sender_ratchet_configuration = SenderRatchetConfiguration::default();
 
     // Define credential bundles
-    let alice_credential_bundle = CredentialBundle::new(
+    let alice_credential_bundle = CredentialBundle::new_basic(
         "Alice".into(),
-        CredentialType::Basic,
         ciphersuite.signature_algorithm(),
         backend,
     )
     .expect("An unexpected error occurred.");
-    let bob_credential_bundle = CredentialBundle::new(
+    let bob_credential_bundle = CredentialBundle::new_basic(
         "Bob".into(),
-        CredentialType::Basic,
         ciphersuite.signature_algorithm(),
         backend,
     )
@@ -612,9 +606,8 @@ fn group_operations(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvid
     }
 
     // === Bob adds Charlie ===
-    let charlie_credential_bundle = CredentialBundle::new(
+    let charlie_credential_bundle = CredentialBundle::new_basic(
         "Charlie".into(),
-        CredentialType::Basic,
         ciphersuite.signature_algorithm(),
         backend,
     )
