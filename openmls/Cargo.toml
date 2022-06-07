@@ -28,9 +28,12 @@ openmls_rust_crypto = { version = "0.1.0", path = "../openmls_rust_crypto", opti
 openmls_evercrypt = { version = "0.1.0", path = "../evercrypt_backend", optional = true }
 rstest = {version = "^0.13", optional = true}
 rstest_reuse = {version = "0.3", optional = true}
-rayon = "^1.5.0"
 thiserror = "^1.0"
 backtrace = "0.3"
+fluvio-wasm-timer = "0.2"
+
+[target.'cfg(not(target_family = "wasm"))'.dependencies]
+rayon = "^1.5.0"
 
 [features]
 default = []

@@ -125,6 +125,7 @@ pub enum Error {
 pub enum CryptoError {
     CryptoLibraryError,
     AeadDecryptionError,
+    AeadEncryptionError,
     HpkeDecryptionError,
     UnsupportedSignatureScheme,
     KdfLabelTooLarge,

@@ -61,7 +61,6 @@ impl AeadKey {
                 &nonce.value,
                 aad,
             )
-            .map_err(|_| CryptoError::CryptoLibraryError)
     }
 
     /// AEAD decrypt `ciphertext` with `key`, `aad`, and `nonce`.

@@ -159,25 +159,25 @@ impl OpenMlsCrypto for RustCrypto {
         match alg {
             AeadType::Aes128Gcm => {
                 let aes =
-                    Aes128Gcm::new_from_slice(key).map_err(|_| CryptoError::CryptoLibraryError)?;
+                    Aes128Gcm::new_from_slice(key).map_err(|_| CryptoError::InvalidLength)?;
                 aes.encrypt(nonce.into(), Payload { msg: data, aad })
                     .map(|r| r.as_slice().into())
-                    .map_err(|_| CryptoError::CryptoLibraryError)
+                    .map_err(|_| CryptoError::AeadEncryptionError)
             }
             AeadType::Aes256Gcm => {
                 let aes =
-                    Aes256Gcm::new_from_slice(key).map_err(|_| CryptoError::CryptoLibraryError)?;
+                    Aes256Gcm::new_from_slice(key).map_err(|_| CryptoError::InvalidLength)?;
                 aes.encrypt(nonce.into(), Payload { msg: data, aad })
                     .map(|r| r.as_slice().into())
-                    .map_err(|_| CryptoError::CryptoLibraryError)
+                    .map_err(|_| CryptoError::AeadEncryptionError)
             }
             AeadType::ChaCha20Poly1305 => {
                 let chacha_poly = ChaCha20Poly1305::new_from_slice(key)
-                    .map_err(|_| CryptoError::CryptoLibraryError)?;
+                    .map_err(|_| CryptoError::InvalidLength)?;
                 chacha_poly
                     .encrypt(nonce.into(), Payload { msg: data, aad })
                     .map(|r| r.as_slice().into())
-                    .map_err(|_| CryptoError::CryptoLibraryError)
+                    .map_err(|_| CryptoError::AeadEncryptionError)
             }
         }
     }
@@ -193,21 +193,21 @@ impl OpenMlsCrypto for RustCrypto {
         match alg {
             AeadType::Aes128Gcm => {
                 let aes =
-                    Aes128Gcm::new_from_slice(key).map_err(|_| CryptoError::CryptoLibraryError)?;
+                    Aes128Gcm::new_from_slice(key).map_err(|_| CryptoError::InvalidLength)?;
                 aes.decrypt(nonce.into(), Payload { msg: ct_tag, aad })
                     .map(|r| r.as_slice().into())
                     .map_err(|_| CryptoError::AeadDecryptionError)
             }
             AeadType::Aes256Gcm => {
                 let aes =
-                    Aes256Gcm::new_from_slice(key).map_err(|_| CryptoError::CryptoLibraryError)?;
+                    Aes256Gcm::new_from_slice(key).map_err(|_| CryptoError::InvalidLength)?;
                 aes.decrypt(nonce.into(), Payload { msg: ct_tag, aad })
                     .map(|r| r.as_slice().into())
                     .map_err(|_| CryptoError::AeadDecryptionError)
             }
             AeadType::ChaCha20Poly1305 => {
                 let chacha_poly = ChaCha20Poly1305::new_from_slice(key)
-                    .map_err(|_| CryptoError::CryptoLibraryError)?;
+                    .map_err(|_| CryptoError::InvalidLength)?;
                 chacha_poly
                     .decrypt(nonce.into(), Payload { msg: ct_tag, aad })
                     .map(|r| r.as_slice().into())
@@ -231,8 +231,19 @@ impl OpenMlsCrypto for RustCrypto {
                 Ok((k.to_bytes().as_slice().into(), pk))
             }
             SignatureScheme::ED25519 => {
-                // XXX: We can't use our RNG here
-                let k = ed25519_dalek::Keypair::generate(&mut rand_07::rngs::OsRng).to_bytes();
+                let mut rng = self
+                    .rng
+                    .write()
+                    .map_err(|_| CryptoError::InsufficientRandomness)?;
+                let mut sk_bytes = [0u8; ed25519_dalek::SECRET_KEY_LENGTH];
+                rng.fill_bytes(&mut sk_bytes);
+                let sk = ed25519_dalek::SecretKey::from_bytes(sk_bytes.as_slice()).map_err(|_| CryptoError::InvalidLength)?;
+                let pk: ed25519_dalek::PublicKey = (&sk).into();
+                let mut kp_bytes = [0u8; ed25519_dalek::KEYPAIR_LENGTH];
+                kp_bytes[..ed25519_dalek::SECRET_KEY_LENGTH].copy_from_slice(&sk.to_bytes());
+                kp_bytes[ed25519_dalek::SECRET_KEY_LENGTH..ed25519_dalek::KEYPAIR_LENGTH].copy_from_slice(&pk.to_bytes());
+                let k = ed25519_dalek::Keypair::from_bytes(kp_bytes.as_slice()).map_err(|_| CryptoError::InvalidLength)?.to_bytes();
+                // let k = ed25519_dalek::Keypair::generate(&mut rand_07::rngs::OsRng).to_bytes();
                 let pk = k[ed25519_dalek::SECRET_KEY_LENGTH..].to_vec();
                 // full key here because we need it to sign...
                 let sk_pk = k.into();
@@ -252,9 +263,9 @@ impl OpenMlsCrypto for RustCrypto {
         match alg {
             SignatureScheme::ECDSA_SECP256R1_SHA256 => {
                 let k = VerifyingKey::from_encoded_point(
-                    &EncodedPoint::from_bytes(pk).map_err(|_| CryptoError::CryptoLibraryError)?,
+                    &EncodedPoint::from_bytes(pk).map_err(|_| CryptoError::InvalidLength)?,
                 )
-                .map_err(|_| CryptoError::CryptoLibraryError)?;
+                .map_err(|_| CryptoError::InvalidLength)?;
                 k.verify(
                     data,
                     &Signature::from_der(signature).map_err(|_| CryptoError::InvalidSignature)?,
@@ -263,16 +274,16 @@ impl OpenMlsCrypto for RustCrypto {
             }
             SignatureScheme::ED25519 => {
                 let k = ed25519_dalek::PublicKey::from_bytes(pk)
-                    .map_err(|_| CryptoError::CryptoLibraryError)?;
+                    .map_err(|_| CryptoError::InvalidLength)?;
                 if signature.len() != ed25519_dalek::SIGNATURE_LENGTH {
-                    return Err(CryptoError::CryptoLibraryError);
+                    return Err(CryptoError::InvalidLength);
                 }
                 let mut sig = [0u8; ed25519_dalek::SIGNATURE_LENGTH];
                 sig.clone_from_slice(signature);
                 k.verify_strict(
                     data,
                     &ed25519_dalek::Signature::from_bytes(&sig)
-                        .map_err(|_| CryptoError::CryptoLibraryError)?,
+                        .map_err(|_| CryptoError::InvalidLength)?,
                 )
                 .map_err(|_| CryptoError::InvalidSignature)
             }
@@ -288,13 +299,13 @@ impl OpenMlsCrypto for RustCrypto {
     ) -> Result<Vec<u8>, openmls_traits::types::CryptoError> {
         match alg {
             SignatureScheme::ECDSA_SECP256R1_SHA256 => {
-                let k = SigningKey::from_bytes(key).map_err(|_| CryptoError::CryptoLibraryError)?;
+                let k = SigningKey::from_bytes(key).map_err(|_| CryptoError::InvalidLength)?;
                 let signature = k.sign(data);
                 Ok(signature.to_der().to_bytes().into())
             }
             SignatureScheme::ED25519 => {
                 let k = ed25519_dalek::Keypair::from_bytes(key)
-                    .map_err(|_| CryptoError::CryptoLibraryError)?;
+                    .map_err(|_| CryptoError::InvalidLength)?;
                 let signature = k.sign(data);
                 Ok(signature.to_bytes().into())
             }
