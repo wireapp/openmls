@@ -31,6 +31,10 @@ rstest_reuse = {version = "0.4", optional = true}
 rayon = "^1.5.0"
 thiserror = "^1.0"
 backtrace = "0.3"
+fluvio-wasm-timer = "0.2"
+
+[target.'cfg(not(target_family = "wasm"))'.dependencies]
+rayon = "^1.5.0"
 
 [features]
 default = []

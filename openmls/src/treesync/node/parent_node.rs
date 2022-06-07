@@ -5,7 +5,6 @@ use openmls_traits::{
     types::{Ciphersuite, HpkeCiphertext},
     OpenMlsCryptoProvider,
 };
-use rayon::prelude::*;
 use serde::{Deserialize, Serialize};
 use tls_codec::{TlsByteVecU8, TlsVecU32};
 
@@ -64,8 +63,15 @@ impl PlainUpdatePathNode {
         public_keys: &[HpkePublicKey],
         group_context: &[u8],
     ) -> UpdatePathNode {
-        let encrypted_path_secrets: Vec<HpkeCiphertext> = public_keys
-            .par_iter()
+        #[cfg(target_family = "wasm")]
+        let pks_iter = public_keys.iter();
+
+        #[cfg(not(target_family = "wasm"))]
+        use rayon::prelude::*;
+        #[cfg(not(target_family = "wasm"))]
+        let pks_iter = public_keys.par_iter();
+
+        let encrypted_path_secrets: Vec<HpkeCiphertext> = pks_iter
             .map(|pk| {
                 self.path_secret
                     .encrypt(backend, ciphersuite, pk, group_context)
@@ -126,9 +132,16 @@ impl ParentNode {
             path_secrets.push(path_secret);
         }
 
+        #[cfg(target_family = "wasm")]
+        let secrets_iter = path_secrets.into_iter();
+
+        #[cfg(not(target_family = "wasm"))]
+        use rayon::prelude::*;
+        #[cfg(not(target_family = "wasm"))]
+        let secrets_iter = path_secrets.into_par_iter();
+
         // Iterate over the path secrets and derive a key pair
-        let (path, update_path_nodes) = path_secrets
-            .into_par_iter()
+        let (path, update_path_nodes) = secrets_iter
             .map(|path_secret| {
                 // Derive a key pair from the path secret. This includes the
                 // intermediate derivation of a node secret.
