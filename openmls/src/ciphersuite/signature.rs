@@ -111,8 +111,7 @@ impl SignatureKeypair {
     ) -> Result<SignatureKeypair, CryptoError> {
         let (sk, pk) = backend
             .crypto()
-            .signature_key_gen(signature_scheme)
-            .map_err(|_| CryptoError::CryptoLibraryError)?;
+            .signature_key_gen(signature_scheme)?;
 
         Ok(SignatureKeypair {
             private_key: SignaturePrivateKey {
