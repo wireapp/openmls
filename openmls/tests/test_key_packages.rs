@@ -1,8 +1,12 @@
 //! # Key package tests
 
 use openmls::{prelude::*, test_utils::*, *};
+use wasm_bindgen_test::*;
+
+wasm_bindgen_test_configure!(run_in_browser);
 
 #[apply(ciphersuites_and_backends)]
+#[wasm_bindgen_test]
 fn key_package_generation(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider) {
     println!("Testing ciphersuite {:?}", ciphersuite);
 

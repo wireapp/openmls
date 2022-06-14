@@ -4,8 +4,12 @@ use openmls::{
     test_utils::*,
     *,
 };
+use wasm_bindgen_test::*;
+
+wasm_bindgen_test_configure!(run_in_browser);
 
 #[apply(ciphersuites)]
+#[wasm_bindgen_test]
 fn test_mls_group_api(ciphersuite: Ciphersuite) {
     // Some basic setup functions for the MlsGroup.
     let mls_group_config = MlsGroupConfig::test_default();

@@ -7,8 +7,12 @@ use openmls::{
     },
     *,
 };
+use wasm_bindgen_test::*;
+
+wasm_bindgen_test_configure!(run_in_browser);
 
 #[apply(ciphersuites)]
+#[wasm_bindgen_test]
 fn decryption_key_index_computation(ciphersuite: Ciphersuite) {
     println!("Testing ciphersuite {:?}", ciphersuite);
 
