@@ -1,14 +1,10 @@
 use openmls::{prelude::*, test_utils::*, *};
 
-use lazy_static::lazy_static;
 use openmls_rust_crypto::OpenMlsRustCrypto;
 use openmls_traits::{key_store::OpenMlsKeyStore, types::SignatureScheme, OpenMlsCryptoProvider};
-use std::fs::File;
+use wasm_bindgen_test::*;
 
-lazy_static! {
-    static ref TEMP_DIR: tempfile::TempDir =
-        tempfile::tempdir().expect("Error creating temp directory");
-}
+wasm_bindgen_test_configure!(run_in_browser);
 
 fn generate_credential_bundle(
     identity: Vec<u8>,
@@ -75,6 +71,7 @@ fn generate_key_package_bundle(
 ///  - Bob leaves
 ///  - Test saving the group state
 #[apply(ciphersuites_and_backends)]
+#[wasm_bindgen_test]
 fn mls_group_operations(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider) {
     for wire_format_policy in WIRE_FORMAT_POLICIES.iter() {
         let group_id = GroupId::from_slice(b"Test Group");
@@ -886,7 +883,7 @@ fn mls_group_operations(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoPr
         assert_eq!(bob_group.state_changed(), InnerState::Changed);
         //save(&mut bob_group);
 
-        let name = bytes_to_hex(
+        let _ = bytes_to_hex(
             bob_group
                 .credential()
                 .expect("An unexpected error occurred.")
@@ -894,19 +891,15 @@ fn mls_group_operations(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoPr
                 .as_slice(),
         )
         .to_lowercase();
-        let path = TEMP_DIR
-            .path()
-            .join(format!("test_mls_group_{}.json", &name));
-        let out_file = &mut File::create(path.clone()).expect("Could not create file");
+        let mut buf = vec![];
         bob_group
-            .save(out_file)
+            .save(&mut buf)
             .expect("Could not write group state to file");
 
         // Check that the state flag gets reset when saving
         assert_eq!(bob_group.state_changed(), InnerState::Persisted);
 
-        let file = File::open(path).expect("Could not open file");
-        let bob_group = MlsGroup::load(file).expect("Could not load group from file");
+        let bob_group = MlsGroup::load(buf.as_slice()).expect("Could not load group from file");
 
         // Make sure the state is still the same
         assert_eq!(
@@ -917,6 +910,7 @@ fn mls_group_operations(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoPr
 }
 
 #[apply(ciphersuites_and_backends)]
+#[wasm_bindgen_test]
 fn test_empty_input_errors(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider) {
     let group_id = GroupId::from_slice(b"Test Group");
 
@@ -965,6 +959,7 @@ fn test_empty_input_errors(ciphersuite: Ciphersuite, backend: &impl OpenMlsCrypt
 
 // This tests the ratchet tree extension usage flag in the configuration
 #[apply(ciphersuites_and_backends)]
+#[wasm_bindgen_test]
 fn mls_group_ratchet_tree_extension(
     ciphersuite: Ciphersuite,
     backend: &impl OpenMlsCryptoProvider,

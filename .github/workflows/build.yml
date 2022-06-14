@@ -57,7 +57,5 @@ jobs:
           profile: minimal
           override: true
           target: ${{ matrix.arch }}
-      - name: Build debug
-        run: cargo build --verbose --target ${{ matrix.arch }}
-      - name: Build release
-        run: cargo build --release --verbose --target ${{ matrix.arch }}
+      - name: Build
+        run: cargo build --target ${{ matrix.arch }}

@@ -4,6 +4,9 @@ use openmls::{
     test_utils::*,
     *,
 };
+use wasm_bindgen_test::*;
+
+wasm_bindgen_test_configure!(run_in_browser);
 
 // The following tests correspond to the interop test scenarios detailed here:
 // https://github.com/mlswg/mls-implementations/blob/master/test-scenarios.md
@@ -20,6 +23,7 @@ fn default_mls_group_config() -> MlsGroupConfig {
 // A->B: Welcome
 // ***:  Verify group state
 #[apply(ciphersuites)]
+#[wasm_bindgen_test]
 fn one_to_one_join(ciphersuite: Ciphersuite) {
     println!("Testing ciphersuite {:?}", ciphersuite);
     let number_of_clients = 2;
@@ -66,6 +70,7 @@ fn one_to_one_join(ciphersuite: Ciphersuite) {
 // A->C: Welcome
 // ***:  Verify group state
 #[apply(ciphersuites)]
+#[wasm_bindgen_test]
 fn three_party_join(ciphersuite: Ciphersuite) {
     println!("Testing ciphersuite {:?}", ciphersuite);
 
@@ -122,6 +127,7 @@ fn three_party_join(ciphersuite: Ciphersuite) {
 // A->C: Welcome
 // ***:  Verify group state
 #[apply(ciphersuites)]
+#[wasm_bindgen_test]
 fn multiple_joins(ciphersuite: Ciphersuite) {
     println!("Testing ciphersuite {:?}", ciphersuite);
 
@@ -170,6 +176,7 @@ fn multiple_joins(ciphersuite: Ciphersuite) {
 // A->B: Update, Commit
 // ***:  Verify group state
 #[apply(ciphersuites)]
+#[wasm_bindgen_test]
 fn update(ciphersuite: Ciphersuite) {
     println!("Testing ciphersuite {:?}", ciphersuite);
 
@@ -213,6 +220,7 @@ fn update(ciphersuite: Ciphersuite) {
 // A->B: Remove(B), Commit
 // ***:  Verify group state
 #[apply(ciphersuites)]
+#[wasm_bindgen_test]
 fn remove(ciphersuite: Ciphersuite) {
     println!("Testing ciphersuite {:?}", ciphersuite);
 
@@ -267,6 +275,7 @@ fn remove(ciphersuite: Ciphersuite) {
 // * While the group size is >1, a randomly-chosen group member removes a
 //   randomly-chosen other group member
 #[apply(ciphersuites)]
+#[wasm_bindgen_test]
 fn large_group_lifecycle(ciphersuite: Ciphersuite) {
     println!("Testing ciphersuite {:?}", ciphersuite);
 
