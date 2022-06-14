@@ -38,7 +38,7 @@ rayon = "^1.5.0"
 [features]
 default = []
 crypto-subtle = [] # Enable subtle crypto APIs that have to be used with care.
-test-utils = ["itertools", "openmls_rust_crypto", "rand", "rstest", "rstest_reuse"]
+test-utils = ["itertools", "openmls_rust_crypto/provider", "rand", "rstest", "rstest_reuse"]
 evercrypt = ["openmls_evercrypt"] # Evercrypt needs to be enabled individually
 crypto-debug = [] # ☣️ Enable logging of sensitive cryptographic information
 content-debug = [] # ☣️ Enable logging of sensitive message content
@@ -53,6 +53,7 @@ rstest = "^0.13"
 rstest_reuse = "0.3"
 backtrace = "0.3"
 lazy_static = "1.4"
+wasm-bindgen-test = "0.3.30"
 
 # x64 targets get evercrypt compiled into dev-dependencies.
 [target.'cfg(target_arch = "x86_64")'.dev-dependencies.openmls]
