@@ -38,7 +38,6 @@ use openmls_traits::{
     types::{Ciphersuite, SignatureScheme},
     OpenMlsCryptoProvider,
 };
-use rayon::prelude::*;
 use std::{collections::HashMap, sync::RwLock};
 use tls_codec::*;
 
@@ -290,9 +289,16 @@ impl MlsGroupTestSetup {
         };
         let clients = self.clients.read().expect("An unexpected error occurred.");
         // Distribute message to all members, except to the sender in the case of application messages
-        let results: Result<Vec<_>, _> = group
-            .members
-            .par_iter()
+
+        #[cfg(not(target_family = "wasm"))]
+        use rayon::prelude::*;
+        #[cfg(not(target_family = "wasm"))]
+        let members = group.members.par_iter();
+
+        #[cfg(target_family = "wasm")]
+        let members = group.members.iter();
+
+        let results: Result<Vec<_>, _> = members
             .filter_map(|(_index, member_id)| {
                 if message.content_type() == ContentType::Application && member_id == sender_id {
                     None
@@ -339,9 +345,16 @@ impl MlsGroupTestSetup {
     /// above tests fail.
     pub fn check_group_states(&self, group: &mut Group) {
         let clients = self.clients.read().expect("An unexpected error occurred.");
-        let messages = group
-            .members
-            .par_iter()
+
+        #[cfg(not(target_family = "wasm"))]
+        use rayon::prelude::*;
+        #[cfg(not(target_family = "wasm"))]
+        let members = group.members.par_iter();
+
+        #[cfg(target_family = "wasm")]
+        let members = group.members.iter();
+
+        let messages = members
             .filter_map(|(_, m_id)| {
                 let m = clients
                     .get(m_id)

@@ -1,9 +1,13 @@
 //! # Credential tests
 
 use openmls::{prelude::*, test_utils::*, *};
+use wasm_bindgen_test::*;
+
+wasm_bindgen_test_configure!(run_in_browser);
 
 // This test makes sure BasicCredentials can be created from a SignatureKeypair.
 #[apply(ciphersuites_and_backends)]
+#[wasm_bindgen_test]
 fn credential_with_signature_keypair(
     ciphersuite: Ciphersuite,
     backend: &impl OpenMlsCryptoProvider,
