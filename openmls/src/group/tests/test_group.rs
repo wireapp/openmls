@@ -12,7 +12,7 @@ use openmls_rust_crypto::OpenMlsRustCrypto;
 use tls_codec::Serialize;
 
 #[apply(ciphersuites_and_backends)]
-fn create_commit_optional_path(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider) {
+async fn create_commit_optional_path(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider) {
     let group_aad = b"Alice's test group";
     // Framing parameters
     let framing_parameters = FramingParameters::new(group_aad, WireFormat::MlsPlaintext);
@@ -66,7 +66,7 @@ fn create_commit_optional_path(ciphersuite: Ciphersuite, backend: &impl OpenMlsC
     // Alice creates a group
     let mut group_alice = CoreGroup::builder(GroupId::random(backend), alice_key_package_bundle)
         .build(backend)
-        .expect("Error creating CoreGroup.");
+        .await.expect("Error creating CoreGroup.");
 
     // Alice proposes to add Bob with forced self-update
     // Even though there are only Add Proposals, this should generated a path field
@@ -91,7 +91,7 @@ fn create_commit_optional_path(ciphersuite: Ciphersuite, backend: &impl OpenMlsC
         .proposal_store(&proposal_store)
         .build();
     let create_commit_result =
-        match group_alice.create_commit(params /* No PSK fetcher */, backend) {
+        match group_alice.create_commit(params /* No PSK fetcher */, backend).await {
             Ok(c) => c,
             Err(e) => panic!("Error creating commit: {:?}", e),
         };
@@ -126,7 +126,7 @@ fn create_commit_optional_path(ciphersuite: Ciphersuite, backend: &impl OpenMlsC
         .proposal_store(&proposal_store)
         .force_self_update(false)
         .build();
-    let create_commit_result = match group_alice.create_commit(params, backend) {
+    let create_commit_result = match group_alice.create_commit(params, backend).await {
         Ok(c) => c,
         Err(e) => panic!("Error creating commit: {:?}", e),
     };
@@ -150,7 +150,7 @@ fn create_commit_optional_path(ciphersuite: Ciphersuite, backend: &impl OpenMlsC
         Some(ratchet_tree),
         bob_key_package_bundle,
         backend,
-    ) {
+    ).await {
         Ok(group) => group,
         Err(e) => panic!("Error creating group from Welcome: {:?}", e),
     };
@@ -183,7 +183,7 @@ fn create_commit_optional_path(ciphersuite: Ciphersuite, backend: &impl OpenMlsC
         .proposal_store(&proposal_store)
         .force_self_update(false)
         .build();
-    let create_commit_result = match group_alice.create_commit(params, backend) {
+    let create_commit_result = match group_alice.create_commit(params, backend).await {
         Ok(c) => c,
         Err(e) => panic!("Error creating commit: {:?}", e),
     };
@@ -200,7 +200,7 @@ fn create_commit_optional_path(ciphersuite: Ciphersuite, backend: &impl OpenMlsC
 }
 
 #[apply(ciphersuites_and_backends)]
-fn basic_group_setup(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider) {
+async fn basic_group_setup(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider) {
     let group_aad = b"Alice's test group";
     // Framing parameters
     let framing_parameters = FramingParameters::new(group_aad, WireFormat::MlsPlaintext);
@@ -236,7 +236,7 @@ fn basic_group_setup(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvi
     // Alice creates a group
     let group_alice = CoreGroup::builder(GroupId::random(backend), alice_key_package_bundle)
         .build(backend)
-        .expect("Error creating CoreGroup.");
+        .await.expect("Error creating CoreGroup.");
 
     // Alice adds Bob
     let bob_add_proposal = group_alice
@@ -258,7 +258,7 @@ fn basic_group_setup(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvi
         .credential_bundle(&alice_credential_bundle)
         .proposal_store(&proposal_store)
         .build();
-    let _commit = match group_alice.create_commit(params /* PSK fetcher */, backend) {
+    let _commit = match group_alice.create_commit(params /* PSK fetcher */, backend).await {
         Ok(c) => c,
         Err(e) => panic!("Error creating commit: {:?}", e),
     };
@@ -277,7 +277,7 @@ fn basic_group_setup(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvi
 ///  - Charlie updates and commits
 ///  - Charlie removes Bob
 #[apply(ciphersuites_and_backends)]
-fn group_operations(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider) {
+async fn group_operations(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider) {
     let group_aad = b"Alice's test group";
     // Framing parameters
     let framing_parameters = FramingParameters::new(group_aad, WireFormat::MlsPlaintext);
@@ -328,7 +328,7 @@ fn group_operations(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvid
     // === Alice creates a group ===
     let mut group_alice = CoreGroup::builder(GroupId::random(backend), alice_key_package_bundle)
         .build(backend)
-        .expect("Error creating CoreGroup.");
+        .await.expect("Error creating CoreGroup.");
 
     // === Alice adds Bob ===
     let bob_add_proposal = group_alice
@@ -353,7 +353,7 @@ fn group_operations(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvid
         .build();
     let create_commit_result = group_alice
         .create_commit(params, backend)
-        .expect("Error creating commit");
+        .await.expect("Error creating commit");
     let commit = match create_commit_result.commit.content() {
         MlsPlaintextContentType::Commit(commit) => commit,
         _ => panic!("Wrong content type"),
@@ -374,7 +374,7 @@ fn group_operations(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvid
         Some(ratchet_tree),
         bob_key_package_bundle,
         backend,
-    ) {
+    ).await {
         Ok(group) => group,
         Err(e) => panic!("Error creating group from Welcome: {:?}", e),
     };
@@ -393,7 +393,7 @@ fn group_operations(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvid
     let message_alice = [1, 2, 3];
     let mls_ciphertext_alice = group_alice
         .create_application_message(&[], &message_alice, &alice_credential_bundle, 0, backend)
-        .expect("An unexpected error occurred.");
+        .await.expect("An unexpected error occurred.");
 
     let mut verifiable_plaintext = group_bob
         .decrypt(
@@ -454,7 +454,7 @@ fn group_operations(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvid
         .proposal_store(&proposal_store)
         .force_self_update(false)
         .build();
-    let create_commit_result = match group_bob.create_commit(params, backend) {
+    let create_commit_result = match group_bob.create_commit(params, backend).await {
         Ok(c) => c,
         Err(e) => panic!("Error creating commit: {:?}", e),
     };
@@ -470,7 +470,7 @@ fn group_operations(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvid
 
     let staged_commit = group_alice
         .stage_commit(&create_commit_result.commit, &proposal_store, &[], backend)
-        .expect("Error applying commit (Alice)");
+        .await.expect("Error applying commit (Alice)");
     group_alice
         .merge_commit(staged_commit)
         .expect("error merging commit");
@@ -516,7 +516,7 @@ fn group_operations(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvid
         .force_self_update(false)
         .build();
     let create_commit_result =
-        match group_alice.create_commit(params /* PSK fetcher */, backend) {
+        match group_alice.create_commit(params /* PSK fetcher */, backend).await {
             Ok(c) => c,
             Err(e) => panic!("Error creating commit: {:?}", e),
         };
@@ -529,7 +529,7 @@ fn group_operations(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvid
         .expect("error merging own commits");
     let staged_commit = group_bob
         .stage_commit(&create_commit_result.commit, &proposal_store, &[], backend)
-        .expect("Error applying commit (Bob)");
+        .await.expect("Error applying commit (Bob)");
     group_bob
         .merge_commit(staged_commit)
         .expect("error merging commit");
@@ -570,7 +570,7 @@ fn group_operations(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvid
         .proposal_store(&proposal_store)
         .force_self_update(false)
         .build();
-    let create_commit_result = match group_alice.create_commit(params, backend) {
+    let create_commit_result = match group_alice.create_commit(params, backend).await {
         Ok(c) => c,
         Err(e) => panic!("Error creating commit: {:?}", e),
     };
@@ -594,7 +594,7 @@ fn group_operations(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvid
             &[bob_update_key_package_bundle],
             backend,
         )
-        .expect("Error applying commit (Bob)");
+        .await.expect("Error applying commit (Bob)");
     group_bob
         .merge_commit(staged_commit)
         .expect("error merging commit");
@@ -643,7 +643,7 @@ fn group_operations(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvid
         .proposal_store(&proposal_store)
         .force_self_update(false)
         .build();
-    let create_commit_result = match group_bob.create_commit(params, backend) {
+    let create_commit_result = match group_bob.create_commit(params, backend).await {
         Ok(c) => c,
         Err(e) => panic!("Error creating commit: {:?}", e),
     };
@@ -660,7 +660,7 @@ fn group_operations(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvid
 
     let staged_commit = group_alice
         .stage_commit(&create_commit_result.commit, &proposal_store, &[], backend)
-        .expect("Error applying commit (Alice)");
+        .await.expect("Error applying commit (Alice)");
     group_alice
         .merge_commit(staged_commit)
         .expect("error merging commit");
@@ -676,7 +676,7 @@ fn group_operations(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvid
         Some(ratchet_tree),
         charlie_key_package_bundle,
         backend,
-    ) {
+    ).await {
         Ok(group) => group,
         Err(e) => panic!("Error creating group from Welcome: {:?}", e),
     };
@@ -701,7 +701,7 @@ fn group_operations(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvid
             0,
             backend,
         )
-        .expect("An unexpected error occurred.");
+        .await.expect("An unexpected error occurred.");
 
     // Alice decrypts and verifies
     let mut verifiable_plaintext = group_alice
@@ -794,7 +794,7 @@ fn group_operations(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvid
         .proposal_store(&proposal_store)
         .force_self_update(false)
         .build();
-    let create_commit_result = match group_charlie.create_commit(params, backend) {
+    let create_commit_result = match group_charlie.create_commit(params, backend).await {
         Ok(c) => c,
         Err(e) => panic!("Error creating commit: {:?}", e),
     };
@@ -808,13 +808,13 @@ fn group_operations(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvid
 
     let staged_commit = group_alice
         .stage_commit(&create_commit_result.commit, &proposal_store, &[], backend)
-        .expect("Error applying commit (Alice)");
+        .await.expect("Error applying commit (Alice)");
     group_alice
         .merge_commit(staged_commit)
         .expect("error merging commit");
     let staged_commit = group_bob
         .stage_commit(&create_commit_result.commit, &proposal_store, &[], backend)
-        .expect("Error applying commit (Bob)");
+        .await.expect("Error applying commit (Bob)");
     group_bob
         .merge_commit(staged_commit)
         .expect("error merging commit");
@@ -857,7 +857,7 @@ fn group_operations(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvid
         .force_self_update(false)
         .build();
     let create_commit_result =
-        match group_charlie.create_commit(params /* PSK fetcher */, backend) {
+        match group_charlie.create_commit(params /* PSK fetcher */, backend).await {
             Ok(c) => c,
             Err(e) => panic!("Error creating commit: {:?}", e),
         };
@@ -867,13 +867,13 @@ fn group_operations(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvid
 
     let staged_commit = group_alice
         .stage_commit(&create_commit_result.commit, &proposal_store, &[], backend)
-        .expect("Error applying commit (Alice)");
+        .await.expect("Error applying commit (Alice)");
     group_alice
         .merge_commit(staged_commit)
         .expect("error merging commit");
     assert!(group_bob
         .stage_commit(&create_commit_result.commit, &proposal_store, &[], backend,)
-        .expect("Could not stage commit.")
+        .await.expect("Could not stage commit.")
         .self_removed());
     group_charlie
         .merge_commit(create_commit_result.staged_commit)

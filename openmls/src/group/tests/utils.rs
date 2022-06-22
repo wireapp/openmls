@@ -82,7 +82,10 @@ pub(crate) struct TestSetup {
 const KEY_PACKAGE_COUNT: usize = 10;
 
 /// The setup function creates a set of groups and clients.
-pub(crate) fn setup(config: TestSetupConfig, backend: &impl OpenMlsCryptoProvider) -> TestSetup {
+pub(crate) async fn setup(
+    config: TestSetupConfig,
+    backend: &impl OpenMlsCryptoProvider,
+) -> TestSetup {
     let mut test_clients: HashMap<&'static str, RefCell<TestClient>> = HashMap::new();
     let mut key_store: HashMap<(&'static str, Ciphersuite), Vec<KeyPackage>> = HashMap::new();
     // Initialize the clients for which we have configurations.
@@ -168,6 +171,7 @@ pub(crate) fn setup(config: TestSetupConfig, backend: &impl OpenMlsCryptoProvide
         )
         .with_config(group_config.config)
         .build(backend)
+        .await
         .expect("Error creating new CoreGroup");
         let mut proposal_list = Vec::new();
         let group_aad = b"";
@@ -223,6 +227,7 @@ pub(crate) fn setup(config: TestSetupConfig, backend: &impl OpenMlsCryptoProvide
                 .build();
             let create_commit_result = core_group
                 .create_commit(params, backend)
+                .await
                 .expect("An unexpected error occurred.");
             let welcome = create_commit_result
                 .welcome_option
@@ -278,7 +283,9 @@ pub(crate) fn setup(config: TestSetupConfig, backend: &impl OpenMlsCryptoProvide
                     Some(core_group.treesync().export_nodes()),
                     key_package_bundle,
                     backend,
-                ) {
+                )
+                .await
+                {
                     Ok(group) => group,
                     Err(err) => panic!("Error creating new group from Welcome: {:?}", err),
                 };
@@ -337,7 +344,7 @@ fn test_setup(backend: &impl OpenMlsCryptoProvider) {
 }
 
 // Helper function to generate a CredentialBundle
-pub(super) fn generate_credential_bundle(
+pub(super) async fn generate_credential_bundle(
     identity: Vec<u8>,
     _credential_type: CredentialType,
     signature_scheme: SignatureScheme,
@@ -354,12 +361,13 @@ pub(super) fn generate_credential_bundle(
                 .expect("Error serializing signature key."),
             &cb,
         )
+        .await
         .expect("An unexpected error occurred.");
     Ok(credential)
 }
 
 // Helper function to generate a KeyPackageBundle
-pub(super) fn generate_key_package_bundle(
+pub(super) async fn generate_key_package_bundle(
     ciphersuites: &[Ciphersuite],
     credential: &Credential,
     extensions: Vec<Extension>,
@@ -373,6 +381,7 @@ pub(super) fn generate_key_package_bundle(
                 .tls_serialize_detached()
                 .expect("Error serializing signature key."),
         )
+        .await
         .expect("An unexpected error occurred.");
     let kpb = KeyPackageBundle::new(ciphersuites, &credential_bundle, backend, extensions)?;
     let kp = kpb.key_package().clone();
@@ -384,6 +393,7 @@ pub(super) fn generate_key_package_bundle(
                 .value(),
             &kpb,
         )
+        .await
         .expect("An unexpected error occurred.");
     Ok(kp)
 }

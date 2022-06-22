@@ -26,7 +26,7 @@ impl MlsGroup {
     /// If successful, it returns a tuple of [MlsMessageOut] and [Welcome].
     ///
     /// Returns an error if there is a pending commit.
-    pub fn add_members(
+    pub async fn add_members(
         &mut self,
         backend: &impl OpenMlsCryptoProvider,
         key_packages: &[KeyPackage],
@@ -56,6 +56,7 @@ impl MlsGroup {
                     .tls_serialize_detached()
                     .map_err(LibraryError::missing_bound_check)?,
             )
+            .await
             .ok_or(AddMembersError::NoMatchingCredentialBundle)?;
 
         // Create Commit over all proposals
@@ -66,7 +67,7 @@ impl MlsGroup {
             .proposal_store(&self.proposal_store)
             .inline_proposals(inline_proposals)
             .build();
-        let create_commit_result = self.group.create_commit(params, backend)?;
+        let create_commit_result = self.group.create_commit(params, backend).await?;
 
         let welcome = match create_commit_result.welcome_option {
             Some(welcome) => welcome,
@@ -99,7 +100,7 @@ impl MlsGroup {
     /// The [Welcome] is [Some] when the queue of pending proposals contained add proposals
     ///
     /// Returns an error if there is a pending commit.
-    pub fn remove_members(
+    pub async fn remove_members(
         &mut self,
         backend: &impl OpenMlsCryptoProvider,
         members: &[KeyPackageRef],
@@ -127,6 +128,7 @@ impl MlsGroup {
                     .tls_serialize_detached()
                     .map_err(LibraryError::missing_bound_check)?,
             )
+            .await
             .ok_or(RemoveMembersError::NoMatchingCredentialBundle)?;
 
         // Create Commit over all proposals
@@ -137,7 +139,7 @@ impl MlsGroup {
             .proposal_store(&self.proposal_store)
             .inline_proposals(inline_proposals)
             .build();
-        let create_commit_result = self.group.create_commit(params, backend)?;
+        let create_commit_result = self.group.create_commit(params, backend).await?;
 
         // Convert MlsPlaintext messages to MLSMessage and encrypt them if required by
         // the configuration
@@ -158,7 +160,7 @@ impl MlsGroup {
     /// Creates proposals to add members to the group.
     ///
     /// Returns an error if there is a pending commit.
-    pub fn propose_add_member(
+    pub async fn propose_add_member(
         &mut self,
         backend: &impl OpenMlsCryptoProvider,
 
@@ -175,6 +177,7 @@ impl MlsGroup {
                     .tls_serialize_detached()
                     .map_err(LibraryError::missing_bound_check)?,
             )
+            .await
             .ok_or(ProposeAddMemberError::NoMatchingCredentialBundle)?;
 
         let add_proposal = self
@@ -209,7 +212,7 @@ impl MlsGroup {
     /// Creates proposals to remove members from the group.
     ///
     /// Returns an error if there is a pending commit.
-    pub fn propose_remove_member(
+    pub async fn propose_remove_member(
         &mut self,
         backend: &impl OpenMlsCryptoProvider,
         member: &KeyPackageRef,
@@ -225,6 +228,7 @@ impl MlsGroup {
                     .tls_serialize_detached()
                     .map_err(LibraryError::missing_bound_check)?,
             )
+            .await
             .ok_or(ProposeRemoveMemberError::NoMatchingCredentialBundle)?;
 
         let remove_proposal = self.group.create_remove_proposal(
@@ -254,7 +258,7 @@ impl MlsGroup {
     /// The Remove Proposal is returned as a [`MlsMessageOut`].
     ///
     /// Returns an error if there is a pending commit.
-    pub fn leave_group(
+    pub async fn leave_group(
         &mut self,
         backend: &impl OpenMlsCryptoProvider,
     ) -> Result<MlsMessageOut, LeaveGroupError> {
@@ -272,6 +276,7 @@ impl MlsGroup {
                     .tls_serialize_detached()
                     .map_err(LibraryError::missing_bound_check)?,
             )
+            .await
             .ok_or(LeaveGroupError::NoMatchingCredentialBundle)?;
 
         let removed = self

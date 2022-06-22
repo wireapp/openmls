@@ -25,9 +25,9 @@ impl CoreGroup {
     ///
     /// Returns the new `CoreGroup` object, as well as the `MlsPlaintext`
     /// containing the commit.
-    pub(crate) fn join_by_external_commit(
+    pub(crate) async fn join_by_external_commit(
         backend: &impl OpenMlsCryptoProvider,
-        params: CreateCommitParams,
+        params: CreateCommitParams<'_>,
         tree_option: Option<&[Option<Node>]>,
         verifiable_public_group_state: VerifiablePublicGroupState,
     ) -> Result<ExternalCommitResult, ExternalCommitError> {
@@ -157,6 +157,7 @@ impl CoreGroup {
         // Immediately create the commit to add ourselves to the group.
         let create_commit_result = group
             .create_commit(params, backend)
+            .await
             .map_err(|_| ExternalCommitError::CommitError)?;
 
         Ok((group, create_commit_result))

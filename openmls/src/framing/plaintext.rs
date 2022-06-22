@@ -243,7 +243,7 @@ impl MlsPlaintext {
 
     /// This constructor builds an `MlsPlaintext` containing an application
     /// message. The sender type is always `SenderType::Member`.
-    pub(crate) fn new_application(
+    pub(crate) async fn new_application(
         sender_reference: &KeyPackageRef,
         authenticated_data: &[u8],
         application_message: &[u8],

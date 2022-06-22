@@ -56,7 +56,7 @@ impl MlsGroup {
     // === Export public group state ===
 
     /// Exports the public group state.
-    pub fn export_public_group_state(
+    pub async fn export_public_group_state(
         &self,
         backend: &impl OpenMlsCryptoProvider,
     ) -> Result<PublicGroupState, ExportPublicGroupStateError> {
@@ -70,6 +70,7 @@ impl MlsGroup {
                             .tls_serialize_detached()
                             .map_err(LibraryError::missing_bound_check)?,
                     )
+                    .await
                     .ok_or(ExportPublicGroupStateError::NoMatchingCredentialBundle)?;
                 Ok(self
                     .group

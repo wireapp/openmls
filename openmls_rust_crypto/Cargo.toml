@@ -10,7 +10,9 @@ repository = "https://github.com/openmls/openmls/tree/main/openmls_rust_crypto"
 readme = "README.md"
 
 [features]
+default = []
 provider = ["openmls_memory_keystore"]
+single-threaded = ["openmls_memory_keystore?/single-threaded", "openmls_traits/single-threaded"]
 
 [dependencies]
 openmls_traits = { version = "0.1.0", path = "../traits" }

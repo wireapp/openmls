@@ -16,7 +16,7 @@ impl MlsGroup {
     /// `key_package_hash` from the key store. Returns an error
     /// ([`NewGroupError::NoMatchingKeyPackageBundle`]) if no
     /// [`KeyPackageBundle`] can be found.
-    pub fn new(
+    pub async fn new(
         backend: &impl OpenMlsCryptoProvider,
         mls_group_config: &MlsGroupConfig,
         group_id: GroupId,
@@ -27,10 +27,12 @@ impl MlsGroup {
         let key_package_bundle: KeyPackageBundle = backend
             .key_store()
             .read(&kph)
+            .await
             .ok_or(NewGroupError::NoMatchingKeyPackageBundle)?;
         backend
             .key_store()
-            .delete(&kph)
+            .delete::<KeyPackageBundle>(&kph)
+            .await
             .map_err(|_| NewGroupError::KeyStoreDeletionError)?;
         let group_config = CoreGroupConfig {
             add_ratchet_tree_extension: mls_group_config.use_ratchet_tree_extension,
@@ -40,6 +42,7 @@ impl MlsGroup {
             .with_required_capabilities(mls_group_config.required_capabilities.clone())
             .with_max_past_epoch_secrets(mls_group_config.max_past_epochs)
             .build(backend)
+            .await
             .map_err(|e| match e {
                 CoreGroupBuildError::LibraryError(e) => e.into(),
                 CoreGroupBuildError::UnsupportedProposalType => {
@@ -75,7 +78,7 @@ impl MlsGroup {
     /// Creates a new group from a [`Welcome`] message. Returns an error
     /// ([`WelcomeError::NoMatchingKeyPackageBundle`]) if no
     /// [`KeyPackageBundle`] can be found.
-    pub fn new_from_welcome(
+    pub async fn new_from_welcome(
         backend: &impl OpenMlsCryptoProvider,
         mls_group_config: &MlsGroupConfig,
         welcome: Welcome,
@@ -83,26 +86,30 @@ impl MlsGroup {
     ) -> Result<Self, WelcomeError> {
         let resumption_secret_store =
             ResumptionSecretStore::new(mls_group_config.number_of_resumption_secrets);
-        let (key_package_bundle, hash_ref) = welcome
-            .secrets()
-            .iter()
-            .find_map(|egs| {
-                let hash_ref = egs.new_member().as_slice().to_vec();
-                backend
-                    .key_store()
-                    .read(&hash_ref)
-                    .map(|kpb: KeyPackageBundle| (kpb, hash_ref))
-            })
-            .ok_or(WelcomeError::NoMatchingKeyPackageBundle)?;
+        let mut kpb_info = None;
+        for egs in welcome.secrets().iter() {
+            let new_member = egs.new_member();
+            let hash_ref_raw = new_member.as_slice();
+            if let Some(kpb) = backend.key_store().read(hash_ref_raw).await {
+                kpb_info = Some((kpb, hash_ref_raw.to_vec()));
+                break;
+            }
+        }
+        let (key_package_bundle, hash_ref) = if let Some(kpb_info) = kpb_info.take() {
+            kpb_info
+        } else {
+            return Err(WelcomeError::NoMatchingKeyPackageBundle);
+        };
 
         // Delete the KeyPackageBundle from the key store
         backend
             .key_store()
-            .delete(&hash_ref)
+            .delete::<KeyPackageBundle>(&hash_ref)
+            .await
             .map_err(|_| WelcomeError::KeyStoreDeletionError)?;
         // TODO #751
         let mut group =
-            CoreGroup::new_from_welcome(welcome, ratchet_tree, key_package_bundle, backend)?;
+            CoreGroup::new_from_welcome(welcome, ratchet_tree, key_package_bundle, backend).await?;
         group.set_max_past_epochs(mls_group_config.max_past_epochs);
 
         let mls_group = MlsGroup {
@@ -130,7 +137,7 @@ impl MlsGroup {
     /// created using this function based on the latest `ratchet_tree` and
     /// public group state. For more information on the external init process,
     /// please see Section 11.2.1 in the MLS specification.
-    pub fn join_by_external_commit(
+    pub async fn join_by_external_commit(
         backend: &impl OpenMlsCryptoProvider,
         tree_option: Option<&[Option<Node>]>,
         verifiable_public_group_state: VerifiablePublicGroupState,
@@ -156,7 +163,7 @@ impl MlsGroup {
             params,
             tree_option,
             verifiable_public_group_state,
-        )?;
+        ).await?;
         group.set_max_past_epochs(mls_group_config.max_past_epochs);
 
         let mls_group = MlsGroup {

@@ -54,7 +54,7 @@ impl MlsGroup {
     /// It returns a [ProcessedMessage] enum.
     /// Returns an [`UnverifiedMessageError`] when the validation checks fail
     /// with the exact reason of the failure.
-    pub fn process_unverified_message(
+    pub async fn process_unverified_message(
         &mut self,
         unverified_message: UnverifiedMessage,
         signature_key: Option<&SignaturePublicKey>,
@@ -66,7 +66,7 @@ impl MlsGroup {
             &self.proposal_store,
             &self.own_kpbs,
             backend,
-        )
+        ).await
     }
 
     /// Stores a standalone proposal in the internal [ProposalStore]
@@ -82,7 +82,7 @@ impl MlsGroup {
     /// currently stored in the group's [ProposalStore].
     ///
     /// Returns an error if there is a pending commit.
-    pub fn commit_to_pending_proposals(
+    pub async fn commit_to_pending_proposals(
         &mut self,
         backend: &impl OpenMlsCryptoProvider,
     ) -> Result<(MlsMessageOut, Option<Welcome>), CommitToPendingProposalsError> {
@@ -97,6 +97,7 @@ impl MlsGroup {
                     .tls_serialize_detached()
                     .map_err(LibraryError::missing_bound_check)?,
             )
+            .await
             .ok_or(CommitToPendingProposalsError::NoMatchingCredentialBundle)?;
 
         // Create Commit over all pending proposals
@@ -106,7 +107,7 @@ impl MlsGroup {
             .credential_bundle(&credential_bundle)
             .proposal_store(&self.proposal_store)
             .build();
-        let create_commit_result = self.group.create_commit(params, backend)?;
+        let create_commit_result = self.group.create_commit(params, backend).await?;
 
         // Convert MlsPlaintext messages to MLSMessage and encrypt them if required by
         // the configuration

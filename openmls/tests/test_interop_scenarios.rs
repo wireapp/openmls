@@ -24,18 +24,20 @@ fn default_mls_group_config() -> MlsGroupConfig {
 // ***:  Verify group state
 #[apply(ciphersuites)]
 #[wasm_bindgen_test]
-fn one_to_one_join(ciphersuite: Ciphersuite) {
+async fn one_to_one_join(ciphersuite: Ciphersuite) {
     println!("Testing ciphersuite {:?}", ciphersuite);
     let number_of_clients = 2;
     let setup = MlsGroupTestSetup::new(
         default_mls_group_config(),
         number_of_clients,
         CodecUse::StructMessages,
-    );
+    )
+    .await;
 
     // Create a group with a random creator.
     let group_id = setup
         .create_group(ciphersuite)
+        .await
         .expect("Error while trying to create group.");
     let mut groups = setup.groups.write().expect("An unexpected error occurred.");
     let group = groups
@@ -55,10 +57,11 @@ fn one_to_one_join(ciphersuite: Ciphersuite) {
 
     setup
         .add_clients(ActionType::Commit, group, &alice_id, bob_id)
+        .await
         .expect("Error adding Bob");
 
     // Check that group members agree on a group state.
-    setup.check_group_states(group);
+    setup.check_group_states(group).await;
 }
 
 // # 3-party join
@@ -71,7 +74,7 @@ fn one_to_one_join(ciphersuite: Ciphersuite) {
 // ***:  Verify group state
 #[apply(ciphersuites)]
 #[wasm_bindgen_test]
-fn three_party_join(ciphersuite: Ciphersuite) {
+async fn three_party_join(ciphersuite: Ciphersuite) {
     println!("Testing ciphersuite {:?}", ciphersuite);
 
     let number_of_clients = 3;
@@ -79,11 +82,13 @@ fn three_party_join(ciphersuite: Ciphersuite) {
         default_mls_group_config(),
         number_of_clients,
         CodecUse::StructMessages,
-    );
+    )
+    .await;
 
     // Create a group with a random creator.
     let group_id = setup
         .create_group(ciphersuite)
+        .await
         .expect("Error while trying to create group.");
     let mut groups = setup.groups.write().expect("An unexpected error occurred.");
     let group = groups
@@ -104,6 +109,7 @@ fn three_party_join(ciphersuite: Ciphersuite) {
     // Create the add commit and deliver the welcome.
     setup
         .add_clients(ActionType::Commit, group, &alice_id, bob_id)
+        .await
         .expect("Error adding Bob");
 
     // A vector including Charly's id.
@@ -113,10 +119,11 @@ fn three_party_join(ciphersuite: Ciphersuite) {
 
     setup
         .add_clients(ActionType::Commit, group, &alice_id, charly_id)
+        .await
         .expect("Error adding Charly");
 
     // Check that group members agree on a group state.
-    setup.check_group_states(group);
+    setup.check_group_states(group).await;
 }
 
 // # Multiple joins at once
@@ -128,7 +135,7 @@ fn three_party_join(ciphersuite: Ciphersuite) {
 // ***:  Verify group state
 #[apply(ciphersuites)]
 #[wasm_bindgen_test]
-fn multiple_joins(ciphersuite: Ciphersuite) {
+async fn multiple_joins(ciphersuite: Ciphersuite) {
     println!("Testing ciphersuite {:?}", ciphersuite);
 
     let number_of_clients = 3;
@@ -136,11 +143,13 @@ fn multiple_joins(ciphersuite: Ciphersuite) {
         default_mls_group_config(),
         number_of_clients,
         CodecUse::StructMessages,
-    );
+    )
+    .await;
 
     // Create a group with a random creator.
     let group_id = setup
         .create_group(ciphersuite)
+        .await
         .expect("Error while trying to create group.");
     let mut groups = setup.groups.write().expect("An unexpected error occurred.");
     let group = groups
@@ -161,10 +170,11 @@ fn multiple_joins(ciphersuite: Ciphersuite) {
     // Create the add commit and deliver the welcome.
     setup
         .add_clients(ActionType::Commit, group, &alice_id, bob_charly_id)
+        .await
         .expect("Error adding Bob and Charly");
 
     // Check that group members agree on a group state.
-    setup.check_group_states(group);
+    setup.check_group_states(group).await;
 }
 
 // TODO #192, #286, #289: The external join test should go here.
@@ -177,7 +187,7 @@ fn multiple_joins(ciphersuite: Ciphersuite) {
 // ***:  Verify group state
 #[apply(ciphersuites)]
 #[wasm_bindgen_test]
-fn update(ciphersuite: Ciphersuite) {
+async fn update(ciphersuite: Ciphersuite) {
     println!("Testing ciphersuite {:?}", ciphersuite);
 
     let number_of_clients = 2;
@@ -185,11 +195,13 @@ fn update(ciphersuite: Ciphersuite) {
         default_mls_group_config(),
         number_of_clients,
         CodecUse::StructMessages,
-    );
+    )
+    .await;
 
     // Create a group with two members. Includes the process of adding Bob.
     let group_id = setup
         .create_random_group(2, ciphersuite)
+        .await
         .expect("Error while trying to create group.");
     let mut groups = setup.groups.write().expect("An unexpected error occurred.");
     let group = groups
@@ -205,10 +217,11 @@ fn update(ciphersuite: Ciphersuite) {
     // Let Alice create an update with a self-generated KeyPackageBundle.
     setup
         .self_update(ActionType::Commit, group, &alice_id, None)
+        .await
         .expect("Error self-updating.");
 
     // Check that group members agree on a group state.
-    setup.check_group_states(group);
+    setup.check_group_states(group).await;
 }
 
 // # Remove
@@ -221,7 +234,7 @@ fn update(ciphersuite: Ciphersuite) {
 // ***:  Verify group state
 #[apply(ciphersuites)]
 #[wasm_bindgen_test]
-fn remove(ciphersuite: Ciphersuite) {
+async fn remove(ciphersuite: Ciphersuite) {
     println!("Testing ciphersuite {:?}", ciphersuite);
 
     let number_of_clients = 2;
@@ -229,11 +242,13 @@ fn remove(ciphersuite: Ciphersuite) {
         default_mls_group_config(),
         number_of_clients,
         CodecUse::StructMessages,
-    );
+    )
+    .await;
 
     // Create a group with two members. Includes the process of adding Bob.
     let group_id = setup
         .create_random_group(2, ciphersuite)
+        .await
         .expect("Error while trying to create group.");
     let mut groups = setup.groups.write().expect("An unexpected error occurred.");
     let group = groups
@@ -257,10 +272,11 @@ fn remove(ciphersuite: Ciphersuite) {
     // Have alice remove Bob.
     setup
         .remove_clients(ActionType::Commit, group, &alice_id, &[bob_kpr])
+        .await
         .expect("Error removing Bob from the group.");
 
     // Check that group members agree on a group state.
-    setup.check_group_states(group);
+    setup.check_group_states(group).await;
 }
 
 // TODO #141, #284: The external PSK, resumption and re-init tests should go
@@ -276,7 +292,7 @@ fn remove(ciphersuite: Ciphersuite) {
 //   randomly-chosen other group member
 #[apply(ciphersuites)]
 #[wasm_bindgen_test]
-fn large_group_lifecycle(ciphersuite: Ciphersuite) {
+async fn large_group_lifecycle(ciphersuite: Ciphersuite) {
     println!("Testing ciphersuite {:?}", ciphersuite);
 
     // "Large" is 20 for now.
@@ -285,13 +301,15 @@ fn large_group_lifecycle(ciphersuite: Ciphersuite) {
         default_mls_group_config(),
         number_of_clients,
         CodecUse::StructMessages,
-    );
+    )
+    .await;
 
     // Create a group with all available clients. The process includes creating
     // a one-person group and then adding new members in bunches of up to 5,
     // each bunch by a random group member.
     let group_id = setup
         .create_random_group(number_of_clients, ciphersuite)
+        .await
         .expect("Error while trying to create group.");
     let mut groups = setup.groups.write().expect("An unexpected error occurred.");
     let group = groups
@@ -305,6 +323,7 @@ fn large_group_lifecycle(ciphersuite: Ciphersuite) {
     for (_, member_id) in &group_members {
         setup
             .self_update(ActionType::Commit, group, member_id, None)
+            .await
             .expect("Error while updating group.")
     }
 
@@ -320,11 +339,12 @@ fn large_group_lifecycle(ciphersuite: Ciphersuite) {
             .expect("Couldn't get key package reference.");
         setup
             .remove_clients(ActionType::Commit, group, &remover_id, &[target_kpr])
+            .await
             .expect("Error while removing group member.");
         group_members = group.members.clone();
-        setup.check_group_states(group);
+        setup.check_group_states(group).await;
     }
 
     // Check that group members agree on a group state.
-    setup.check_group_states(group);
+    setup.check_group_states(group).await;
 }

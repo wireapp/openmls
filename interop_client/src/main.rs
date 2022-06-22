@@ -6,11 +6,12 @@
 use clap::Parser;
 use clap_derive::*;
 use openmls::{prelude::*, prelude_test::*};
+use tokio::sync::Mutex;
 
 use openmls_traits::key_store::OpenMlsKeyStore;
 use openmls_traits::OpenMlsCryptoProvider;
 use serde::{self, Serialize};
-use std::{collections::HashMap, convert::TryFrom, fmt::Display, fs::File, io::Write, sync::Mutex};
+use std::{collections::HashMap, convert::TryFrom, fmt::Display, fs::File, io::Write};
 use tonic::{transport::Server, Request, Response, Status};
 
 use openmls_rust_crypto::OpenMlsRustCrypto;
@@ -178,14 +179,15 @@ impl MlsClient for MlsClientImpl {
                     obj.n_generations,
                     obj.n_leaves,
                     *ciphersuite,
-                );
+                )
+                .await;
                 let kat_bytes = into_bytes(kat_encryption);
                 ("Encryption", kat_bytes)
             }
             Ok(TestVectorType::KeySchedule) => {
                 let ciphersuite = to_ciphersuite(obj.cipher_suite)?;
                 let kat_key_schedule =
-                    kat_key_schedule::generate_test_vector(obj.n_epochs as u64, *ciphersuite);
+                    kat_key_schedule::generate_test_vector(obj.n_epochs as u64, *ciphersuite).await;
                 let kat_bytes = into_bytes(kat_key_schedule);
                 ("Key Schedule", kat_bytes)
             }
@@ -203,7 +205,7 @@ impl MlsClient for MlsClientImpl {
             }
             Ok(TestVectorType::Messages) => {
                 let ciphersuite = Ciphersuite::MLS_128_DHKEMX25519_AES128GCM_SHA256_Ed25519;
-                let kat_messages = kat_messages::generate_test_vector(ciphersuite);
+                let kat_messages = kat_messages::generate_test_vector(ciphersuite).await;
                 let kat_bytes = into_bytes(kat_messages);
                 ("Messages", kat_bytes)
             }
@@ -268,7 +270,7 @@ impl MlsClient for MlsClientImpl {
                     ),
                     &obj.test_vector,
                 );
-                match kat_encryption::run_test_vector(kat_encryption, backend) {
+                match kat_encryption::run_test_vector(kat_encryption, backend).await {
                     Ok(result) => ("Encryption", result),
                     Err(e) => {
                         let message = "Error while running encryption test vector: ".to_string()
@@ -292,7 +294,7 @@ impl MlsClient for MlsClientImpl {
                     &format!("mlspp_key_schedule_{}.json", kat_key_schedule.cipher_suite),
                     &obj.test_vector,
                 );
-                match kat_key_schedule::run_test_vector(kat_key_schedule, backend) {
+                match kat_key_schedule::run_test_vector(kat_key_schedule, backend).await {
                     Ok(result) => ("Key Schedule", result),
                     Err(e) => {
                         let message = "Error while running key schedule test vector: ".to_string()
@@ -412,6 +414,7 @@ impl MlsClient for MlsClientImpl {
         self.crypto_provider
             .key_store()
             .store(kp_hash.value(), &key_package_bundle)
+            .await
             .unwrap();
         let wire_format_policy = wire_format_policy(create_group_request.encrypt_handshake);
         let mls_group_config = MlsGroupConfig::builder()
@@ -424,6 +427,7 @@ impl MlsClient for MlsClientImpl {
             GroupId::from_slice(&create_group_request.group_id),
             kp_hash.as_slice(),
         )
+        .await
         .map_err(into_status)?;
 
         let interop_group = InteropGroup {
@@ -433,7 +437,7 @@ impl MlsClient for MlsClientImpl {
             own_kpbs: Vec::new(),
         };
 
-        let mut groups = self.groups.lock().unwrap();
+        let mut groups = self.groups.lock().await;
         let state_id = groups.len() as u32;
         groups.push(interop_group);
 
@@ -462,7 +466,7 @@ impl MlsClient for MlsClientImpl {
         )
         .unwrap();
         let key_package = key_package_bundle.key_package().clone();
-        let mut transaction_id_map = self.transaction_id_map.lock().unwrap();
+        let mut transaction_id_map = self.transaction_id_map.lock().await;
         let transaction_id = transaction_id_map.len() as u32;
         transaction_id_map.insert(
             transaction_id,
@@ -473,7 +477,7 @@ impl MlsClient for MlsClientImpl {
                 .to_vec(),
         );
 
-        self.pending_key_packages.lock().unwrap().insert(
+        self.pending_key_packages.lock().await.insert(
             key_package_bundle
                 .key_package()
                 .hash_ref(self.crypto_provider.crypto())
@@ -504,7 +508,7 @@ impl MlsClient for MlsClientImpl {
             .build();
 
         let welcome = Welcome::tls_deserialize(&mut join_group_request.welcome.as_slice()).unwrap();
-        let mut pending_key_packages = self.pending_key_packages.lock().unwrap();
+        let mut pending_key_packages = self.pending_key_packages.lock().await;
         let (_kpb, credential_bundle) = welcome
             .secrets()
             .iter()
@@ -517,6 +521,7 @@ impl MlsClient for MlsClientImpl {
             })?;
         let group =
             MlsGroup::new_from_welcome(&self.crypto_provider, &mls_group_config, welcome, None)
+                .await
                 .map_err(into_status)?;
 
         let interop_group = InteropGroup {
@@ -526,7 +531,7 @@ impl MlsClient for MlsClientImpl {
             own_kpbs: Vec::new(),
         };
 
-        let mut groups = self.groups.lock().unwrap();
+        let mut groups = self.groups.lock().await;
         let state_id = groups.len() as u32;
         groups.push(interop_group);
 
@@ -559,7 +564,7 @@ impl MlsClient for MlsClientImpl {
     ) -> Result<tonic::Response<StateAuthResponse>, tonic::Status> {
         let state_auth_request = request.get_ref();
 
-        let groups = self.groups.lock().unwrap();
+        let groups = self.groups.lock().await;
         let interop_group = groups
             .get(state_auth_request.state_id as usize)
             .ok_or_else(|| tonic::Status::new(tonic::Code::InvalidArgument, "unknown state_id"))?;
@@ -577,7 +582,7 @@ impl MlsClient for MlsClientImpl {
     ) -> Result<tonic::Response<ExportResponse>, tonic::Status> {
         let export_request = request.get_ref();
 
-        let groups = self.groups.lock().unwrap();
+        let groups = self.groups.lock().await;
         let interop_group = groups
             .get(export_request.state_id as usize)
             .ok_or_else(|| tonic::Status::new(tonic::Code::InvalidArgument, "unknown state_id"))?;
@@ -600,7 +605,7 @@ impl MlsClient for MlsClientImpl {
     ) -> Result<tonic::Response<ProtectResponse>, tonic::Status> {
         let protect_request = request.get_ref();
 
-        let mut groups = self.groups.lock().unwrap();
+        let mut groups = self.groups.lock().await;
         let interop_group = groups
             .get_mut(protect_request.state_id as usize)
             .ok_or_else(|| tonic::Status::new(tonic::Code::InvalidArgument, "unknown state_id"))?;
@@ -608,6 +613,7 @@ impl MlsClient for MlsClientImpl {
         let ciphertext = interop_group
             .group
             .create_message(&self.crypto_provider, &protect_request.application_data)
+            .await
             .map_err(into_status)?
             .tls_serialize_detached()
             .map_err(|_| Status::aborted("failed to serialize ciphertext"))?;
@@ -620,7 +626,7 @@ impl MlsClient for MlsClientImpl {
     ) -> Result<tonic::Response<UnprotectResponse>, tonic::Status> {
         let unprotect_request = request.get_ref();
 
-        let mut groups = self.groups.lock().unwrap();
+        let mut groups = self.groups.lock().await;
         let interop_group = groups
             .get_mut(unprotect_request.state_id as usize)
             .ok_or_else(|| tonic::Status::new(tonic::Code::InvalidArgument, "unknown state_id"))?;
@@ -634,6 +640,7 @@ impl MlsClient for MlsClientImpl {
         let processed_message = interop_group
             .group
             .process_unverified_message(unverified_message, None, &self.crypto_provider)
+            .await
             .map_err(into_status)?;
         let application_data = match processed_message {
             ProcessedMessage::ApplicationMessage(application_message) => {
@@ -659,7 +666,7 @@ impl MlsClient for MlsClientImpl {
     ) -> Result<tonic::Response<ProposalResponse>, tonic::Status> {
         let add_proposal_request = request.get_ref();
 
-        let mut groups = self.groups.lock().unwrap();
+        let mut groups = self.groups.lock().await;
         let interop_group = groups
             .get_mut(add_proposal_request.state_id as usize)
             .ok_or_else(|| tonic::Status::new(tonic::Code::InvalidArgument, "unknown state_id"))?;
@@ -675,6 +682,7 @@ impl MlsClient for MlsClientImpl {
         let proposal = interop_group
             .group
             .propose_add_member(&self.crypto_provider, &key_package)
+            .await
             .map_err(into_status)?
             .to_bytes()
             .unwrap();
@@ -688,7 +696,7 @@ impl MlsClient for MlsClientImpl {
     ) -> Result<tonic::Response<ProposalResponse>, tonic::Status> {
         let update_proposal_request = request.get_ref();
 
-        let mut groups = self.groups.lock().unwrap();
+        let mut groups = self.groups.lock().await;
         let interop_group = groups
             .get_mut(update_proposal_request.state_id as usize)
             .ok_or_else(|| tonic::Status::new(tonic::Code::InvalidArgument, "unknown state_id"))?;
@@ -707,6 +715,7 @@ impl MlsClient for MlsClientImpl {
         let proposal = interop_group
             .group
             .propose_self_update(&self.crypto_provider, Some(key_package_bundle.clone()))
+            .await
             .map_err(into_status)?
             .to_bytes()
             .unwrap();
@@ -722,7 +731,7 @@ impl MlsClient for MlsClientImpl {
     ) -> Result<tonic::Response<ProposalResponse>, tonic::Status> {
         let remove_proposal_request = request.get_ref();
 
-        let mut groups = self.groups.lock().unwrap();
+        let mut groups = self.groups.lock().await;
         let interop_group = groups
             .get_mut(remove_proposal_request.state_id as usize)
             .ok_or_else(|| tonic::Status::new(tonic::Code::InvalidArgument, "unknown state_id"))?;
@@ -739,6 +748,7 @@ impl MlsClient for MlsClientImpl {
                 &self.crypto_provider,
                 &KeyPackageRef::from_slice(&remove_proposal_request.removed),
             )
+            .await
             .map_err(into_status)?
             .to_bytes()
             .unwrap();
@@ -773,7 +783,7 @@ impl MlsClient for MlsClientImpl {
     ) -> Result<tonic::Response<CommitResponse>, tonic::Status> {
         let commit_request = request.get_ref();
 
-        let mut groups = self.groups.lock().unwrap();
+        let mut groups = self.groups.lock().await;
         let interop_group = groups
             .get_mut(commit_request.state_id as usize)
             .ok_or_else(|| tonic::Status::new(tonic::Code::InvalidArgument, "unknown state_id"))?;
@@ -790,6 +800,7 @@ impl MlsClient for MlsClientImpl {
             let processed_message = interop_group
                 .group
                 .process_unverified_message(unverified_message, None, &self.crypto_provider)
+                .await
                 .map_err(into_status)?;
             match processed_message {
                 ProcessedMessage::ApplicationMessage(_) => unreachable!(),
@@ -807,6 +818,7 @@ impl MlsClient for MlsClientImpl {
         let (commit, welcome_option) = interop_group
             .group
             .self_update(&self.crypto_provider, None)
+            .await
             .map_err(into_status)?;
 
         let commit = commit.to_bytes().unwrap();
@@ -828,7 +840,7 @@ impl MlsClient for MlsClientImpl {
     ) -> Result<tonic::Response<HandleCommitResponse>, tonic::Status> {
         let handle_commit_request = request.get_ref();
 
-        let mut groups = self.groups.lock().unwrap();
+        let mut groups = self.groups.lock().await;
         let interop_group = groups
             .get_mut(handle_commit_request.state_id as usize)
             .ok_or_else(|| tonic::Status::new(tonic::Code::InvalidArgument, "unknown state_id"))?;
@@ -843,6 +855,7 @@ impl MlsClient for MlsClientImpl {
             let processed_message = interop_group
                 .group
                 .process_unverified_message(unverified_message, None, &self.crypto_provider)
+                .await
                 .map_err(into_status)?;
             match processed_message {
                 ProcessedMessage::ApplicationMessage(_) => unreachable!(),
@@ -862,6 +875,7 @@ impl MlsClient for MlsClientImpl {
         let processed_message = interop_group
             .group
             .process_unverified_message(unverified_message, None, &self.crypto_provider)
+            .await
             .map_err(into_status)?;
         match processed_message {
             ProcessedMessage::ApplicationMessage(_) => unreachable!(),
@@ -889,7 +903,7 @@ struct Opts {
     port: u16,
 }
 
-#[tokio::main]
+#[tokio::main(flavor = "current_thread")]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let opts = Opts::parse();
     pretty_env_logger::init();

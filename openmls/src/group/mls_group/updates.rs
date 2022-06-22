@@ -13,7 +13,7 @@ impl MlsGroup {
     /// The [Welcome] is [Some] when the queue of pending proposals contained add proposals.
     ///
     /// Returns an error if there is a pending commit.
-    pub fn self_update(
+    pub async fn self_update(
         &mut self,
         backend: &impl OpenMlsCryptoProvider,
         key_package_bundle_option: Option<KeyPackageBundle>,
@@ -29,6 +29,7 @@ impl MlsGroup {
                     .tls_serialize_detached()
                     .map_err(LibraryError::missing_bound_check)?,
             )
+            .await
             .ok_or(SelfUpdateError::NoMatchingCredentialBundle)?;
 
         // Create Commit over all proposals. If a `KeyPackageBundle` was passed
@@ -44,7 +45,7 @@ impl MlsGroup {
                     .proposal_store(&self.proposal_store)
                     .inline_proposals(vec![update_proposal])
                     .build();
-                self.group.create_commit(params, backend)?
+                self.group.create_commit(params, backend).await?
             }
             None => {
                 let params = CreateCommitParams::builder()
@@ -52,7 +53,7 @@ impl MlsGroup {
                     .credential_bundle(&credential_bundle)
                     .proposal_store(&self.proposal_store)
                     .build();
-                self.group.create_commit(params, backend)?
+                self.group.create_commit(params, backend).await?
             }
         };
 
@@ -73,7 +74,7 @@ impl MlsGroup {
     }
 
     /// Creates a proposal to update the own leaf node.
-    pub fn propose_self_update(
+    pub async fn propose_self_update(
         &mut self,
         backend: &impl OpenMlsCryptoProvider,
         key_package_bundle_option: Option<KeyPackageBundle>,
@@ -89,6 +90,7 @@ impl MlsGroup {
                     .tls_serialize_detached()
                     .map_err(LibraryError::missing_bound_check)?,
             )
+            .await
             .ok_or(ProposeSelfUpdateError::NoMatchingCredentialBundle)?;
 
         let tree = self.group.treesync();

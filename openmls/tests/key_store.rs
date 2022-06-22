@@ -7,7 +7,10 @@ wasm_bindgen_test_configure!(run_in_browser);
 
 #[apply(ciphersuites_and_backends)]
 #[wasm_bindgen_test]
-fn test_store_key_package_bundle(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider) {
+async fn test_store_key_package_bundle(
+    ciphersuite: Ciphersuite,
+    backend: &impl OpenMlsCryptoProvider,
+) {
     // ANCHOR: key_store_store
     // First we generate a credential and key package for our user.
     let credential_bundle = CredentialBundle::new_basic(
@@ -31,6 +34,7 @@ fn test_store_key_package_bundle(ciphersuite: Ciphersuite, backend: &impl OpenMl
     backend
         .key_store()
         .store(id.as_slice(), &key_package_bundle)
+        .await
         .expect("Failed to store key package bundle in keystore.");
     // ANCHOR_END: key_store_store
 
@@ -38,14 +42,18 @@ fn test_store_key_package_bundle(ciphersuite: Ciphersuite, backend: &impl OpenMl
     // Delete the key package bundle.
     backend
         .key_store()
-        .delete(id.as_slice())
+        .delete::<KeyPackageBundle>(id.as_slice())
+        .await
         .expect("Error deleting key package bundle");
     // ANCHOR_END: key_store_delete
 }
 
 #[apply(ciphersuites_and_backends)]
 #[wasm_bindgen_test]
-fn test_read_credential_bundle(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider) {
+async fn test_read_credential_bundle(
+    ciphersuite: Ciphersuite,
+    backend: &impl OpenMlsCryptoProvider,
+) {
     // First we generate a credential bundle
     let credential_bundle_to_store = CredentialBundle::new_basic(
         b"User ID".to_vec(),
@@ -65,6 +73,7 @@ fn test_read_credential_bundle(ciphersuite: Ciphersuite, backend: &impl OpenMlsC
     backend
         .key_store()
         .store(id.as_slice(), &credential_bundle_to_store)
+        .await
         .expect("Failed to store credential in keystore.");
 
     // ANCHOR: key_store_read
@@ -78,6 +87,7 @@ fn test_read_credential_bundle(ciphersuite: Ciphersuite, backend: &impl OpenMlsC
     let credential_bundle: CredentialBundle = backend
         .key_store()
         .read(&id)
+        .await
         .expect("Error retrieving the credential bundle");
     // ANCHOR_END: key_store_read
 

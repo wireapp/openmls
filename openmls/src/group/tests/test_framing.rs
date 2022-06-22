@@ -4,7 +4,7 @@ use openmls_rust_crypto::OpenMlsRustCrypto;
 use openmls_traits::crypto::OpenMlsCrypto;
 
 #[apply(backends)]
-fn padding(backend: &impl OpenMlsCryptoProvider) {
+async fn padding(backend: &impl OpenMlsCryptoProvider) {
     // Create a test config for a single client supporting all possible
     // ciphersuites.
     let alice_config = TestClientConfig {
@@ -31,7 +31,7 @@ fn padding(backend: &impl OpenMlsCryptoProvider) {
     };
 
     // Initialize the test setup according to config.
-    let test_setup = setup(test_setup_config, backend);
+    let test_setup = setup(test_setup_config, backend).await;
 
     let test_clients = test_setup.clients.borrow();
     let alice = test_clients
@@ -57,6 +57,7 @@ fn padding(backend: &impl OpenMlsCryptoProvider) {
                         padding_size,
                         backend,
                     )
+                    .await
                     .expect("An unexpected error occurred.");
                 let ciphertext = mls_ciphertext.ciphertext();
                 let length = ciphertext.len();

@@ -26,11 +26,12 @@ getrandom = { version = "0.2", features = ["js"] }
 itertools = { version = "0.10", optional = true }
 openmls_rust_crypto = { version = "0.1.0", path = "../openmls_rust_crypto", optional = true }
 openmls_evercrypt = { version = "0.1.0", path = "../evercrypt_backend", optional = true }
-rstest = { version = "^0.14", optional = true }
-rstest_reuse = { version = "0.3", optional = true }
 thiserror = "^1.0"
 backtrace = "0.3"
 fluvio-wasm-timer = "0.2"
+async-std = { version = "1.12", features = ["attributes"], optional = true }
+rstest = { version = "0.14", optional = true }
+rstest_reuse = { version = "0.3", optional = true }
 
 [dependencies.x509-parser]
 git = "https://github.com/wireapp/x509-parser"
@@ -42,8 +43,9 @@ rayon = "^1.5.0"
 
 [features]
 default = []
+single-threaded = ["openmls_traits/single-threaded"]
 crypto-subtle = [] # Enable subtle crypto APIs that have to be used with care.
-test-utils = ["itertools", "openmls_rust_crypto/provider", "rand", "rstest", "rstest_reuse"]
+test-utils = ["itertools", "openmls_rust_crypto/provider", "rand", "async-std", "rstest", "rstest_reuse"]
 evercrypt = ["openmls_evercrypt"] # Evercrypt needs to be enabled individually
 crypto-debug = [] # ☣️ Enable logging of sensitive cryptographic information
 content-debug = [] # ☣️ Enable logging of sensitive message content
@@ -54,11 +56,12 @@ pretty_env_logger = "0.4"
 itertools = "0.10"
 openmls = { path = ".", features = ["test-utils"] }
 tempfile = "3"
-rstest = "^0.14"
+rstest = "0.14"
 rstest_reuse = "0.3"
 backtrace = "0.3"
 lazy_static = "1.4"
-wasm-bindgen-test = "0.3.30"
+wasm-bindgen-test = "0.3"
+async-std = { version = "1.12", features = ["attributes"] }
 
 # x64 targets get evercrypt compiled into dev-dependencies.
 [target.'cfg(target_arch = "x86_64")'.dev-dependencies.openmls]

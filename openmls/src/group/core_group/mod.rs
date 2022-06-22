@@ -150,7 +150,7 @@ impl CoreGroupBuilder {
     ///
     /// This function performs cryptographic operations and there requires an
     /// [`OpenMlsCryptoProvider`].
-    pub(crate) fn build(
+    pub(crate) async fn build(
         self,
         backend: &impl OpenMlsCryptoProvider,
     ) -> Result<CoreGroup, CoreGroupBuildError> {
@@ -194,7 +194,7 @@ impl CoreGroupBuilder {
             .map_err(LibraryError::missing_bound_check)?;
 
         // Prepare the PskSecret
-        let psk_secret = PskSecret::new(ciphersuite, backend, &self.psk_ids)?;
+        let psk_secret = PskSecret::new(ciphersuite, backend, &self.psk_ids).await?;
 
         let mut key_schedule = KeySchedule::init(ciphersuite, backend, joiner_secret, psk_secret)?;
         key_schedule
@@ -395,7 +395,7 @@ impl CoreGroup {
     }
 
     // Create application message
-    pub(crate) fn create_application_message(
+    pub(crate) async fn create_application_message(
         &mut self,
         aad: &[u8],
         msg: &[u8],
@@ -412,7 +412,7 @@ impl CoreGroup {
             self.context(),
             self.message_secrets().membership_key(),
             backend,
-        )?;
+        ).await?;
         self.encrypt(mls_plaintext, padding_size, backend)
     }
 

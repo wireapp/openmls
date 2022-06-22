@@ -14,7 +14,7 @@ use crate::{
 
 impl CoreGroup {
     // Join a group from a welcome message
-    pub fn new_from_welcome(
+    pub async fn new_from_welcome(
         welcome: Welcome,
         nodes_option: Option<Vec<Option<Node>>>,
         key_package_bundle: KeyPackageBundle,
@@ -61,7 +61,7 @@ impl CoreGroup {
         let joiner_secret = group_secrets.joiner_secret;
 
         // Prepare the PskSecret
-        let psk_secret = PskSecret::new(ciphersuite, backend, group_secrets.psks.psks()).map_err(
+        let psk_secret = PskSecret::new(ciphersuite, backend, group_secrets.psks.psks()).await.map_err(
             |e| match e {
                 PskError::LibraryError(e) => e.into(),
                 PskError::TooManyKeys => WelcomeError::PskTooManyKeys,

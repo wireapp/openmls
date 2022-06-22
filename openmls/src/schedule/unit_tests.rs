@@ -13,7 +13,7 @@ use crate::{
 use super::PskSecret;
 
 #[apply(ciphersuites_and_backends)]
-fn test_psks(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider) {
+async fn test_psks(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider) {
     // Create a new PSK secret from multiple PSKs.
     let prng = backend.rand();
 
@@ -48,9 +48,11 @@ fn test_psks(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider) {
                     .expect("Error serializing signature key."),
                 &psk_bundle,
             )
+            .await
             .expect("An unexpected error occured.");
     }
 
-    let _psk_secret =
-        PskSecret::new(ciphersuite, backend, &psk_ids).expect("Could not calculate PSK secret.");
+    let _psk_secret = PskSecret::new(ciphersuite, backend, &psk_ids)
+        .await
+        .expect("Could not calculate PSK secret.");
 }
