@@ -38,10 +38,9 @@ use crate::test_utils::*;
 
 use super::treemath::*;
 
-use serde::{self, Deserialize, Serialize};
 use thiserror::Error;
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(serde::Serialize, serde::Deserialize, Debug, Clone)]
 pub struct TreeMathTestVector {
     n_leaves: u32,
     n_nodes: u32,

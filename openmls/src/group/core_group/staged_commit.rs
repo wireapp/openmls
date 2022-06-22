@@ -51,7 +51,7 @@ impl CoreGroup {
     ///  - ValSem245
     /// Returns an error if the given commit was sent by the owner of this
     /// group.
-    pub(crate) fn stage_commit(
+    pub(crate) async fn stage_commit(
         &mut self,
         mls_plaintext: &MlsPlaintext,
         proposal_store: &ProposalStore,
@@ -291,7 +291,7 @@ impl CoreGroup {
             ciphersuite,
             backend,
             apply_proposals_values.presharedkeys.psks(),
-        )?;
+        ).await?;
 
         // Create key schedule
         let mut key_schedule = KeySchedule::init(ciphersuite, backend, joiner_secret, psk_secret)?;

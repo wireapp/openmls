@@ -7,7 +7,7 @@ use openmls_traits::crypto::OpenMlsCrypto;
 use tls_codec::{Deserialize, Serialize};
 
 /// Creates a simple test setup for various encoding tests.
-fn create_encoding_test_setup(backend: &impl OpenMlsCryptoProvider) -> TestSetup {
+async fn create_encoding_test_setup(backend: &impl OpenMlsCryptoProvider) -> TestSetup {
     // Create a test config for a single client supporting all possible
     // ciphersuites.
     let alice_config = TestClientConfig {
@@ -45,13 +45,13 @@ fn create_encoding_test_setup(backend: &impl OpenMlsCryptoProvider) -> TestSetup
     };
 
     // Initialize the test setup according to config.
-    setup(test_setup_config, backend)
+    setup(test_setup_config, backend).await
 }
 
 /// This test tests encoding and decoding of application messages.
 #[apply(backends)]
-fn test_application_message_encoding(backend: &impl OpenMlsCryptoProvider) {
-    let test_setup = create_encoding_test_setup(backend);
+async fn test_application_message_encoding(backend: &impl OpenMlsCryptoProvider) {
+    let test_setup = create_encoding_test_setup(backend).await;
     let test_clients = test_setup.clients.borrow();
     let alice = test_clients
         .get("alice")
@@ -70,6 +70,7 @@ fn test_application_message_encoding(backend: &impl OpenMlsCryptoProvider) {
             let aad = randombytes(random_usize() % 1000);
             let encrypted_message = group_state
                 .create_application_message(&aad, &message, credential_bundle, 0, backend)
+                .await
                 .expect("An unexpected error occurred.");
             let encrypted_message_bytes = encrypted_message
                 .tls_serialize_detached()
@@ -86,8 +87,8 @@ fn test_application_message_encoding(backend: &impl OpenMlsCryptoProvider) {
 
 /// This test tests encoding and decoding of update proposals.
 #[apply(backends)]
-fn test_update_proposal_encoding(backend: &impl OpenMlsCryptoProvider) {
-    let test_setup = create_encoding_test_setup(backend);
+async fn test_update_proposal_encoding(backend: &impl OpenMlsCryptoProvider) {
+    let test_setup = create_encoding_test_setup(backend).await;
     let test_clients = test_setup.clients.borrow();
     let alice = test_clients
         .get("alice")
@@ -151,8 +152,8 @@ fn test_update_proposal_encoding(backend: &impl OpenMlsCryptoProvider) {
 
 /// This test tests encoding and decoding of add proposals.
 #[apply(backends)]
-fn test_add_proposal_encoding(backend: &impl OpenMlsCryptoProvider) {
-    let test_setup = create_encoding_test_setup(backend);
+async fn test_add_proposal_encoding(backend: &impl OpenMlsCryptoProvider) {
+    let test_setup = create_encoding_test_setup(backend).await;
     let test_clients = test_setup.clients.borrow();
     let alice = test_clients
         .get("alice")
@@ -223,10 +224,10 @@ fn test_add_proposal_encoding(backend: &impl OpenMlsCryptoProvider) {
 
 /// This test tests encoding and decoding of remove proposals.
 #[apply(backends)]
-fn test_remove_proposal_encoding(backend: &impl OpenMlsCryptoProvider) {
+async fn test_remove_proposal_encoding(backend: &impl OpenMlsCryptoProvider) {
     use ciphersuite::hash_ref::KeyPackageRef;
 
-    let test_setup = create_encoding_test_setup(backend);
+    let test_setup = create_encoding_test_setup(backend).await;
     let test_clients = test_setup.clients.borrow();
     let alice = test_clients
         .get("alice")
@@ -284,8 +285,8 @@ fn test_remove_proposal_encoding(backend: &impl OpenMlsCryptoProvider) {
 
 /// This test tests encoding and decoding of commit messages.
 #[apply(backends)]
-fn test_commit_encoding(backend: &impl OpenMlsCryptoProvider) {
-    let test_setup = create_encoding_test_setup(backend);
+async fn test_commit_encoding(backend: &impl OpenMlsCryptoProvider) {
+    let test_setup = create_encoding_test_setup(backend).await;
     let test_clients = test_setup.clients.borrow();
     let alice = test_clients
         .get("alice")
@@ -362,6 +363,7 @@ fn test_commit_encoding(backend: &impl OpenMlsCryptoProvider) {
             .build();
         let create_commit_result = group_state
             .create_commit(params, backend)
+            .await
             .expect("An unexpected error occurred.");
         let commit_encoded = create_commit_result
             .commit
@@ -394,8 +396,8 @@ fn test_commit_encoding(backend: &impl OpenMlsCryptoProvider) {
 }
 
 #[apply(backends)]
-fn test_welcome_message_encoding(backend: &impl OpenMlsCryptoProvider) {
-    let test_setup = create_encoding_test_setup(backend);
+async fn test_welcome_message_encoding(backend: &impl OpenMlsCryptoProvider) {
+    let test_setup = create_encoding_test_setup(backend).await;
     let test_clients = test_setup.clients.borrow();
     let alice = test_clients
         .get("alice")
@@ -441,6 +443,7 @@ fn test_welcome_message_encoding(backend: &impl OpenMlsCryptoProvider) {
             .build();
         let create_commit_result = group_state
             .create_commit(params, backend)
+            .await
             .expect("An unexpected error occurred.");
         // Alice applies the commit
         group_state
@@ -480,6 +483,7 @@ fn test_welcome_message_encoding(backend: &impl OpenMlsCryptoProvider) {
             charlie_key_package_bundle,
             backend
         )
+        .await
         .is_ok());
     }
 }

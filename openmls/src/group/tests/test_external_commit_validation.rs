@@ -34,7 +34,7 @@ struct ECValidationTestSetup {
 }
 
 // Validation test setup
-fn validation_test_setup(
+async fn validation_test_setup(
     wire_format_policy: WireFormatPolicy,
     ciphersuite: Ciphersuite,
     backend: &impl OpenMlsCryptoProvider,
@@ -48,6 +48,7 @@ fn validation_test_setup(
         ciphersuite.signature_algorithm(),
         backend,
     )
+    .await
     .expect("An unexpected error occurred.");
 
     let bob_credential = generate_credential_bundle(
@@ -56,11 +57,13 @@ fn validation_test_setup(
         ciphersuite.signature_algorithm(),
         backend,
     )
+    .await
     .expect("An unexpected error occurred.");
 
     // Generate KeyPackages
     let alice_key_package =
         generate_key_package_bundle(&[ciphersuite], &alice_credential, vec![], backend)
+            .await
             .expect("An unexpected error occurred.");
 
     // Define the MlsGroup configuration
@@ -79,6 +82,7 @@ fn validation_test_setup(
             .expect("Could not hash KeyPackage.")
             .as_slice(),
     )
+    .await
     .expect("An unexpected error occurred.");
 
     let bob_credential_bundle = backend
@@ -89,6 +93,7 @@ fn validation_test_setup(
                 .tls_serialize_detached()
                 .expect("Error serializing signature key."),
         )
+        .await
         .expect("An unexpected error occurred.");
 
     // Bob wants to commit externally.
@@ -96,6 +101,7 @@ fn validation_test_setup(
     // Have Alice export everything that bob needs.
     let pgs_encoded: Vec<u8> = alice_group
         .export_public_group_state(backend)
+        .await
         .expect("Error exporting PGS")
         .tls_serialize_detached()
         .expect("Error serializing PGS");
@@ -112,6 +118,7 @@ fn validation_test_setup(
         &[],
         &bob_credential_bundle,
     )
+    .await
     .expect("Error initializing group externally.");
 
     let serialized_message = message
@@ -133,14 +140,14 @@ fn validation_test_setup(
 
 // ValSem240: External Commit, inline Proposals: There MUST be at least one ExternalInit proposal.
 #[apply(ciphersuites_and_backends)]
-fn test_valsem240(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider) {
+async fn test_valsem240(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider) {
     // Test with MlsPlaintext
     let ECValidationTestSetup {
         mut alice_group,
         bob_credential_bundle,
         mut plaintext,
         original_plaintext,
-    } = validation_test_setup(PURE_PLAINTEXT_WIRE_FORMAT_POLICY, ciphersuite, backend);
+    } = validation_test_setup(PURE_PLAINTEXT_WIRE_FORMAT_POLICY, ciphersuite, backend).await;
 
     let mut content = if let MlsPlaintextContentType::Commit(commit) = plaintext.content() {
         commit.clone()
@@ -189,6 +196,7 @@ fn test_valsem240(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider
 
     let err = alice_group
         .process_unverified_message(unverified_message, None, backend)
+        .await
         .expect_err("Could process unverified message despite missing external init proposal.");
 
     assert_eq!(
@@ -204,19 +212,20 @@ fn test_valsem240(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider
         .expect("Could not parse message.");
     alice_group
         .process_unverified_message(unverified_message, None, backend)
+        .await
         .expect("Unexpected error.");
 }
 
 // ValSem241: External Commit, inline Proposals: There MUST be at most one ExternalInit proposal.
 #[apply(ciphersuites_and_backends)]
-fn test_valsem241(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider) {
+async fn test_valsem241(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider) {
     // Test with MlsPlaintext
     let ECValidationTestSetup {
         mut alice_group,
         bob_credential_bundle,
         mut plaintext,
         original_plaintext,
-    } = validation_test_setup(PURE_PLAINTEXT_WIRE_FORMAT_POLICY, ciphersuite, backend);
+    } = validation_test_setup(PURE_PLAINTEXT_WIRE_FORMAT_POLICY, ciphersuite, backend).await;
 
     let mut content = if let MlsPlaintextContentType::Commit(commit) = plaintext.content() {
         commit.clone()
@@ -261,6 +270,7 @@ fn test_valsem241(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider
 
     let err = alice_group
         .process_unverified_message(unverified_message, None, backend)
+        .await
         .expect_err(
             "Could process unverified message despite second ext. init proposal in commit.",
         );
@@ -278,19 +288,20 @@ fn test_valsem241(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider
         .expect("Could not parse message.");
     alice_group
         .process_unverified_message(unverified_message, None, backend)
+        .await
         .expect("Unexpected error.");
 }
 
 // ValSem242: External Commit, inline Proposals: There MUST NOT be any Add proposals.
 #[apply(ciphersuites_and_backends)]
-fn test_valsem242(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider) {
+async fn test_valsem242(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider) {
     // Test with MlsPlaintext
     let ECValidationTestSetup {
         mut alice_group,
         bob_credential_bundle,
         mut plaintext,
         original_plaintext,
-    } = validation_test_setup(PURE_PLAINTEXT_WIRE_FORMAT_POLICY, ciphersuite, backend);
+    } = validation_test_setup(PURE_PLAINTEXT_WIRE_FORMAT_POLICY, ciphersuite, backend).await;
 
     let mut content = if let MlsPlaintextContentType::Commit(commit) = plaintext.content() {
         commit.clone()
@@ -304,6 +315,7 @@ fn test_valsem242(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider
         vec![],
         backend,
     )
+    .await
     .expect("An unexpected error occurred.");
 
     // Add an Add proposal to the external commit.
@@ -342,6 +354,7 @@ fn test_valsem242(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider
 
     let err = alice_group
         .process_unverified_message(unverified_message, None, backend)
+        .await
         .expect_err(
             "Could process unverified message despite Add proposal in the external commit.",
         );
@@ -359,19 +372,20 @@ fn test_valsem242(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider
         .expect("Could not parse message.");
     alice_group
         .process_unverified_message(unverified_message, None, backend)
+        .await
         .expect("Unexpected error.");
 }
 
 // ValSem243: External Commit, inline Proposals: There MUST NOT be any Update proposals.
 #[apply(ciphersuites_and_backends)]
-fn test_valsem243(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider) {
+async fn test_valsem243(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider) {
     // Test with MlsPlaintext
     let ECValidationTestSetup {
         mut alice_group,
         bob_credential_bundle,
         plaintext: _,
         original_plaintext: _,
-    } = validation_test_setup(PURE_PLAINTEXT_WIRE_FORMAT_POLICY, ciphersuite, backend);
+    } = validation_test_setup(PURE_PLAINTEXT_WIRE_FORMAT_POLICY, ciphersuite, backend).await;
 
     // Alice has to add Bob first, so that in the external commit, we can have
     // an update proposal that comes from a leaf that's actually inside of the
@@ -384,10 +398,12 @@ fn test_valsem243(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider
         vec![],
         backend,
     )
+    .await
     .expect("An unexpected error occurred.");
 
     let (_message, _welcome) = alice_group
         .add_members(backend, &[bob_key_package])
+        .await
         .expect("Could not add member.");
 
     alice_group
@@ -399,6 +415,7 @@ fn test_valsem243(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider
     // Have Alice export everything that bob needs.
     let pgs_encoded: Vec<u8> = alice_group
         .export_public_group_state(backend)
+        .await
         .expect("Error exporting PGS")
         .tls_serialize_detached()
         .expect("Error serializing PGS");
@@ -415,6 +432,7 @@ fn test_valsem243(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider
         &[],
         &bob_credential_bundle,
     )
+    .await
     .expect("Error initializing group externally.");
 
     let serialized_message = message
@@ -438,6 +456,7 @@ fn test_valsem243(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider
         vec![],
         backend,
     )
+    .await
     .expect("Error generating key package");
 
     // Add an Update proposal to the external commit.
@@ -476,6 +495,7 @@ fn test_valsem243(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider
 
     let err = alice_group
         .process_unverified_message(unverified_message, None, backend)
+        .await
         .expect_err("Could process unverified message Update proposal in the external commit.");
 
     assert_eq!(
@@ -491,19 +511,20 @@ fn test_valsem243(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider
         .expect("Could not parse message.");
     alice_group
         .process_unverified_message(unverified_message, None, backend)
+        .await
         .expect("Unexpected error.");
 }
 
 // ValSem244: External Commit, inline Remove Proposal: The identity and the endpoint_id of the removed leaf are identical to the ones in the path KeyPackage.
 #[apply(ciphersuites_and_backends)]
-fn test_valsem244(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider) {
+async fn test_valsem244(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider) {
     // Test with MlsPlaintext
     let ECValidationTestSetup {
         mut alice_group,
         bob_credential_bundle,
         plaintext: _,
         original_plaintext: _,
-    } = validation_test_setup(PURE_PLAINTEXT_WIRE_FORMAT_POLICY, ciphersuite, backend);
+    } = validation_test_setup(PURE_PLAINTEXT_WIRE_FORMAT_POLICY, ciphersuite, backend).await;
 
     // Alice has to add Bob first, so that Bob actually creates a remove
     // proposal to remove his former self.
@@ -514,10 +535,12 @@ fn test_valsem244(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider
         vec![],
         backend,
     )
+    .await
     .expect("An unexpected error occurred.");
 
     let (_message, _welcome) = alice_group
         .add_members(backend, &[bob_key_package])
+        .await
         .expect("Could not add member.");
 
     alice_group
@@ -529,6 +552,7 @@ fn test_valsem244(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider
     // Have Alice export everything that bob needs.
     let pgs_encoded: Vec<u8> = alice_group
         .export_public_group_state(backend)
+        .await
         .expect("Error exporting PGS")
         .tls_serialize_detached()
         .expect("Error serializing PGS");
@@ -545,6 +569,7 @@ fn test_valsem244(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider
         &[],
         &bob_credential_bundle,
     )
+    .await
     .expect("Error initializing group externally.");
 
     let serialized_message = message
@@ -611,7 +636,7 @@ fn test_valsem244(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider
 
     let err = alice_group
         .process_unverified_message(unverified_message, None, backend)
-        .expect_err("Could process unverified message despite the remove proposal targeting the wrong group member.");
+        .await.expect_err("Could process unverified message despite the remove proposal targeting the wrong group member.");
 
     assert_eq!(
         err,
@@ -626,19 +651,20 @@ fn test_valsem244(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider
         .expect("Could not parse message.");
     alice_group
         .process_unverified_message(unverified_message, None, backend)
+        .await
         .expect("Unexpected error.");
 }
 
 // ValSem245: External Commit, referenced Proposals: There MUST NOT be any ExternalInit proposals.
 #[apply(ciphersuites_and_backends)]
-fn test_valsem245(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider) {
+async fn test_valsem245(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider) {
     // Test with MlsPlaintext
     let ECValidationTestSetup {
         mut alice_group,
         bob_credential_bundle,
         mut plaintext,
         original_plaintext,
-    } = validation_test_setup(PURE_PLAINTEXT_WIRE_FORMAT_POLICY, ciphersuite, backend);
+    } = validation_test_setup(PURE_PLAINTEXT_WIRE_FORMAT_POLICY, ciphersuite, backend).await;
 
     let mut content = if let MlsPlaintextContentType::Commit(commit) = plaintext.content() {
         commit.clone()
@@ -698,7 +724,7 @@ fn test_valsem245(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider
 
     let err = alice_group
         .process_unverified_message(unverified_message, None, backend)
-        .expect_err("Could process unverified message despite the external commit including an external init proposal by reference.");
+        .await.expect_err("Could process unverified message despite the external commit including an external init proposal by reference.");
 
     assert_eq!(
         err,
@@ -713,19 +739,20 @@ fn test_valsem245(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider
         .expect("Could not parse message.");
     alice_group
         .process_unverified_message(unverified_message, None, backend)
+        .await
         .expect("Unexpected error.");
 }
 
 // ValSem246: External Commit: MUST contain a path.
 #[apply(ciphersuites_and_backends)]
-fn test_valsem246(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider) {
+async fn test_valsem246(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider) {
     // Test with MlsPlaintext
     let ECValidationTestSetup {
         mut alice_group,
         bob_credential_bundle,
         mut plaintext,
         original_plaintext,
-    } = validation_test_setup(PURE_PLAINTEXT_WIRE_FORMAT_POLICY, ciphersuite, backend);
+    } = validation_test_setup(PURE_PLAINTEXT_WIRE_FORMAT_POLICY, ciphersuite, backend).await;
 
     let mut content = if let MlsPlaintextContentType::Commit(commit) = plaintext.content() {
         commit.clone()
@@ -774,19 +801,20 @@ fn test_valsem246(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider
         .expect("Could not parse message.");
     alice_group
         .process_unverified_message(unverified_message, None, backend)
+        .await
         .expect("Unexpected error.");
 }
 
 // ValSem247: External Commit: The signature of the MLSPlaintext MUST be verified with the credential of the KeyPackage in the included `path`.
 #[apply(ciphersuites_and_backends)]
-fn test_valsem247(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider) {
+async fn test_valsem247(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider) {
     // Test with MlsPlaintext
     let ECValidationTestSetup {
         mut alice_group,
         bob_credential_bundle,
         mut plaintext,
         original_plaintext,
-    } = validation_test_setup(PURE_PLAINTEXT_WIRE_FORMAT_POLICY, ciphersuite, backend);
+    } = validation_test_setup(PURE_PLAINTEXT_WIRE_FORMAT_POLICY, ciphersuite, backend).await;
 
     let mut content = if let MlsPlaintextContentType::Commit(commit) = plaintext.content() {
         commit.clone()
@@ -803,11 +831,13 @@ fn test_valsem247(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider
         ciphersuite.signature_algorithm(),
         backend,
     )
+    .await
     .expect("An unexpected error occurred.");
 
     // Generate KeyPackage
     let bob_new_key_package =
         generate_key_package_bundle(&[ciphersuite], &bob_new_credential, vec![], backend)
+            .await
             .expect("An unexpected error occurred.");
 
     if let Some(ref mut path) = content.path {
@@ -843,6 +873,7 @@ fn test_valsem247(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider
 
     let err = alice_group
         .process_unverified_message(unverified_message, None, backend)
+        .await
         .expect_err("Could process unverified message despite wrong signature.");
 
     // This shows that signature verification fails if the signature is not done
@@ -879,5 +910,6 @@ fn test_valsem247(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider
         .expect("Could not parse message.");
     alice_group
         .process_unverified_message(unverified_message, None, backend)
+        .await
         .expect("Unexpected error.");
 }

@@ -27,7 +27,7 @@ struct CommitValidationTestSetup {
 }
 
 // Validation test setup
-fn validation_test_setup(
+async fn validation_test_setup(
     wire_format_policy: WireFormatPolicy,
     ciphersuite: Ciphersuite,
     backend: &impl OpenMlsCryptoProvider,
@@ -41,6 +41,7 @@ fn validation_test_setup(
         ciphersuite.signature_algorithm(),
         backend,
     )
+    .await
     .expect("An unexpected error occurred.");
 
     let bob_credential = generate_credential_bundle(
@@ -49,15 +50,18 @@ fn validation_test_setup(
         ciphersuite.signature_algorithm(),
         backend,
     )
+    .await
     .expect("An unexpected error occurred.");
 
     // Generate KeyPackages
     let alice_key_package =
         generate_key_package_bundle(&[ciphersuite], &alice_credential, vec![], backend)
+            .await
             .expect("An unexpected error occurred.");
 
     let bob_key_package =
         generate_key_package_bundle(&[ciphersuite], &bob_credential, vec![], backend)
+            .await
             .expect("An unexpected error occurred.");
 
     // Define the MlsGroup configuration
@@ -76,10 +80,12 @@ fn validation_test_setup(
             .expect("Could not hash KeyPackage.")
             .as_slice(),
     )
+    .await
     .expect("An unexpected error occurred.");
 
     let (_message, welcome) = alice_group
         .add_members(backend, &[bob_key_package])
+        .await
         .expect("error adding Bob to group");
 
     alice_group
@@ -92,6 +98,7 @@ fn validation_test_setup(
         welcome,
         Some(alice_group.export_ratchet_tree()),
     )
+    .await
     .expect("error creating group from welcome");
 
     CommitValidationTestSetup {
@@ -102,12 +109,12 @@ fn validation_test_setup(
 
 // ValSem200: Commit must not cover inline self Remove proposal
 #[apply(ciphersuites_and_backends)]
-fn test_valsem200(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider) {
+async fn test_valsem200(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider) {
     // Test with MlsPlaintext
     let CommitValidationTestSetup {
         mut alice_group,
         mut bob_group,
-    } = validation_test_setup(PURE_PLAINTEXT_WIRE_FORMAT_POLICY, ciphersuite, backend);
+    } = validation_test_setup(PURE_PLAINTEXT_WIRE_FORMAT_POLICY, ciphersuite, backend).await;
 
     let alice_hash_ref = *alice_group
         .key_package_ref()
@@ -118,6 +125,7 @@ fn test_valsem200(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider
     // commit manually.
     let serialized_proposal_message = alice_group
         .propose_remove_member(backend, &alice_hash_ref)
+        .await
         .expect("error creating commit")
         .tls_serialize_detached()
         .expect("serialization error");
@@ -140,6 +148,7 @@ fn test_valsem200(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider
     // Now let's stick it in the commit.
     let serialized_message = alice_group
         .self_update(backend, None)
+        .await
         .expect("Error creating self-update")
         .tls_serialize_detached()
         .expect("Could not serialize message.");
@@ -172,6 +181,7 @@ fn test_valsem200(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider
                 .tls_serialize_detached()
                 .expect("error serializing credential"),
         )
+        .await
         .expect("error retrieving credential bundle");
 
     let serialized_context = alice_group
@@ -213,6 +223,7 @@ fn test_valsem200(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider
 
     let err: UnverifiedMessageError = bob_group
         .process_unverified_message(unverified_message, None, backend)
+        .await
         .expect_err("Could process unverified message despite self remove.");
 
     assert_eq!(
@@ -226,18 +237,19 @@ fn test_valsem200(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider
         .expect("Could not parse message.");
     bob_group
         .process_unverified_message(unverified_message, None, backend)
+        .await
         .expect("Unexpected error.");
 }
 
 // ValSem201: Path must be present, if Commit contains Removes or Updates
 #[apply(ciphersuites_and_backends)]
-fn test_valsem201(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider) {
+async fn test_valsem201(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider) {
     let wire_format_policy = PURE_PLAINTEXT_WIRE_FORMAT_POLICY;
     // Test with MlsPlaintext
     let CommitValidationTestSetup {
         mut alice_group,
         mut bob_group,
-    } = validation_test_setup(wire_format_policy, ciphersuite, backend);
+    } = validation_test_setup(wire_format_policy, ciphersuite, backend).await;
 
     // This case is simple: Have Alice generate a self-updating commit, clear
     // the pending commit and then create a remove commit.
@@ -246,6 +258,7 @@ fn test_valsem201(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider
     // Create the self-update
     let serialized_update = alice_group
         .self_update(backend, None)
+        .await
         .expect("Error creating self-update")
         .tls_serialize_detached()
         .expect("error serializing plaintext");
@@ -273,11 +286,12 @@ fn test_valsem201(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider
     let update_message_in = erase_path(backend, &serialized_update, &alice_group);
 
     let unverified_message = bob_group
-        .parse_message(update_message_in, backend)
+        .parse_message(update_message_in.await, backend)
         .expect("Could not parse message.");
 
     let err = bob_group
         .process_unverified_message(unverified_message, None, backend)
+        .await
         .expect_err("Could process unverified message despite missing path.");
 
     assert_eq!(
@@ -295,6 +309,7 @@ fn test_valsem201(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider
         .expect("Could not parse message.");
     bob_group
         .process_unverified_message(unverified_message, None, backend)
+        .await
         .expect("Unexpected error.");
 
     // Now do the remove
@@ -309,15 +324,18 @@ fn test_valsem201(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider
         ciphersuite.signature_algorithm(),
         backend,
     )
+    .await
     .expect("An unexpected error occurred.");
 
     // Generate KeyPackages
     let charlie_key_package =
         generate_key_package_bundle(&[ciphersuite], &charlie_credential, vec![], backend)
+            .await
             .expect("An unexpected error occurred.");
 
     let (_msg_out, welcome) = alice_group
         .add_members(backend, &[charlie_key_package])
+        .await
         .expect("error adding charlie");
 
     alice_group
@@ -334,6 +352,7 @@ fn test_valsem201(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider
         welcome,
         Some(alice_group.export_ratchet_tree()),
     )
+    .await
     .expect("Error creating group.");
 
     // Create the remove.
@@ -344,11 +363,12 @@ fn test_valsem201(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider
                 .key_package_ref()
                 .expect("error retrieving kp ref")],
         )
+        .await
         .expect("Error creating remove")
         .tls_serialize_detached()
         .expect("Could not serialize message.");
 
-    let remove_message_in = erase_path(backend, &serialized_remove, &alice_group);
+    let remove_message_in = erase_path(backend, &serialized_remove, &alice_group).await;
 
     // Have Charlie process everything
     let unverified_message = charlie_group
@@ -357,6 +377,7 @@ fn test_valsem201(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider
 
     let err = charlie_group
         .process_unverified_message(unverified_message, None, backend)
+        .await
         .expect_err("Could process unverified message despite missing path.");
 
     assert_eq!(
@@ -374,6 +395,7 @@ fn test_valsem201(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider
         .expect("Could not parse message.");
     if let ProcessedMessage::StagedCommitMessage(staged_commit) = charlie_group
         .process_unverified_message(unverified_message, None, backend)
+        .await
         .expect("Unexpected error.")
     {
         charlie_group
@@ -392,6 +414,7 @@ fn test_valsem201(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider
     // Have charlie create an update proposal and then let Alice commit to it.
     let charlie_update_proposal = charlie_group
         .propose_self_update(backend, None)
+        .await
         .expect("error creating self-update proposal");
 
     let unverified_message = alice_group
@@ -399,16 +422,18 @@ fn test_valsem201(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider
         .expect("error parsing proposal");
     alice_group
         .process_unverified_message(unverified_message, None, backend)
+        .await
         .expect("error processing proposal");
 
     let serialized_update = alice_group
         .commit_to_pending_proposals(backend)
+        .await
         .expect("Error creating self-update")
         .tls_serialize_detached()
         .expect("Could not serialize message.");
 
     // Erase the path.
-    let update_message_in = erase_path(backend, &serialized_update, &alice_group);
+    let update_message_in = erase_path(backend, &serialized_update, &alice_group).await;
 
     // Have charlie process it.
     let unverified_message = charlie_group
@@ -417,6 +442,7 @@ fn test_valsem201(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider
 
     let err = charlie_group
         .process_unverified_message(unverified_message, None, backend)
+        .await
         .expect_err("Could process unverified message despite missing path.");
 
     assert_eq!(
@@ -434,10 +460,11 @@ fn test_valsem201(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider
         .expect("Could not parse message.");
     charlie_group
         .process_unverified_message(unverified_message, None, backend)
+        .await
         .expect("Unexpected error.");
 }
 
-fn erase_path(
+async fn erase_path(
     backend: &impl OpenMlsCryptoProvider,
     mut pt: &[u8],
     alice_group: &MlsGroup,
@@ -467,6 +494,7 @@ fn erase_path(
                 .tls_serialize_detached()
                 .expect("error serializing credential"),
         )
+        .await
         .expect("error retrieving credential bundle");
 
     let serialized_context = alice_group
@@ -504,12 +532,12 @@ fn erase_path(
 
 // ValSem202: Path must be the right length
 #[apply(ciphersuites_and_backends)]
-fn test_valsem202(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider) {
+async fn test_valsem202(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider) {
     // Test with MlsPlaintext
     let CommitValidationTestSetup {
         mut alice_group,
         mut bob_group,
-    } = validation_test_setup(PURE_PLAINTEXT_WIRE_FORMAT_POLICY, ciphersuite, backend);
+    } = validation_test_setup(PURE_PLAINTEXT_WIRE_FORMAT_POLICY, ciphersuite, backend).await;
 
     // Have Alice generate a self-updating commit, remove a node from the path,
     // re-sign and have Bob process it.
@@ -517,6 +545,7 @@ fn test_valsem202(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider
     // Create the self-update
     let serialized_update = alice_group
         .self_update(backend, None)
+        .await
         .expect("Error creating self-update")
         .tls_serialize_detached()
         .expect("Could not serialize message.");
@@ -548,6 +577,7 @@ fn test_valsem202(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider
                 .tls_serialize_detached()
                 .expect("error serializing credential"),
         )
+        .await
         .expect("error retrieving credential bundle");
 
     let serialized_context = alice_group
@@ -588,6 +618,7 @@ fn test_valsem202(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider
 
     let err = bob_group
         .process_unverified_message(unverified_message, None, backend)
+        .await
         .expect_err("Could process unverified message despite path length mismatch.");
 
     assert_eq!(
@@ -607,17 +638,18 @@ fn test_valsem202(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider
         .expect("Could not parse message.");
     bob_group
         .process_unverified_message(unverified_message, None, backend)
+        .await
         .expect("Unexpected error.");
 }
 
 // ValSem203: Path secrets must decrypt correctly
 #[apply(ciphersuites_and_backends)]
-fn test_valsem203(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider) {
+async fn test_valsem203(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider) {
     // Test with MlsPlaintext
     let CommitValidationTestSetup {
         mut alice_group,
         mut bob_group,
-    } = validation_test_setup(PURE_PLAINTEXT_WIRE_FORMAT_POLICY, ciphersuite, backend);
+    } = validation_test_setup(PURE_PLAINTEXT_WIRE_FORMAT_POLICY, ciphersuite, backend).await;
 
     // Have Alice generate a self-updating commit, scramble some ciphertexts and
     // have Bob process the resulting commit.
@@ -625,6 +657,7 @@ fn test_valsem203(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider
     // Create the self-update
     let serialized_update = alice_group
         .self_update(backend, None)
+        .await
         .expect("Error creating self-update")
         .tls_serialize_detached()
         .expect("Could not serialize message.");
@@ -658,6 +691,7 @@ fn test_valsem203(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider
                 .tls_serialize_detached()
                 .expect("error serializing credential"),
         )
+        .await
         .expect("error retrieving credential bundle");
 
     let serialized_context = alice_group
@@ -698,6 +732,7 @@ fn test_valsem203(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider
 
     let err = bob_group
         .process_unverified_message(unverified_message, None, backend)
+        .await
         .expect_err("Could process unverified message despite scrambled ciphertexts.");
 
     assert_eq!(
@@ -717,17 +752,18 @@ fn test_valsem203(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider
         .expect("Could not parse message.");
     bob_group
         .process_unverified_message(unverified_message, None, backend)
+        .await
         .expect("Unexpected error.");
 }
 
 // ValSem204: Public keys from Path must be verified and match the private keys from the direct path
 #[apply(ciphersuites_and_backends)]
-fn test_valsem204(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider) {
+async fn test_valsem204(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider) {
     // Test with MlsPlaintext
     let CommitValidationTestSetup {
         mut alice_group,
         mut bob_group,
-    } = validation_test_setup(PURE_PLAINTEXT_WIRE_FORMAT_POLICY, ciphersuite, backend);
+    } = validation_test_setup(PURE_PLAINTEXT_WIRE_FORMAT_POLICY, ciphersuite, backend).await;
 
     // Have Alice generate a self-updating commit, flip the last byte of one of
     // the public keys in the path and have Bob process the commit.
@@ -735,6 +771,7 @@ fn test_valsem204(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider
     // Create the self-update
     let serialized_update = alice_group
         .self_update(backend, None)
+        .await
         .expect("Error creating self-update")
         .tls_serialize_detached()
         .expect("Could not serialize message.");
@@ -768,6 +805,7 @@ fn test_valsem204(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider
                 .tls_serialize_detached()
                 .expect("error serializing credential"),
         )
+        .await
         .expect("error retrieving credential bundle");
 
     let serialized_context = alice_group
@@ -808,6 +846,7 @@ fn test_valsem204(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider
 
     let err = bob_group
         .process_unverified_message(unverified_message, None, backend)
+        .await
         .expect_err("Could process unverified message despite modified public key in path.");
 
     assert_eq!(
@@ -827,17 +866,18 @@ fn test_valsem204(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider
         .expect("Could not parse message.");
     bob_group
         .process_unverified_message(unverified_message, None, backend)
+        .await
         .expect("Unexpected error.");
 }
 
 // ValSem205: Confirmation tag must be successfully verified
 #[apply(ciphersuites_and_backends)]
-fn test_valsem205(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider) {
+async fn test_valsem205(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider) {
     // Test with MlsPlaintext
     let CommitValidationTestSetup {
         mut alice_group,
         mut bob_group,
-    } = validation_test_setup(PURE_PLAINTEXT_WIRE_FORMAT_POLICY, ciphersuite, backend);
+    } = validation_test_setup(PURE_PLAINTEXT_WIRE_FORMAT_POLICY, ciphersuite, backend).await;
 
     // Have Alice generate a self-updating commit, flip the last bit of the
     // confirmation tag and have Bob process the commit.
@@ -845,6 +885,7 @@ fn test_valsem205(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider
     // Create the self-update
     let serialized_update = alice_group
         .self_update(backend, None)
+        .await
         .expect("Error creating self-update")
         .tls_serialize_detached()
         .expect("Could not serialize message.");
@@ -899,6 +940,7 @@ fn test_valsem205(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider
 
     let err = bob_group
         .process_unverified_message(unverified_message, None, backend)
+        .await
         .expect_err("Could process unverified message despite confirmation tag mismatch.");
 
     assert_eq!(
@@ -912,5 +954,6 @@ fn test_valsem205(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider
         .expect("Could not parse message.");
     bob_group
         .process_unverified_message(unverified_message, None, backend)
+        .await
         .expect("Unexpected error.");
 }

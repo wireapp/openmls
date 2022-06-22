@@ -33,7 +33,7 @@ impl Client {
     /// `self.key_package_bundles`. The first ciphersuite determines the
     /// credential used to generate the `KeyPackageBundle`. Returns the
     /// corresponding `KeyPackage`.
-    pub fn get_fresh_key_package(
+    pub async fn get_fresh_key_package(
         &self,
         ciphersuites: &[Ciphersuite],
     ) -> Result<KeyPackage, ClientError> {
@@ -55,6 +55,7 @@ impl Client {
                     .tls_serialize_detached()
                     .expect("Error serializing signature key."),
             )
+            .await
             .ok_or(ClientError::NoMatchingCredential)?;
         let kpb = KeyPackageBundle::new(
             ciphersuites,
@@ -67,6 +68,7 @@ impl Client {
         self.crypto
             .key_store()
             .store(kp.hash_ref(self.crypto.crypto())?.value(), &kpb)
+            .await
             .expect("An unexpected error occurred.");
         Ok(kp)
     }
@@ -74,7 +76,7 @@ impl Client {
     /// Create a group with the given `group_id`, `ciphersuite` and
     /// `mls_group_config`. Throws an error if the client doesn't support
     /// the `ciphersuite`, i.e. if no corresponding `CredentialBundle` exists.
-    pub fn create_group(
+    pub async fn create_group(
         &self,
         group_id: GroupId,
         mls_group_config: MlsGroupConfig,
@@ -95,6 +97,7 @@ impl Client {
                     .tls_serialize_detached()
                     .expect("Error serializing signature key."),
             )
+            .await
             .ok_or(ClientError::NoMatchingCredential)?;
         let kpb = KeyPackageBundle::new(
             &[ciphersuite],
@@ -107,13 +110,14 @@ impl Client {
         self.crypto
             .key_store()
             .store(key_package.hash_ref(self.crypto.crypto())?.value(), &kpb)
+            .await
             .expect("An unexpected error occurred.");
         let group_state = MlsGroup::new(
             &self.crypto,
             &mls_group_config,
             group_id.clone(),
             key_package.hash_ref(self.crypto.crypto())?.value(),
-        )?;
+        ).await?;
         self.groups
             .write()
             .expect("An unexpected error occurred.")
@@ -125,14 +129,14 @@ impl Client {
     /// is created with the given `MlsGroupConfig`. Throws an error if no
     /// `KeyPackage` exists matching the `Welcome`, if the client doesn't
     /// support the ciphersuite, or if an error occurs processing the `Welcome`.
-    pub fn join_group(
+    pub async fn join_group(
         &self,
         mls_group_config: MlsGroupConfig,
         welcome: Welcome,
         ratchet_tree: Option<Vec<Option<Node>>>,
     ) -> Result<(), ClientError> {
         let new_group: MlsGroup =
-            MlsGroup::new_from_welcome(&self.crypto, &mls_group_config, welcome, ratchet_tree)?;
+            MlsGroup::new_from_welcome(&self.crypto, &mls_group_config, welcome, ratchet_tree).await?;
         self.groups
             .write()
             .expect("An unexpected error occurred.")
@@ -143,7 +147,7 @@ impl Client {
     /// Have the client process the given messages. Returns an error if an error
     /// occurs during message processing or if no group exists for one of the
     /// messages.
-    pub fn receive_messages_for_group(
+    pub async fn receive_messages_for_group(
         &self,
         message: &MlsMessageIn,
         sender_id: &[u8],
@@ -163,7 +167,7 @@ impl Client {
             // Process the message.
             let unverified_message = group_state.parse_message(message.clone(), &self.crypto)?;
             let processed_message =
-                group_state.process_unverified_message(unverified_message, None, &self.crypto)?;
+                group_state.process_unverified_message(unverified_message, None, &self.crypto).await?;
 
             match processed_message {
                 ProcessedMessage::ApplicationMessage(_) => {}
@@ -200,7 +204,7 @@ impl Client {
     /// Optionally, a `KeyPackageBundle` can be provided, which the client will
     /// update their leaf with. Returns an error if no group with the given
     /// group id can be found or if an error occurs while creating the update.
-    pub fn self_update(
+    pub async fn self_update(
         &self,
         action_type: ActionType,
         group_id: &GroupId,
@@ -211,9 +215,9 @@ impl Client {
             .get_mut(group_id)
             .ok_or(ClientError::NoMatchingGroup)?;
         let action_results = match action_type {
-            ActionType::Commit => group.self_update(&self.crypto, key_package_bundle_option)?,
+            ActionType::Commit => group.self_update(&self.crypto, key_package_bundle_option).await?,
             ActionType::Proposal => (
-                group.propose_self_update(&self.crypto, key_package_bundle_option)?,
+                group.propose_self_update(&self.crypto, key_package_bundle_option).await?,
                 None,
             ),
         };
@@ -225,7 +229,7 @@ impl Client {
     /// group with the given group id. Returns an error if no group with the
     /// given group id can be found or if an error occurs while performing the
     /// add operation.
-    pub fn add_members(
+    pub async fn add_members(
         &self,
         action_type: ActionType,
         group_id: &GroupId,
@@ -237,13 +241,13 @@ impl Client {
             .ok_or(ClientError::NoMatchingGroup)?;
         let action_results = match action_type {
             ActionType::Commit => {
-                let (messages, welcome) = group.add_members(&self.crypto, key_packages)?;
+                let (messages, welcome) = group.add_members(&self.crypto, key_packages).await?;
                 (vec![messages], Some(welcome))
             }
             ActionType::Proposal => {
                 let mut messages = Vec::new();
                 for key_package in key_packages {
-                    let message = group.propose_add_member(&self.crypto, key_package)?;
+                    let message = group.propose_add_member(&self.crypto, key_package).await?;
                     messages.push(message);
                 }
                 (messages, None)
@@ -257,7 +261,7 @@ impl Client {
     /// group with the given group id. Returns an error if no group with the
     /// given group id can be found or if an error occurs while performing the
     /// remove operation.
-    pub fn remove_members(
+    pub async fn remove_members(
         &self,
         action_type: ActionType,
         group_id: &GroupId,
@@ -269,13 +273,13 @@ impl Client {
             .ok_or(ClientError::NoMatchingGroup)?;
         let action_results = match action_type {
             ActionType::Commit => {
-                let (message, welcome_option) = group.remove_members(&self.crypto, targets)?;
+                let (message, welcome_option) = group.remove_members(&self.crypto, targets).await?;
                 (vec![message], welcome_option)
             }
             ActionType::Proposal => {
                 let mut messages = Vec::new();
                 for target in targets {
-                    let message = group.propose_remove_member(&self.crypto, target)?;
+                    let message = group.propose_remove_member(&self.crypto, target).await?;
                     messages.push(message);
                 }
                 (messages, None)

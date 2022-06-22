@@ -11,7 +11,7 @@ impl MlsGroup {
     /// Returns `CreateMessageError::MlsGroupStateError::PendingProposal` if pending proposals
     /// exist. In that case `.process_pending_proposals()` must be called first
     /// and incoming messages from the DS must be processed afterwards.
-    pub fn create_message(
+    pub async fn create_message(
         &mut self,
         backend: &impl OpenMlsCryptoProvider,
         message: &[u8],
@@ -39,6 +39,7 @@ impl MlsGroup {
                     .tls_serialize_detached()
                     .map_err(LibraryError::missing_bound_check)?,
             )
+            .await
             .ok_or(CreateMessageError::NoMatchingCredentialBundle)?;
 
         let ciphertext = self
@@ -50,6 +51,7 @@ impl MlsGroup {
                 self.configuration().padding_size(),
                 backend,
             )
+            .await
             // We know the application message is wellformed and we have the key material of the current epoch
             .map_err(|_| LibraryError::custom("Malformed plaintext"))?;
 

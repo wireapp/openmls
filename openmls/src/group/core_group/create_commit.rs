@@ -29,9 +29,9 @@ struct PathProcessingResult {
 }
 
 impl CoreGroup {
-    pub(crate) fn create_commit(
+    pub(crate) async fn create_commit(
         &self,
-        params: CreateCommitParams,
+        params: CreateCommitParams<'_>,
         backend: &impl OpenMlsCryptoProvider,
     ) -> Result<CreateCommitResult, CreateCommitError> {
         let ciphersuite = self.ciphersuite();
@@ -265,7 +265,7 @@ impl CoreGroup {
             ciphersuite,
             backend,
             apply_proposals_values.presharedkeys.psks(),
-        )?;
+        ).await?;
 
         // Create key schedule
         let mut key_schedule = KeySchedule::init(ciphersuite, backend, joiner_secret, psk_secret)?;

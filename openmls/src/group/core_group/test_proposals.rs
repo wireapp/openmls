@@ -316,7 +316,7 @@ fn proposal_queue_order(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoPr
 }
 
 #[apply(ciphersuites_and_backends)]
-fn test_required_unsupported_proposals(
+async fn test_required_unsupported_proposals(
     ciphersuite: Ciphersuite,
     backend: &impl OpenMlsCryptoProvider,
 ) {
@@ -332,14 +332,14 @@ fn test_required_unsupported_proposals(
     let e = CoreGroup::builder(GroupId::random(backend), alice_key_package_bundle)
         .with_required_capabilities(required_capabilities)
         .build(backend)
-        .expect_err(
+        .await.expect_err(
             "CoreGroup creation must fail because AppAck proposals aren't supported in OpenMLS yet.",
         );
     assert_eq!(e, CoreGroupBuildError::UnsupportedProposalType)
 }
 
 #[apply(ciphersuites_and_backends)]
-fn test_required_extension_key_package_mismatch(
+async fn test_required_extension_key_package_mismatch(
     ciphersuite: Ciphersuite,
     backend: &impl OpenMlsCryptoProvider,
 ) {
@@ -370,6 +370,7 @@ fn test_required_extension_key_package_mismatch(
     let alice_group = CoreGroup::builder(GroupId::random(backend), alice_key_package_bundle)
         .with_required_capabilities(required_capabilities)
         .build(backend)
+        .await
         .expect("Error creating CoreGroup.");
 
     let e = alice_group
@@ -384,7 +385,10 @@ fn test_required_extension_key_package_mismatch(
 }
 
 #[apply(ciphersuites_and_backends)]
-fn test_group_context_extensions(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider) {
+async fn test_group_context_extensions(
+    ciphersuite: Ciphersuite,
+    backend: &impl OpenMlsCryptoProvider,
+) {
     // Basic group setup.
     let group_aad = b"Alice's test group";
     let framing_parameters = FramingParameters::new(group_aad, WireFormat::MlsPlaintext);
@@ -415,6 +419,7 @@ fn test_group_context_extensions(ciphersuite: Ciphersuite, backend: &impl OpenMl
     let mut alice_group = CoreGroup::builder(GroupId::random(backend), alice_key_package_bundle)
         .with_required_capabilities(required_capabilities)
         .build(backend)
+        .await
         .expect("Error creating CoreGroup.");
 
     let bob_add_proposal = alice_group
@@ -439,6 +444,7 @@ fn test_group_context_extensions(ciphersuite: Ciphersuite, backend: &impl OpenMl
         .build();
     let create_commit_result = alice_group
         .create_commit(params, backend)
+        .await
         .expect("Error creating commit");
 
     log::info!(" >>> Staging & merging commit ...");
@@ -458,11 +464,12 @@ fn test_group_context_extensions(ciphersuite: Ciphersuite, backend: &impl OpenMl
         bob_key_package_bundle,
         backend,
     )
+    .await
     .expect("Error joining group.");
 }
 
 #[apply(ciphersuites_and_backends)]
-fn test_group_context_extension_proposal_fails(
+async fn test_group_context_extension_proposal_fails(
     ciphersuite: Ciphersuite,
     backend: &impl OpenMlsCryptoProvider,
 ) {
@@ -496,6 +503,7 @@ fn test_group_context_extension_proposal_fails(
     let mut alice_group = CoreGroup::builder(GroupId::random(backend), alice_key_package_bundle)
         .with_required_capabilities(required_capabilities)
         .build(backend)
+        .await
         .expect("Error creating CoreGroup.");
 
     // Alice tries to add a required capability she doesn't support herself.
@@ -541,6 +549,7 @@ fn test_group_context_extension_proposal_fails(
         .build();
     let create_commit_result = alice_group
         .create_commit(params, backend)
+        .await
         .expect("Error creating commit");
 
     log::info!(" >>> Staging & merging commit ...");
@@ -558,6 +567,7 @@ fn test_group_context_extension_proposal_fails(
         bob_key_package_bundle,
         backend,
     )
+    .await
     .expect("Error joining group.");
 
     // Now Bob wants the KeyId extension to be required.
@@ -579,7 +589,7 @@ fn test_group_context_extension_proposal_fails(
 }
 
 #[apply(ciphersuites_and_backends)]
-fn test_group_context_extension_proposal(
+async fn test_group_context_extension_proposal(
     ciphersuite: Ciphersuite,
     backend: &impl OpenMlsCryptoProvider,
 ) {
@@ -619,6 +629,7 @@ fn test_group_context_extension_proposal(
     let mut alice_group = CoreGroup::builder(GroupId::random(backend), alice_key_package_bundle)
         .with_required_capabilities(required_capabilities)
         .build(backend)
+        .await
         .expect("Error creating CoreGroup.");
 
     // Adding Bob
@@ -644,6 +655,7 @@ fn test_group_context_extension_proposal(
         .build();
     let create_commit_results = alice_group
         .create_commit(params, backend)
+        .await
         .expect("Error creating commit");
 
     log::info!(" >>> Staging & merging commit ...");
@@ -662,6 +674,7 @@ fn test_group_context_extension_proposal(
         bob_key_package_bundle,
         backend,
     )
+    .await
     .expect("Error joining group.");
 
     // Alice adds a required capability.
@@ -691,12 +704,14 @@ fn test_group_context_extension_proposal(
         .build();
     let create_commit_result = alice_group
         .create_commit(params, backend)
+        .await
         .expect("Error creating commit");
 
     log::info!(" >>> Staging & merging commit ...");
 
     let staged_commit = bob_group
         .stage_commit(&create_commit_result.commit, &proposal_store, &[], backend)
+        .await
         .expect("error staging commit");
     bob_group
         .merge_commit(staged_commit)

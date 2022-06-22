@@ -138,7 +138,7 @@ pub struct EncryptionTestVector {
 }
 
 #[cfg(any(feature = "test-utils", test))]
-fn group(
+async fn group(
     ciphersuite: Ciphersuite,
     backend: &impl OpenMlsCryptoProvider,
 ) -> (CoreGroup, CredentialBundle) {
@@ -154,13 +154,14 @@ fn group(
     (
         CoreGroup::builder(GroupId::random(backend), key_package_bundle)
             .build(backend)
+            .await
             .expect("Error creating CoreGroup"),
         credential_bundle,
     )
 }
 
 #[cfg(any(feature = "test-utils", test))]
-fn receiver_group(
+async fn receiver_group(
     ciphersuite: Ciphersuite,
     backend: &impl OpenMlsCryptoProvider,
     group_id: &GroupId,
@@ -176,6 +177,7 @@ fn receiver_group(
             .expect("An unexpected error occurred.");
     CoreGroup::builder(group_id.clone(), key_package_bundle)
         .build(backend)
+        .await
         .expect("Error creating CoreGroup")
 }
 
@@ -240,7 +242,7 @@ fn build_handshake_messages(
 }
 
 #[cfg(any(feature = "test-utils", test))]
-fn build_application_messages(
+async fn build_application_messages(
     leaf: &KeyPackageRef,
     sender_index: SecretTreeLeafIndex,
     group: &mut CoreGroup,
@@ -264,6 +266,7 @@ fn build_application_messages(
         &membership_key,
         backend,
     )
+    .await
     .expect("An unexpected error occurred.");
     plaintext.remove_membership_tag();
     let ciphertext = match MlsCiphertext::try_from_plaintext(
@@ -292,7 +295,7 @@ fn build_application_messages(
 }
 
 #[cfg(any(feature = "test-utils", test))]
-pub fn generate_test_vector(
+pub async fn generate_test_vector(
     n_generations: u32,
     n_leaves: u32,
     ciphersuite: Ciphersuite,
@@ -326,7 +329,7 @@ pub fn generate_test_vector(
         nonce: bytes_to_hex(sender_data_nonce.as_slice()),
     };
 
-    let (mut group, credential_bundle) = group(ciphersuite, &crypto);
+    let (mut group, credential_bundle) = group(ciphersuite, &crypto).await;
     *group.message_secrets_test_mut().sender_data_secret_mut() = SenderDataSecret::from_slice(
         sender_data_secret_bytes,
         ProtocolVersion::default(),
@@ -381,7 +384,8 @@ pub fn generate_test_vector(
                 &mut group,
                 &credential_bundle,
                 &crypto,
-            );
+            )
+            .await;
             println!("Sender Group: {:?}", group);
             application.push(RatchetStep {
                 key: application_key_string,
@@ -439,8 +443,8 @@ pub fn generate_test_vector(
     }
 }
 
-#[test]
-fn write_test_vectors() {
+#[async_std::test]
+async fn write_test_vectors() {
     use openmls_traits::crypto::OpenMlsCrypto;
     let mut tests = Vec::new();
     const NUM_LEAVES: u32 = 7;
@@ -452,7 +456,7 @@ fn write_test_vectors() {
         .iter()
     {
         for n_leaves in 1u32..NUM_LEAVES {
-            let test = generate_test_vector(NUM_GENERATIONS, n_leaves, ciphersuite);
+            let test = generate_test_vector(NUM_GENERATIONS, n_leaves, ciphersuite).await;
             tests.push(test);
         }
     }
@@ -461,7 +465,7 @@ fn write_test_vectors() {
 }
 
 #[cfg(any(feature = "test-utils", test))]
-pub fn run_test_vector(
+pub async fn run_test_vector(
     test_vector: EncryptionTestVector,
     backend: &impl OpenMlsCryptoProvider,
 ) -> Result<(), EncTestVectorError> {
@@ -585,7 +589,7 @@ pub fn run_test_vector(
                 MlsCiphertext::tls_deserialize(&mut ctxt_bytes.as_slice())
                     .expect("Error parsing MlsCiphertext");
             let mut group =
-                receiver_group(ciphersuite, backend, mls_ciphertext_application.group_id());
+                receiver_group(ciphersuite, backend, mls_ciphertext_application.group_id()).await;
             *group.message_secrets_test_mut().sender_data_secret_mut() =
                 SenderDataSecret::from_slice(
                     hex_to_bytes(&test_vector.sender_data_secret).as_slice(),
@@ -729,7 +733,7 @@ pub fn run_test_vector(
                 MlsCiphertext::tls_deserialize(&mut handshake_bytes.as_slice())
                     .expect("Error parsing MLSCiphertext");
             let mut group =
-                receiver_group(ciphersuite, backend, mls_ciphertext_handshake.group_id());
+                receiver_group(ciphersuite, backend, mls_ciphertext_handshake.group_id()).await;
             *group.message_secrets_test_mut().sender_data_secret_mut() =
                 SenderDataSecret::from_slice(
                     &hex_to_bytes(&test_vector.sender_data_secret),
@@ -776,11 +780,11 @@ pub fn run_test_vector(
 }
 
 #[apply(backends)]
-fn read_test_vectors_encryption(backend: &impl OpenMlsCryptoProvider) {
+async fn read_test_vectors_encryption(backend: &impl OpenMlsCryptoProvider) {
     let tests: Vec<EncryptionTestVector> = read("test_vectors/kat_encryption_openmls.json");
 
     for test_vector in tests {
-        match run_test_vector(test_vector, backend) {
+        match run_test_vector(test_vector, backend).await {
             Ok(_) => {}
             Err(e) => panic!("Error while checking encryption test vector.\n{:?}", e),
         }
@@ -798,7 +802,9 @@ fn read_test_vectors_encryption(backend: &impl OpenMlsCryptoProvider) {
     ];
     for &tv_file in tv_files.iter() {
         let tv: EncryptionTestVector = read(tv_file);
-        run_test_vector(tv, backend).expect("Error while checking key schedule test vector.");
+        run_test_vector(tv, backend)
+            .await
+            .expect("Error while checking key schedule test vector.");
     }
 
     log::trace!("Finished test vector verification");

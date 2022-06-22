@@ -104,7 +104,7 @@ impl CoreGroup {
     ///  - ValSem244
     ///  - ValSem245
     ///  - ValSem247 (as part of ValSem010)
-    pub(crate) fn process_unverified_message(
+    pub(crate) async fn process_unverified_message(
         &mut self,
         unverified_message: UnverifiedMessage,
         signature_key: Option<&SignaturePublicKey>,
@@ -187,7 +187,7 @@ impl CoreGroup {
                             proposal_store,
                             own_kpbs,
                             backend,
-                        )?;
+                        ).await?;
                         ProcessedMessage::StagedCommitMessage(Box::new(staged_commit))
                     }
                 })

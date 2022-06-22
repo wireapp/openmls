@@ -12,7 +12,7 @@ use tls_codec::Deserialize;
 
 // This tests the ratchet tree extension to test if the duplicate detection works
 #[apply(ciphersuites_and_backends)]
-fn duplicate_ratchet_tree_extension(
+async fn duplicate_ratchet_tree_extension(
     ciphersuite: Ciphersuite,
     backend: &impl OpenMlsCryptoProvider,
 ) {
@@ -56,6 +56,7 @@ fn duplicate_ratchet_tree_extension(
     let mut alice_group = CoreGroup::builder(GroupId::random(backend), alice_key_package_bundle)
         .with_config(config)
         .build(backend)
+        .await
         .expect("Error creating group.");
 
     // === Alice adds Bob ===
@@ -81,6 +82,7 @@ fn duplicate_ratchet_tree_extension(
         .build();
     let create_commit_result = alice_group
         .create_commit(params, backend)
+        .await
         .expect("Error creating commit");
 
     alice_group
@@ -120,6 +122,7 @@ fn duplicate_ratchet_tree_extension(
 
     // Prepare the PskSecret
     let psk_secret = PskSecret::new(ciphersuite, backend, group_secrets.psks.psks())
+        .await
         .expect("An unexpected error occurred.");
 
     // Create key schedule
@@ -164,7 +167,9 @@ fn duplicate_ratchet_tree_extension(
     welcome.set_encrypted_group_info(encrypted_group_info);
 
     // Try to join group
-    let error = CoreGroup::new_from_welcome(welcome, None, bob_key_package_bundle, backend).err();
+    let error = CoreGroup::new_from_welcome(welcome, None, bob_key_package_bundle, backend)
+        .await
+        .err();
 
     // We expect an error because the ratchet tree is duplicated
     assert_eq!(

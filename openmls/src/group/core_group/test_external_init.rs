@@ -21,7 +21,7 @@ use super::{
 };
 
 #[apply(ciphersuites_and_backends)]
-fn test_external_init(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider) {
+async fn test_external_init(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider) {
     // Basic group setup.
     let group_aad = b"Alice's test group";
     let framing_parameters = FramingParameters::new(group_aad, WireFormat::MlsPlaintext);
@@ -59,6 +59,7 @@ fn test_external_init(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProv
 
     let mut group_alice = CoreGroup::builder(group_id, alice_key_package_bundle)
         .build(backend)
+        .await
         .expect("An unexpected error occurred.");
 
     // === Alice adds Bob ===
@@ -81,6 +82,7 @@ fn test_external_init(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProv
         .build();
     let create_commit_result = group_alice
         .create_commit(params, backend)
+        .await
         .expect("Error creating commit");
 
     group_alice
@@ -96,6 +98,7 @@ fn test_external_init(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProv
         bob_key_package_bundle,
         backend,
     )
+    .await
     .expect("An unexpected error occurred.");
 
     // Now set up charly and try to init externally.
@@ -125,12 +128,14 @@ fn test_external_init(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProv
         .build();
     let (mut group_charly, create_commit_result) =
         CoreGroup::join_by_external_commit(backend, params, None, verifiable_public_group_state)
+            .await
             .expect("Error initializing group externally.");
 
     // Have alice and bob process the commit resulting from external init.
     let proposal_store = ProposalStore::default();
     let staged_commit = group_alice
         .stage_commit(&create_commit_result.commit, &proposal_store, &[], backend)
+        .await
         .expect("error staging commit");
     group_alice
         .merge_commit(staged_commit)
@@ -138,6 +143,7 @@ fn test_external_init(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProv
 
     let staged_commit = group_bob
         .stage_commit(&create_commit_result.commit, &proposal_store, &[], backend)
+        .await
         .expect("error staging commit");
     group_bob
         .merge_commit(staged_commit)
@@ -167,10 +173,12 @@ fn test_external_init(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProv
         .build();
     let create_commit_result = group_charly
         .create_commit(params, backend)
+        .await
         .expect("Error creating commit");
 
     let staged_commit = group_alice
         .stage_commit(&create_commit_result.commit, &proposal_store, &[], backend)
+        .await
         .expect("error staging commit");
     group_alice
         .merge_commit(staged_commit)
@@ -206,6 +214,7 @@ fn test_external_init(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProv
         Some(&nodes_option),
         verifiable_public_group_state,
     )
+    .await
     .expect("Error initializing group externally.");
 
     // Let's make sure there's a remove in the commit.
@@ -227,6 +236,7 @@ fn test_external_init(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProv
     let proposal_store = ProposalStore::default();
     let staged_commit = group_alice
         .stage_commit(&create_commit_result.commit, &proposal_store, &[], backend)
+        .await
         .expect("error staging commit");
     group_alice
         .merge_commit(staged_commit)
@@ -234,6 +244,7 @@ fn test_external_init(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProv
 
     let staged_commit = group_charly
         .stage_commit(&create_commit_result.commit, &proposal_store, &[], backend)
+        .await
         .expect("error staging commit");
     group_charly
         .merge_commit(staged_commit)
@@ -256,7 +267,7 @@ fn test_external_init(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProv
 }
 
 #[apply(ciphersuites_and_backends)]
-fn test_external_init_single_member_group(
+async fn test_external_init_single_member_group(
     ciphersuite: Ciphersuite,
     backend: &impl OpenMlsCryptoProvider,
 ) {
@@ -286,6 +297,7 @@ fn test_external_init_single_member_group(
 
     let mut group_alice = CoreGroup::builder(group_id, alice_key_package_bundle)
         .build(backend)
+        .await
         .expect("An unexpected error occurred.");
 
     // Now set up charly and try to init externally.
@@ -320,12 +332,14 @@ fn test_external_init_single_member_group(
         Some(&nodes_option),
         verifiable_public_group_state,
     )
+    .await
     .expect("Error initializing group externally.");
 
     // Have alice and bob process the commit resulting from external init.
     let proposal_store = ProposalStore::default();
     let staged_commit = group_alice
         .stage_commit(&create_commit_result.commit, &proposal_store, &[], backend)
+        .await
         .expect("error staging commit");
     group_alice
         .merge_commit(staged_commit)

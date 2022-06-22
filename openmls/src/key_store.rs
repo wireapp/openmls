@@ -9,45 +9,45 @@ use openmls_traits::key_store::{FromKeyStoreValue, ToKeyStoreValue};
 // === OpenMLS Key Store Types
 
 impl FromKeyStoreValue for KeyPackageBundle {
-    type Error = &'static str;
+    type Error = serde_json::Error;
     fn from_key_store_value(ksv: &[u8]) -> Result<Self, Self::Error> {
-        serde_json::from_slice(ksv).map_err(|_| "Invalid key package bundle.")
+        serde_json::from_slice(ksv)
     }
 }
 
 impl FromKeyStoreValue for CredentialBundle {
-    type Error = &'static str;
+    type Error = serde_json::Error;
     fn from_key_store_value(ksv: &[u8]) -> Result<Self, Self::Error> {
-        serde_json::from_slice(ksv).map_err(|_| "Invalid credential bundle.")
+        serde_json::from_slice(ksv)
     }
 }
 
 impl ToKeyStoreValue for KeyPackageBundle {
-    type Error = &'static str;
+    type Error = serde_json::Error;
     fn to_key_store_value(&self) -> Result<Vec<u8>, Self::Error> {
-        serde_json::to_vec(self).map_err(|_| "Error serializing key package bundle.")
+        serde_json::to_vec(self)
     }
 }
 
 impl ToKeyStoreValue for CredentialBundle {
-    type Error = &'static str;
+    type Error = serde_json::Error;
     fn to_key_store_value(&self) -> Result<Vec<u8>, Self::Error> {
-        serde_json::to_vec(self).map_err(|_| "Error serializing key package bundle.")
+        serde_json::to_vec(self)
     }
 }
 
 // PSKs
 
 impl FromKeyStoreValue for PskBundle {
-    type Error = &'static str;
+    type Error = serde_json::Error;
     fn from_key_store_value(ksv: &[u8]) -> Result<Self, Self::Error> {
-        serde_json::from_slice(ksv).map_err(|_| "Invalid PSK bundle.")
+        serde_json::from_slice(ksv)
     }
 }
 
 impl ToKeyStoreValue for PskBundle {
-    type Error = &'static str;
+    type Error = serde_json::Error;
     fn to_key_store_value(&self) -> Result<Vec<u8>, Self::Error> {
-        serde_json::to_vec(self).map_err(|_| "Error serializing PSK bundle.")
+        serde_json::to_vec(self)
     }
 }

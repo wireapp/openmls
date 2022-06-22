@@ -63,7 +63,7 @@ pub struct KeyScheduleTestVector {
 
 // Ignore clippy warning since this just used for testing
 #[allow(clippy::type_complexity)]
-fn generate(
+async fn generate(
     ciphersuite: Ciphersuite,
     init_secret: &InitSecret,
     group_id: &[u8],
@@ -114,10 +114,11 @@ fn generate(
                     .expect("Error serializing signature key."),
                 &psk_bundle,
             )
+            .await
             .expect("Could not store PskBundle in key store.");
     }
     let psk_secret =
-        PskSecret::new(ciphersuite, &crypto, &psk_ids).expect("Could not create PskSecret.");
+        PskSecret::new(ciphersuite, &crypto, &psk_ids).await.expect("Could not create PskSecret.");
 
     let joiner_secret = JoinerSecret::new(&crypto, commit_secret.clone(), init_secret)
         .expect("Could not create JoinerSecret.");
@@ -175,7 +176,7 @@ fn generate(
 }
 
 #[cfg(any(feature = "test-utils", test))]
-pub fn generate_test_vector(n_epochs: u64, ciphersuite: Ciphersuite) -> KeyScheduleTestVector {
+pub async fn generate_test_vector(n_epochs: u64, ciphersuite: Ciphersuite) -> KeyScheduleTestVector {
     use tls_codec::Serialize;
 
     let crypto = OpenMlsRustCrypto::default();
@@ -204,7 +205,7 @@ pub fn generate_test_vector(n_epochs: u64, ciphersuite: Ciphersuite) -> KeySched
             tree_hash,
             group_context,
             external_key_pair,
-        ) = generate(ciphersuite, &init_secret, &group_id, epoch);
+        ) = generate(ciphersuite, &init_secret, &group_id, epoch).await;
 
         let psks = psks
             .iter()
@@ -257,8 +258,8 @@ pub fn generate_test_vector(n_epochs: u64, ciphersuite: Ciphersuite) -> KeySched
     }
 }
 
-#[test]
-fn write_test_vectors() {
+#[async_std::test]
+async fn write_test_vectors() {
     const NUM_EPOCHS: u64 = 200;
     let mut tests = Vec::new();
     for &ciphersuite in OpenMlsRustCrypto::default()
@@ -266,16 +267,16 @@ fn write_test_vectors() {
         .supported_ciphersuites()
         .iter()
     {
-        tests.push(generate_test_vector(NUM_EPOCHS, ciphersuite));
+        tests.push(generate_test_vector(NUM_EPOCHS, ciphersuite).await);
     }
     write("test_vectors/kat_key_schedule_openmls-new.json", &tests);
 }
 
 #[apply(backends)]
-fn read_test_vectors_key_schedule(backend: &impl OpenMlsCryptoProvider) {
+async fn read_test_vectors_key_schedule(backend: &impl OpenMlsCryptoProvider) {
     let tests: Vec<KeyScheduleTestVector> = read("test_vectors/kat_key_schedule_openmls.json");
     for test_vector in tests {
-        match run_test_vector(test_vector, backend) {
+        match run_test_vector(test_vector, backend).await {
             Ok(_) => {}
             Err(e) => panic!("Error while checking key schedule test vector.\n{:?}", e),
         }
@@ -295,7 +296,7 @@ fn read_test_vectors_key_schedule(backend: &impl OpenMlsCryptoProvider) {
 }
 
 #[cfg(any(feature = "test-utils", test))]
-pub fn run_test_vector(
+pub async fn run_test_vector(
     test_vector: KeyScheduleTestVector,
     backend: &impl OpenMlsCryptoProvider,
 ) -> Result<(), KsTestVectorError> {
@@ -348,11 +349,12 @@ pub fn run_test_vector(
                         .expect("Error serializing signature key."),
                     &psk_bundle,
                 )
+                .await
                 .expect("Could not store PskBundle in key store.");
         }
 
         let psk_secret =
-            PskSecret::new(ciphersuite, backend, &psk_ids).expect("An unexpected error occurred.");
+            PskSecret::new(ciphersuite, backend, &psk_ids).await.expect("An unexpected error occurred.");
 
         let joiner_secret = JoinerSecret::new(backend, commit_secret, &init_secret)
             .expect("Could not create JoinerSecret.");

@@ -31,12 +31,9 @@ use crate::{
 /// This tests serializing/deserializing MlsPlaintext
 #[apply(ciphersuites_and_backends)]
 fn codec_plaintext(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider) {
-    let credential_bundle = CredentialBundle::new_basic(
-        vec![7, 8, 9],
-        ciphersuite.signature_algorithm(),
-        backend,
-    )
-    .expect("An unexpected error occurred.");
+    let credential_bundle =
+        CredentialBundle::new_basic(vec![7, 8, 9], ciphersuite.signature_algorithm(), backend)
+            .expect("An unexpected error occurred.");
     let sender = Sender::build_member(&KeyPackageRef::from_slice(
         &backend
             .rand()
@@ -80,12 +77,9 @@ fn codec_plaintext(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvide
 /// This tests serializing/deserializing MlsCiphertext
 #[apply(ciphersuites_and_backends)]
 fn codec_ciphertext(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider) {
-    let credential_bundle = CredentialBundle::new_basic(
-        vec![7, 8, 9],
-        ciphersuite.signature_algorithm(),
-        backend,
-    )
-    .expect("An unexpected error occurred.");
+    let credential_bundle =
+        CredentialBundle::new_basic(vec![7, 8, 9], ciphersuite.signature_algorithm(), backend)
+            .expect("An unexpected error occurred.");
     let sender = Sender::build_member(&KeyPackageRef::from_slice(
         &backend
             .rand()
@@ -159,12 +153,9 @@ fn codec_ciphertext(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvid
 #[apply(ciphersuites_and_backends)]
 fn wire_format_checks(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider) {
     let configuration = &SenderRatchetConfiguration::default();
-    let credential_bundle = CredentialBundle::new_basic(
-        vec![7, 8, 9],
-        ciphersuite.signature_algorithm(),
-        backend,
-    )
-    .expect("An unexpected error occurred.");
+    let credential_bundle =
+        CredentialBundle::new_basic(vec![7, 8, 9], ciphersuite.signature_algorithm(), backend)
+            .expect("An unexpected error occurred.");
     let sender = Sender::build_member(&KeyPackageRef::from_slice(
         &backend
             .rand()
@@ -303,13 +294,10 @@ fn wire_format_checks(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProv
 }
 
 #[apply(ciphersuites_and_backends)]
-fn membership_tag(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider) {
-    let credential_bundle = CredentialBundle::new_basic(
-        vec![7, 8, 9],
-        ciphersuite.signature_algorithm(),
-        backend,
-    )
-    .expect("An unexpected error occurred.");
+async fn membership_tag(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider) {
+    let credential_bundle =
+        CredentialBundle::new_basic(vec![7, 8, 9], ciphersuite.signature_algorithm(), backend)
+            .expect("An unexpected error occurred.");
     let group_context = GroupContext::new(GroupId::random(backend), 1, vec![], vec![], &[]);
     let membership_key = MembershipKey::from_secret(
         Secret::random(ciphersuite, backend, None /* MLS version */)
@@ -329,6 +317,7 @@ fn membership_tag(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider
         &membership_key,
         backend,
     )
+    .await
     .expect("An unexpected error occurred.");
     let serialized_context: Vec<u8> = group_context
         .tls_serialize_detached()
@@ -359,30 +348,21 @@ fn membership_tag(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider
 }
 
 #[apply(ciphersuites_and_backends)]
-fn unknown_sender(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider) {
+async fn unknown_sender(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider) {
     let group_aad = b"Alice's test group";
     let framing_parameters = FramingParameters::new(group_aad, WireFormat::MlsPlaintext);
     let configuration = &SenderRatchetConfiguration::default();
 
     // Define credential bundles
-    let alice_credential_bundle = CredentialBundle::new_basic(
-        "Alice".into(),
-        ciphersuite.signature_algorithm(),
-        backend,
-    )
-    .expect("An unexpected error occurred.");
-    let bob_credential_bundle = CredentialBundle::new_basic(
-        "Bob".into(),
-        ciphersuite.signature_algorithm(),
-        backend,
-    )
-    .expect("An unexpected error occurred.");
-    let charlie_credential_bundle = CredentialBundle::new_basic(
-        "Charlie".into(),
-        ciphersuite.signature_algorithm(),
-        backend,
-    )
-    .expect("An unexpected error occurred.");
+    let alice_credential_bundle =
+        CredentialBundle::new_basic("Alice".into(), ciphersuite.signature_algorithm(), backend)
+            .expect("An unexpected error occurred.");
+    let bob_credential_bundle =
+        CredentialBundle::new_basic("Bob".into(), ciphersuite.signature_algorithm(), backend)
+            .expect("An unexpected error occurred.");
+    let charlie_credential_bundle =
+        CredentialBundle::new_basic("Charlie".into(), ciphersuite.signature_algorithm(), backend)
+            .expect("An unexpected error occurred.");
 
     // Generate KeyPackages
     let bob_key_package_bundle =
@@ -413,6 +393,7 @@ fn unknown_sender(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider
     // Alice creates a group
     let mut group_alice = CoreGroup::builder(GroupId::random(backend), alice_key_package_bundle)
         .build(backend)
+        .await
         .expect("Error creating group.");
 
     // Alice adds Bob
@@ -438,6 +419,7 @@ fn unknown_sender(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider
         .build();
     let create_commit_result = group_alice
         .create_commit(params, backend)
+        .await
         .expect("Error creating Commit");
 
     group_alice
@@ -469,6 +451,7 @@ fn unknown_sender(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider
         .build();
     let create_commit_result = group_alice
         .create_commit(params, backend)
+        .await
         .expect("Error creating Commit");
 
     group_alice
@@ -483,6 +466,7 @@ fn unknown_sender(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider
         charlie_key_package_bundle,
         backend,
     )
+    .await
     .expect("Charlie: Error creating group from Welcome");
 
     // Alice removes Bob
@@ -509,10 +493,12 @@ fn unknown_sender(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider
         .build();
     let create_commit_result = group_alice
         .create_commit(params, backend)
+        .await
         .expect("Error creating Commit");
 
     let staged_commit = group_charlie
         .stage_commit(&create_commit_result.commit, &proposal_store, &[], backend)
+        .await
         .expect("Charlie: Could not stage Commit");
     group_charlie
         .merge_commit(staged_commit)
@@ -543,6 +529,7 @@ fn unknown_sender(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider
         ),
         backend,
     )
+    .await
     .expect("Could not create new MlsPlaintext.");
 
     let enc_message = MlsCiphertext::try_from_plaintext(
@@ -567,23 +554,17 @@ fn unknown_sender(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider
 }
 
 #[apply(ciphersuites_and_backends)]
-fn confirmation_tag_presence(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider) {
+async fn confirmation_tag_presence(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider) {
     let group_aad = b"Alice's test group";
     let framing_parameters = FramingParameters::new(group_aad, WireFormat::MlsPlaintext);
 
     // Define credential bundles
-    let alice_credential_bundle = CredentialBundle::new_basic(
-        "Alice".into(),
-        ciphersuite.signature_algorithm(),
-        backend,
-    )
-    .expect("An unexpected error occurred.");
-    let bob_credential_bundle = CredentialBundle::new_basic(
-        "Bob".into(),
-        ciphersuite.signature_algorithm(),
-        backend,
-    )
-    .expect("An unexpected error occurred.");
+    let alice_credential_bundle =
+        CredentialBundle::new_basic("Alice".into(), ciphersuite.signature_algorithm(), backend)
+            .expect("An unexpected error occurred.");
+    let bob_credential_bundle =
+        CredentialBundle::new_basic("Bob".into(), ciphersuite.signature_algorithm(), backend)
+            .expect("An unexpected error occurred.");
 
     // Generate KeyPackages
     let bob_key_package_bundle =
@@ -602,6 +583,7 @@ fn confirmation_tag_presence(ciphersuite: Ciphersuite, backend: &impl OpenMlsCry
     // Alice creates a group
     let mut group_alice = CoreGroup::builder(GroupId::random(backend), alice_key_package_bundle)
         .build(backend)
+        .await
         .expect("Error creating group.");
 
     // Alice adds Bob
@@ -628,6 +610,7 @@ fn confirmation_tag_presence(ciphersuite: Ciphersuite, backend: &impl OpenMlsCry
 
     let create_commit_result = group_alice
         .create_commit(params, backend)
+        .await
         .expect("Error creating Commit");
 
     group_alice
@@ -644,6 +627,7 @@ fn confirmation_tag_presence(ciphersuite: Ciphersuite, backend: &impl OpenMlsCry
         bob_key_package_bundle,
         backend,
     )
+    .await
     .expect("error creating group from welcome");
 
     // Alice does an update
@@ -657,35 +641,34 @@ fn confirmation_tag_presence(ciphersuite: Ciphersuite, backend: &impl OpenMlsCry
         .build();
     let mut create_commit_result = group_alice
         .create_commit(params, backend)
+        .await
         .expect("Error creating Commit");
 
     create_commit_result.commit.unset_confirmation_tag();
 
     let err = group_bob
         .stage_commit(&create_commit_result.commit, &proposal_store, &[], backend)
+        .await
         .expect_err("No error despite missing confirmation tag.");
 
     assert_eq!(err, StageCommitError::ConfirmationTagMissing);
 }
 
 #[apply(ciphersuites_and_backends)]
-fn invalid_plaintext_signature(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider) {
+async fn invalid_plaintext_signature(
+    ciphersuite: Ciphersuite,
+    backend: &impl OpenMlsCryptoProvider,
+) {
     let group_aad = b"Alice's test group";
     let framing_parameters = FramingParameters::new(group_aad, WireFormat::MlsPlaintext);
 
     // Define credential bundles
-    let alice_credential_bundle = CredentialBundle::new_basic(
-        "Alice".into(),
-        ciphersuite.signature_algorithm(),
-        backend,
-    )
-    .expect("An unexpected error occurred.");
-    let bob_credential_bundle = CredentialBundle::new_basic(
-        "Bob".into(),
-        ciphersuite.signature_algorithm(),
-        backend,
-    )
-    .expect("An unexpected error occurred.");
+    let alice_credential_bundle =
+        CredentialBundle::new_basic("Alice".into(), ciphersuite.signature_algorithm(), backend)
+            .expect("An unexpected error occurred.");
+    let bob_credential_bundle =
+        CredentialBundle::new_basic("Bob".into(), ciphersuite.signature_algorithm(), backend)
+            .expect("An unexpected error occurred.");
 
     // Generate KeyPackages
     let bob_key_package_bundle =
@@ -704,6 +687,7 @@ fn invalid_plaintext_signature(ciphersuite: Ciphersuite, backend: &impl OpenMlsC
     // Alice creates a group
     let mut group_alice = CoreGroup::builder(GroupId::random(backend), alice_key_package_bundle)
         .build(backend)
+        .await
         .expect("Error creating group.");
 
     // Alice adds Bob so that there is someone to process the broken commits.
@@ -730,6 +714,7 @@ fn invalid_plaintext_signature(ciphersuite: Ciphersuite, backend: &impl OpenMlsC
 
     let create_commit_result = group_alice
         .create_commit(params, backend)
+        .await
         .expect("Error creating Commit");
 
     group_alice
@@ -744,6 +729,7 @@ fn invalid_plaintext_signature(ciphersuite: Ciphersuite, backend: &impl OpenMlsC
         bob_key_package_bundle,
         backend,
     )
+    .await
     .expect("error creating group from welcome");
 
     // TODO: #727 - This test doesn't make sense.

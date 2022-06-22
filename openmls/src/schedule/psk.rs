@@ -288,7 +288,7 @@ impl PskSecret {
     /// psk_secret_[i] = KDF.Extract(psk_input[i-1], psk_secret_[i-1])
     /// psk_secret     = psk_secret[n]
     /// ```
-    pub fn new(
+    pub async fn new(
         ciphersuite: Ciphersuite,
         backend: &impl OpenMlsCryptoProvider,
         psk_ids: &[PreSharedKeyId],
@@ -307,7 +307,7 @@ impl PskSecret {
                 &psk_id
                     .tls_serialize_detached()
                     .map_err(LibraryError::missing_bound_check)?,
-            ) {
+            ).await {
                 psk_bundles.push(psk_bundle);
             } else {
                 return Err(PskError::KeyNotFound);

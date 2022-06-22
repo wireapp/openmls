@@ -56,7 +56,7 @@ pub struct MessagesTestVector {
     mls_ciphertext: String,            /* serialized MLSCiphertext */
 }
 
-pub fn generate_test_vector(ciphersuite: Ciphersuite) -> MessagesTestVector {
+pub async fn generate_test_vector(ciphersuite: Ciphersuite) -> MessagesTestVector {
     let crypto = OpenMlsRustCrypto::default();
     let ciphersuite_name = ciphersuite;
     let credential_bundle = CredentialBundle::new_basic(
@@ -75,6 +75,7 @@ pub fn generate_test_vector(ciphersuite: Ciphersuite) -> MessagesTestVector {
     let mut group = CoreGroup::builder(GroupId::random(&crypto), key_package_bundle)
         .with_max_past_epoch_secrets(2)
         .build(&crypto)
+        .await
         .expect("Could not create group.");
 
     let ratchet_tree: Vec<Option<Node>> = group.treesync().export_nodes();
@@ -207,6 +208,7 @@ pub fn generate_test_vector(ciphersuite: Ciphersuite) -> MessagesTestVector {
         .build();
     let create_commit_result = group
         .create_commit(params, &crypto)
+        .await
         .expect("An unexpected error occurred.");
     group
         .merge_staged_commit(create_commit_result.staged_commit, &mut proposal_store)
@@ -227,6 +229,7 @@ pub fn generate_test_vector(ciphersuite: Ciphersuite) -> MessagesTestVector {
         joiner_key_package_bundle,
         &crypto,
     )
+    .await
     .expect("Error creating receiver group.");
 
     // Clone the secret tree to bypass FS restrictions
@@ -238,6 +241,7 @@ pub fn generate_test_vector(ciphersuite: Ciphersuite) -> MessagesTestVector {
             random_u8() as usize,
             &crypto,
         )
+        .await
         .expect("An unexpected error occurred.");
     // Replace the secret tree
     let mut verifiable_mls_plaintext_application = receiver_group
@@ -383,8 +387,8 @@ pub fn generate_test_vector(ciphersuite: Ciphersuite) -> MessagesTestVector {
     }
 }
 
-#[test]
-fn write_test_vectors_msg() {
+#[async_std::test]
+async fn write_test_vectors_msg() {
     use openmls_traits::crypto::OpenMlsCrypto;
     let mut tests = Vec::new();
     const NUM_TESTS: usize = 100;
@@ -395,7 +399,7 @@ fn write_test_vectors_msg() {
         .iter()
     {
         for _ in 0..NUM_TESTS {
-            let test = generate_test_vector(ciphersuite);
+            let test = generate_test_vector(ciphersuite).await;
             tests.push(test);
         }
     }

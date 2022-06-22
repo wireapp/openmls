@@ -1,5 +1,3 @@
-use std::mem::replace;
-
 use openmls::prelude::*;
 use openmls_rust_crypto::OpenMlsRustCrypto;
 use openmls_traits::{key_store::OpenMlsKeyStore, types::SignatureScheme, OpenMlsCryptoProvider};
@@ -11,7 +9,7 @@ pub struct Identity {
 
 /// Stores KeyPackageBundle in the crypto_backend's keystore with the hash of
 /// the keypackage as the key.
-fn store_key_package_bundle_in_keystore(
+async fn store_key_package_bundle_in_keystore(
     crypto_backend: &OpenMlsRustCrypto,
     key_package_bundle: &KeyPackageBundle,
 ) {
@@ -25,12 +23,13 @@ fn store_key_package_bundle_in_keystore(
                 .as_slice(),
             key_package_bundle,
         )
+        .await
         .expect("Failed to store KeyPackage in keystore.");
 }
 
 /// Stores CredentialBundle in the crypto_backend's keystore with the
 /// signature_key of the Credential as the key.
-fn store_credential_bundle_in_keystore(
+async fn store_credential_bundle_in_keystore(
     crypto_backend: &OpenMlsRustCrypto,
     credential_bundle: &CredentialBundle,
 ) {
@@ -44,11 +43,16 @@ fn store_credential_bundle_in_keystore(
                 .expect("Error serializing signature key"),
             credential_bundle,
         )
+        .await
         .expect("Failed to store CredentialBundle in keystore.");
 }
 
 impl Identity {
-    pub(crate) fn new(ciphersuite: Ciphersuite, crypto: &OpenMlsRustCrypto, id: &[u8]) -> Self {
+    pub(crate) async fn new(
+        ciphersuite: Ciphersuite,
+        crypto: &OpenMlsRustCrypto,
+        id: &[u8],
+    ) -> Self {
         let credential_bundle = CredentialBundle::new(
             id.to_vec(),
             CredentialType::Basic,
@@ -59,8 +63,8 @@ impl Identity {
         let key_package_bundle =
             KeyPackageBundle::new(&[ciphersuite], &credential_bundle, crypto, vec![]).unwrap();
 
-        store_key_package_bundle_in_keystore(crypto, &key_package_bundle);
-        store_credential_bundle_in_keystore(crypto, &credential_bundle);
+        store_key_package_bundle_in_keystore(crypto, &key_package_bundle).await;
+        store_credential_bundle_in_keystore(crypto, &credential_bundle).await;
         Self {
             kpb: key_package_bundle,
             credential: credential_bundle,
@@ -69,14 +73,14 @@ impl Identity {
 
     /// Update the key package bundle in this identity.
     /// The function returns the old `KeyPackageBundle`.
-    pub fn update(&mut self, crypto: &OpenMlsRustCrypto) -> KeyPackageBundle {
+    pub async fn update(&mut self, crypto: &OpenMlsRustCrypto) -> KeyPackageBundle {
         let ciphersuite = self.kpb.key_package().ciphersuite();
         let key_package_bundle =
             KeyPackageBundle::new(&[ciphersuite], &self.credential, crypto, vec![]).unwrap();
 
-        store_key_package_bundle_in_keystore(crypto, &key_package_bundle);
+        store_key_package_bundle_in_keystore(crypto, &key_package_bundle).await;
 
-        replace(&mut self.kpb, key_package_bundle)
+        std::mem::replace(&mut self.kpb, key_package_bundle)
     }
 
     /// Get the plain credential as byte vector.

@@ -6,7 +6,7 @@ use openmls_traits::types::SignatureScheme;
 use openmls_traits::OpenMlsCryptoProvider;
 use tls_codec::{TlsByteVecU8, TlsVecU16};
 
-fn generate_credential(
+async fn generate_credential(
     identity: Vec<u8>,
     credential_type: CredentialType,
     signature_scheme: SignatureScheme,
@@ -23,11 +23,12 @@ fn generate_credential(
                 .expect("Error serializing signature key"),
             &cb,
         )
+        .await
         .expect("An unexpected error occurred.");
     Ok(credential)
 }
 
-fn generate_key_package(
+async fn generate_key_package(
     ciphersuites: &[Ciphersuite],
     credential: &Credential,
     extensions: Vec<Extension>,
@@ -41,6 +42,7 @@ fn generate_key_package(
                 .tls_serialize_detached()
                 .expect("Error serializing signature key"),
         )
+        .await
         .expect("An unexpected error occurred.");
     let kpb = KeyPackageBundle::new(ciphersuites, &credential_bundle, crypto_backend, extensions)?;
     let kp = kpb.key_package().clone();
@@ -52,6 +54,7 @@ fn generate_key_package(
                 .value(),
             &kpb,
         )
+        .await
         .expect("An unexpected error occurred.");
     Ok(kp)
 }

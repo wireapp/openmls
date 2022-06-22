@@ -6,6 +6,8 @@ pub struct MemoryKeyStore {
     values: RwLock<HashMap<Vec<u8>, Vec<u8>>>,
 }
 
+#[cfg_attr(not(feature = "single-threaded"), async_trait::async_trait)]
+#[cfg_attr(feature = "single-threaded", async_trait::async_trait(?Send))]
 impl OpenMlsKeyStore for MemoryKeyStore {
     /// The error type returned by the [`OpenMlsKeyStore`].
     type Error = Error;
@@ -14,7 +16,7 @@ impl OpenMlsKeyStore for MemoryKeyStore {
     /// serialization for ID `k`.
     ///
     /// Returns an error if storing fails.
-    fn store<V: ToKeyStoreValue>(&self, k: &[u8], v: &V) -> Result<(), Self::Error> {
+    async fn store<V: ToKeyStoreValue>(&self, k: &[u8], v: &V) -> Result<(), Self::Error> {
         let value = v
             .to_key_store_value()
             .map_err(|_| Error::SerializationError)?;
@@ -30,7 +32,7 @@ impl OpenMlsKeyStore for MemoryKeyStore {
     /// [`KeyStoreValue`] trait for deserialization.
     ///
     /// Returns [`None`] if no value is stored for `k` or reading fails.
-    fn read<V: FromKeyStoreValue>(&self, k: &[u8]) -> Option<V> {
+    async fn read<V: FromKeyStoreValue>(&self, k: &[u8]) -> Option<V> {
         // We unwrap here, because the two functions claiming a write lock on
         // `init_key_package_bundles` (this one and `generate_key_package_bundle`) only
         // hold the lock very briefly and should not panic during that period.
@@ -45,7 +47,7 @@ impl OpenMlsKeyStore for MemoryKeyStore {
     /// Delete a value stored for ID `k`.
     ///
     /// Returns an error if storing fails.
-    fn delete(&self, k: &[u8]) -> Result<(), Self::Error> {
+    async fn delete<V: ToKeyStoreValue>(&self, k: &[u8]) -> Result<(), Self::Error> {
         // We just delete both ...
         let mut values = self.values.write().unwrap();
         values.remove(k);
@@ -54,21 +56,12 @@ impl OpenMlsKeyStore for MemoryKeyStore {
 }
 
 /// Errors thrown by the key store.
-#[derive(Debug, Copy, Clone, PartialEq)]
+#[derive(Debug, thiserror::Error)]
 pub enum Error {
+    #[error("The key store does not allow storing serialized values.")]
     UnsupportedValueTypeBytes,
+    #[error("Updating is not supported by this key store.")]
     UnsupportedMethod,
+    #[error("Error serializing value.")]
     SerializationError,
-}
-
-impl From<Error> for String {
-    fn from(val: Error) -> Self {
-        match val {
-            Error::UnsupportedValueTypeBytes => {
-                "The key store does not allow storing serialized values.".to_string()
-            }
-            Error::UnsupportedMethod => "Updating is not supported by this key store.".to_string(),
-            Error::SerializationError => "Error serializing value.".to_string(),
-        }
-    }
 }

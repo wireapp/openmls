@@ -9,5 +9,11 @@ documentation = "https://docs.rs/openmls_memory_keystore"
 repository = "https://github.com/openmls/openmls/tree/main/memory_keystore"
 readme = "README.md"
 
+[features]
+default = []
+single-threaded = []
+
 [dependencies]
 openmls_traits = { version = "0.1.0", path = "../traits" }
+thiserror = "1.0"
+async-trait = "0.1"

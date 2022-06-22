@@ -1,4 +1,4 @@
-use tls_codec::{Deserialize, Serialize};
+use tls_codec::Deserialize;
 
 use crate::{
     credentials::*,
@@ -12,7 +12,7 @@ use crate::{
 /// Tests the creation of a `PublicGroupState` and verifies it was correctly
 /// signed
 #[apply(ciphersuites_and_backends)]
-fn test_pgs(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider) {
+async fn test_pgs(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider) {
     let group_aad = b"Alice's test group";
     let framing_parameters = FramingParameters::new(group_aad, WireFormat::MlsPlaintext);
 
@@ -47,6 +47,7 @@ fn test_pgs(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider) {
     // Alice creates a group
     let mut group_alice = CoreGroup::builder(GroupId::random(backend), alice_key_package_bundle)
         .build(backend)
+        .await
         .expect("Could not create group.");
 
     // Alice adds Bob
@@ -68,7 +69,7 @@ fn test_pgs(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider) {
         .credential_bundle(&alice_credential_bundle)
         .proposal_store(&proposal_store)
         .build();
-    let create_commit_result = match group_alice.create_commit(params, backend) {
+    let create_commit_result = match group_alice.create_commit(params, backend).await {
         Ok(c) => c,
         Err(e) => panic!("Error creating commit: {:?}", e),
     };

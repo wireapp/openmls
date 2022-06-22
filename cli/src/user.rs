@@ -34,18 +34,18 @@ pub struct User {
 
 impl User {
     /// Create a new user with the given name and a fresh set of credentials.
-    pub fn new(username: String) -> Self {
+    pub async fn new(username: String) -> Self {
         let crypto = OpenMlsRustCrypto::default();
         let out = Self {
             username: username.clone(),
             groups: RefCell::new(HashMap::new()),
             contacts: HashMap::new(),
-            identity: RefCell::new(Identity::new(CIPHERSUITE, &crypto, username.as_bytes())),
+            identity: RefCell::new(Identity::new(CIPHERSUITE, &crypto, username.as_bytes()).await),
             backend: Backend::default(),
             crypto,
         };
 
-        match out.backend.register_client(&out) {
+        match out.backend.register_client(&out).await {
             Ok(r) => log::debug!("Created new user: {:?}", r),
             Err(e) => log::error!("Error creating user: {:?}", e),
         }
@@ -97,7 +97,7 @@ impl User {
     }
 
     /// Send an application message to the group.
-    pub fn send_msg(&self, msg: &str, group: String) -> Result<(), String> {
+    pub async fn send_msg(&self, msg: &str, group: String) -> Result<(), String> {
         let groups = self.groups.borrow();
         let group = match groups.get(group.as_bytes()) {
             Some(g) => g,
@@ -108,11 +108,12 @@ impl User {
             .mls_group
             .borrow_mut()
             .create_message(&self.crypto, msg.as_bytes())
+            .await
             .map_err(|e| format!("{}", e))?;
 
         let msg = GroupMessage::new(message_out.into(), &self.recipients(group));
         log::debug!(" >>> send: {:?}", msg);
-        let _response = self.backend.send_msg(&msg)?;
+        let _response = self.backend.send_msg(&msg).await?;
 
         // XXX: Need to update the client's local view of the conversation to include
         // the message they sent.
@@ -123,18 +124,18 @@ impl User {
     /// Update the user. This involves:
     /// * retrieving all new messages from the server
     /// * update the contacts with all other clients known to the server
-    pub fn update(&mut self, group_name: Option<String>) -> Result<Vec<String>, String> {
+    pub async fn update(&mut self, group_name: Option<String>) -> Result<Vec<String>, String> {
         log::debug!("Updating {} ...", self.username);
 
         let mut messages_out = Vec::new();
 
         // Go through the list of messages and process or store them.
-        for message in self.backend.recv_msgs(self)?.drain(..) {
+        for message in self.backend.recv_msgs(self).await?.drain(..) {
             match message {
                 Message::Welcome(welcome) => {
                     // Join the group. (Later we should ask the user to
                     // approve first ...)
-                    self.join_group(welcome)?;
+                    self.join_group(welcome).await?;
                 }
                 Message::MlsMessage(message) => {
                     let mut groups = self.groups.borrow_mut();
@@ -159,11 +160,10 @@ impl User {
                         }
                     };
 
-                    let processed_message = match mls_group.process_unverified_message(
-                        unverified_message,
-                        None,
-                        &self.crypto,
-                    ) {
+                    let processed_message = match mls_group
+                        .process_unverified_message(unverified_message, None, &self.crypto)
+                        .await
+                    {
                         Ok(msg) => msg,
                         Err(e) => {
                             log::error!(
@@ -199,7 +199,7 @@ impl User {
         }
         log::trace!("done with messages ...");
 
-        for c in self.backend.list_clients()?.drain(..) {
+        for c in self.backend.list_clients().await?.drain(..) {
             if c.id != self.identity.borrow().credential.credential().identity()
                 && self
                     .contacts
@@ -222,12 +222,12 @@ impl User {
     }
 
     /// Create a group with the given name.
-    pub fn create_group(&mut self, name: String) {
+    pub async fn create_group(&mut self, name: String) {
         log::debug!("{} creates group {}", self.username, name);
         let group_id = name.as_bytes();
         let mut group_aad = group_id.to_vec();
         group_aad.extend(b" AAD");
-        let kpb = self.identity.borrow_mut().update(&self.crypto);
+        let kpb = self.identity.borrow_mut().update(&self.crypto).await;
 
         // NOTE: Since the DS currently doesn't distribute copies of the group's ratchet
         // tree, we need to include the ratchet_tree_extension.
@@ -244,6 +244,7 @@ impl User {
                 .expect("Failed to hash KeyPackage.")
                 .as_slice(),
         )
+        .await
         .expect("Failed to create MlsGroup");
         mls_group.set_aad(group_aad.as_slice());
 
@@ -263,7 +264,7 @@ impl User {
     }
 
     /// Invite user with the given name to the group.
-    pub fn invite(&mut self, name: String, group: String) -> Result<(), String> {
+    pub async fn invite(&mut self, name: String, group: String) -> Result<(), String> {
         // First we need to get the key package for {id} from the DS.
         // We just take the first key package we get back from the server.
         let contact = match self.contacts.values().find(|c| c.username == name) {
@@ -273,6 +274,7 @@ impl User {
         let (_hash, joiner_key_package) = self
             .backend
             .get_client(&contact.id)
+            .await
             .unwrap()
             .0
             .pop()
@@ -290,6 +292,7 @@ impl User {
             .mls_group
             .borrow_mut()
             .add_members(&self.crypto, &[joiner_key_package])
+            .await
             .map_err(|e| format!("Failed to add member to group - {}", e))?;
 
         // First, process the invitation on our end.
@@ -303,6 +306,7 @@ impl User {
         log::trace!("Sending welcome");
         self.backend
             .send_welcome(&welcome)
+            .await
             .expect("Error sending Welcome message");
 
         // Finally, send the MlsMessages to the group.
@@ -311,13 +315,13 @@ impl User {
         let group_recipients = self.recipients(group);
 
         let msg = GroupMessage::new(out_messages.into(), &group_recipients);
-        self.backend.send_msg(&msg)?;
+        self.backend.send_msg(&msg).await?;
 
         Ok(())
     }
 
     /// Join a group with the provided welcome message.
-    fn join_group(&self, welcome: Welcome) -> Result<(), String> {
+    async fn join_group(&self, welcome: Welcome) -> Result<(), String> {
         log::debug!("{} joining group ...", self.username);
 
         // NOTE: Since the DS currently doesn't distribute copies of the group's ratchet
@@ -326,6 +330,7 @@ impl User {
             .use_ratchet_tree_extension(true)
             .build();
         let mut mls_group = MlsGroup::new_from_welcome(&self.crypto, &group_config, welcome, None)
+            .await
             .expect("Failed to create MlsGroup");
 
         let group_id = mls_group.group_id().to_vec();
