@@ -303,11 +303,15 @@ impl PskSecret {
         // Fetch the PskBundles from the key store and make sure we have all of them
         let mut psk_bundles: Vec<PskBundle> = Vec::new();
         for psk_id in psk_ids {
-            if let Some(psk_bundle) = backend.key_store().read(
-                &psk_id
-                    .tls_serialize_detached()
-                    .map_err(LibraryError::missing_bound_check)?,
-            ).await {
+            if let Some(psk_bundle) = backend
+                .key_store()
+                .read(
+                    &psk_id
+                        .tls_serialize_detached()
+                        .map_err(LibraryError::missing_bound_check)?,
+                )
+                .await
+            {
                 psk_bundles.push(psk_bundle);
             } else {
                 return Err(PskError::KeyNotFound);

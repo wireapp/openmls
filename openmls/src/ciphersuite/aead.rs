@@ -52,15 +52,13 @@ impl AeadKey {
         aad: &[u8],
         nonce: &AeadNonce,
     ) -> Result<Vec<u8>, CryptoError> {
-        backend
-            .crypto()
-            .aead_encrypt(
-                self.aead_mode,
-                self.value.as_slice(),
-                msg,
-                &nonce.value,
-                aad,
-            )
+        backend.crypto().aead_encrypt(
+            self.aead_mode,
+            self.value.as_slice(),
+            msg,
+            &nonce.value,
+            aad,
+        )
     }
 
     /// AEAD decrypt `ciphertext` with `key`, `aad`, and `nonce`.

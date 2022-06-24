@@ -8,7 +8,7 @@ use rstest::*;
 use rstest_reuse::{self, *};
 use tls_codec::{Deserialize, Serialize};
 
-use crate::prelude::ExternalProposal;
+use super::utils::{generate_credential_bundle, generate_key_package_bundle};
 use crate::{
     ciphersuite::{hash_ref::ProposalRef, signable::Signable, *},
     credentials::*,
@@ -22,11 +22,10 @@ use crate::{
         proposals::{AddProposal, Proposal, ProposalOrRef, RemoveProposal, UpdateProposal},
         Welcome,
     },
+    prelude::ExternalProposal,
     treesync::errors::ApplyUpdatePathError,
     versions::ProtocolVersion,
 };
-
-use super::utils::{generate_credential_bundle, generate_key_package_bundle};
 
 /// Helper function to generate and output CredentialBundle and KeyPackageBundle
 async fn generate_credential_bundle_and_key_package_bundle(
@@ -1700,12 +1699,9 @@ async fn test_valsem109(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoPr
     // proposal by bob that changes his identity.
 
     // We begin by creating a KPB with a different identity.
-    let new_cb = CredentialBundle::new_basic(
-        "Bobby".into(),
-        ciphersuite.signature_algorithm(),
-        backend,
-    )
-    .expect("error creating credential bundle");
+    let new_cb =
+        CredentialBundle::new_basic("Bobby".into(), ciphersuite.signature_algorithm(), backend)
+            .expect("error creating credential bundle");
     let bob_kp = bob_group
         .group()
         .treesync()
@@ -2284,10 +2280,6 @@ async fn test_valsem113(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoPr
     // Bob (not in the group) crafts an external proposal to request addition to Alice's group
     let external_add_proposal = ExternalProposal::new_add(
         bob_key_package,
-        // We can't test with sender type Preconfigured, since that currently panics
-        // with `unimplemented`.
-        // TODO This test should thus be extended when fixing #106.
-        None,
         alice_group.group_id().clone(),
         alice_group.epoch(),
         &bob_credential_bundle,
@@ -2322,5 +2314,171 @@ async fn test_valsem113(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoPr
     );
 }
 
-#[test]
-fn odwif() {}
+#[apply(ciphersuites_and_backends)]
+async fn test_valsem114(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider) {
+    let group_id = GroupId::from_slice(b"Test Group");
+    // Generate credential bundles
+    let credential = generate_credential_bundle(
+        "Alice".into(),
+        CredentialType::Basic,
+        ciphersuite.signature_algorithm(),
+        backend,
+    )
+    .await
+    .unwrap();
+
+    // Generate KeyPackages
+    let key_package = generate_key_package_bundle(&[ciphersuite], &credential, vec![], backend)
+        .await
+        .unwrap();
+
+    // delivery service credentials. DS will craft an external remove proposal
+    let ds_credential_bundle =
+        CredentialBundle::new_basic(b"delivery-service".to_vec(), ciphersuite.into(), backend)
+            .unwrap();
+
+    // Define the MlsGroup configuration
+    let mls_group_config = MlsGroupConfig::builder()
+        .wire_format_policy(PURE_PLAINTEXT_WIRE_FORMAT_POLICY)
+        .external_senders(vec![ds_credential_bundle.credential().to_owned()])
+        .build();
+
+    let kpr = key_package
+        .hash_ref(backend.crypto())
+        .expect("Could not hash KeyPackage.");
+
+    let mut alice_group = MlsGroup::new(backend, &mls_group_config, group_id, kpr.as_slice())
+        .await
+        .unwrap();
+
+    // DS is an allowed external sender of the group
+    assert!(alice_group
+        .group()
+        .group_context_extensions()
+        .iter()
+        .any(|e| matches!(e, Extension::ExternalSenders(ExternalSendersExtension { senders }) if senders.iter().any(|s| s == ds_credential_bundle.credential()) )));
+
+    // Generate credential bundles
+    let bob_credential = generate_credential_bundle(
+        "Bob".into(),
+        CredentialType::Basic,
+        ciphersuite.signature_algorithm(),
+        backend,
+    )
+    .await
+    .unwrap();
+
+    // Generate KeyPackages
+    let bob_key_package =
+        generate_key_package_bundle(&[ciphersuite], &bob_credential, vec![], backend)
+            .await
+            .unwrap();
+
+    // Adding Bob to the group
+    let (_, welcome) = alice_group
+        .add_members(backend, &[bob_key_package])
+        .await
+        .unwrap();
+    alice_group.merge_pending_commit().unwrap();
+
+    // Alice & Bob are in the group
+    assert_eq!(alice_group.members().len(), 2);
+
+    let bob_group = MlsGroup::new_from_welcome(
+        backend,
+        &MlsGroupConfig::default(),
+        welcome,
+        Some(alice_group.export_ratchet_tree()),
+    )
+    .await
+    .unwrap();
+    assert_eq!(bob_group.members().len(), 2);
+    // Bob has external senders after joining from Welcome message
+    assert!(bob_group
+        .group()
+        .group_context_extensions()
+        .iter()
+        .any(|e| matches!(e, Extension::ExternalSenders(ExternalSendersExtension { senders }) if senders.iter().any(|s| s == ds_credential_bundle.credential()) )));
+
+    let bob_kpr = bob_group.key_package_ref().unwrap();
+
+    // Now Delivery Service wants to (already) remove Bob
+    let bob_external_remove_proposal = ExternalProposal::new_remove(
+        bob_kpr.clone(),
+        bob_group.group_id().clone(),
+        bob_group.epoch(),
+        &ds_credential_bundle,
+        backend,
+    )
+    .unwrap();
+
+    // Some negative tests first before epoch advances
+
+    // Alice should not accept external proposal with wrong signature key (simulates signature not in external senders)
+    let proposal = alice_group
+        .parse_message(bob_external_remove_proposal.clone().into(), backend)
+        .unwrap();
+    // Fails because proposal was actually signed by DS, not Bob
+    assert_eq!(
+        alice_group
+            .process_unverified_message(
+                proposal.clone(),
+                Some(bob_credential.signature_key()),
+                backend
+            )
+            .await
+            .unwrap_err(),
+        UnverifiedMessageError::InvalidSignature
+    );
+
+    // Then some positive tests
+
+    // Alice validates the message
+    let proposal = alice_group
+        .parse_message(bob_external_remove_proposal.clone().into(), backend)
+        .unwrap();
+
+    // Alice should not require a signature key. She should iterate those present in [ExternalSendersExtension]
+    // and if one matches the message is verified.
+    // Here she has DS signature key in her extensions
+    alice_group
+        .process_unverified_message(proposal.clone(), None, backend)
+        .await
+        .unwrap();
+
+    // commit the proposal
+    alice_group.store_pending_proposal(
+        QueuedProposal::from_mls_message(
+            ciphersuite,
+            backend,
+            bob_external_remove_proposal.clone().mls_message,
+        )
+        .unwrap(),
+    );
+    alice_group
+        .commit_to_pending_proposals(backend)
+        .await
+        .unwrap();
+    alice_group.merge_pending_commit().unwrap();
+
+    // Bob is no longer in the group
+    assert_eq!(alice_group.members().len(), 1);
+
+    // Trying to do an external remove proposal of Bob now should fail as he no longer is in the group
+    let invalid_bob_external_remove_proposal = ExternalProposal::new_remove(
+        // Bob is no longer in the group
+        bob_kpr.clone(),
+        alice_group.group_id().clone(),
+        alice_group.epoch(),
+        &ds_credential_bundle,
+        backend,
+    )
+    .unwrap();
+
+    assert_eq!(
+        alice_group
+            .parse_message(invalid_bob_external_remove_proposal.clone().into(), backend)
+            .unwrap_err(),
+        ParseMessageError::ValidationError(ValidationError::UnknownMemberFromExternal)
+    );
+}

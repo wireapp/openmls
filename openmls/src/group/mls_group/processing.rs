@@ -60,13 +60,15 @@ impl MlsGroup {
         signature_key: Option<&SignaturePublicKey>,
         backend: &impl OpenMlsCryptoProvider,
     ) -> Result<ProcessedMessage, UnverifiedMessageError> {
-        self.group.process_unverified_message(
-            unverified_message,
-            signature_key,
-            &self.proposal_store,
-            &self.own_kpbs,
-            backend,
-        ).await
+        self.group
+            .process_unverified_message(
+                unverified_message,
+                signature_key,
+                &self.proposal_store,
+                &self.own_kpbs,
+                backend,
+            )
+            .await
     }
 
     /// Stores a standalone proposal in the internal [ProposalStore]

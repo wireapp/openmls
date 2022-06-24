@@ -153,10 +153,7 @@ impl CoreGroup {
             .map_err(LibraryError::missing_bound_check)?;
         let path_processing_result =
         // If path is needed, compute path values
-            if apply_proposals_values.path_required
-                || contains_own_updates
-                || params.force_self_update()
-            {
+            if apply_proposals_values.path_required || contains_own_updates || params.force_self_update() {
                 // Derive and apply an update path based on the previously
                 // generated KeyPackageBundle.
                 let (key_package, plain_path, commit_secret) = diff.apply_own_update_path(
@@ -265,7 +262,8 @@ impl CoreGroup {
             ciphersuite,
             backend,
             apply_proposals_values.presharedkeys.psks(),
-        ).await?;
+        )
+        .await?;
 
         // Create key schedule
         let mut key_schedule = KeySchedule::init(ciphersuite, backend, joiner_secret, psk_secret)?;

@@ -124,7 +124,11 @@ impl MlsGroupTestSetup {
     /// `MlsGroupConfig` and the given number of clients. For lifetime
     /// reasons, `create_clients` has to be called in addition with the same
     /// number of clients.
-    pub async fn new(default_mgc: MlsGroupConfig, number_of_clients: usize, use_codec: CodecUse) -> Self {
+    pub async fn new(
+        default_mgc: MlsGroupConfig,
+        number_of_clients: usize,
+        use_codec: CodecUse,
+    ) -> Self {
         let mut clients = HashMap::new();
         for i in 0..number_of_clients {
             let identity = i.to_be_bytes().to_vec();
@@ -258,11 +262,13 @@ impl MlsGroupTestSetup {
                 .expect("An unexpected error occurred.")
                 .read()
                 .expect("An unexpected error occurred.");
-            client.join_group(
-                group.group_config.clone(),
-                welcome.clone(),
-                Some(group.public_tree.clone()),
-            ).await?;
+            client
+                .join_group(
+                    group.group_config.clone(),
+                    welcome.clone(),
+                    Some(group.public_tree.clone()),
+                )
+                .await?;
         }
         Ok(())
     }
@@ -304,7 +310,11 @@ impl MlsGroupTestSetup {
                 .read()
                 .expect("An unexpected error occurred.");
 
-            results.push(member.receive_messages_for_group(&message, sender_id).await?);
+            results.push(
+                member
+                    .receive_messages_for_group(&message, sender_id)
+                    .await?,
+            );
         }
 
         // Get the current tree and figure out who's still in the group.
@@ -428,7 +438,9 @@ impl MlsGroupTestSetup {
         let mut groups = self.groups.write().expect("An unexpected error occurred.");
         let group_id = GroupId::from_slice(&groups.len().to_string().into_bytes());
 
-        group_creator.create_group(group_id.clone(), self.default_mgc.clone(), ciphersuite).await?;
+        group_creator
+            .create_group(group_id.clone(), self.default_mgc.clone(), ciphersuite)
+            .await?;
         let creator_groups = group_creator
             .groups
             .read()
@@ -475,7 +487,8 @@ impl MlsGroupTestSetup {
             // Add between 1 and 5 new members.
             let number_of_adds = ((OsRng.next_u32() as usize) % 5 % new_members.len()) + 1;
             let members_to_add = new_members.drain(0..number_of_adds).collect();
-            self.add_clients(ActionType::Commit, group, &adder_id, members_to_add).await?;
+            self.add_clients(ActionType::Commit, group, &adder_id, members_to_add)
+                .await?;
         }
         Ok(group_id)
     }
@@ -496,9 +509,11 @@ impl MlsGroupTestSetup {
             .ok_or(SetupError::UnknownClientId)?
             .read()
             .expect("An unexpected error occurred.");
-        let (messages, welcome_option) =
-            client.self_update(action_type, &group.group_id, key_package_bundle_option).await?;
-        self.distribute_to_members(&client.identity, group, &messages).await?;
+        let (messages, welcome_option) = client
+            .self_update(action_type, &group.group_id, key_package_bundle_option)
+            .await?;
+        self.distribute_to_members(&client.identity, group, &messages)
+            .await?;
         if let Some(welcome) = welcome_option {
             self.deliver_welcome(welcome, group).await?;
         }
@@ -538,11 +553,14 @@ impl MlsGroupTestSetup {
                 .ok_or(SetupError::UnknownClientId)?
                 .read()
                 .expect("An unexpected error occurred.");
-            let key_package = self.get_fresh_key_package(&addee, group.ciphersuite).await?;
+            let key_package = self
+                .get_fresh_key_package(&addee, group.ciphersuite)
+                .await?;
             key_packages.push(key_package);
         }
-        let (messages, welcome_option) =
-            adder.add_members(action_type, &group.group_id, &key_packages).await?;
+        let (messages, welcome_option) = adder
+            .add_members(action_type, &group.group_id, &key_packages)
+            .await?;
         for message in &messages {
             self.distribute_to_members(adder_id, group, message).await?;
         }
@@ -569,10 +587,12 @@ impl MlsGroupTestSetup {
             .ok_or(SetupError::UnknownClientId)?
             .read()
             .expect("An unexpected error occurred.");
-        let (messages, welcome_option) =
-            remover.remove_members(action_type, &group.group_id, target_members).await?;
+        let (messages, welcome_option) = remover
+            .remove_members(action_type, &group.group_id, target_members)
+            .await?;
         for message in &messages {
-            self.distribute_to_members(remover_id, group, message).await?;
+            self.distribute_to_members(remover_id, group, message)
+                .await?;
         }
         if let Some(welcome) = welcome_option {
             self.deliver_welcome(welcome, group).await?;
@@ -603,7 +623,8 @@ impl MlsGroupTestSetup {
                     "Perfoming a self-update with action type: {:?}",
                     action_type
                 );
-                self.self_update(action_type, group, &member_id, None).await?;
+                self.self_update(action_type, group, &member_id, None)
+                    .await?;
             }
             1 => {
                 // If it's a single-member group, don't remove anyone.
@@ -662,7 +683,8 @@ impl MlsGroupTestSetup {
                         );
                         target_member_identities.push(identity);
                     }
-                    self.remove_clients(action_type, group, &member_id, &target_member_ids).await?
+                    self.remove_clients(action_type, group, &member_id, &target_member_ids)
+                        .await?
                 };
             }
             2 => {
@@ -683,7 +705,8 @@ impl MlsGroupTestSetup {
                         action_type, new_member_ids
                     );
                     // Have the adder add them to the group.
-                    self.add_clients(action_type, group, &member_id, new_member_ids).await?;
+                    self.add_clients(action_type, group, &member_id, new_member_ids)
+                        .await?;
                 }
             }
             _ => return Err(SetupError::Unknown),

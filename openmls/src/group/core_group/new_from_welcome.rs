@@ -61,13 +61,13 @@ impl CoreGroup {
         let joiner_secret = group_secrets.joiner_secret;
 
         // Prepare the PskSecret
-        let psk_secret = PskSecret::new(ciphersuite, backend, group_secrets.psks.psks()).await.map_err(
-            |e| match e {
+        let psk_secret = PskSecret::new(ciphersuite, backend, group_secrets.psks.psks())
+            .await
+            .map_err(|e| match e {
                 PskError::LibraryError(e) => e.into(),
                 PskError::TooManyKeys => WelcomeError::PskTooManyKeys,
                 PskError::KeyNotFound => WelcomeError::PskNotFound,
-            },
-        )?;
+            })?;
 
         // Create key schedule
         let mut key_schedule = KeySchedule::init(ciphersuite, backend, joiner_secret, psk_secret)?;

@@ -1,16 +1,11 @@
-use crate::test_utils::*;
-use openmls_rust_crypto::OpenMlsRustCrypto;
-use openmls_traits::{types::Ciphersuite, OpenMlsCryptoProvider};
-
 use crate::{
     ciphersuite::{
         hash_ref::{KeyPackageRef, ProposalRef},
         Secret,
     },
-    credentials::{CredentialBundle},
+    credentials::CredentialBundle,
     extensions::{Extension, ExtensionType, ExternalKeyIdExtension, RequiredCapabilitiesExtension},
-    framing::sender::Sender,
-    framing::{FramingParameters, MlsPlaintext, WireFormat},
+    framing::{sender::Sender, FramingParameters, MlsPlaintext, WireFormat},
     group::{
         create_commit_params::CreateCommitParams,
         errors::*,
@@ -20,7 +15,11 @@ use crate::{
     key_packages::{errors::KeyPackageExtensionSupportError, KeyPackageBundle},
     messages::proposals::{AddProposal, Proposal, ProposalOrRef, ProposalType},
     schedule::MembershipKey,
+    test_utils::*,
 };
+use openmls_rust_crypto::OpenMlsRustCrypto;
+use openmls_traits::{types::Ciphersuite, OpenMlsCryptoProvider};
+
 use tls_codec::Serialize;
 
 use super::CoreGroup;
@@ -30,12 +29,9 @@ fn setup_client(
     ciphersuite: Ciphersuite,
     backend: &impl OpenMlsCryptoProvider,
 ) -> (CredentialBundle, KeyPackageBundle) {
-    let credential_bundle = CredentialBundle::new_basic(
-        id.into(),
-        ciphersuite.signature_algorithm(),
-        backend,
-    )
-    .expect("An unexpected error occurred.");
+    let credential_bundle =
+        CredentialBundle::new_basic(id.into(), ciphersuite.signature_algorithm(), backend)
+            .expect("An unexpected error occurred.");
     let key_package_bundle =
         KeyPackageBundle::new(&[ciphersuite], &credential_bundle, backend, Vec::new())
             .expect("An unexpected error occurred.");

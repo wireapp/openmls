@@ -144,7 +144,7 @@ impl SignedStruct<PublicGroupStateTbs> for PublicGroupState {
     }
 }
 
-impl<'a> Verifiable for VerifiablePublicGroupState {
+impl Verifiable for VerifiablePublicGroupState {
     fn unsigned_payload(&self) -> Result<Vec<u8>, tls_codec::Error> {
         self.tbs.tls_serialize_detached()
     }

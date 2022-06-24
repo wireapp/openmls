@@ -371,7 +371,9 @@ impl KeyPackage {
         credential_bundle: &CredentialBundle,
         extensions: Vec<Extension>,
     ) -> Result<Self, KeyPackageNewError> {
-        if Ok(SignatureScheme::from(ciphersuite)) != credential_bundle.credential().signature_scheme() {
+        if Ok(SignatureScheme::from(ciphersuite))
+            != credential_bundle.credential().signature_scheme()
+        {
             return Err(KeyPackageNewError::CiphersuiteSignatureSchemeMismatch);
         }
         let key_package = KeyPackagePayload {
@@ -596,7 +598,9 @@ impl KeyPackageBundle {
             return Err(error);
         }
 
-        if Ok(SignatureScheme::from(ciphersuites[0])) != credential_bundle.credential().signature_scheme() {
+        if Ok(SignatureScheme::from(ciphersuites[0]))
+            != credential_bundle.credential().signature_scheme()
+        {
             return Err(KeyPackageBundleNewError::CiphersuiteSignatureSchemeMismatch);
         }
 

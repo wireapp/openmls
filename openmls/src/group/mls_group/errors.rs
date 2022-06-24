@@ -8,6 +8,7 @@
 use crate::{
     error::LibraryError,
     group::errors::{CreateCommitError, StageCommitError, ValidationError},
+    prelude::ProposalType,
 };
 use thiserror::Error;
 
@@ -94,6 +95,15 @@ pub enum UnverifiedMessageError {
     /// A signature key was not provided for a preconfigured message.
     #[error("A signature key was not provided for a preconfigured message.")]
     MissingSignatureKey,
+    /// Sender from external message is not in the granted external senders for this group
+    #[error("Unauthorized external preconfigured sender '{0:?}'")]
+    UnauthorizedPreconfiguredSender(Vec<u8>),
+    /// External senders cannot send application messages
+    #[error("External senders cannot send application messages")]
+    UnauthorizedExternalApplicationMessage,
+    /// External proposal cannot be of this type
+    #[error("External proposal of type {0} is not allowed in an external message")]
+    IllegalExternalProposal(ProposalType),
     /// See [`StageCommitError`] for more details.
     #[error(transparent)]
     InvalidCommit(#[from] StageCommitError),

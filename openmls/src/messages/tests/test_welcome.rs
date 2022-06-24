@@ -3,7 +3,7 @@
 use crate::{
     ciphersuite::hash_ref::KeyPackageRef,
     ciphersuite::{signable::Signable, AeadKey, AeadNonce, Mac, Secret},
-    credentials::{CredentialBundle},
+    credentials::CredentialBundle,
     group::GroupId,
     messages::{ConfirmationTag, EncryptedGroupSecrets, GroupInfoPayload, Welcome},
     versions::ProtocolVersion,
@@ -48,12 +48,9 @@ fn test_welcome_message_with_version(
     );
 
     // We need a credential bundle to sign the group info.
-    let credential_bundle = CredentialBundle::new_basic(
-        "XXX".into(),
-        ciphersuite.signature_algorithm(),
-        backend,
-    )
-    .expect("An unexpected error occurred.");
+    let credential_bundle =
+        CredentialBundle::new_basic("XXX".into(), ciphersuite.signature_algorithm(), backend)
+            .expect("An unexpected error occurred.");
     let group_info = group_info
         .sign(backend, &credential_bundle)
         .expect("Error signing GroupInfo");
