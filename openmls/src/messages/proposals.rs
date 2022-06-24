@@ -18,6 +18,7 @@ use crate::{
 use openmls_traits::{types::Ciphersuite, OpenMlsCryptoProvider};
 use serde::{Deserialize, Serialize};
 use std::convert::TryFrom;
+use std::fmt::Formatter;
 use tls_codec::{
     Serialize as TlsSerializeTrait, TlsByteVecU16, TlsDeserialize, TlsSerialize, TlsSize, TlsVecU32,
 };
@@ -84,6 +85,12 @@ impl TryFrom<u16> for ProposalType {
             8 => Ok(ProposalType::GroupContextExtensions),
             _ => Err("Unknown proposal type."),
         }
+    }
+}
+
+impl std::fmt::Display for ProposalType {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{:?}", self)
     }
 }
 
@@ -267,7 +274,7 @@ pub struct GroupContextExtensionProposal {
 
 impl GroupContextExtensionProposal {
     /// Create a new [`GroupContextExtensionProposal`].
-    #[cfg(test)]
+    #[cfg(any(feature = "test-utils", test))]
     pub(crate) fn new(extensions: &[Extension]) -> Self {
         Self {
             extensions: extensions.into(),

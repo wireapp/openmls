@@ -12,24 +12,21 @@ use openmls_rust_crypto::OpenMlsRustCrypto;
 use tls_codec::Serialize;
 
 #[apply(ciphersuites_and_backends)]
-async fn create_commit_optional_path(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider) {
+async fn create_commit_optional_path(
+    ciphersuite: Ciphersuite,
+    backend: &impl OpenMlsCryptoProvider,
+) {
     let group_aad = b"Alice's test group";
     // Framing parameters
     let framing_parameters = FramingParameters::new(group_aad, WireFormat::MlsPlaintext);
 
     // Define identities
-    let alice_credential_bundle = CredentialBundle::new_basic(
-        "Alice".into(),
-        ciphersuite.signature_algorithm(),
-        backend,
-    )
-    .expect("An unexpected error occurred.");
-    let bob_credential_bundle = CredentialBundle::new_basic(
-        "Bob".into(),
-        ciphersuite.signature_algorithm(),
-        backend,
-    )
-    .expect("An unexpected error occurred.");
+    let alice_credential_bundle =
+        CredentialBundle::new_basic("Alice".into(), ciphersuite.signature_algorithm(), backend)
+            .expect("An unexpected error occurred.");
+    let bob_credential_bundle =
+        CredentialBundle::new_basic("Bob".into(), ciphersuite.signature_algorithm(), backend)
+            .expect("An unexpected error occurred.");
 
     // Mandatory extensions, will be fixed in #164
     let lifetime_extension = Extension::LifeTime(LifetimeExtension::new(60));
@@ -66,7 +63,8 @@ async fn create_commit_optional_path(ciphersuite: Ciphersuite, backend: &impl Op
     // Alice creates a group
     let mut group_alice = CoreGroup::builder(GroupId::random(backend), alice_key_package_bundle)
         .build(backend)
-        .await.expect("Error creating CoreGroup.");
+        .await
+        .expect("Error creating CoreGroup.");
 
     // Alice proposes to add Bob with forced self-update
     // Even though there are only Add Proposals, this should generated a path field
@@ -90,11 +88,13 @@ async fn create_commit_optional_path(ciphersuite: Ciphersuite, backend: &impl Op
         .credential_bundle(&alice_credential_bundle)
         .proposal_store(&proposal_store)
         .build();
-    let create_commit_result =
-        match group_alice.create_commit(params /* No PSK fetcher */, backend).await {
-            Ok(c) => c,
-            Err(e) => panic!("Error creating commit: {:?}", e),
-        };
+    let create_commit_result = match group_alice
+        .create_commit(params /* No PSK fetcher */, backend)
+        .await
+    {
+        Ok(c) => c,
+        Err(e) => panic!("Error creating commit: {:?}", e),
+    };
     let commit = match create_commit_result.commit.content() {
         MlsPlaintextContentType::Commit(commit) => commit,
         _ => panic!(),
@@ -150,7 +150,9 @@ async fn create_commit_optional_path(ciphersuite: Ciphersuite, backend: &impl Op
         Some(ratchet_tree),
         bob_key_package_bundle,
         backend,
-    ).await {
+    )
+    .await
+    {
         Ok(group) => group,
         Err(e) => panic!("Error creating group from Welcome: {:?}", e),
     };
@@ -206,18 +208,12 @@ async fn basic_group_setup(ciphersuite: Ciphersuite, backend: &impl OpenMlsCrypt
     let framing_parameters = FramingParameters::new(group_aad, WireFormat::MlsPlaintext);
 
     // Define credential bundles
-    let alice_credential_bundle = CredentialBundle::new_basic(
-        "Alice".into(),
-        ciphersuite.signature_algorithm(),
-        backend,
-    )
-    .expect("An unexpected error occurred.");
-    let bob_credential_bundle = CredentialBundle::new_basic(
-        "Bob".into(),
-        ciphersuite.signature_algorithm(),
-        backend,
-    )
-    .expect("An unexpected error occurred.");
+    let alice_credential_bundle =
+        CredentialBundle::new_basic("Alice".into(), ciphersuite.signature_algorithm(), backend)
+            .expect("An unexpected error occurred.");
+    let bob_credential_bundle =
+        CredentialBundle::new_basic("Bob".into(), ciphersuite.signature_algorithm(), backend)
+            .expect("An unexpected error occurred.");
 
     // Generate KeyPackages
     let bob_key_package_bundle =
@@ -236,7 +232,8 @@ async fn basic_group_setup(ciphersuite: Ciphersuite, backend: &impl OpenMlsCrypt
     // Alice creates a group
     let group_alice = CoreGroup::builder(GroupId::random(backend), alice_key_package_bundle)
         .build(backend)
-        .await.expect("Error creating CoreGroup.");
+        .await
+        .expect("Error creating CoreGroup.");
 
     // Alice adds Bob
     let bob_add_proposal = group_alice
@@ -258,7 +255,10 @@ async fn basic_group_setup(ciphersuite: Ciphersuite, backend: &impl OpenMlsCrypt
         .credential_bundle(&alice_credential_bundle)
         .proposal_store(&proposal_store)
         .build();
-    let _commit = match group_alice.create_commit(params /* PSK fetcher */, backend).await {
+    let _commit = match group_alice
+        .create_commit(params /* PSK fetcher */, backend)
+        .await
+    {
         Ok(c) => c,
         Err(e) => panic!("Error creating commit: {:?}", e),
     };
@@ -284,18 +284,12 @@ async fn group_operations(ciphersuite: Ciphersuite, backend: &impl OpenMlsCrypto
     let sender_ratchet_configuration = SenderRatchetConfiguration::default();
 
     // Define credential bundles
-    let alice_credential_bundle = CredentialBundle::new_basic(
-        "Alice".into(),
-        ciphersuite.signature_algorithm(),
-        backend,
-    )
-    .expect("An unexpected error occurred.");
-    let bob_credential_bundle = CredentialBundle::new_basic(
-        "Bob".into(),
-        ciphersuite.signature_algorithm(),
-        backend,
-    )
-    .expect("An unexpected error occurred.");
+    let alice_credential_bundle =
+        CredentialBundle::new_basic("Alice".into(), ciphersuite.signature_algorithm(), backend)
+            .expect("An unexpected error occurred.");
+    let bob_credential_bundle =
+        CredentialBundle::new_basic("Bob".into(), ciphersuite.signature_algorithm(), backend)
+            .expect("An unexpected error occurred.");
 
     // Mandatory extensions
     let capabilities_extension = Extension::Capabilities(CapabilitiesExtension::new(
@@ -328,7 +322,8 @@ async fn group_operations(ciphersuite: Ciphersuite, backend: &impl OpenMlsCrypto
     // === Alice creates a group ===
     let mut group_alice = CoreGroup::builder(GroupId::random(backend), alice_key_package_bundle)
         .build(backend)
-        .await.expect("Error creating CoreGroup.");
+        .await
+        .expect("Error creating CoreGroup.");
 
     // === Alice adds Bob ===
     let bob_add_proposal = group_alice
@@ -353,7 +348,8 @@ async fn group_operations(ciphersuite: Ciphersuite, backend: &impl OpenMlsCrypto
         .build();
     let create_commit_result = group_alice
         .create_commit(params, backend)
-        .await.expect("Error creating commit");
+        .await
+        .expect("Error creating commit");
     let commit = match create_commit_result.commit.content() {
         MlsPlaintextContentType::Commit(commit) => commit,
         _ => panic!("Wrong content type"),
@@ -374,7 +370,9 @@ async fn group_operations(ciphersuite: Ciphersuite, backend: &impl OpenMlsCrypto
         Some(ratchet_tree),
         bob_key_package_bundle,
         backend,
-    ).await {
+    )
+    .await
+    {
         Ok(group) => group,
         Err(e) => panic!("Error creating group from Welcome: {:?}", e),
     };
@@ -393,7 +391,8 @@ async fn group_operations(ciphersuite: Ciphersuite, backend: &impl OpenMlsCrypto
     let message_alice = [1, 2, 3];
     let mls_ciphertext_alice = group_alice
         .create_application_message(&[], &message_alice, &alice_credential_bundle, 0, backend)
-        .await.expect("An unexpected error occurred.");
+        .await
+        .expect("An unexpected error occurred.");
 
     let mut verifiable_plaintext = group_bob
         .decrypt(
@@ -420,9 +419,9 @@ async fn group_operations(ciphersuite: Ciphersuite, backend: &impl OpenMlsCrypto
         .verify(backend, credential)
         .expect("An unexpected error occurred.");
 
-    assert!(matches!(
-        mls_plaintext_bob.content(), 
-            MlsPlaintextContentType::Application(message) if message.as_slice() == &message_alice[..]));
+    assert!(
+        matches!(mls_plaintext_bob.content(), MlsPlaintextContentType::Application(message) if message.as_slice() == &message_alice[..])
+    );
 
     // === Bob updates and commits ===
     let bob_update_key_package_bundle = KeyPackageBundle::new(
@@ -470,7 +469,8 @@ async fn group_operations(ciphersuite: Ciphersuite, backend: &impl OpenMlsCrypto
 
     let staged_commit = group_alice
         .stage_commit(&create_commit_result.commit, &proposal_store, &[], backend)
-        .await.expect("Error applying commit (Alice)");
+        .await
+        .expect("Error applying commit (Alice)");
     group_alice
         .merge_commit(staged_commit)
         .expect("error merging commit");
@@ -515,11 +515,13 @@ async fn group_operations(ciphersuite: Ciphersuite, backend: &impl OpenMlsCrypto
         .proposal_store(&proposal_store)
         .force_self_update(false)
         .build();
-    let create_commit_result =
-        match group_alice.create_commit(params /* PSK fetcher */, backend).await {
-            Ok(c) => c,
-            Err(e) => panic!("Error creating commit: {:?}", e),
-        };
+    let create_commit_result = match group_alice
+        .create_commit(params /* PSK fetcher */, backend)
+        .await
+    {
+        Ok(c) => c,
+        Err(e) => panic!("Error creating commit: {:?}", e),
+    };
 
     // Check that there is a path
     assert!(commit.has_path());
@@ -529,7 +531,8 @@ async fn group_operations(ciphersuite: Ciphersuite, backend: &impl OpenMlsCrypto
         .expect("error merging own commits");
     let staged_commit = group_bob
         .stage_commit(&create_commit_result.commit, &proposal_store, &[], backend)
-        .await.expect("Error applying commit (Bob)");
+        .await
+        .expect("Error applying commit (Bob)");
     group_bob
         .merge_commit(staged_commit)
         .expect("error merging commit");
@@ -594,7 +597,8 @@ async fn group_operations(ciphersuite: Ciphersuite, backend: &impl OpenMlsCrypto
             &[bob_update_key_package_bundle],
             backend,
         )
-        .await.expect("Error applying commit (Bob)");
+        .await
+        .expect("Error applying commit (Bob)");
     group_bob
         .merge_commit(staged_commit)
         .expect("error merging commit");
@@ -606,12 +610,9 @@ async fn group_operations(ciphersuite: Ciphersuite, backend: &impl OpenMlsCrypto
     }
 
     // === Bob adds Charlie ===
-    let charlie_credential_bundle = CredentialBundle::new_basic(
-        "Charlie".into(),
-        ciphersuite.signature_algorithm(),
-        backend,
-    )
-    .expect("An unexpected error occurred.");
+    let charlie_credential_bundle =
+        CredentialBundle::new_basic("Charlie".into(), ciphersuite.signature_algorithm(), backend)
+            .expect("An unexpected error occurred.");
 
     let charlie_key_package_bundle = KeyPackageBundle::new(
         &[ciphersuite],
@@ -660,7 +661,8 @@ async fn group_operations(ciphersuite: Ciphersuite, backend: &impl OpenMlsCrypto
 
     let staged_commit = group_alice
         .stage_commit(&create_commit_result.commit, &proposal_store, &[], backend)
-        .await.expect("Error applying commit (Alice)");
+        .await
+        .expect("Error applying commit (Alice)");
     group_alice
         .merge_commit(staged_commit)
         .expect("error merging commit");
@@ -676,7 +678,9 @@ async fn group_operations(ciphersuite: Ciphersuite, backend: &impl OpenMlsCrypto
         Some(ratchet_tree),
         charlie_key_package_bundle,
         backend,
-    ).await {
+    )
+    .await
+    {
         Ok(group) => group,
         Err(e) => panic!("Error creating group from Welcome: {:?}", e),
     };
@@ -701,7 +705,8 @@ async fn group_operations(ciphersuite: Ciphersuite, backend: &impl OpenMlsCrypto
             0,
             backend,
         )
-        .await.expect("An unexpected error occurred.");
+        .await
+        .expect("An unexpected error occurred.");
 
     // Alice decrypts and verifies
     let mut verifiable_plaintext = group_alice
@@ -730,9 +735,9 @@ async fn group_operations(ciphersuite: Ciphersuite, backend: &impl OpenMlsCrypto
         .verify(backend, credential)
         .expect("An unexpected error occurred.");
 
-    assert!(matches!(
-        mls_plaintext_alice.content(), 
-            MlsPlaintextContentType::Application(message) if message.as_slice() == &message_charlie[..]));
+    assert!(
+        matches!(mls_plaintext_alice.content(),MlsPlaintextContentType::Application(message) if message.as_slice() == &message_charlie[..])
+    );
 
     // Bob decrypts and verifies
     let mut verifiable_plaintext = group_bob
@@ -760,9 +765,9 @@ async fn group_operations(ciphersuite: Ciphersuite, backend: &impl OpenMlsCrypto
         .verify(backend, credential)
         .expect("An unexpected error occurred.");
 
-    assert!(matches!(
-        mls_plaintext_bob.content(), 
-        MlsPlaintextContentType::Application(message) if message.as_slice() == &message_charlie[..]));
+    assert!(
+        matches!(mls_plaintext_bob.content(),MlsPlaintextContentType::Application(message) if message.as_slice() == &message_charlie[..])
+    );
 
     // === Charlie updates and commits ===
     let charlie_update_key_package_bundle = KeyPackageBundle::new(
@@ -808,13 +813,15 @@ async fn group_operations(ciphersuite: Ciphersuite, backend: &impl OpenMlsCrypto
 
     let staged_commit = group_alice
         .stage_commit(&create_commit_result.commit, &proposal_store, &[], backend)
-        .await.expect("Error applying commit (Alice)");
+        .await
+        .expect("Error applying commit (Alice)");
     group_alice
         .merge_commit(staged_commit)
         .expect("error merging commit");
     let staged_commit = group_bob
         .stage_commit(&create_commit_result.commit, &proposal_store, &[], backend)
-        .await.expect("Error applying commit (Bob)");
+        .await
+        .expect("Error applying commit (Bob)");
     group_bob
         .merge_commit(staged_commit)
         .expect("error merging commit");
@@ -856,24 +863,28 @@ async fn group_operations(ciphersuite: Ciphersuite, backend: &impl OpenMlsCrypto
         .proposal_store(&proposal_store)
         .force_self_update(false)
         .build();
-    let create_commit_result =
-        match group_charlie.create_commit(params /* PSK fetcher */, backend).await {
-            Ok(c) => c,
-            Err(e) => panic!("Error creating commit: {:?}", e),
-        };
+    let create_commit_result = match group_charlie
+        .create_commit(params /* PSK fetcher */, backend)
+        .await
+    {
+        Ok(c) => c,
+        Err(e) => panic!("Error creating commit: {:?}", e),
+    };
 
     // Check that there is a new KeyPackageBundle
     assert!(commit.has_path());
 
     let staged_commit = group_alice
         .stage_commit(&create_commit_result.commit, &proposal_store, &[], backend)
-        .await.expect("Error applying commit (Alice)");
+        .await
+        .expect("Error applying commit (Alice)");
     group_alice
         .merge_commit(staged_commit)
         .expect("error merging commit");
     assert!(group_bob
         .stage_commit(&create_commit_result.commit, &proposal_store, &[], backend,)
-        .await.expect("Could not stage commit.")
+        .await
+        .expect("Could not stage commit.")
         .self_removed());
     group_charlie
         .merge_commit(create_commit_result.staged_commit)

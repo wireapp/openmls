@@ -117,8 +117,9 @@ async fn generate(
             .await
             .expect("Could not store PskBundle in key store.");
     }
-    let psk_secret =
-        PskSecret::new(ciphersuite, &crypto, &psk_ids).await.expect("Could not create PskSecret.");
+    let psk_secret = PskSecret::new(ciphersuite, &crypto, &psk_ids)
+        .await
+        .expect("Could not create PskSecret.");
 
     let joiner_secret = JoinerSecret::new(&crypto, commit_secret.clone(), init_secret)
         .expect("Could not create JoinerSecret.");
@@ -176,7 +177,10 @@ async fn generate(
 }
 
 #[cfg(any(feature = "test-utils", test))]
-pub async fn generate_test_vector(n_epochs: u64, ciphersuite: Ciphersuite) -> KeyScheduleTestVector {
+pub async fn generate_test_vector(
+    n_epochs: u64,
+    ciphersuite: Ciphersuite,
+) -> KeyScheduleTestVector {
     use tls_codec::Serialize;
 
     let crypto = OpenMlsRustCrypto::default();
@@ -353,8 +357,9 @@ pub async fn run_test_vector(
                 .expect("Could not store PskBundle in key store.");
         }
 
-        let psk_secret =
-            PskSecret::new(ciphersuite, backend, &psk_ids).await.expect("An unexpected error occurred.");
+        let psk_secret = PskSecret::new(ciphersuite, backend, &psk_ids)
+            .await
+            .expect("An unexpected error occurred.");
 
         let joiner_secret = JoinerSecret::new(backend, commit_secret, &init_secret)
             .expect("Could not create JoinerSecret.");

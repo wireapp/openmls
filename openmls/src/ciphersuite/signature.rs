@@ -111,9 +111,7 @@ impl SignatureKeypair {
         signature_scheme: SignatureScheme,
         backend: &impl OpenMlsCryptoProvider,
     ) -> Result<SignatureKeypair, CryptoError> {
-        let (sk, pk) = backend
-            .crypto()
-            .signature_key_gen(signature_scheme)?;
+        let (sk, pk) = backend.crypto().signature_key_gen(signature_scheme)?;
 
         Ok(SignatureKeypair {
             private_key: SignaturePrivateKey {

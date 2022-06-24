@@ -8,7 +8,7 @@ use rstest::*;
 use rstest_reuse::{self, *};
 
 use crate::{
-    credentials::{CredentialBundle},
+    credentials::CredentialBundle,
     framing::{MessageDecryptionError, ProcessedMessage},
     group::{errors::*, *},
     key_packages::KeyPackageBundle,
@@ -25,12 +25,9 @@ async fn test_past_secrets_in_group(
 
         // Generate credential bundles
 
-        let alice_credential_bundle = CredentialBundle::new_basic(
-            "Alice".into(),
-            ciphersuite.signature_algorithm(),
-            backend,
-        )
-        .expect("An unexpected error occurred.");
+        let alice_credential_bundle =
+            CredentialBundle::new_basic("Alice".into(), ciphersuite.signature_algorithm(), backend)
+                .expect("An unexpected error occurred.");
         let alice_credential = alice_credential_bundle.credential().clone();
         backend
             .key_store()
@@ -44,12 +41,9 @@ async fn test_past_secrets_in_group(
             .await
             .expect("An unexpected error occurred.");
 
-        let bob_credential_bundle = CredentialBundle::new_basic(
-            "Bob".into(),
-            ciphersuite.signature_algorithm(),
-            backend,
-        )
-        .expect("An unexpected error occurred.");
+        let bob_credential_bundle =
+            CredentialBundle::new_basic("Bob".into(), ciphersuite.signature_algorithm(), backend)
+                .expect("An unexpected error occurred.");
         let bob_credential = bob_credential_bundle.credential().clone();
         backend
             .key_store()

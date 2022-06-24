@@ -32,8 +32,9 @@ mod test_external_init;
 mod test_past_secrets;
 #[cfg(test)]
 mod test_proposals;
-#[cfg(test)]
-use super::errors::CreateGroupContextExtProposalError;
+
+#[cfg(any(feature = "test-utils", test))]
+use crate::prelude::CreateGroupContextExtProposalError;
 
 use crate::{
     ciphersuite::{hash_ref::KeyPackageRef, signable::*},
@@ -103,6 +104,7 @@ pub(crate) struct CoreGroupBuilder {
     psk_ids: Vec<PreSharedKeyId>,
     version: Option<ProtocolVersion>,
     required_capabilities: Option<RequiredCapabilitiesExtension>,
+    external_senders: Option<ExternalSendersExtension>,
     max_past_epochs: usize,
 }
 
@@ -116,6 +118,7 @@ impl CoreGroupBuilder {
             psk_ids: vec![],
             version: None,
             required_capabilities: None,
+            external_senders: None,
             max_past_epochs: 0,
         }
     }
@@ -136,6 +139,15 @@ impl CoreGroupBuilder {
         required_capabilities: RequiredCapabilitiesExtension,
     ) -> Self {
         self.required_capabilities = Some(required_capabilities);
+        self
+    }
+
+    /// Set the [`ExternalSendersExtension`] of the [`CoreGroup`].
+    pub(crate) fn with_external_senders(
+        mut self,
+        external_senders: ExternalSendersExtension,
+    ) -> Self {
+        self.external_senders = Some(external_senders);
         self
     }
     /// Set the number of past epochs the group should keep secrets.
@@ -170,13 +182,20 @@ impl CoreGroupBuilder {
             }
             _ => LibraryError::custom("Unexpected ExtensionError").into(),
         })?;
-        let required_capabilities = &[Extension::RequiredCapabilities(required_capabilities)];
+        let required_capabilities = Extension::RequiredCapabilities(required_capabilities);
+        let extensions =
+            if let Some(ext_senders) = self.external_senders.map(Extension::ExternalSenders) {
+                // TODO: External Senders should be handled by 'GroupContextExtensions' proposals (not handled at the moment), not here.
+                vec![required_capabilities, ext_senders]
+            } else {
+                vec![required_capabilities]
+            };
 
         let group_context = GroupContext::create_initial_group_context(
             ciphersuite,
             self.group_id,
             tree.tree_hash().to_vec(),
-            required_capabilities,
+            &extensions,
         );
         // Derive an initial joiner secret based on the commit secret.
         // Derive an epoch secret from the joiner secret.
@@ -351,7 +370,7 @@ impl CoreGroup {
     }
 
     /// Create a `GroupContextExtensions` proposal.
-    #[cfg(test)]
+    #[cfg(any(feature = "test-utils", test))]
     pub(crate) fn create_group_context_ext_proposal(
         &self,
         framing_parameters: FramingParameters,
@@ -360,12 +379,13 @@ impl CoreGroup {
         backend: &impl OpenMlsCryptoProvider,
     ) -> Result<MlsPlaintext, CreateGroupContextExtProposalError> {
         // Ensure that the group supports all the extensions that are wanted.
-
         let required_extension = extensions
             .iter()
-            .find(|extension| extension.extension_type() == ExtensionType::RequiredCapabilities);
-        if let Some(required_extension) = required_extension {
-            let required_capabilities = required_extension.as_required_capabilities_extension()?;
+            .find(|e| matches!(e, Extension::RequiredCapabilities(_)));
+        if let Some(required_capabilities) = required_extension {
+            let required_capabilities =
+                required_capabilities.as_required_capabilities_extension()?;
+            // 21BexpWire!
             // Ensure we support all the capabilities.
             required_capabilities.check_support()?;
             self.treesync()
@@ -412,7 +432,8 @@ impl CoreGroup {
             self.context(),
             self.message_secrets().membership_key(),
             backend,
-        ).await?;
+        )
+        .await?;
         self.encrypt(mls_plaintext, padding_size, backend)
     }
 
@@ -552,6 +573,13 @@ impl CoreGroup {
     /// Get the required capabilities extension of this group.
     pub(crate) fn required_capabilities(&self) -> Option<&RequiredCapabilitiesExtension> {
         self.group_context.required_capabilities()
+    }
+
+    /// Get the external senders extension of this group.
+    pub(crate) fn external_senders(&self) -> Option<&ExternalSendersExtension> {
+        self.group_context_extensions()
+            .iter()
+            .find_map(|e| e.as_external_senders_extension().ok())
     }
 
     /// Export the `PublicGroupState`

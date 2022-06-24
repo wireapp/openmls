@@ -22,7 +22,7 @@ use crate::{messages::proposals::ProposalType, versions::ProtocolVersion};
 pub struct CapabilitiesExtension {
     versions: TlsVecU8<ProtocolVersion>,
     ciphersuites: TlsVecU8<Ciphersuite>,
-    extensions: TlsVecU8<ExtensionType>,
+    pub(crate) extensions: TlsVecU8<ExtensionType>,
     proposals: TlsVecU8<ProposalType>,
 }
 
@@ -31,6 +31,7 @@ fn default_extensions() -> Vec<ExtensionType> {
         ExtensionType::Capabilities,
         ExtensionType::Lifetime,
         ExtensionType::ExternalKeyId,
+        ExtensionType::ExternalSenders,
     ]
 }
 

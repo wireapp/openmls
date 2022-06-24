@@ -12,8 +12,7 @@ async fn generate_credential_bundle(
     backend: &impl OpenMlsCryptoProvider,
 ) -> Result<Credential, CredentialError> {
     // ANCHOR: create_credential_bundle
-    let credential_bundle =
-        CredentialBundle::new_basic(identity, signature_algorithm, backend)?;
+    let credential_bundle = CredentialBundle::new_basic(identity, signature_algorithm, backend)?;
     // ANCHOR_END: create_credential_bundle
     // ANCHOR: store_credential_bundle
     let credential = credential_bundle.credential().clone();
@@ -100,29 +99,20 @@ async fn book_operations(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoP
     // ANCHOR_END: set_group_id
 
     // Generate credential bundles
-    let alice_credential = generate_credential_bundle(
-        "Alice".into(),
-        ciphersuite.signature_algorithm(),
-        backend,
-    )
-    .await
-    .expect("An unexpected error occurred.");
+    let alice_credential =
+        generate_credential_bundle("Alice".into(), ciphersuite.signature_algorithm(), backend)
+            .await
+            .expect("An unexpected error occurred.");
 
-    let bob_credential = generate_credential_bundle(
-        "Bob".into(),
-        ciphersuite.signature_algorithm(),
-        backend,
-    )
-    .await
-    .expect("An unexpected error occurred.");
+    let bob_credential =
+        generate_credential_bundle("Bob".into(), ciphersuite.signature_algorithm(), backend)
+            .await
+            .expect("An unexpected error occurred.");
 
-    let charlie_credential = generate_credential_bundle(
-        "Charlie".into(),
-        ciphersuite.signature_algorithm(),
-        backend,
-    )
-    .await
-    .expect("An unexpected error occurred.");
+    let charlie_credential =
+        generate_credential_bundle("Charlie".into(), ciphersuite.signature_algorithm(), backend)
+            .await
+            .expect("An unexpected error occurred.");
 
     // Generate KeyPackages
     let alice_key_package = generate_key_package_bundle(&[ciphersuite], &alice_credential, backend)
@@ -1130,13 +1120,10 @@ async fn test_empty_input_errors(ciphersuite: Ciphersuite, backend: &impl OpenMl
     let group_id = GroupId::from_slice(b"Test Group");
 
     // Generate credential bundles
-    let alice_credential = generate_credential_bundle(
-        "Alice".into(),
-        ciphersuite.signature_algorithm(),
-        backend,
-    )
-    .await
-    .expect("An unexpected error occurred.");
+    let alice_credential =
+        generate_credential_bundle("Alice".into(), ciphersuite.signature_algorithm(), backend)
+            .await
+            .expect("An unexpected error occurred.");
 
     // Generate KeyPackages
     let alice_key_package = generate_key_package_bundle(&[ciphersuite], &alice_credential, backend)

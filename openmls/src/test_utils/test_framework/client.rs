@@ -117,7 +117,8 @@ impl Client {
             &mls_group_config,
             group_id.clone(),
             key_package.hash_ref(self.crypto.crypto())?.value(),
-        ).await?;
+        )
+        .await?;
         self.groups
             .write()
             .expect("An unexpected error occurred.")
@@ -136,7 +137,8 @@ impl Client {
         ratchet_tree: Option<Vec<Option<Node>>>,
     ) -> Result<(), ClientError> {
         let new_group: MlsGroup =
-            MlsGroup::new_from_welcome(&self.crypto, &mls_group_config, welcome, ratchet_tree).await?;
+            MlsGroup::new_from_welcome(&self.crypto, &mls_group_config, welcome, ratchet_tree)
+                .await?;
         self.groups
             .write()
             .expect("An unexpected error occurred.")
@@ -166,8 +168,9 @@ impl Client {
             }
             // Process the message.
             let unverified_message = group_state.parse_message(message.clone(), &self.crypto)?;
-            let processed_message =
-                group_state.process_unverified_message(unverified_message, None, &self.crypto).await?;
+            let processed_message = group_state
+                .process_unverified_message(unverified_message, None, &self.crypto)
+                .await?;
 
             match processed_message {
                 ProcessedMessage::ApplicationMessage(_) => {}
@@ -215,9 +218,15 @@ impl Client {
             .get_mut(group_id)
             .ok_or(ClientError::NoMatchingGroup)?;
         let action_results = match action_type {
-            ActionType::Commit => group.self_update(&self.crypto, key_package_bundle_option).await?,
+            ActionType::Commit => {
+                group
+                    .self_update(&self.crypto, key_package_bundle_option)
+                    .await?
+            }
             ActionType::Proposal => (
-                group.propose_self_update(&self.crypto, key_package_bundle_option).await?,
+                group
+                    .propose_self_update(&self.crypto, key_package_bundle_option)
+                    .await?,
                 None,
             ),
         };

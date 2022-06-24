@@ -27,18 +27,12 @@ async fn test_external_init(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryp
     let framing_parameters = FramingParameters::new(group_aad, WireFormat::MlsPlaintext);
 
     // Define credential bundles
-    let alice_credential_bundle = CredentialBundle::new_basic(
-        "Alice".into(),
-        ciphersuite.signature_algorithm(),
-        backend,
-    )
-    .expect("An unexpected error occurred.");
-    let bob_credential_bundle = CredentialBundle::new_basic(
-        "Bob".into(),
-        ciphersuite.signature_algorithm(),
-        backend,
-    )
-    .expect("An unexpected error occurred.");
+    let alice_credential_bundle =
+        CredentialBundle::new_basic("Alice".into(), ciphersuite.signature_algorithm(), backend)
+            .expect("An unexpected error occurred.");
+    let bob_credential_bundle =
+        CredentialBundle::new_basic("Bob".into(), ciphersuite.signature_algorithm(), backend)
+            .expect("An unexpected error occurred.");
 
     // Generate KeyPackages
     let alice_key_package_bundle = KeyPackageBundle::new(
@@ -103,12 +97,9 @@ async fn test_external_init(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryp
 
     // Now set up charly and try to init externally.
     // Define credential bundles
-    let charly_credential_bundle = CredentialBundle::new_basic(
-        "Charly".into(),
-        ciphersuite.signature_algorithm(),
-        backend,
-    )
-    .expect("An unexpected error occurred.");
+    let charly_credential_bundle =
+        CredentialBundle::new_basic("Charly".into(), ciphersuite.signature_algorithm(), backend)
+            .expect("An unexpected error occurred.");
 
     // Have Alice export everything that Charly needs.
     let pgs_encoded: Vec<u8> = group_alice
@@ -276,12 +267,9 @@ async fn test_external_init_single_member_group(
     let framing_parameters = FramingParameters::new(group_aad, WireFormat::MlsPlaintext);
 
     // Define credential bundles
-    let alice_credential_bundle = CredentialBundle::new_basic(
-        "Alice".into(),
-        ciphersuite.signature_algorithm(),
-        backend,
-    )
-    .expect("An unexpected error occurred.");
+    let alice_credential_bundle =
+        CredentialBundle::new_basic("Alice".into(), ciphersuite.signature_algorithm(), backend)
+            .expect("An unexpected error occurred.");
 
     // Generate KeyPackages
     let alice_key_package_bundle = KeyPackageBundle::new(
@@ -302,12 +290,9 @@ async fn test_external_init_single_member_group(
 
     // Now set up charly and try to init externally.
     // Define credential bundles
-    let charly_credential_bundle = CredentialBundle::new_basic(
-        "Charly".into(),
-        ciphersuite.signature_algorithm(),
-        backend,
-    )
-    .expect("An unexpected error occurred.");
+    let charly_credential_bundle =
+        CredentialBundle::new_basic("Charly".into(), ciphersuite.signature_algorithm(), backend)
+            .expect("An unexpected error occurred.");
 
     // Have Alice export everything that Charly needs.
     let pgs_encoded: Vec<u8> = group_alice
