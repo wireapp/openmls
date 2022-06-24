@@ -213,6 +213,15 @@ pub enum ValidationError {
     /// The MlsPlaintext is not a Commit or an external Add proposal despite the sender begin of type NewMember.
     #[error("The MlsPlaintext is not a Commit or an external Add proposal despite the sender begin of type NewMember.")]
     NotACommitOrExternalAddProposal,
+    /// The MlsPlaintext is not an external proposal despite the sender being of type Preconfigured.
+    #[error("The MlsPlaintext is not an external proposal despite the sender being of type Preconfigured.")]
+    NotExternalProposal,
+    /// An external proposal referenced a client which is not a member of the group
+    #[error("An external proposal referenced a client which is not a member of the group")]
+    UnknownMemberFromExternal,
+    /// An external proposal was sent by an unauthorized external sender
+    #[error("An external proposal was sent by an unauthorized external sender")]
+    UnauthorizedSender,
     /// The Commit doesn't have a path despite the sender being of type NewMember.
     #[error("The Commit doesn't have a path despite the sender being of type NewMember.")]
     NoPath,
@@ -237,6 +246,9 @@ pub enum ValidationError {
     /// Verifying the signature failed.
     #[error("Verifying the signature failed.")]
     InvalidSignature,
+    /// Verifying an external message requires a signature key which could not be found.
+    #[error("Verifying an external message requires a signature key which could not be found")]
+    MissingRequiredSignatureKey,
     /// An application message was sent from an external sender.
     #[error("An application message was sent from an external sender.")]
     NonMemberApplicationMessage,

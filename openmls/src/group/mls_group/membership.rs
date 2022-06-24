@@ -163,7 +163,6 @@ impl MlsGroup {
     pub async fn propose_add_member(
         &mut self,
         backend: &impl OpenMlsCryptoProvider,
-
         key_package: &KeyPackage,
     ) -> Result<MlsMessageOut, ProposeAddMemberError> {
         self.is_operational()?;

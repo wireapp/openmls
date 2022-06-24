@@ -27,8 +27,8 @@ use tls_codec::{Serialize as TlsSerializeTrait, *};
 
 // Public
 pub mod codec;
-pub mod proposals;
 pub mod external_proposals;
+pub mod proposals;
 pub mod public_group_state;
 
 // Tests

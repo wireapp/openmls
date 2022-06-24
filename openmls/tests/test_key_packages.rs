@@ -11,12 +11,9 @@ fn key_package_generation(ciphersuite: Ciphersuite, backend: &impl OpenMlsCrypto
     println!("Testing ciphersuite {:?}", ciphersuite);
 
     let id = vec![1, 2, 3];
-    let credential_bundle = CredentialBundle::new_basic(
-        id,
-        ciphersuite.signature_algorithm(),
-        backend,
-    )
-    .expect("An unexpected error occurred.");
+    let credential_bundle =
+        CredentialBundle::new_basic(id, ciphersuite.signature_algorithm(), backend)
+            .expect("An unexpected error occurred.");
 
     let kpb = KeyPackageBundle::new(&[ciphersuite], &credential_bundle, backend, Vec::new())
         .expect("An unexpected error occurred.");
@@ -49,7 +46,8 @@ fn key_package_generation(ciphersuite: Ciphersuite, backend: &impl OpenMlsCrypto
             vec![
                 ExtensionType::Capabilities,
                 ExtensionType::Lifetime,
-                ExtensionType::ExternalKeyId
+                ExtensionType::ExternalKeyId,
+                ExtensionType::ExternalSenders,
             ],
             capabilities_extension.extensions()
         );

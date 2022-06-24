@@ -100,12 +100,7 @@ impl tls_codec::Deserialize for Proposal {
     fn tls_deserialize<R: Read>(bytes: &mut R) -> Result<Self, tls_codec::Error> {
         let proposal_type = match ProposalType::try_from(u16::tls_deserialize(bytes)?) {
             Ok(proposal_type) => proposal_type,
-            Err(e) => {
-                return Err(Error::DecodingError(format!(
-                    "Deserialization error {}",
-                    e
-                )))
-            }
+            Err(e) => return Err(Error::DecodingError(format!("Deserialization error {}", e))),
         };
         match proposal_type {
             ProposalType::Add => Ok(Proposal::Add(AddProposal::tls_deserialize(bytes)?)),

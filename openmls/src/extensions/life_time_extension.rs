@@ -2,8 +2,8 @@ use tls_codec::{TlsSerialize, TlsSize};
 
 use super::{Deserialize, LifetimeExtensionError, Serialize};
 
-use std::io::Read;
 use fluvio_wasm_timer::{SystemTime, UNIX_EPOCH};
+use std::io::Read;
 
 /// This value is used as the default lifetime of `KeyPackage`s if no default
 /// lifetime is configured. The value is in seconds and amounts to 3 * 28 Days,

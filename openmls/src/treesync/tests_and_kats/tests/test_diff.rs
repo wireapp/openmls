@@ -3,7 +3,7 @@ use rstest::*;
 use rstest_reuse::apply;
 
 use crate::{
-    credentials::{CredentialBundle},
+    credentials::CredentialBundle,
     key_packages::KeyPackageBundle,
     treesync::{node::Node, TreeSync},
 };

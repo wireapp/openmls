@@ -20,13 +20,18 @@ fn capabilities() {
         0u8, 1, 0, 0, 0, 29, 1, 1, 6, 0, 1, 0, 2, 0, 3, 6, 0, 1, 0, 2, 0, 3, 12, 0, 1, 0, 2, 0, 3,
         0, 4, 0, 5, 0, 8,
     ];
-    let mut extension_bytes_mut = &extension_bytes[..];
-
-    let ext = Extension::Capabilities(CapabilitiesExtension::default());
-
     // Check that decoding works
-    let capabilities_extension = Extension::tls_deserialize(&mut extension_bytes_mut)
+    let capabilities_extension = Extension::tls_deserialize(&mut extension_bytes.as_slice())
         .expect("An unexpected error occurred.");
+
+    let mut capabilities = CapabilitiesExtension::default();
+    capabilities.extensions = vec![
+        ExtensionType::Capabilities,
+        ExtensionType::Lifetime,
+        ExtensionType::ExternalKeyId,
+    ]
+    .into();
+    let ext = Extension::Capabilities(capabilities);
     assert_eq!(ext, capabilities_extension);
 
     // Encoding creates the expected bytes.
@@ -96,18 +101,12 @@ async fn ratchet_tree_extension(ciphersuite: Ciphersuite, backend: &impl OpenMls
     let framing_parameters = FramingParameters::new(group_aad, WireFormat::MlsPlaintext);
 
     // Define credential bundles
-    let alice_credential_bundle = CredentialBundle::new_basic(
-        "Alice".into(),
-        ciphersuite.signature_algorithm(),
-        backend,
-    )
-    .expect("An unexpected error occurred.");
-    let bob_credential_bundle = CredentialBundle::new_basic(
-        "Bob".into(),
-        ciphersuite.signature_algorithm(),
-        backend,
-    )
-    .expect("An unexpected error occurred.");
+    let alice_credential_bundle =
+        CredentialBundle::new_basic("Alice".into(), ciphersuite.signature_algorithm(), backend)
+            .expect("An unexpected error occurred.");
+    let bob_credential_bundle =
+        CredentialBundle::new_basic("Bob".into(), ciphersuite.signature_algorithm(), backend)
+            .expect("An unexpected error occurred.");
 
     // Generate KeyPackages
     let alice_key_package_bundle = KeyPackageBundle::new(

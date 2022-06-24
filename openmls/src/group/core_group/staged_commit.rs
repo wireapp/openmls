@@ -291,7 +291,8 @@ impl CoreGroup {
             ciphersuite,
             backend,
             apply_proposals_values.presharedkeys.psks(),
-        ).await?;
+        )
+        .await?;
 
         // Create key schedule
         let mut key_schedule = KeySchedule::init(ciphersuite, backend, joiner_secret, psk_secret)?;
