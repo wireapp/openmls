@@ -33,6 +33,7 @@ use tls_codec::*;
 // Private
 mod capabilities_extension;
 mod external_key_id_extension;
+mod external_senders_extension;
 mod life_time_extension;
 mod parent_hash_extension;
 mod ratchet_tree_extension;
@@ -45,6 +46,7 @@ pub mod errors;
 // Public re-exports
 pub use capabilities_extension::CapabilitiesExtension;
 pub use external_key_id_extension::ExternalKeyIdExtension;
+pub use external_senders_extension::ExternalSendersExtension;
 pub use life_time_extension::LifetimeExtension;
 pub use parent_hash_extension::ParentHashExtension;
 pub use ratchet_tree_extension::RatchetTreeExtension;
@@ -103,6 +105,9 @@ pub enum ExtensionType {
     /// The required capabilities extension defines the configuration of a group
     /// that imposes certain requirements on clients in the group.
     RequiredCapabilities = 6,
+
+    /// Contains authorized clients allowed to craft external proposals to a group
+    ExternalSenders = 7,
 }
 
 impl TryFrom<u16> for ExtensionType {
@@ -119,6 +124,7 @@ impl TryFrom<u16> for ExtensionType {
             3 => Ok(ExtensionType::ExternalKeyId),
             4 => Ok(ExtensionType::ParentHash),
             5 => Ok(ExtensionType::RatchetTree),
+            7 => Ok(ExtensionType::ExternalSenders),
             _ => Err(tls_codec::Error::DecodingError(format!(
                 "{} is an unkown extension type",
                 a
@@ -135,6 +141,7 @@ impl ExtensionType {
             | ExtensionType::Capabilities
             | ExtensionType::Lifetime
             | ExtensionType::ExternalKeyId
+            | ExtensionType::ExternalSenders
             | ExtensionType::ParentHash
             | ExtensionType::RatchetTree
             | ExtensionType::RequiredCapabilities => true,
@@ -155,6 +162,9 @@ pub enum Extension {
 
     /// An [`ExternalKeyIdExtension`]
     ExternalKeyId(ExternalKeyIdExtension),
+
+    /// An [`ExternalSendersExtension`]
+    ExternalSenders(ExternalSendersExtension),
 
     /// A [`LifetimeExtension`]
     LifeTime(LifetimeExtension),
@@ -177,6 +187,7 @@ impl tls_codec::Size for Extension {
         match self {
             Extension::Capabilities(e) => e.tls_serialized_len(),
             Extension::ExternalKeyId(e) => e.tls_serialized_len(),
+            Extension::ExternalSenders(e) => e.tls_serialized_len(),
             Extension::LifeTime(e) => e.tls_serialized_len(),
             Extension::ParentHash(e) => e.tls_serialized_len(),
             Extension::RatchetTree(e) => e.tls_serialized_len(),
@@ -191,12 +202,14 @@ impl tls_codec::Serialize for Extension {
         let written = self.extension_type().tls_serialize(writer)?;
 
         // Now serialize the extension into a separate byte vector.
-        let extension_data_len = self.tls_serialized_len() - 6 /* extension type length and u32 length */;
+        let extension_type_len = 6;
+        let extension_data_len = self.tls_serialized_len() - extension_type_len /* extension type length and u32 length */;
         let mut extension_data = Vec::with_capacity(extension_data_len);
 
         let extension_data_written = match self {
             Extension::Capabilities(e) => e.tls_serialize(&mut extension_data),
             Extension::ExternalKeyId(e) => e.tls_serialize(&mut extension_data),
+            Extension::ExternalSenders(e) => e.tls_serialize(&mut extension_data),
             Extension::LifeTime(e) => e.tls_serialize(&mut extension_data),
             Extension::ParentHash(e) => e.tls_serialize(&mut extension_data),
             Extension::RatchetTree(e) => e.tls_serialize(&mut extension_data),
@@ -226,6 +239,9 @@ impl tls_codec::Deserialize for Extension {
             ),
             ExtensionType::ExternalKeyId => Extension::ExternalKeyId(
                 ExternalKeyIdExtension::tls_deserialize(&mut extension_data)?,
+            ),
+            ExtensionType::ExternalSenders => Extension::ExternalSenders(
+                ExternalSendersExtension::tls_deserialize(&mut extension_data)?,
             ),
             ExtensionType::Lifetime => {
                 Extension::LifeTime(LifetimeExtension::tls_deserialize(&mut extension_data)?)
@@ -286,6 +302,20 @@ impl Extension {
         }
     }
 
+    /// Get a reference to this extension as [`ExternalSendersExtension`].
+    /// Returns an [`ExtensionError::InvalidExtensionType`] if called on an
+    /// [`Extension`] that's not an [`ExternalSendersExtension`].
+    pub fn as_external_senders_extension(
+        &self,
+    ) -> Result<&ExternalSendersExtension, ExtensionError> {
+        match self {
+            Self::ExternalSenders(e) => Ok(e),
+            _ => Err(ExtensionError::InvalidExtensionType(
+                "This is not an ExternalSendersExtension".into(),
+            )),
+        }
+    }
+
     /// Get a reference to this extension as [`CapabilitiesExtension`].
     /// Returns an [`ExtensionError::InvalidExtensionType`] error if called on an
     /// [`Extension`] that's not a [`CapabilitiesExtension`].
@@ -330,6 +360,7 @@ impl Extension {
         match self {
             Extension::Capabilities(_) => ExtensionType::Capabilities,
             Extension::ExternalKeyId(_) => ExtensionType::ExternalKeyId,
+            Extension::ExternalSenders(_) => ExtensionType::ExternalSenders,
             Extension::LifeTime(_) => ExtensionType::Lifetime,
             Extension::ParentHash(_) => ExtensionType::ParentHash,
             Extension::RatchetTree(_) => ExtensionType::RatchetTree,

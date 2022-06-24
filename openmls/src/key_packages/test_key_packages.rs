@@ -6,12 +6,8 @@ use crate::{extensions::*, key_packages::*};
 
 #[apply(ciphersuites_and_backends)]
 fn generate_key_package(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider) {
-    let credential_bundle = CredentialBundle::new_basic(
-        vec![1, 2, 3],
-        ciphersuite.into(),
-        backend,
-    )
-    .expect("An unexpected error occurred.");
+    let credential_bundle = CredentialBundle::new_basic(vec![1, 2, 3], ciphersuite.into(), backend)
+        .expect("An unexpected error occurred.");
 
     // Generate a valid KeyPackage.
     let lifetime_extension = Extension::LifeTime(LifetimeExtension::new(60));
@@ -54,9 +50,8 @@ fn decryption_key_index_computation(
     backend: &impl OpenMlsCryptoProvider,
 ) {
     let id = vec![1, 2, 3];
-    let credential_bundle =
-        CredentialBundle::new_basic(id, ciphersuite.into(), backend)
-            .expect("An unexpected error occurred.");
+    let credential_bundle = CredentialBundle::new_basic(id, ciphersuite.into(), backend)
+        .expect("An unexpected error occurred.");
     let mut kpb = KeyPackageBundle::new(&[ciphersuite], &credential_bundle, backend, Vec::new())
         .expect("An unexpected error occurred.")
         .unsigned();
@@ -79,9 +74,8 @@ fn decryption_key_index_computation(
 #[apply(ciphersuites_and_backends)]
 fn key_package_id_extension(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider) {
     let id = vec![1, 2, 3];
-    let credential_bundle =
-        CredentialBundle::new_basic(id, ciphersuite.into(), backend)
-            .expect("An unexpected error occurred.");
+    let credential_bundle = CredentialBundle::new_basic(id, ciphersuite.into(), backend)
+        .expect("An unexpected error occurred.");
     let kpb = KeyPackageBundle::new(
         &[ciphersuite],
         &credential_bundle,
@@ -116,12 +110,8 @@ fn test_mismatch(backend: &impl OpenMlsCryptoProvider) {
     let ciphersuite_name = Ciphersuite::MLS_128_DHKEMX25519_AES128GCM_SHA256_Ed25519;
     let signature_scheme = SignatureScheme::ECDSA_SECP256R1_SHA256;
 
-    let credential_bundle = CredentialBundle::new_basic(
-        vec![1, 2, 3],
-        signature_scheme,
-        backend,
-    )
-    .expect("Could not create credential bundle");
+    let credential_bundle = CredentialBundle::new_basic(vec![1, 2, 3], signature_scheme, backend)
+        .expect("Could not create credential bundle");
 
     assert_eq!(
         KeyPackageBundle::new(&[ciphersuite_name], &credential_bundle, backend, vec![],),
@@ -133,12 +123,8 @@ fn test_mismatch(backend: &impl OpenMlsCryptoProvider) {
     let ciphersuite_name = Ciphersuite::MLS_128_DHKEMX25519_AES128GCM_SHA256_Ed25519;
     let signature_scheme = SignatureScheme::ED25519;
 
-    let credential_bundle = CredentialBundle::new_basic(
-        vec![1, 2, 3],
-        signature_scheme,
-        backend,
-    )
-    .expect("Could not create credential bundle");
+    let credential_bundle = CredentialBundle::new_basic(vec![1, 2, 3], signature_scheme, backend)
+        .expect("Could not create credential bundle");
 
     assert!(
         KeyPackageBundle::new(&[ciphersuite_name], &credential_bundle, backend, vec![]).is_ok()

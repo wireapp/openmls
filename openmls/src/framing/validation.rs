@@ -34,15 +34,16 @@
 //! ProcessedMessage (Application, Proposal, ExternalProposal, Commit, External Commit)
 //! ```
 
-use crate::{group::errors::ValidationError, tree::index::SecretTreeLeafIndex, treesync::TreeSync};
-use core_group::{proposals::QueuedProposal, staged_commit::StagedCommit};
-use openmls_traits::OpenMlsCryptoProvider;
-
 use crate::{
     ciphersuite::{hash_ref::KeyPackageRef, signable::Verifiable},
     error::LibraryError,
-    tree::sender_ratchet::SenderRatchetConfiguration,
+    extensions::ExternalSendersExtension,
+    group::errors::ValidationError,
+    tree::{index::SecretTreeLeafIndex, sender_ratchet::SenderRatchetConfiguration},
+    treesync::TreeSync,
 };
+use core_group::{proposals::QueuedProposal, staged_commit::StagedCommit};
+use openmls_traits::OpenMlsCryptoProvider;
 
 use super::*;
 
@@ -184,7 +185,17 @@ impl DecryptedMessage {
                 }
             }
             // Preconfigured senders are not supported yet #106/#151.
-            Sender::Preconfigured(_) => unimplemented!(),
+            Sender::Preconfigured(_) => match self.plaintext.content() {
+                MlsPlaintextContentType::Proposal(Proposal::Remove(RemoveProposal { removed })) => {
+                    treesync
+                        .leaf_from_id(removed)
+                        .map(|leaf_node| leaf_node.key_package().credential().clone())
+                        .ok_or(ValidationError::UnknownMemberFromExternal)
+                }
+                // Not needed by Wire
+                MlsPlaintextContentType::Proposal(Proposal::Add(_)) => unimplemented!(),
+                _ => Err(ValidationError::NotExternalProposal),
+            },
             Sender::NewMember => {
                 // Since this allows only commits or external Add proposals to have a sender type `NewMember`, it checks
                 // ValSem112 & ValSem113
@@ -193,9 +204,9 @@ impl DecryptedMessage {
                         Some(path) => Ok(path.leaf_key_package().credential().clone()),
                         None => Err(ValidationError::NoPath),
                     },
-                    MlsPlaintextContentType::Proposal(Proposal::Add(add)) => {
-                        Ok(add.key_package.credential().clone())
-                    }
+                    MlsPlaintextContentType::Proposal(Proposal::Add(AddProposal {
+                        key_package,
+                    })) => Ok(key_package.credential().clone()),
                     _ => Err(ValidationError::NotACommitOrExternalAddProposal),
                 }
             }
@@ -216,7 +227,7 @@ impl DecryptedMessage {
 /// Partially checked and potentially decrypted message (if it was originally encrypted).
 /// Use this to inspect the [`Credential`] of the message sender
 /// and the optional `aad` if the original message was encrypted.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct UnverifiedMessage {
     plaintext: VerifiableMlsPlaintext,
     credential: Option<Credential>,
@@ -270,7 +281,7 @@ impl UnverifiedMessage {
 pub(crate) enum UnverifiedContextMessage {
     /// Unverified message from a group member
     Group(UnverifiedGroupMessage),
-    /// Unverfied message from a preconfigured sender
+    /// Unverified message from a preconfigured sender
     /// TODO: #106
     #[allow(dead_code)]
     Preconfigured(UnverifiedPreconfiguredMessage),
@@ -309,8 +320,9 @@ impl UnverifiedContextMessage {
                     })?,
                 }))
             }
-            // TODO #151/#106: We don't support preconfigured senders yet
-            Sender::Preconfigured(_) => unimplemented!(),
+            Sender::Preconfigured(_) => Ok(Self::Preconfigured(UnverifiedPreconfiguredMessage {
+                plaintext,
+            })),
         }
     }
 }
@@ -358,16 +370,40 @@ impl UnverifiedPreconfiguredMessage {
     /// verification is successful.
     /// This function implements the following checks:
     ///  - ValSem010
-    pub(crate) fn into_verified(
+    pub(crate) fn into_verified<'a>(
         self,
         backend: &impl OpenMlsCryptoProvider,
-        signature_key: &SignaturePublicKey,
+        signature_key: Option<&SignaturePublicKey>,
+        external_senders: Option<&'a ExternalSendersExtension>,
     ) -> Result<VerifiedExternalMessage, ValidationError> {
         // ValSem010
+        let signature_key = signature_key
+            .ok_or(ValidationError::MissingRequiredSignatureKey)
+            .or_else(|_| self.sender_signature_key(external_senders))?;
         self.plaintext
             .verify_with_key(backend, signature_key)
             .map(|_plaintext| VerifiedExternalMessage { _plaintext })
             .map_err(|_| ValidationError::InvalidSignature)
+    }
+
+    fn sender_signature_key<'a>(
+        &self,
+        external_senders: Option<&'a ExternalSendersExtension>,
+    ) -> Result<&'a SignaturePublicKey, ValidationError> {
+        match self.plaintext.sender() {
+            Sender::Preconfigured(sender) => external_senders
+                .and_then(|extension_senders| {
+                    extension_senders
+                        .senders
+                        .iter()
+                        .find(|&extension| extension == sender)
+                        .map(|c| c.signature_key())
+                })
+                .ok_or(ValidationError::MissingRequiredSignatureKey),
+            _ => Err(ValidationError::LibraryError(LibraryError::custom(
+                "We have terribly messed up in 'CoreGroup::process_unverified_message'",
+            ))),
+        }
     }
 }
 
@@ -396,12 +432,12 @@ pub(crate) struct VerifiedExternalMessage {
 
 impl VerifiedExternalMessage {
     /// Returns a reference to the inner [MlsPlaintext].
-    pub(crate) fn _plaintext(&self) -> &MlsPlaintext {
+    pub(crate) fn plaintext(&self) -> &MlsPlaintext {
         &self._plaintext
     }
 
     /// Consumes the message and returns the inner [MlsPlaintext].
-    pub(crate) fn _take_plaintext(self) -> MlsPlaintext {
+    pub(crate) fn take_plaintext(self) -> MlsPlaintext {
         self._plaintext
     }
 }

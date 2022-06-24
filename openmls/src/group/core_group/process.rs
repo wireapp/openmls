@@ -182,29 +182,46 @@ impl CoreGroup {
                         //  - ValSem243
                         //  - ValSem244
                         //  - ValSem245
-                        let staged_commit = self.stage_commit(
-                            verified_member_message.plaintext(),
-                            proposal_store,
-                            own_kpbs,
-                            backend,
-                        ).await?;
+                        let staged_commit = self
+                            .stage_commit(
+                                verified_member_message.plaintext(),
+                                proposal_store,
+                                own_kpbs,
+                                backend,
+                            )
+                            .await?;
                         ProcessedMessage::StagedCommitMessage(Box::new(staged_commit))
                     }
                 })
             }
             UnverifiedContextMessage::Preconfigured(external_message) => {
                 // Signature verification
-                if let Some(signature_public_key) = signature_key {
-                    let _verified_external_message = external_message
-                        .into_verified(backend, signature_public_key)
-                        .map_err(|_| UnverifiedMessageError::InvalidSignature)?;
-                } else {
-                    return Err(UnverifiedMessageError::MissingSignatureKey);
-                }
+                let verified_external_message = external_message
+                    .into_verified(backend, signature_key, self.external_senders())
+                    .map_err(|_| UnverifiedMessageError::InvalidSignature)?;
 
-                // We don't support external messages from preconfigured senders yet
-                // TODO #151/#106
-                todo!()
+                match verified_external_message.plaintext().content() {
+                    MlsPlaintextContentType::Proposal(proposal) => match proposal {
+                        Proposal::Remove(_) => Ok(ProcessedMessage::ProposalMessage(Box::new(
+                            QueuedProposal::from_mls_plaintext(
+                                self.ciphersuite(),
+                                backend,
+                                verified_external_message.take_plaintext(),
+                            )?,
+                        ))),
+                        // TODO #151/#106
+                        // Not needed by Wire at the moment
+                        Proposal::Add(_) => unimplemented!(),
+                        Proposal::ReInit(_) => unimplemented!(),
+                        _ => Err(UnverifiedMessageError::IllegalExternalProposal(
+                            proposal.proposal_type(),
+                        )),
+                    },
+                    MlsPlaintextContentType::Commit(_) => unimplemented!(),
+                    MlsPlaintextContentType::Application(_) => {
+                        Err(UnverifiedMessageError::UnauthorizedExternalApplicationMessage)
+                    }
+                }
             }
         }
     }

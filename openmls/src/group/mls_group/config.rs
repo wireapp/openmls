@@ -51,6 +51,8 @@ pub struct MlsGroupConfig {
     pub(crate) required_capabilities: RequiredCapabilitiesExtension,
     /// Sender ratchet configuration
     pub(crate) sender_ratchet_configuration: SenderRatchetConfiguration,
+    /// Senders authorized to send external remove proposals
+    pub(crate) external_senders: ExternalSendersExtension,
 }
 
 impl MlsGroupConfig {
@@ -149,6 +151,12 @@ impl MlsGroupConfigBuilder {
     /// Sets the `use_ratchet_tree_extension` property of the MlsGroupConfig.
     pub fn use_ratchet_tree_extension(mut self, use_ratchet_tree_extension: bool) -> Self {
         self.config.use_ratchet_tree_extension = use_ratchet_tree_extension;
+        self
+    }
+
+    /// Sets the `external_senders` group context extension.
+    pub fn external_senders(mut self, credentials: Vec<Credential>) -> Self {
+        self.config.external_senders = ExternalSendersExtension::from(credentials.as_slice());
         self
     }
 

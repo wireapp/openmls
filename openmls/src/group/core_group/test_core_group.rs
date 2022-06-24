@@ -23,12 +23,9 @@ async fn test_core_group_persistence(
     backend: &impl OpenMlsCryptoProvider,
 ) {
     // Define credential bundles
-    let alice_credential_bundle = CredentialBundle::new_basic(
-        "Alice".into(),
-        ciphersuite.signature_algorithm(),
-        backend,
-    )
-    .expect("An unexpected error occurred.");
+    let alice_credential_bundle =
+        CredentialBundle::new_basic("Alice".into(), ciphersuite.signature_algorithm(), backend)
+            .expect("An unexpected error occurred.");
 
     // Generate KeyPackages
     let alice_key_package_bundle = KeyPackageBundle::new(
@@ -84,12 +81,9 @@ async fn test_failed_groupinfo_decryption(
         mac_value: vec![1, 2, 3, 4, 5, 6, 7, 8, 9].into(),
     });
 
-    let alice_credential_bundle = CredentialBundle::new_basic(
-        "Alice".into(),
-        ciphersuite.signature_algorithm(),
-        backend,
-    )
-    .expect("An unexpected error occurred.");
+    let alice_credential_bundle =
+        CredentialBundle::new_basic("Alice".into(), ciphersuite.signature_algorithm(), backend)
+            .expect("An unexpected error occurred.");
 
     let key_package_bundle =
         KeyPackageBundle::new(&[ciphersuite], &alice_credential_bundle, backend, vec![])
@@ -182,18 +176,12 @@ async fn test_update_path(ciphersuite: Ciphersuite, backend: &impl OpenMlsCrypto
     let framing_parameters = FramingParameters::new(group_aad, WireFormat::MlsPlaintext);
 
     // Define credential bundles
-    let alice_credential_bundle = CredentialBundle::new_basic(
-        "Alice".into(),
-        ciphersuite.signature_algorithm(),
-        backend,
-    )
-    .expect("An unexpected error occurred.");
-    let bob_credential_bundle = CredentialBundle::new_basic(
-        "Bob".into(),
-        ciphersuite.signature_algorithm(),
-        backend,
-    )
-    .expect("An unexpected error occurred.");
+    let alice_credential_bundle =
+        CredentialBundle::new_basic("Alice".into(), ciphersuite.signature_algorithm(), backend)
+            .expect("An unexpected error occurred.");
+    let bob_credential_bundle =
+        CredentialBundle::new_basic("Bob".into(), ciphersuite.signature_algorithm(), backend)
+            .expect("An unexpected error occurred.");
 
     // Generate KeyPackages
     let alice_key_package_bundle = KeyPackageBundle::new(
@@ -371,18 +359,12 @@ async fn test_psks(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvide
     let framing_parameters = FramingParameters::new(group_aad, WireFormat::MlsPlaintext);
 
     // Define credential bundles
-    let alice_credential_bundle = CredentialBundle::new_basic(
-        "Alice".into(),
-        ciphersuite.signature_algorithm(),
-        backend,
-    )
-    .expect("An unexpected error occurred.");
-    let bob_credential_bundle = CredentialBundle::new_basic(
-        "Bob".into(),
-        ciphersuite.signature_algorithm(),
-        backend,
-    )
-    .expect("An unexpected error occurred.");
+    let alice_credential_bundle =
+        CredentialBundle::new_basic("Alice".into(), ciphersuite.signature_algorithm(), backend)
+            .expect("An unexpected error occurred.");
+    let bob_credential_bundle =
+        CredentialBundle::new_basic("Bob".into(), ciphersuite.signature_algorithm(), backend)
+            .expect("An unexpected error occurred.");
 
     // Generate KeyPackages
     let alice_key_package_bundle = KeyPackageBundle::new(
@@ -523,18 +505,12 @@ async fn test_staged_commit_creation(
     let framing_parameters = FramingParameters::new(group_aad, WireFormat::MlsPlaintext);
 
     // Define credential bundles
-    let alice_credential_bundle = CredentialBundle::new_basic(
-        "Alice".into(),
-        ciphersuite.signature_algorithm(),
-        backend,
-    )
-    .expect("An unexpected error occurred.");
-    let bob_credential_bundle = CredentialBundle::new_basic(
-        "Bob".into(),
-        ciphersuite.signature_algorithm(),
-        backend,
-    )
-    .expect("An unexpected error occurred.");
+    let alice_credential_bundle =
+        CredentialBundle::new_basic("Alice".into(), ciphersuite.signature_algorithm(), backend)
+            .expect("An unexpected error occurred.");
+    let bob_credential_bundle =
+        CredentialBundle::new_basic("Bob".into(), ciphersuite.signature_algorithm(), backend)
+            .expect("An unexpected error occurred.");
 
     // Generate KeyPackages
     let alice_key_package_bundle = KeyPackageBundle::new(
@@ -619,12 +595,9 @@ async fn test_own_commit_processing(
     let framing_parameters = FramingParameters::new(group_aad, WireFormat::MlsPlaintext);
 
     // Define credential bundles
-    let alice_credential_bundle = CredentialBundle::new_basic(
-        "Alice".into(),
-        ciphersuite.signature_algorithm(),
-        backend,
-    )
-    .expect("An unexpected error occurred.");
+    let alice_credential_bundle =
+        CredentialBundle::new_basic("Alice".into(), ciphersuite.signature_algorithm(), backend)
+            .expect("An unexpected error occurred.");
 
     // Generate KeyPackages
     let alice_key_package_bundle = KeyPackageBundle::new(
@@ -667,12 +640,9 @@ fn setup_client(
     ciphersuite: Ciphersuite,
     backend: &impl OpenMlsCryptoProvider,
 ) -> (CredentialBundle, KeyPackageBundle) {
-    let credential_bundle = CredentialBundle::new_basic(
-        id.into(),
-        ciphersuite.signature_algorithm(),
-        backend,
-    )
-    .expect("An unexpected error occurred.");
+    let credential_bundle =
+        CredentialBundle::new_basic(id.into(), ciphersuite.signature_algorithm(), backend)
+            .expect("An unexpected error occurred.");
     let key_package_bundle =
         KeyPackageBundle::new(&[ciphersuite], &credential_bundle, backend, Vec::new())
             .expect("An unexpected error occurred.");

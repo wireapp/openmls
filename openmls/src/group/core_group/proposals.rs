@@ -78,6 +78,31 @@ impl QueuedProposal {
             proposal_or_ref_type: ProposalOrRefType::Reference,
         })
     }
+
+    /// Creates a new [QueuedProposal] from an [MlsMessage]
+    #[cfg(any(feature = "test-utils", test))]
+    pub(crate) fn from_mls_message(
+        ciphersuite: Ciphersuite,
+        backend: &impl OpenMlsCryptoProvider,
+        msg: MlsMessage,
+    ) -> Result<Self, LibraryError> {
+        if let MlsMessage::Plaintext(msg) = msg {
+            let proposal = match msg.content() {
+                MlsPlaintextContentType::Proposal(p) => p,
+                _ => panic!("Wrong content type"),
+            };
+            let proposal_reference = ProposalRef::from_proposal(ciphersuite, backend, proposal)?;
+            Ok(Self {
+                proposal: proposal.clone(),
+                proposal_reference,
+                sender: msg.sender().clone(),
+                proposal_or_ref_type: ProposalOrRefType::Reference,
+            })
+        } else {
+            panic!("Cannot extract a proposal from an encrypted message")
+        }
+    }
+
     /// Creates a new [QueuedProposal] from a [Proposal] and [Sender]
     pub(crate) fn from_proposal_and_sender(
         ciphersuite: Ciphersuite,

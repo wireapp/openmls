@@ -10,12 +10,9 @@ use super::*;
 fn build_create_commit_params(backend: &impl OpenMlsCryptoProvider) {
     let framing_parameters: FramingParameters =
         FramingParameters::new(&[1, 2, 3], WireFormat::MlsCiphertext);
-    let credential_bundle: &CredentialBundle = &CredentialBundle::new_basic(
-        vec![4, 5, 6],
-        SignatureScheme::ED25519,
-        backend,
-    )
-    .expect("Could not create new CredentialBundle.");
+    let credential_bundle: &CredentialBundle =
+        &CredentialBundle::new_basic(vec![4, 5, 6], SignatureScheme::ED25519, backend)
+            .expect("Could not create new CredentialBundle.");
     let proposal_store: &ProposalStore = &ProposalStore::new();
     let inline_proposals: Vec<Proposal> = vec![];
     let force_self_update: bool = true;

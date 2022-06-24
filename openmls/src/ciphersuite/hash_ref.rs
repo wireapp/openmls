@@ -93,6 +93,12 @@ impl HashReference {
     }
 }
 
+impl From<Value> for HashReference {
+    fn from(value: Value) -> Self {
+        Self { value }
+    }
+}
+
 impl core::fmt::Display for HashReference {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "HashReference: ")?;

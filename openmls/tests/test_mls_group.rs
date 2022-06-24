@@ -79,21 +79,15 @@ async fn mls_group_operations(ciphersuite: Ciphersuite, backend: &impl OpenMlsCr
         let group_id = GroupId::from_slice(b"Test Group");
 
         // Generate credential bundles
-        let alice_credential = generate_credential_bundle(
-            "Alice".into(),
-            ciphersuite.signature_algorithm(),
-            backend,
-        )
-        .await
-        .expect("An unexpected error occurred.");
+        let alice_credential =
+            generate_credential_bundle("Alice".into(), ciphersuite.signature_algorithm(), backend)
+                .await
+                .expect("An unexpected error occurred.");
 
-        let bob_credential = generate_credential_bundle(
-            "Bob".into(),
-            ciphersuite.signature_algorithm(),
-            backend,
-        )
-        .await
-        .expect("An unexpected error occurred.");
+        let bob_credential =
+            generate_credential_bundle("Bob".into(), ciphersuite.signature_algorithm(), backend)
+                .await
+                .expect("An unexpected error occurred.");
 
         let charlie_credential = generate_credential_bundle(
             "Charlie".into(),
@@ -956,13 +950,10 @@ async fn test_empty_input_errors(ciphersuite: Ciphersuite, backend: &impl OpenMl
     let group_id = GroupId::from_slice(b"Test Group");
 
     // Generate credential bundles
-    let alice_credential = generate_credential_bundle(
-        "Alice".into(),
-        ciphersuite.signature_algorithm(),
-        backend,
-    )
-    .await
-    .expect("An unexpected error occurred.");
+    let alice_credential =
+        generate_credential_bundle("Alice".into(), ciphersuite.signature_algorithm(), backend)
+            .await
+            .expect("An unexpected error occurred.");
 
     // Generate KeyPackages
     let alice_key_package =
@@ -1014,21 +1005,15 @@ async fn mls_group_ratchet_tree_extension(
         // === Positive case: using the ratchet tree extension ===
 
         // Generate credential bundles
-        let alice_credential = generate_credential_bundle(
-            "Alice".into(),
-            ciphersuite.signature_algorithm(),
-            backend,
-        )
-        .await
-        .expect("An unexpected error occurred.");
+        let alice_credential =
+            generate_credential_bundle("Alice".into(), ciphersuite.signature_algorithm(), backend)
+                .await
+                .expect("An unexpected error occurred.");
 
-        let bob_credential = generate_credential_bundle(
-            "Bob".into(),
-            ciphersuite.signature_algorithm(),
-            backend,
-        )
-        .await
-        .expect("An unexpected error occurred.");
+        let bob_credential =
+            generate_credential_bundle("Bob".into(), ciphersuite.signature_algorithm(), backend)
+                .await
+                .expect("An unexpected error occurred.");
 
         // Generate KeyPackages
         let alice_key_package =
@@ -1076,21 +1061,15 @@ async fn mls_group_ratchet_tree_extension(
         // === Negative case: not using the ratchet tree extension ===
 
         // Generate credential bundles
-        let alice_credential = generate_credential_bundle(
-            "Alice".into(),
-            ciphersuite.signature_algorithm(),
-            backend,
-        )
-        .await
-        .expect("An unexpected error occurred.");
+        let alice_credential =
+            generate_credential_bundle("Alice".into(), ciphersuite.signature_algorithm(), backend)
+                .await
+                .expect("An unexpected error occurred.");
 
-        let bob_credential = generate_credential_bundle(
-            "Bob".into(),
-            ciphersuite.signature_algorithm(),
-            backend,
-        )
-        .await
-        .expect("An unexpected error occurred.");
+        let bob_credential =
+            generate_credential_bundle("Bob".into(), ciphersuite.signature_algorithm(), backend)
+                .await
+                .expect("An unexpected error occurred.");
 
         // Generate KeyPackages
         let alice_key_package =
