@@ -22,7 +22,6 @@
 use std::convert::TryInto;
 
 use openmls_traits::{crypto::OpenMlsCrypto, types::CryptoError};
-use serde::{Deserialize, Serialize, de::Visitor};
 use tls_codec::{TlsDeserialize, TlsSerialize, TlsSize};
 
 use super::Ciphersuite;
@@ -125,7 +124,7 @@ impl <'de>serde::Deserialize<'de> for HashReference {
     where
         D: serde::Deserializer<'de> {
         struct HashVisitor;
-        impl <'de> Visitor<'de> for HashVisitor {
+        impl <'de> serde::de::Visitor<'de> for HashVisitor {
             type Value = HashReference;
 
             fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
