@@ -22,7 +22,6 @@
 use std::convert::TryInto;
 
 use openmls_traits::{crypto::OpenMlsCrypto, types::CryptoError};
-use serde::{Deserialize, Serialize};
 use tls_codec::{TlsDeserialize, TlsSerialize, TlsSize};
 
 use super::Ciphersuite;
@@ -38,8 +37,6 @@ type Value = [u8; VALUE_LEN];
     Hash,
     PartialEq,
     Eq,
-    Serialize,
-    Deserialize,
     TlsDeserialize,
     TlsSerialize,
     TlsSize,
@@ -102,9 +99,7 @@ impl From<Value> for HashReference {
 impl core::fmt::Display for HashReference {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "HashReference: ")?;
-        for b in self.value {
-            write!(f, "{:02X}", b)?;
-        }
+        write!(f, "{}", hex::encode(&self.value))?;
         Ok(())
     }
 }
@@ -112,5 +107,94 @@ impl core::fmt::Display for HashReference {
 impl core::fmt::Debug for HashReference {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}", self)
+    }
+}
+
+impl serde::Serialize for HashReference {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer {
+        let str = hex::encode(&self.value);
+        serializer.serialize_str(&str)
+    }
+}
+
+impl <'de>serde::Deserialize<'de> for HashReference {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de> {
+        struct HashVisitor;
+        impl <'de> serde::de::Visitor<'de> for HashVisitor {
+            type Value = HashReference;
+
+            fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
+                write!(formatter, "a hex encoded string.")
+            }
+
+            fn visit_str<E>(self, v: &str) -> Result<Self::Value, E>
+                where
+                    E: serde::de::Error, {
+                let mut buf = [0u8; 16];
+                hex::decode_to_slice(v, &mut buf).map_err(serde::de::Error::custom)?;
+                Ok(HashReference { value: buf })
+            }
+        }
+        deserializer.deserialize_str(HashVisitor)
+    }
+}
+
+#[cfg(test)]
+mod serialization_tests {
+    use std::collections::HashMap;
+
+    use super::*;
+
+    #[derive(serde::Deserialize, serde::Serialize)]
+    struct MapTest {
+        map: HashMap<HashReference, String>,
+    }
+
+    #[test]
+    fn test_serialization() {
+        let hash = HashReference {
+            value: b"Hello I'm Alice!".to_owned()
+        };
+        assert_eq!(serde_json::to_value(&hash).unwrap(), serde_json::Value::String("48656c6c6f2049276d20416c69636521".to_owned()));
+    }
+
+    #[test]
+    fn test_deserialization() {
+        let value = serde_json::Value::String("48656c6c6f2049276d20416c69636521".to_owned());
+        let hash: HashReference = serde_json::from_value(value).unwrap();
+        assert_eq!(&hash.value, b"Hello I'm Alice!");
+    }
+
+    #[test]
+    fn test_map_serialization() {
+        let mut test_map = MapTest { map: HashMap::new() };
+        let hash = HashReference {
+            value: b"Hello I'm Alice!".to_owned()
+        };
+        test_map.map.insert(hash, "value".to_owned());
+        let expected = serde_json::json!({
+            "map": {
+                "48656c6c6f2049276d20416c69636521": "value"
+            }
+        });
+        assert_eq!(serde_json::to_value(&test_map).unwrap(), expected);
+    }
+
+    #[test]
+    fn test_map_deserialization() {
+        let input = serde_json::json!({
+            "map": {
+                "48656c6c6f2049276d20416c69636521": "value"
+            }
+        });
+        let hash = HashReference {
+            value: b"Hello I'm Alice!".to_owned()
+        };
+        let result: MapTest = serde_json::from_value(input).unwrap();
+        assert_eq!(result.map[&hash], "value");
     }
 }
