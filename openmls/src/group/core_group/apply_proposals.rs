@@ -16,15 +16,16 @@ use crate::{
 use super::*;
 
 /// This struct contain the return values of the `apply_proposals()` function
-pub(crate) struct ApplyProposalsValues {
+pub(crate) struct ApplyProposalsValues<'a> {
     pub(crate) path_required: bool,
     pub(crate) self_removed: bool,
     pub(crate) invitation_list: Vec<(LeafIndex, AddProposal)>,
     pub(crate) presharedkeys: PreSharedKeys,
     pub(crate) external_init_secret_option: Option<InitSecret>,
+    pub(crate) extensions: Option<&'a [Extension]>,
 }
 
-impl ApplyProposalsValues {
+impl ApplyProposalsValues<'_> {
     /// This function creates a `HashSet` of node indexes of the new nodes that
     /// were added to the tree. The `HashSet` will be querried by the
     /// `resolve()` function to filter out those nodes from the resolution.
@@ -48,18 +49,37 @@ impl ApplyProposalsValues {
 ///
 /// Returns an error if the proposals have not been validated before.
 impl CoreGroup {
-    pub(crate) fn apply_proposals(
+    pub(crate) fn apply_proposals<'a>(
         &self,
         diff: &mut TreeSyncDiff,
         backend: &impl OpenMlsCryptoProvider,
-        proposal_queue: &ProposalQueue,
+        proposal_queue: &'a ProposalQueue,
         key_package_bundles: &[KeyPackageBundle],
-    ) -> Result<ApplyProposalsValues, ApplyProposalsError> {
+    ) -> Result<ApplyProposalsValues<'a>, ApplyProposalsError> {
         log::debug!("Applying proposal");
         let mut has_updates = false;
         let mut has_removes = false;
         let mut self_removed = false;
         let mut external_init_secret_option = None;
+
+        // Process GroupContextExtensions first because they have to be used to validate other proposals.
+        // For example, an add proposal will have to fulfill the required capabilities present in those extensions
+        let extensions = proposal_queue
+            .filtered_by_type(ProposalType::GroupContextExtensions)
+            .find_map(|queued_proposal| {
+                if let Proposal::GroupContextExtensions(ext_proposal) = queued_proposal.proposal() {
+                    Some(ext_proposal.extensions())
+                } else {
+                    None
+                }
+            });
+
+        let required_extensions = extensions
+            .and_then(|exts| {
+                exts.iter()
+                    .find_map(|i| i.as_required_capabilities_extension().ok())
+            })
+            .map(|e| e.extensions());
 
         // Process external init proposals. We do this before the removes, so we
         // know that removing "ourselves" (i.e. removing the group member in the
@@ -155,8 +175,12 @@ impl CoreGroup {
         // Extract KeyPackages from proposals
         let mut invitation_list = Vec::new();
         for add_proposal in add_proposals {
+            let kp = add_proposal.key_package();
+            if let Some(required) = required_extensions {
+                kp.check_extension_support(required)?;
+            }
             let leaf_index = diff
-                .add_leaf(add_proposal.key_package().clone(), backend.crypto())
+                .add_leaf(kp.clone(), backend.crypto())
                 // TODO #810
                 .map_err(|_| LibraryError::custom("Tree full: cannot add more members"))?;
             invitation_list.push((leaf_index, add_proposal.clone()))
@@ -194,6 +218,7 @@ impl CoreGroup {
             invitation_list,
             presharedkeys,
             external_init_secret_option,
+            extensions,
         })
     }
 }
