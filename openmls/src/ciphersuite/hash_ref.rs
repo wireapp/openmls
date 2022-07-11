@@ -32,16 +32,7 @@ type Value = [u8; VALUE_LEN];
 
 /// A reference to an MLS object computed as an HKDF of the value.
 #[derive(
-    Clone,
-    Copy,
-    Hash,
-    PartialEq,
-    Eq,
-    TlsDeserialize,
-    TlsSerialize,
-    TlsSize,
-    PartialOrd,
-    Ord,
+    Clone, Copy, Hash, PartialEq, Eq, TlsDeserialize, TlsSerialize, TlsSize, PartialOrd, Ord,
 )]
 pub struct HashReference {
     value: Value,
@@ -113,18 +104,20 @@ impl core::fmt::Debug for HashReference {
 impl serde::Serialize for HashReference {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
-        S: serde::Serializer {
+        S: serde::Serializer,
+    {
         let str = hex::encode(&self.value);
         serializer.serialize_str(&str)
     }
 }
 
-impl <'de>serde::Deserialize<'de> for HashReference {
+impl<'de> serde::Deserialize<'de> for HashReference {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where
-        D: serde::Deserializer<'de> {
+        D: serde::Deserializer<'de>,
+    {
         struct HashVisitor;
-        impl <'de> serde::de::Visitor<'de> for HashVisitor {
+        impl<'de> serde::de::Visitor<'de> for HashVisitor {
             type Value = HashReference;
 
             fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
@@ -132,8 +125,9 @@ impl <'de>serde::Deserialize<'de> for HashReference {
             }
 
             fn visit_str<E>(self, v: &str) -> Result<Self::Value, E>
-                where
-                    E: serde::de::Error, {
+            where
+                E: serde::de::Error,
+            {
                 let mut buf = [0u8; 16];
                 hex::decode_to_slice(v, &mut buf).map_err(serde::de::Error::custom)?;
                 Ok(HashReference { value: buf })
@@ -157,9 +151,12 @@ mod serialization_tests {
     #[test]
     fn test_serialization() {
         let hash = HashReference {
-            value: b"Hello I'm Alice!".to_owned()
+            value: b"Hello I'm Alice!".to_owned(),
         };
-        assert_eq!(serde_json::to_value(&hash).unwrap(), serde_json::Value::String("48656c6c6f2049276d20416c69636521".to_owned()));
+        assert_eq!(
+            serde_json::to_value(&hash).unwrap(),
+            serde_json::Value::String("48656c6c6f2049276d20416c69636521".to_owned())
+        );
     }
 
     #[test]
@@ -171,9 +168,11 @@ mod serialization_tests {
 
     #[test]
     fn test_map_serialization() {
-        let mut test_map = MapTest { map: HashMap::new() };
+        let mut test_map = MapTest {
+            map: HashMap::new(),
+        };
         let hash = HashReference {
-            value: b"Hello I'm Alice!".to_owned()
+            value: b"Hello I'm Alice!".to_owned(),
         };
         test_map.map.insert(hash, "value".to_owned());
         let expected = serde_json::json!({
@@ -192,7 +191,7 @@ mod serialization_tests {
             }
         });
         let hash = HashReference {
-            value: b"Hello I'm Alice!".to_owned()
+            value: b"Hello I'm Alice!".to_owned(),
         };
         let result: MapTest = serde_json::from_value(input).unwrap();
         assert_eq!(result.map[&hash], "value");
