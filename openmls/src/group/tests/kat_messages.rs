@@ -704,7 +704,7 @@ pub fn run_test_vector(tv: MessagesTestVector) -> Result<(), MessagesTestVectorE
 
 #[test]
 fn read_test_vectors_messages() {
-    let tests: Vec<MessagesTestVector> = read("test_vectors/kat_messages.json");
+    let tests: Vec<MessagesTestVector> = read("test_vectors/kat_messages-new.json");
 
     for test_vector in tests {
         match run_test_vector(test_vector) {
