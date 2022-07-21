@@ -405,7 +405,7 @@ pub(crate) enum StagedCommitState {
 #[derive(Debug, Serialize, Deserialize)]
 pub struct StagedCommit {
     staged_proposal_queue: ProposalQueue,
-    state: StagedCommitState,
+    pub(crate) state: StagedCommitState,
     commit_update_key_package: Option<KeyPackage>,
 }
 
@@ -460,9 +460,9 @@ impl StagedCommit {
 /// This struct is used internally by [StagedCommit] to encapsulate all the modified group state.
 #[derive(Debug, Serialize, Deserialize)]
 pub(crate) struct MemberStagedCommitState {
-    group_context: GroupContext,
+    pub(crate) group_context: GroupContext,
     group_epoch_secrets: GroupEpochSecrets,
-    message_secrets: MessageSecrets,
+    pub(crate) message_secrets: MessageSecrets,
     interim_transcript_hash: Vec<u8>,
     staged_diff: StagedTreeSyncDiff,
 }

@@ -5,13 +5,14 @@
 #[cfg(any(feature = "test-utils", test))]
 use std::collections::BTreeMap;
 
-use core_group::create_commit_params::CreateCommitParams;
 use tls_codec::Serialize;
+
+use core_group::create_commit_params::CreateCommitParams;
 
 use crate::{ciphersuite::hash_ref::HashReference, ciphersuite::hash_ref::KeyPackageRef};
 
 use super::{
-    errors::{AddMembersError, LeaveGroupError, RemoveMembersError},
+    errors::{AddMembersError, RemoveMembersError},
     *,
 };
 
@@ -105,6 +106,29 @@ impl MlsGroup {
         backend: &impl OpenMlsCryptoProvider,
         members: &[KeyPackageRef],
     ) -> Result<(MlsMessageOut, Option<Welcome>), RemoveMembersError> {
+        let create_commit_result = self.create_remove_commit(backend, members).await?;
+
+        // Convert MlsPlaintext messages to MLSMessage and encrypt them if required by
+        // the configuration
+        let mls_message = self.plaintext_to_mls_message(create_commit_result.commit, backend)?;
+
+        // Set the current group state to [`MlsGroupState::PendingCommit`],
+        // storing the current [`StagedCommit`] from the commit results
+        self.group_state = MlsGroupState::PendingCommit(Box::new(PendingCommitState::Member(
+            create_commit_result.staged_commit,
+        )));
+
+        // Since the state of the group might be changed, arm the state flag
+        self.flag_state_change();
+
+        Ok((mls_message, create_commit_result.welcome_option))
+    }
+
+    pub(crate) async fn create_remove_commit(
+        &mut self,
+        backend: &impl OpenMlsCryptoProvider,
+        members: &[KeyPackageRef],
+    ) -> Result<CreateCommitResult, RemoveMembersError> {
         self.is_operational()?;
 
         if members.is_empty() {
@@ -139,22 +163,7 @@ impl MlsGroup {
             .proposal_store(&self.proposal_store)
             .inline_proposals(inline_proposals)
             .build();
-        let create_commit_result = self.group.create_commit(params, backend).await?;
-
-        // Convert MlsPlaintext messages to MLSMessage and encrypt them if required by
-        // the configuration
-        let mls_message = self.plaintext_to_mls_message(create_commit_result.commit, backend)?;
-
-        // Set the current group state to [`MlsGroupState::PendingCommit`],
-        // storing the current [`StagedCommit`] from the commit results
-        self.group_state = MlsGroupState::PendingCommit(Box::new(PendingCommitState::Member(
-            create_commit_result.staged_commit,
-        )));
-
-        // Since the state of the group might be changed, arm the state flag
-        self.flag_state_change();
-
-        Ok((mls_message, create_commit_result.welcome_option))
+        Ok(self.group.create_commit(params, backend).await?)
     }
 
     /// Creates proposals to add members to the group.
@@ -249,53 +258,6 @@ impl MlsGroup {
         self.flag_state_change();
 
         Ok(mls_message)
-    }
-
-    /// Leave the group.
-    ///
-    /// Creates a Remove Proposal that needs to be covered by a Commit from a different member.
-    /// The Remove Proposal is returned as a [`MlsMessageOut`].
-    ///
-    /// Returns an error if there is a pending commit.
-    pub async fn leave_group(
-        &mut self,
-        backend: &impl OpenMlsCryptoProvider,
-    ) -> Result<MlsMessageOut, LeaveGroupError> {
-        self.is_operational()?;
-
-        let credential = self
-            .credential()
-            // We checked we are in the right state above
-            .map_err(|_| LibraryError::custom("Wrong group state"))?;
-        let credential_bundle: CredentialBundle = backend
-            .key_store()
-            .read(
-                &credential
-                    .signature_key()
-                    .tls_serialize_detached()
-                    .map_err(LibraryError::missing_bound_check)?,
-            )
-            .await
-            .ok_or(LeaveGroupError::NoMatchingCredentialBundle)?;
-
-        let removed = self
-            .group
-            .key_package_ref()
-            .ok_or_else(|| LibraryError::custom("No key package reference for own key package."))?;
-        let remove_proposal = self.group.create_remove_proposal(
-            self.framing_parameters(),
-            &credential_bundle,
-            removed,
-            backend,
-        )?;
-
-        self.proposal_store.add(QueuedProposal::from_mls_plaintext(
-            self.ciphersuite(),
-            backend,
-            remove_proposal.clone(),
-        )?);
-
-        Ok(self.plaintext_to_mls_message(remove_proposal, backend)?)
     }
 
     /// Returns a list of [`KeyPackage`]s of the current group members.

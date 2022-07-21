@@ -5,6 +5,40 @@
 //! This means that some functions that are not expected to fail and throw an
 //! error, will still return a `Result` since they may throw a `LibraryError`.
 
+#[cfg(test)]
+use std::convert::TryFrom;
+#[cfg(test)]
+use std::io::{Error, Read, Write};
+
+use log::{debug, trace};
+use openmls_traits::{crypto::OpenMlsCrypto, types::Ciphersuite};
+use serde::{Deserialize, Serialize};
+use tls_codec::Serialize as TlsSerializeTrait;
+
+#[cfg(any(feature = "test-utils", test))]
+use crate::prelude::CreateGroupContextExtProposalError;
+use crate::{
+    ciphersuite::{hash_ref::KeyPackageRef, signable::*},
+    credentials::*,
+    error::LibraryError,
+    extensions::errors::*,
+    framing::*,
+    group::*,
+    key_packages::{errors::KeyPackageExtensionSupportError, *},
+    messages::{proposals::*, public_group_state::*, *},
+    schedule::{message_secrets::*, psk::*, *},
+    tree::{secret_tree::SecretTreeError, sender_ratchet::SenderRatchetConfiguration},
+    treesync::{errors::TreeSyncError, *},
+    versions::ProtocolVersion,
+};
+
+use super::{
+    errors::{CoreGroupBuildError, CreateAddProposalError, ExporterError, ProposalValidationError},
+    group_context::*,
+};
+
+use self::{past_secrets::MessageSecretsStore, staged_commit::StagedCommit};
+
 // Private
 mod apply_proposals;
 mod new_from_welcome;
@@ -32,39 +66,6 @@ mod test_external_init;
 mod test_past_secrets;
 #[cfg(test)]
 mod test_proposals;
-
-#[cfg(any(feature = "test-utils", test))]
-use crate::prelude::CreateGroupContextExtProposalError;
-
-use crate::{
-    ciphersuite::{hash_ref::KeyPackageRef, signable::*},
-    credentials::*,
-    error::LibraryError,
-    extensions::errors::*,
-    framing::*,
-    group::*,
-    key_packages::{errors::KeyPackageExtensionSupportError, *},
-    messages::{proposals::*, public_group_state::*, *},
-    schedule::{message_secrets::*, psk::*, *},
-    tree::{secret_tree::SecretTreeError, sender_ratchet::SenderRatchetConfiguration},
-    treesync::{errors::TreeSyncError, *},
-    versions::ProtocolVersion,
-};
-
-use self::{past_secrets::MessageSecretsStore, staged_commit::StagedCommit};
-use log::{debug, trace};
-use openmls_traits::{crypto::OpenMlsCrypto, types::Ciphersuite};
-use serde::{Deserialize, Serialize};
-#[cfg(test)]
-use std::convert::TryFrom;
-#[cfg(test)]
-use std::io::{Error, Read, Write};
-use tls_codec::Serialize as TlsSerializeTrait;
-
-use super::{
-    errors::{CoreGroupBuildError, CreateAddProposalError, ExporterError, ProposalValidationError},
-    group_context::*,
-};
 
 #[derive(Debug)]
 pub(crate) struct CreateCommitResult {
@@ -443,17 +444,33 @@ impl CoreGroup {
         padding_size: usize,
         backend: &impl OpenMlsCryptoProvider,
     ) -> Result<MlsCiphertext, MessageEncryptionError> {
+        self.encrypt_for_epoch(mls_plaintext, padding_size, None, None, backend)
+    }
+
+    /// Same as [`encrypt`] but allows encrypting a message for another epoch than the current one
+    /// if one knows the next epoch [`GroupContext`] and [`MessageSecrets`]
+    pub(crate) fn encrypt_for_epoch(
+        &mut self,
+        mls_plaintext: MlsPlaintext,
+        padding_size: usize,
+        group_context: Option<&GroupContext>,
+        message_secrets: Option<&mut MessageSecrets>,
+        backend: &impl OpenMlsCryptoProvider,
+    ) -> Result<MlsCiphertext, MessageEncryptionError> {
         log::trace!("{:?}", mls_plaintext.confirmation_tag());
+        let epoch = group_context
+            .map(GroupContext::epoch)
+            .unwrap_or_else(|| mls_plaintext.epoch());
         MlsCiphertext::try_from_plaintext(
             &mls_plaintext,
             self.ciphersuite,
             backend,
             MlsMessageHeader {
                 group_id: self.group_id().clone(),
-                epoch: self.context().epoch(),
+                epoch,
                 sender: crate::tree::index::SecretTreeLeafIndex(self.own_leaf_index()),
             },
-            self.message_secrets_store.message_secrets_mut(),
+            message_secrets.unwrap_or_else(|| self.message_secrets_store.message_secrets_mut()),
             padding_size,
         )
     }

@@ -206,6 +206,15 @@ pub enum LeaveGroupError {
     /// See [`MlsGroupStateError`] for more details.
     #[error(transparent)]
     GroupStateError(#[from] MlsGroupStateError),
+    /// Tried to commit a self removal in a leave operation
+    #[error("Tried to commit a self removal in a leave operation")]
+    AttemptToRemoveSelf,
+    /// Could not find a KeyPackage for removing self from group
+    #[error("Could not find a KeyPackage for removing self from group")]
+    NoKeyPackageForSelf,
+    /// See [`RemoveMembersError`] for more details.
+    #[error(transparent)]
+    RemoveMembersError(#[from] RemoveMembersError),
 }
 
 /// Self update error

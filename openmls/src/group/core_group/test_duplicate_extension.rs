@@ -2,12 +2,13 @@
 use super::*;
 
 use crate::{
-    credentials::*, group::core_group::create_commit_params::CreateCommitParams,
-    group::errors::WelcomeError, messages::GroupSecrets, schedule::KeySchedule, test_utils::*,
+    group::{core_group::create_commit_params::CreateCommitParams, errors::WelcomeError},
+    messages::GroupSecrets,
+    schedule::KeySchedule,
+    test_utils::*,
 };
 use openmls_rust_crypto::OpenMlsRustCrypto;
-use openmls_traits::crypto::OpenMlsCrypto;
-use openmls_traits::OpenMlsCryptoProvider;
+use openmls_traits::{crypto::OpenMlsCrypto, OpenMlsCryptoProvider};
 use tls_codec::Deserialize;
 
 // This tests the ratchet tree extension to test if the duplicate detection works

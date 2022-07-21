@@ -4,6 +4,12 @@
 //! See <https://github.com/mlswg/mls-implementations/blob/master/test-vectors.md>
 //! for more description on the test vectors.
 
+use openmls_rust_crypto::OpenMlsRustCrypto;
+use openmls_traits::{random::OpenMlsRand, types::SignatureScheme, OpenMlsCryptoProvider};
+use serde::{self, Deserialize, Serialize};
+use thiserror::Error;
+use tls_codec::{Deserialize as TlsDeserialize, Serialize as TlsSerialize, TlsSliceU32, TlsVecU32};
+
 use crate::{
     ciphersuite::signable::Signable,
     credentials::*,
@@ -20,12 +26,6 @@ use crate::{
     treesync::node::Node,
     versions::ProtocolVersion,
 };
-
-use openmls_rust_crypto::OpenMlsRustCrypto;
-use openmls_traits::{random::OpenMlsRand, types::SignatureScheme, OpenMlsCryptoProvider};
-use serde::{self, Deserialize, Serialize};
-use thiserror::Error;
-use tls_codec::{Deserialize as TlsDeserialize, Serialize as TlsSerialize, TlsSliceU32, TlsVecU32};
 
 #[derive(Serialize, Deserialize, Debug, Clone, Default)]
 pub struct MessagesTestVector {

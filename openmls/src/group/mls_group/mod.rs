@@ -2,10 +2,16 @@
 //!
 //! This module contains [`MlsGroup`] and its submodules.
 
-use super::{
-    proposals::{ProposalStore, QueuedProposal},
-    staged_commit::StagedCommit,
-};
+use std::io::{Error, Read, Write};
+
+use openmls_traits::{key_store::OpenMlsKeyStore, types::Ciphersuite, OpenMlsCryptoProvider};
+
+use config::*;
+use errors::*;
+use resumption::*;
+use ser::*;
+
+use crate::schedule::message_secrets::MessageSecrets;
 use crate::{
     ciphersuite::{hash_ref::KeyPackageRef, signable::Signable},
     credentials::{Credential, CredentialBundle},
@@ -17,8 +23,11 @@ use crate::{
     schedule::ResumptionSecret,
     treesync::Node,
 };
-use openmls_traits::{key_store::OpenMlsKeyStore, types::Ciphersuite, OpenMlsCryptoProvider};
-use std::io::{Error, Read, Write};
+
+use super::{
+    proposals::{ProposalStore, QueuedProposal},
+    staged_commit::StagedCommit,
+};
 
 // Private
 mod application;
@@ -27,14 +36,10 @@ mod exporting;
 mod resumption;
 mod updates;
 
-use config::*;
-use errors::*;
-use resumption::*;
-use ser::*;
-
 // Crate
 pub(crate) mod config;
 pub(crate) mod errors;
+pub(crate) mod leave;
 pub(crate) mod membership;
 pub(crate) mod processing;
 pub(crate) mod ser;
@@ -331,12 +336,28 @@ impl MlsGroup {
         plaintext: MlsPlaintext,
         backend: &impl OpenMlsCryptoProvider,
     ) -> Result<MlsMessageOut, LibraryError> {
+        self.plaintext_to_mls_message_for_new_epoch(plaintext, None, None, backend)
+    }
+
+    fn plaintext_to_mls_message_for_new_epoch(
+        &mut self,
+        plaintext: MlsPlaintext,
+        group_context: Option<&GroupContext>,
+        message_secrets: Option<&mut MessageSecrets>,
+        backend: &impl OpenMlsCryptoProvider,
+    ) -> Result<MlsMessageOut, LibraryError> {
         let msg = match self.configuration().wire_format_policy().outgoing() {
             OutgoingWireFormatPolicy::AlwaysPlaintext => MlsMessageOut::from(plaintext),
             OutgoingWireFormatPolicy::AlwaysCiphertext => {
                 let ciphertext = self
                     .group
-                    .encrypt(plaintext, self.configuration().padding_size(), backend)
+                    .encrypt_for_epoch(
+                        plaintext,
+                        self.configuration().padding_size(),
+                        group_context,
+                        message_secrets,
+                        backend,
+                    )
                     // We can be sure the encryption will work because the plaintext was created by us
                     .map_err(|_| LibraryError::custom("Malformed plaintext"))?;
                 MlsMessageOut::from(ciphertext)
