@@ -309,14 +309,14 @@ impl KeyPackage {
     /// happen
     #[cfg(any(feature = "test-utils", test))]
     pub fn mut_lifetime(&mut self) -> &mut LifetimeExtension {
-        let mut index = -1;
-        for (i, extension) in self.payload.extensions.iter.enumerate() {
+        let mut index = 0;
+        for (i, extension) in self.payload.extensions.iter().enumerate() {
             if extension.extension_type() == ExtensionType::Lifetime {
                 index = i;
                 break;
             }
         }
-        &mut self.payload.extensions[index]
+        self.payload.extensions[index]
             .as_mut_lifetime_extension()
             .expect("Not lifetime extension")
     }
