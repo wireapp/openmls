@@ -302,6 +302,25 @@ impl KeyPackage {
         self.payload.extensions.as_slice()
     }
 
+    /// Get a reference to the extensions of this key package.
+    ///
+    /// # Panics
+    /// It will panic if the LifetimeExtension is not present, but it is required so it shouldn't
+    /// happen
+    #[cfg(any(feature = "test-utils", test))]
+    pub fn mut_lifetime(&mut self) -> &mut LifetimeExtension {
+        let mut index = -1;
+        for (i, extension) in self.payload.extensions.iter.enumerate() {
+            if extension.extension_type() == ExtensionType::Lifetime {
+                index = i;
+                break;
+            }
+        }
+        &mut self.payload.extensions[index]
+            .as_mut_lifetime_extension()
+            .expect("Not lifetime extension")
+    }
+
     /// Check whether the this key package supports all the required extensions
     /// in the provided list.
     pub fn check_extension_support(

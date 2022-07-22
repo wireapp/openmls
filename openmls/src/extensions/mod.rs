@@ -290,6 +290,18 @@ impl Extension {
         }
     }
 
+    /// Returns a mutable reference to lifetime extensions.
+    /// Intended to help testing
+    #[cfg(any(feature = "test-utils", test))]
+    pub fn as_mut_lifetime_extension(&mut self) -> Result<&mut LifetimeExtension, ExtensionError> {
+        match self {
+            Self::LifeTime(e) => Ok(e),
+            _ => Err(ExtensionError::InvalidExtensionType(
+                "This is not a LifetimeExtension".into(),
+            )),
+        }
+    }
+
     /// Get a reference to this extension as [`ExternalKeyIdExtension`].
     /// Returns an [`ExtensionError::InvalidExtensionType`] if called on an
     /// [`Extension`] that's not an [`ExternalKeyIdExtension`].
