@@ -180,7 +180,7 @@ impl ResumptionSecret {
 
 /// A secret that can be used among members to make sure everyone has the same
 /// group state.
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[cfg_attr(test, derive(PartialEq))]
 pub struct AuthenticationSecret {
     secret: Secret,
@@ -206,9 +206,8 @@ impl AuthenticationSecret {
 
 // Crate-only types
 
-#[derive(Debug, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
 #[cfg_attr(test, derive(PartialEq))]
-#[cfg_attr(any(feature = "test-utils", test), derive(Clone))]
 pub(crate) struct CommitSecret {
     secret: Secret,
 }
@@ -245,7 +244,7 @@ impl CommitSecret {
 }
 
 /// The `InitSecret` is used to connect the next epoch to the current one.
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[cfg_attr(test, derive(PartialEq))]
 pub(crate) struct InitSecret {
     secret: Secret,
@@ -699,7 +698,7 @@ impl EncryptionSecret {
 }
 
 /// A secret that we can derive secrets from, that are used outside of OpenMLS.
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[cfg_attr(test, derive(PartialEq))]
 pub(crate) struct ExporterSecret {
     secret: Secret,
@@ -744,7 +743,7 @@ impl ExporterSecret {
 }
 
 /// A secret used when joining a group with an external Commit.
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[cfg_attr(test, derive(PartialEq))]
 pub(crate) struct ExternalSecret {
     secret: Secret,
@@ -776,7 +775,7 @@ impl ExternalSecret {
 }
 
 /// The confirmation key is used to calculate the `ConfirmationTag`.
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[cfg_attr(test, derive(PartialEq))]
 pub(crate) struct ConfirmationKey {
     secret: Secret,
@@ -841,7 +840,7 @@ impl ConfirmationKey {
 }
 
 /// The membership key is used to calculate the `MembershipTag`.
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[cfg_attr(test, derive(PartialEq))]
 pub(crate) struct MembershipKey {
     secret: Secret,
@@ -912,7 +911,7 @@ fn ciphertext_sample(ciphersuite: Ciphersuite, ciphertext: &[u8]) -> &[u8] {
 }
 
 /// A key that can be used to derive an `AeadKey` and an `AeadNonce`.
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[cfg_attr(test, derive(PartialEq))]
 pub(crate) struct SenderDataSecret {
     secret: Secret,
@@ -1196,7 +1195,7 @@ impl EpochSecrets {
     }
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Clone, Serialize, Deserialize)]
 pub(crate) struct GroupEpochSecrets {
     init_secret: InitSecret,
     exporter_secret: ExporterSecret,

@@ -52,7 +52,7 @@ pub(crate) type UpdatePathResult = (KeyPackage, Vec<PlainUpdatePathNode>, Commit
 
 /// The [`StagedTreeSyncDiff`] can be created from a [`TreeSyncDiff`], examined
 /// and later merged into a [`TreeSync`] instance.
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub(crate) struct StagedTreeSyncDiff {
     own_leaf_index: LeafIndex,
     diff: StagedMlsBinaryTreeDiff<TreeSyncNode>,

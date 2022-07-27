@@ -4,7 +4,7 @@ use super::*;
 #[cfg(test)]
 use crate::tree::index::SecretTreeLeafIndex;
 /// Combined message secrets that need to be stored for later decryption/verification
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub(crate) struct MessageSecrets {
     sender_data_secret: SenderDataSecret,
     membership_key: MembershipKey,

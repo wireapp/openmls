@@ -395,14 +395,14 @@ impl CoreGroup {
     }
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub(crate) enum StagedCommitState {
     SelfRemoved(Box<StagedTreeSyncDiff>),
     GroupMember(Box<MemberStagedCommitState>),
 }
 
 /// Contains the changes from a commit to the group state.
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct StagedCommit {
     staged_proposal_queue: ProposalQueue,
     state: StagedCommitState,
@@ -458,7 +458,7 @@ impl StagedCommit {
 }
 
 /// This struct is used internally by [StagedCommit] to encapsulate all the modified group state.
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub(crate) struct MemberStagedCommitState {
     group_context: GroupContext,
     group_epoch_secrets: GroupEpochSecrets,

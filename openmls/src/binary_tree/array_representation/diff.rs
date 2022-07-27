@@ -40,7 +40,7 @@ use super::{
 /// original content, it can't provide the same information as the [`AbDiff`] it
 /// was created from. However, the lack of the internal reference means that its
 /// lifetime is not tied to that of the original tree.
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub(crate) struct StagedAbDiff<T: Clone + Debug> {
     diff: BTreeMap<NodeIndex, T>,
     size: TreeSize,
