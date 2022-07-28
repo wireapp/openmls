@@ -455,6 +455,11 @@ impl StagedCommit {
     pub fn self_removed(&self) -> bool {
         matches!(self.state, StagedCommitState::SelfRemoved(_))
     }
+
+    /// Lists queued proposals in a staged commit
+    pub fn staged_proposal_queue(&self) -> impl Iterator<Item = &QueuedProposal> {
+        self.staged_proposal_queue.queued_proposals()
+    }
 }
 
 /// This struct is used internally by [StagedCommit] to encapsulate all the modified group state.
