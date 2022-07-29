@@ -256,6 +256,11 @@ impl MlsGroup {
         self.proposal_store.proposals()
     }
 
+    /// Clears any pending proposal
+    pub fn clear_pending_proposals(&mut self) {
+        self.proposal_store.empty()
+    }
+
     /// Returns a reference to the [`StagedCommit`] of the most recently created
     /// commit. If there was no commit created in this epoch, either because
     /// this commit or another commit was merged, it returns `None`.
@@ -390,12 +395,6 @@ impl MlsGroup {
     #[cfg(test)]
     pub(crate) fn group(&self) -> &CoreGroup {
         &self.group
-    }
-
-    /// Clear the pending proposals.
-    #[cfg(test)]
-    pub(crate) fn clear_pending_proposals(&mut self) {
-        self.proposal_store.empty()
     }
 }
 
