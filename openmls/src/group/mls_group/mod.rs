@@ -251,6 +251,11 @@ impl MlsGroup {
         self.group.context().epoch()
     }
 
+    /// Get the leaf index of this client.
+    pub fn own_leaf_index(&self) -> u32 {
+        self.group.own_leaf_index()
+    }
+
     /// Returns an `Iterator` over pending proposals.
     pub fn pending_proposals(&self) -> impl Iterator<Item = &QueuedProposal> {
         self.proposal_store.proposals()
