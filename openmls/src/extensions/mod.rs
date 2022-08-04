@@ -46,7 +46,7 @@ pub mod errors;
 // Public re-exports
 pub use capabilities_extension::CapabilitiesExtension;
 pub use external_key_id_extension::ExternalKeyIdExtension;
-pub use external_senders_extension::ExternalSendersExtension;
+pub use external_senders_extension::{ExternalSendersExtension, ExternalSender};
 pub use life_time_extension::LifetimeExtension;
 pub use parent_hash_extension::ParentHashExtension;
 pub use ratchet_tree_extension::RatchetTreeExtension;
