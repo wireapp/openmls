@@ -189,7 +189,7 @@ impl MlsPlaintext {
     }
 
     /// This constructor builds an `MlsPlaintext` containing an External Proposal.
-    /// The sender type is either `Sender::Preconfigured` or `Sender::NewMember`.
+    /// The sender type is either `Sender::External` or `Sender::NewMember`.
     pub(crate) fn member_external_proposal(
         framing_parameters: FramingParameters,
         sender: Sender,
