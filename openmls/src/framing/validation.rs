@@ -34,6 +34,10 @@
 //! ProcessedMessage (Application, Proposal, ExternalProposal, Commit, External Commit)
 //! ```
 
+use openmls_traits::OpenMlsCryptoProvider;
+
+use core_group::{proposals::QueuedProposal, staged_commit::StagedCommit};
+
 use crate::{
     ciphersuite::{hash_ref::KeyPackageRef, signable::Verifiable},
     error::LibraryError,
@@ -42,8 +46,6 @@ use crate::{
     tree::{index::SecretTreeLeafIndex, sender_ratchet::SenderRatchetConfiguration},
     treesync::TreeSync,
 };
-use core_group::{proposals::QueuedProposal, staged_commit::StagedCommit};
-use openmls_traits::OpenMlsCryptoProvider;
 
 use super::*;
 
@@ -391,15 +393,12 @@ impl UnverifiedPreconfiguredMessage {
         external_senders: Option<&'a ExternalSendersExtension>,
     ) -> Result<&'a SignaturePublicKey, ValidationError> {
         match self.plaintext.sender() {
-            Sender::Preconfigured(sender) => external_senders
-                .and_then(|extension_senders| {
-                    extension_senders
-                        .senders
-                        .iter()
-                        .find(|&extension| extension == sender)
-                        .map(|c| c.signature_key())
-                })
-                .ok_or(ValidationError::MissingRequiredSignatureKey),
+            Sender::Preconfigured(sender_index) => {
+                external_senders
+                    .and_then(|es| es.senders.get(*sender_index as usize))
+                    .map(|s| &s.signature_key)
+                    .ok_or(ValidationError::MissingRequiredSignatureKey)
+            },
             _ => Err(ValidationError::LibraryError(LibraryError::custom(
                 "We have terribly messed up in 'CoreGroup::process_unverified_message'",
             ))),

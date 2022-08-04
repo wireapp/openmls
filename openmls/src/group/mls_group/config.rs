@@ -155,8 +155,8 @@ impl MlsGroupConfigBuilder {
     }
 
     /// Sets the `external_senders` group context extension.
-    pub fn external_senders(mut self, credentials: Vec<Credential>) -> Self {
-        self.config.external_senders = ExternalSendersExtension::from(credentials.as_slice());
+    pub fn external_senders(mut self, external_senders: Vec<ExternalSender>) -> Self {
+        self.config.external_senders = external_senders.as_slice().into();
         self
     }
 

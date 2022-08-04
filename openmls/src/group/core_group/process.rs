@@ -198,7 +198,12 @@ impl CoreGroup {
                 // Signature verification
                 let verified_external_message = external_message
                     .into_verified(backend, signature_key, self.external_senders())
-                    .map_err(|_| UnverifiedMessageError::InvalidSignature)?;
+                    .map_err(|e| match e {
+                        ValidationError::MissingRequiredSignatureKey => {
+                            UnverifiedMessageError::MissingSignatureKey
+                        }
+                        _ => UnverifiedMessageError::InvalidSignature,
+                    })?;
 
                 match verified_external_message.plaintext().content() {
                     MlsPlaintextContentType::Proposal(proposal) => match proposal {

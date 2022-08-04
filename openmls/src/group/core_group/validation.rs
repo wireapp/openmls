@@ -73,16 +73,6 @@ impl CoreGroup {
             {
                 return Err(ValidationError::UnknownMember);
             }
-        } else if let Sender::Preconfigured(credential) = sender {
-            let is_authorized = self
-                .group_context_extensions()
-                .iter()
-                .filter_map(|e| e.as_external_senders_extension().ok())
-                .flat_map(|s| s.senders.iter())
-                .any(|c| c == credential);
-            if !is_authorized {
-                return Err(ValidationError::UnauthorizedSender);
-            }
         }
 
         // ValSem005

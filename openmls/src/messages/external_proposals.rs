@@ -56,15 +56,17 @@ impl ExternalProposal {
 
     /// Creates a proposal to remove a member from a group
     /// * `removed` - [KeyPackageRef] of the client to remove
-    /// * `credential` - of the sender
+    /// * `sender_index` - index of the sender in [`ExternalSendersExtension`] in group's extensions
     pub fn new_remove(
         removed: KeyPackageRef,
         group_id: GroupId,
         epoch: GroupEpoch,
         credential: &CredentialBundle,
+        sender_index: u32,
         backend: &impl OpenMlsCryptoProvider,
     ) -> Result<MlsMessageOut, ProposeAddMemberError> {
-        let sender = Sender::Preconfigured(credential.credential().clone());
+
+        let sender = Sender::Preconfigured(sender_index);
         Self::Remove(RemoveProposal { removed })
             .create_message(sender, group_id, epoch, credential, backend)
             .map_err(ProposeAddMemberError::from)
