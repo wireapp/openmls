@@ -92,12 +92,12 @@ pub enum UnverifiedMessageError {
     /// The message's membership tag is invalid.
     #[error("The message's membership tag is invalid.")]
     InvalidMembershipTag,
-    /// A signature key was not provided for a preconfigured message.
-    #[error("A signature key was not provided for a preconfigured message.")]
+    /// A signature key was not provided for an external message.
+    #[error("A signature key was not provided for an external message.")]
     MissingSignatureKey,
     /// Sender from external message is not in the granted external senders for this group
-    #[error("Unauthorized external preconfigured sender '{0:?}'")]
-    UnauthorizedPreconfiguredSender(Vec<u8>),
+    #[error("Unauthorized external sender '{0:?}'")]
+    UnauthorizedExternalSender(Vec<u8>),
     /// External senders cannot send application messages
     #[error("External senders cannot send application messages")]
     UnauthorizedExternalApplicationMessage,

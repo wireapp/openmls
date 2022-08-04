@@ -66,7 +66,7 @@ impl ExternalProposal {
         backend: &impl OpenMlsCryptoProvider,
     ) -> Result<MlsMessageOut, ProposeAddMemberError> {
 
-        let sender = Sender::Preconfigured(sender_index);
+        let sender = Sender::External(sender_index);
         Self::Remove(RemoveProposal { removed })
             .create_message(sender, group_id, epoch, credential, backend)
             .map_err(ProposeAddMemberError::from)

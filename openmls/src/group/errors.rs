@@ -152,9 +152,9 @@ pub enum StageCommitError {
     /// External Committer used the wrong index.
     #[error("External Committer used the wrong index.")]
     InconsistentSenderIndex,
-    /// The sender is of type preconfigured, which is not valid.
-    #[error("The sender is of type preconfigured, which is not valid.")]
-    SenderTypePreconfigured,
+    /// The sender is of type external, which is not valid.
+    #[error("The sender is of type external, which is not valid.")]
+    SenderTypeExternal,
     /// Too many new members: the tree is full.
     #[error("Too many new members: the tree is full.")]
     TooManyNewMembers,
@@ -213,8 +213,8 @@ pub enum ValidationError {
     /// The MlsPlaintext is not a Commit or an external Add proposal despite the sender begin of type NewMember.
     #[error("The MlsPlaintext is not a Commit or an external Add proposal despite the sender begin of type NewMember.")]
     NotACommitOrExternalAddProposal,
-    /// The MlsPlaintext is not an external proposal despite the sender being of type Preconfigured.
-    #[error("The MlsPlaintext is not an external proposal despite the sender being of type Preconfigured.")]
+    /// The MlsPlaintext is not an external proposal despite the sender being of type External.
+    #[error("The MlsPlaintext is not an external proposal despite the sender being of type External.")]
     NotExternalProposal,
     /// An external proposal referenced a client which is not a member of the group
     #[error("An external proposal referenced a client which is not a member of the group")]

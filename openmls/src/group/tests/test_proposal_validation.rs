@@ -2223,7 +2223,7 @@ async fn test_valsem112(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoPr
         ParseMessageError::ValidationError(ValidationError::NotACommitOrExternalAddProposal)
     );
 
-    // We can't test with sender type Preconfigured, since that currently panics
+    // We can't test with sender type External, since that currently panics
     // with `unimplemented`.
     // TODO This test should thus be extended when fixing #106.
 
