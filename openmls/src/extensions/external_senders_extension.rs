@@ -1,9 +1,11 @@
+use openmls_traits::types::SignatureScheme;
 use super::{Deserialize, Serialize};
 use crate::{
     credentials::Credential,
     prelude::SignaturePublicKey
 };
 use tls_codec::{TlsDeserialize, TlsSerialize, TlsSize, TlsVecU16};
+use crate::prelude::{BasicCredential, CredentialType, MlsCredentialType};
 
 
 /// # External Senders
@@ -23,6 +25,23 @@ pub struct ExternalSender {
     pub credential: Credential,
     /// Sender's public signature key
     pub signature_key: SignaturePublicKey,
+}
+
+impl ExternalSender {
+    /// temporary solution for building an [`ExternalSender`] given a public key
+    /// TODO: remove as soon as a certificate is available
+    pub fn new_basic(identity: &str, signature_key: SignaturePublicKey) -> Self {
+        let credential = BasicCredential {
+            identity: identity.as_bytes().into(),
+            signature_scheme: SignatureScheme::ED25519,
+            public_key: signature_key.clone(),
+        };
+        let credential = Credential {
+            credential_type: CredentialType::Basic,
+            credential: MlsCredentialType::Basic(credential)
+        };
+        Self { signature_key, credential }
+    }
 }
 
 impl<const N: usize> From<&[ExternalSender; N]> for ExternalSendersExtension {

@@ -216,8 +216,8 @@ pub enum MlsCredentialType {
 /// type. The [`CredentialType`] always matches the [`MlsCredentialType`].
 #[derive(Debug, PartialEq, Clone, Serialize, Deserialize)]
 pub struct Credential {
-    credential_type: CredentialType,
-    credential: MlsCredentialType,
+    pub(crate) credential_type: CredentialType,
+    pub(crate) credential: MlsCredentialType,
 }
 
 impl Credential {
@@ -334,9 +334,9 @@ impl From<MlsCredentialType> for Credential {
 /// with the corresponding signature scheme.
 #[derive(Debug, Clone, Serialize, Deserialize, TlsSerialize, TlsSize)]
 pub struct BasicCredential {
-    identity: TlsByteVecU16,
-    signature_scheme: SignatureScheme,
-    public_key: SignaturePublicKey,
+    pub(crate) identity: TlsByteVecU16,
+    pub(crate) signature_scheme: SignatureScheme,
+    pub(crate) public_key: SignaturePublicKey,
 }
 
 impl BasicCredential {
