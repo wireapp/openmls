@@ -4,8 +4,10 @@
 //! traits defined in the [`signable`](crate::ciphersuite::signable) module in
 //! the same way as the `MlsPlaintext`.
 use openmls_traits::{types::Ciphersuite, OpenMlsCryptoProvider};
+
 use tls_codec::{Serialize, TlsByteVecU8, TlsDeserialize, TlsSerialize, TlsSize, TlsVecU32};
 
+use crate::prelude::GroupInfo;
 use crate::{
     ciphersuite::{
         hash_ref::KeyPackageRef,
@@ -203,7 +205,7 @@ impl PublicGroupStateTbs {
         let confirmed_transcript_hash = core_group.confirmed_transcript_hash().into();
         let other_extensions = core_group.other_extensions().into();
 
-        Ok(PublicGroupStateTbs {
+        Ok(Self {
             version: core_group.version(),
             group_id,
             epoch,
@@ -217,6 +219,37 @@ impl PublicGroupStateTbs {
             signer: *core_group
                 .key_package_ref()
                 .ok_or_else(|| LibraryError::custom("missing key package ref"))?,
+        })
+    }
+
+    pub(crate) fn from_group_info(
+        core_group: &CoreGroup,
+        group_info: GroupInfo,
+        interim_transcript_hash: Vec<u8>,
+        external_pub: HpkePublicKey,
+    ) -> Result<Self, LibraryError> {
+        let version = core_group.version();
+        let group_id = group_info.payload.group_id;
+        let epoch = group_info.payload.epoch;
+        let tree_hash = group_info.payload.tree_hash.into();
+        let interim_transcript_hash = interim_transcript_hash.into();
+        let confirmed_transcript_hash = group_info.payload.confirmed_transcript_hash.into();
+        let group_context_extensions = group_info.payload.group_context_extensions.into();
+        let other_extensions = group_info.payload.other_extensions.into();
+        let ciphersuite = core_group.ciphersuite();
+        let signer = group_info.payload.signer;
+        Ok(Self {
+            version,
+            group_id,
+            epoch,
+            tree_hash,
+            interim_transcript_hash,
+            confirmed_transcript_hash,
+            group_context_extensions,
+            other_extensions,
+            external_pub,
+            ciphersuite,
+            signer,
         })
     }
 }

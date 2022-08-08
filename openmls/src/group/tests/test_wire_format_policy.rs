@@ -78,7 +78,7 @@ async fn receive_message(
             .await
             .expect("An unexpected error occurred.");
 
-    let (_message, welcome) = alice_group
+    let (_message, welcome, ..) = alice_group
         .add_members(backend, &[bob_key_package])
         .await
         .expect("Could not add member.");
@@ -95,7 +95,7 @@ async fn receive_message(
         .await
         .expect("error creating bob's group from welcome");
 
-    let (message, _welcome) = bob_group
+    let (message, _welcome, ..) = bob_group
         .self_update(backend, None)
         .await
         .expect("An unexpected error occurred.");

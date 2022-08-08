@@ -166,7 +166,7 @@ impl Commit {
 )]
 pub struct ConfirmationTag(pub(crate) Mac);
 
-#[derive(Debug, TlsDeserialize, TlsSerialize, TlsSize)]
+#[derive(Debug, Clone, TlsDeserialize, TlsSerialize, TlsSize)]
 pub(crate) struct GroupInfoPayload {
     group_id: GroupId,
     epoch: GroupEpoch,

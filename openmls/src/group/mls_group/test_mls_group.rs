@@ -200,7 +200,7 @@ async fn remover(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider)
     .expect("An unexpected error occurred.");
 
     // === Alice adds Bob ===
-    let (_queued_message, welcome) = alice_group
+    let (_queued_message, welcome, ..) = alice_group
         .add_members(backend, &[bob_key_package])
         .await
         .expect("Could not add member to group.");
@@ -221,7 +221,7 @@ async fn remover(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider)
     // === Bob adds Charlie ===
     let (queued_messages, welcome) =
         match bob_group.add_members(backend, &[charlie_key_package]).await {
-            Ok((qm, welcome)) => (qm, welcome),
+            Ok((qm, welcome, ..)) => (qm, welcome),
             Err(e) => panic!("Could not add member to group: {:?}", e),
         };
 
@@ -296,7 +296,7 @@ async fn remover(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider)
     }
 
     // Charlie commits
-    let (_queued_messages, _welcome) = charlie_group
+    let (_queued_messages, _welcome, ..) = charlie_group
         .commit_to_pending_proposals(backend)
         .await
         .expect("Could not commit proposal");
@@ -558,7 +558,7 @@ async fn test_pending_commit_logic(ciphersuite: Ciphersuite, backend: &impl Open
     assert!(alice_group.pending_commit().is_none());
 
     println!("\nCreating commit with add proposal.");
-    let (_msg, _welcome_option) = alice_group
+    let (_msg, _welcome_option, ..) = alice_group
         .self_update(backend, None)
         .await
         .expect("error creating self-update commit");
@@ -631,7 +631,7 @@ async fn test_pending_commit_logic(ciphersuite: Ciphersuite, backend: &impl Open
     assert!(alice_group.pending_commit().is_none());
 
     // Creating a new commit should commit the same proposals.
-    let (_msg, welcome_option) = alice_group
+    let (_msg, welcome_option, ..) = alice_group
         .self_update(backend, None)
         .await
         .expect("error creating self-update commit");
@@ -662,12 +662,12 @@ async fn test_pending_commit_logic(ciphersuite: Ciphersuite, backend: &impl Open
     );
 
     // While a commit is pending, merging Bob's commit should clear the pending commit.
-    let (_msg, _welcome_option) = alice_group
+    let (_msg, _welcome_option, ..) = alice_group
         .self_update(backend, None)
         .await
         .expect("error creating self-update commit");
 
-    let (msg, _welcome_option) = bob_group
+    let (msg, _welcome_option, ..) = bob_group
         .self_update(backend, None)
         .await
         .expect("error creating self-update commit");

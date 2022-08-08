@@ -300,29 +300,29 @@ impl CoreGroup {
             )?;
         }
 
+        // Create the ratchet tree extension if necessary
+        let other_extensions: Vec<Extension> = if self.use_ratchet_tree_extension {
+            vec![Extension::RatchetTree(RatchetTreeExtension::new(
+                diff.export_nodes()?,
+            ))]
+        } else {
+            Vec::new()
+        };
+        // Create GroupInfo object
+        let group_info = GroupInfoPayload::new(
+            provisional_group_context.group_id().clone(),
+            provisional_group_context.epoch(),
+            tree_hash,
+            confirmed_transcript_hash.clone(),
+            self.group_context_extensions(),
+            &other_extensions,
+            confirmation_tag.clone(),
+            diff.hash_ref()?,
+        );
+        let group_info = group_info.sign(backend, params.credential_bundle())?;
+
         // Check if new members were added and, if so, create welcome messages
         let welcome_option = if !plaintext_secrets.is_empty() {
-            // Create the ratchet tree extension if necessary
-            let other_extensions: Vec<Extension> = if self.use_ratchet_tree_extension {
-                vec![Extension::RatchetTree(RatchetTreeExtension::new(
-                    diff.export_nodes()?,
-                ))]
-            } else {
-                Vec::new()
-            };
-            // Create GroupInfo object
-            let group_info = GroupInfoPayload::new(
-                provisional_group_context.group_id().clone(),
-                provisional_group_context.epoch(),
-                tree_hash,
-                confirmed_transcript_hash.clone(),
-                self.group_context_extensions(),
-                &other_extensions,
-                confirmation_tag.clone(),
-                diff.hash_ref()?,
-            );
-            let group_info = group_info.sign(backend, params.credential_bundle())?;
-
             // Encrypt GroupInfo object
             let (welcome_key, welcome_nonce) = welcome_secret
                 .derive_welcome_key_nonce(backend)
@@ -368,11 +368,16 @@ impl CoreGroup {
                 own_leaf_index,
             );
 
+        let external_pub = provisional_group_epoch_secrets
+            .external_secret()
+            .derive_external_keypair(backend.crypto(), ciphersuite)
+            .public;
+
         let staged_commit_state = MemberStagedCommitState::new(
             provisional_group_context,
             provisional_group_epoch_secrets,
             provisional_message_secrets,
-            provisional_interim_transcript_hash,
+            provisional_interim_transcript_hash.clone(),
             diff.into_staged_diff(backend, ciphersuite)?,
         );
         let staged_commit = StagedCommit::new(
@@ -381,10 +386,20 @@ impl CoreGroup {
             commit_update_key_package,
         );
 
+        let group_info = PublicGroupStateTbs::from_group_info(
+            self,
+            group_info,
+            provisional_interim_transcript_hash,
+            external_pub.into(),
+        )?;
+        let credential_bundle = params.credential_bundle();
+        let group_info = group_info.sign(backend, credential_bundle)?;
+
         Ok(CreateCommitResult {
             commit: mls_plaintext,
             welcome_option,
             staged_commit,
+            group_info,
         })
     }
 

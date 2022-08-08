@@ -8,7 +8,6 @@ use rstest::*;
 use rstest_reuse::{self, *};
 use tls_codec::{Deserialize, Serialize};
 
-use super::utils::{generate_credential_bundle, generate_key_package_bundle};
 use crate::{
     ciphersuite::{hash_ref::ProposalRef, signable::Signable, *},
     credentials::*,
@@ -26,6 +25,8 @@ use crate::{
     treesync::errors::ApplyUpdatePathError,
     versions::ProtocolVersion,
 };
+
+use super::utils::{generate_credential_bundle, generate_key_package_bundle};
 
 /// Helper function to generate and output CredentialBundle and KeyPackageBundle
 async fn generate_credential_bundle_and_key_package_bundle(
@@ -88,7 +89,10 @@ async fn create_group_with_members(
     .await
     .expect("An unexpected error occurred.");
 
-    alice_group.add_members(backend, member_key_packages).await
+    alice_group
+        .add_members(backend, member_key_packages)
+        .await
+        .map(|(msg, welcome, ..)| (msg, welcome))
 }
 
 struct ProposalValidationTestSetup {
@@ -157,7 +161,7 @@ async fn validation_test_setup(
             .await
             .expect("An unexpected error occurred.");
 
-    let (_message, welcome) = alice_group
+    let (_message, welcome, ..) = alice_group
         .add_members(backend, &[bob_key_package])
         .await
         .expect("error adding Bob to group");
@@ -1329,7 +1333,7 @@ async fn test_valsem106(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoPr
                     let result = alice_group
                         .add_members(backend, &[test_kpb.key_package().clone()])
                         .await
-                        .map(|(msg, welcome)| (msg, Some(welcome)));
+                        .map(|(msg, welcome, _)| (msg, Some(welcome)));
 
                     match key_package_version {
                         KeyPackageTestVersion::ValidTestCase => {
@@ -1493,7 +1497,7 @@ async fn test_valsem107(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoPr
         .expect("error while creating remove proposal");
     // While this shouldn't fail, it should produce a valid commit, i.e. one
     // that contains only one remove proposal.
-    let (manual_commit, _welcome) = alice_group
+    let (manual_commit, _welcome, ..) = alice_group
         .commit_to_pending_proposals(backend)
         .await
         .expect("error while trying to commit to colliding remove proposals");
@@ -1501,7 +1505,7 @@ async fn test_valsem107(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoPr
     // Clear commit to try another way of committing two identical removes.
     alice_group.clear_pending_commit();
 
-    let (combined_commit, _welcome) = alice_group
+    let (combined_commit, _welcome, ..) = alice_group
         .remove_members(backend, &[*bob_kp_ref, *bob_kp_ref])
         .await
         .expect("error while trying to remove the same member twice");
@@ -2375,7 +2379,7 @@ async fn test_valsem114(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoPr
             .unwrap();
 
     // Adding Bob to the group
-    let (_, welcome) = alice_group
+    let (_, welcome, ..) = alice_group
         .add_members(backend, &[bob_key_package])
         .await
         .unwrap();

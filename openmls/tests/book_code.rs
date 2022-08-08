@@ -151,7 +151,7 @@ async fn book_operations(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoP
 
     // === Alice adds Bob ===
     // ANCHOR: alice_adds_bob
-    let (mls_message_out, welcome) = alice_group
+    let (mls_message_out, welcome, ..) = alice_group
         .add_members(backend, &[bob_key_package])
         .await
         .expect("Could not add members.");
@@ -264,7 +264,7 @@ async fn book_operations(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoP
 
     // === Bob updates and commits ===
     // ANCHOR: self_update
-    let (mls_message_out, welcome_option) = bob_group
+    let (mls_message_out, welcome_option, ..) = bob_group
         .self_update(
             backend,
             None, // We don't provide a key package, it will be created on the fly instead
@@ -362,7 +362,7 @@ async fn book_operations(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoP
     }
 
     // ANCHOR: commit_to_proposals
-    let (mls_message_out, welcome_option) = alice_group
+    let (mls_message_out, welcome_option, ..) = alice_group
         .commit_to_pending_proposals(backend)
         .await
         .expect("Could not commit to pending proposals.");
@@ -418,7 +418,7 @@ async fn book_operations(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoP
 
     let (queued_message, welcome) =
         match bob_group.add_members(backend, &[charlie_key_package]).await {
-            Ok((qm, welcome)) => (qm, welcome),
+            Ok((qm, welcome, ..)) => (qm, welcome),
             Err(e) => panic!("Could not add member to group: {:?}", e),
         };
 
@@ -505,7 +505,8 @@ async fn book_operations(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoP
         .expect("Could not process unverified message.");
 
     // === Charlie updates and commits ===
-    let (queued_message, welcome_option) = match charlie_group.self_update(backend, None).await {
+    let (queued_message, welcome_option, ..) = match charlie_group.self_update(backend, None).await
+    {
         Ok(qm) => qm,
         Err(e) => panic!("Error performing self-update: {:?}", e),
     };
@@ -590,7 +591,7 @@ async fn book_operations(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoP
 
     // === Charlie removes Bob ===
     // ANCHOR: charlie_removes_bob
-    let (mls_message_out, welcome_option) = charlie_group
+    let (mls_message_out, welcome_option, ..) = charlie_group
         .remove_members(backend, &[bob_kp_ref])
         .await
         .expect("Could not remove Bob from group.");
@@ -826,7 +827,7 @@ async fn book_operations(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoP
     }
 
     // Commit to the proposals and process it
-    let (queued_message, welcome_option) = alice_group
+    let (queued_message, welcome_option, ..) = alice_group
         .commit_to_pending_proposals(backend)
         .await
         .expect("Could not flush proposals");
@@ -969,7 +970,7 @@ async fn book_operations(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoP
         ))
     );
 
-    let (queued_message, _welcome_option) = alice_group
+    let (queued_message, _welcome_option, ..) = alice_group
         .commit_to_pending_proposals(backend)
         .await
         .expect("Could not commit to proposals.");
@@ -1061,7 +1062,7 @@ async fn book_operations(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoP
         .expect("An unexpected error occurred.");
 
     // Add Bob to the group
-    let (_queued_message, welcome) = alice_group
+    let (_queued_message, welcome, ..) = alice_group
         .add_members(backend, &[bob_key_package])
         .await
         .expect("Could not add Bob");

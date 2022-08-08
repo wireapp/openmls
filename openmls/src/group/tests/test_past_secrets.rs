@@ -111,7 +111,7 @@ async fn test_past_secrets_in_group(
         .expect("An unexpected error occurred.");
 
         // Alice adds Bob
-        let (_message, welcome) = alice_group
+        let (_message, welcome, ..) = alice_group
             .add_members(backend, &[bob_key_package])
             .await
             .expect("An unexpected error occurred.");
@@ -142,7 +142,7 @@ async fn test_past_secrets_in_group(
 
             application_messages.push(application_message);
 
-            let (message, _welcome) = alice_group
+            let (message, _welcome, ..) = alice_group
                 .self_update(backend, None)
                 .await
                 .expect("An unexpected error occurred.");

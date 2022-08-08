@@ -8,6 +8,7 @@ use std::collections::BTreeMap;
 use core_group::create_commit_params::CreateCommitParams;
 use tls_codec::Serialize;
 
+use crate::prelude::PublicGroupState;
 use crate::{ciphersuite::hash_ref::HashReference, ciphersuite::hash_ref::KeyPackageRef};
 
 use super::{
@@ -30,7 +31,7 @@ impl MlsGroup {
         &mut self,
         backend: &impl OpenMlsCryptoProvider,
         key_packages: &[KeyPackage],
-    ) -> Result<(MlsMessageOut, Welcome), AddMembersError> {
+    ) -> Result<(MlsMessageOut, Welcome, PublicGroupState), AddMembersError> {
         self.is_operational()?;
 
         if key_packages.is_empty() {
@@ -89,7 +90,7 @@ impl MlsGroup {
         // Since the state of the group might be changed, arm the state flag
         self.flag_state_change();
 
-        Ok((mls_messages, welcome))
+        Ok((mls_messages, welcome, create_commit_result.group_info))
     }
 
     /// Removes members from the group.
@@ -104,7 +105,7 @@ impl MlsGroup {
         &mut self,
         backend: &impl OpenMlsCryptoProvider,
         members: &[KeyPackageRef],
-    ) -> Result<(MlsMessageOut, Option<Welcome>), RemoveMembersError> {
+    ) -> Result<(MlsMessageOut, Option<Welcome>, PublicGroupState), RemoveMembersError> {
         self.is_operational()?;
 
         if members.is_empty() {
@@ -154,7 +155,11 @@ impl MlsGroup {
         // Since the state of the group might be changed, arm the state flag
         self.flag_state_change();
 
-        Ok((mls_message, create_commit_result.welcome_option))
+        Ok((
+            mls_message,
+            create_commit_result.welcome_option,
+            create_commit_result.group_info,
+        ))
     }
 
     /// Creates proposals to add members to the group.
