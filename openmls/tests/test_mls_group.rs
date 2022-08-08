@@ -131,9 +131,9 @@ async fn mls_group_operations(ciphersuite: Ciphersuite, backend: &impl OpenMlsCr
         .expect("An unexpected error occurred.");
 
         // === Alice adds Bob ===
-        let (_queued_message, welcome) =
+        let (_queued_message, welcome, ..) =
             match alice_group.add_members(backend, &[bob_key_package]).await {
-                Ok((qm, welcome)) => (qm, welcome),
+                Ok((qm, welcome, ..)) => (qm, welcome),
                 Err(e) => panic!("Could not add member to group: {:?}", e),
             };
 
@@ -219,7 +219,8 @@ async fn mls_group_operations(ciphersuite: Ciphersuite, backend: &impl OpenMlsCr
         }
 
         // === Bob updates and commits ===
-        let (queued_message, welcome_option) = match bob_group.self_update(backend, None).await {
+        let (queued_message, welcome_option, ..) = match bob_group.self_update(backend, None).await
+        {
             Ok(qm) => qm,
             Err(e) => panic!("Error performing self-update: {:?}", e),
         };
@@ -313,7 +314,7 @@ async fn mls_group_operations(ciphersuite: Ciphersuite, backend: &impl OpenMlsCr
             unreachable!("Expected a QueuedProposal.");
         }
 
-        let (queued_message, _welcome_option) =
+        let (queued_message, _welcome_option, ..) =
             match alice_group.commit_to_pending_proposals(backend).await {
                 Ok(qm) => qm,
                 Err(e) => panic!("Error performing self-update: {:?}", e),
@@ -371,7 +372,7 @@ async fn mls_group_operations(ciphersuite: Ciphersuite, backend: &impl OpenMlsCr
 
         let (queued_message, welcome) =
             match bob_group.add_members(backend, &[charlie_key_package]).await {
-                Ok((qm, welcome)) => (qm, welcome),
+                Ok((qm, welcome, ..)) => (qm, welcome),
                 Err(e) => panic!("Could not add member to group: {:?}", e),
             };
 
@@ -443,11 +444,11 @@ async fn mls_group_operations(ciphersuite: Ciphersuite, backend: &impl OpenMlsCr
             .expect("Could not process unverified message.");
 
         // === Charlie updates and commits ===
-        let (queued_message, welcome_option) = match charlie_group.self_update(backend, None).await
-        {
-            Ok(qm) => qm,
-            Err(e) => panic!("Error performing self-update: {:?}", e),
-        };
+        let (queued_message, welcome_option, ..) =
+            match charlie_group.self_update(backend, None).await {
+                Ok(qm) => qm,
+                Err(e) => panic!("Error performing self-update: {:?}", e),
+            };
 
         let unverified_message = alice_group
             .parse_message(queued_message.clone().into(), backend)
@@ -516,7 +517,7 @@ async fn mls_group_operations(ciphersuite: Ciphersuite, backend: &impl OpenMlsCr
             .key_package_ref()
             .expect("An unexpected error occurred.");
         println!(" >>> Charlie is removing bob");
-        let (queued_message, welcome_option) = charlie_group
+        let (queued_message, welcome_option, ..) = charlie_group
             .remove_members(backend, &[bob_kpr])
             .await
             .expect("Could not remove member from group.");
@@ -692,7 +693,7 @@ async fn mls_group_operations(ciphersuite: Ciphersuite, backend: &impl OpenMlsCr
         }
 
         // Commit to the proposals and process it
-        let (queued_message, welcome_option) = alice_group
+        let (queued_message, welcome_option, ..) = alice_group
             .commit_to_pending_proposals(backend)
             .await
             .expect("Could not flush proposals");
@@ -815,7 +816,7 @@ async fn mls_group_operations(ciphersuite: Ciphersuite, backend: &impl OpenMlsCr
             ))
         );
 
-        let (queued_message, _welcome_option) = alice_group
+        let (queued_message, _welcome_option, ..) = alice_group
             .commit_to_pending_proposals(backend)
             .await
             .expect("Could not commit to proposals.");
@@ -890,7 +891,7 @@ async fn mls_group_operations(ciphersuite: Ciphersuite, backend: &impl OpenMlsCr
                 .expect("An unexpected error occurred.");
 
         // Add Bob to the group
-        let (_queued_message, welcome) = alice_group
+        let (_queued_message, welcome, ..) = alice_group
             .add_members(backend, &[bob_key_package])
             .await
             .expect("Could not add Bob");
@@ -1045,11 +1046,11 @@ async fn mls_group_ratchet_tree_extension(
         .expect("An unexpected error occurred.");
 
         // === Alice adds Bob ===
-        let (_queued_message, welcome) = match alice_group
+        let (_queued_message, welcome, ..) = match alice_group
             .add_members(backend, &[bob_key_package.clone()])
             .await
         {
-            Ok((qm, welcome)) => (qm, welcome),
+            Ok((qm, welcome, ..)) => (qm, welcome),
             Err(e) => panic!("Could not add member to group: {:?}", e),
         };
 
@@ -1098,9 +1099,9 @@ async fn mls_group_ratchet_tree_extension(
         .expect("An unexpected error occurred.");
 
         // === Alice adds Bob ===
-        let (_queued_message, welcome) =
+        let (_queued_message, welcome, ..) =
             match alice_group.add_members(backend, &[bob_key_package]).await {
-                Ok((qm, welcome)) => (qm, welcome),
+                Ok((qm, welcome, ..)) => (qm, welcome),
                 Err(e) => panic!("Could not add member to group: {:?}", e),
             };
 

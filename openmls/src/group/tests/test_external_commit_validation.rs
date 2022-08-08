@@ -401,7 +401,7 @@ async fn test_valsem243(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoPr
     .await
     .expect("An unexpected error occurred.");
 
-    let (_message, _welcome) = alice_group
+    let (_message, _welcome, ..) = alice_group
         .add_members(backend, &[bob_key_package])
         .await
         .expect("Could not add member.");
@@ -538,7 +538,7 @@ async fn test_valsem244(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoPr
     .await
     .expect("An unexpected error occurred.");
 
-    let (_message, _welcome) = alice_group
+    let (_message, _welcome, ..) = alice_group
         .add_members(backend, &[bob_key_package])
         .await
         .expect("Could not add member.");

@@ -217,11 +217,12 @@ impl Client {
         let group = groups
             .get_mut(group_id)
             .ok_or(ClientError::NoMatchingGroup)?;
-        let action_results = match action_type {
+        let (msg, welcome, ..) = match action_type {
             ActionType::Commit => {
-                group
+                let (msg, welcome, ..) = group
                     .self_update(&self.crypto, key_package_bundle_option)
-                    .await?
+                    .await?;
+                (msg, welcome)
             }
             ActionType::Proposal => (
                 group
@@ -230,7 +231,7 @@ impl Client {
                 None,
             ),
         };
-        Ok(action_results)
+        Ok((msg, welcome))
     }
 
     /// Have the client either propose or commit (depending on the
@@ -250,7 +251,7 @@ impl Client {
             .ok_or(ClientError::NoMatchingGroup)?;
         let action_results = match action_type {
             ActionType::Commit => {
-                let (messages, welcome) = group.add_members(&self.crypto, key_packages).await?;
+                let (messages, welcome, ..) = group.add_members(&self.crypto, key_packages).await?;
                 (vec![messages], Some(welcome))
             }
             ActionType::Proposal => {
@@ -282,7 +283,8 @@ impl Client {
             .ok_or(ClientError::NoMatchingGroup)?;
         let action_results = match action_type {
             ActionType::Commit => {
-                let (message, welcome_option) = group.remove_members(&self.crypto, targets).await?;
+                let (message, welcome_option, ..) =
+                    group.remove_members(&self.crypto, targets).await?;
                 (vec![message], welcome_option)
             }
             ActionType::Proposal => {

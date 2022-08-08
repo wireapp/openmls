@@ -2,6 +2,7 @@
 
 use std::mem;
 
+use crate::prelude::PublicGroupState;
 use core_group::{
     create_commit_params::CreateCommitParams, proposals::QueuedProposal,
     staged_commit::StagedCommit,
@@ -87,7 +88,8 @@ impl MlsGroup {
     pub async fn commit_to_pending_proposals(
         &mut self,
         backend: &impl OpenMlsCryptoProvider,
-    ) -> Result<(MlsMessageOut, Option<Welcome>), CommitToPendingProposalsError> {
+    ) -> Result<(MlsMessageOut, Option<Welcome>, PublicGroupState), CommitToPendingProposalsError>
+    {
         self.is_operational()?;
 
         let credential = self.credential()?;
@@ -124,7 +126,11 @@ impl MlsGroup {
         // Since the state of the group might be changed, arm the state flag
         self.flag_state_change();
 
-        Ok((mls_message, create_commit_result.welcome_option))
+        Ok((
+            mls_message,
+            create_commit_result.welcome_option,
+            create_commit_result.group_info,
+        ))
     }
 
     /// Merge a [StagedCommit] into the group after inspection. As this advances

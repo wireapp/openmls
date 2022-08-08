@@ -83,7 +83,7 @@ async fn validation_test_setup(
     .await
     .expect("An unexpected error occurred.");
 
-    let (_message, welcome) = alice_group
+    let (_message, welcome, ..) = alice_group
         .add_members(backend, &[bob_key_package])
         .await
         .expect("error adding Bob to group");
@@ -333,7 +333,7 @@ async fn test_valsem201(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoPr
             .await
             .expect("An unexpected error occurred.");
 
-    let (_msg_out, welcome) = alice_group
+    let (_msg_out, welcome, ..) = alice_group
         .add_members(backend, &[charlie_key_package])
         .await
         .expect("error adding charlie");

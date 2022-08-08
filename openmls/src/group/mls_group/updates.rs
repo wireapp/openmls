@@ -1,3 +1,4 @@
+use crate::prelude::PublicGroupState;
 use core_group::create_commit_params::CreateCommitParams;
 use tls_codec::Serialize;
 
@@ -17,7 +18,7 @@ impl MlsGroup {
         &mut self,
         backend: &impl OpenMlsCryptoProvider,
         key_package_bundle_option: Option<KeyPackageBundle>,
-    ) -> Result<(MlsMessageOut, Option<Welcome>), SelfUpdateError> {
+    ) -> Result<(MlsMessageOut, Option<Welcome>, PublicGroupState), SelfUpdateError> {
         self.is_operational()?;
 
         let credential = self.credential()?;
@@ -70,7 +71,11 @@ impl MlsGroup {
         // Since the state of the group might be changed, arm the state flag
         self.flag_state_change();
 
-        Ok((mls_message, create_commit_result.welcome_option))
+        Ok((
+            mls_message,
+            create_commit_result.welcome_option,
+            create_commit_result.group_info,
+        ))
     }
 
     /// Creates a proposal to update the own leaf node.

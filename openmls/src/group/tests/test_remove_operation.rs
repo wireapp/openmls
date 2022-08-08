@@ -80,7 +80,7 @@ async fn test_remove_operation_variants(
 
         // === Alice adds Bob & Charlie ===
 
-        let (_message, welcome) = alice_group
+        let (_message, welcome, ..) = alice_group
             .add_members(backend, &[bob_key_package, charlie_key_package])
             .await
             .expect("An unexpected error occurred.");
@@ -116,7 +116,7 @@ async fn test_remove_operation_variants(
             .expect("An unexpected error occurred.");
 
         // We differentiate between the two test cases here
-        let (message, _welcome) = match test_case {
+        let (message, _welcome, ..) = match test_case {
             // Alice removes Bob
             TestCase::Remove => alice_group
                 .remove_members(backend, &[bob_kpr])

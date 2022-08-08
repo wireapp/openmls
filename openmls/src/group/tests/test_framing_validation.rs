@@ -104,7 +104,7 @@ async fn test_valsem001(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoPr
         bob_key_package,
     } = validation_test_setup(PURE_PLAINTEXT_WIRE_FORMAT_POLICY, ciphersuite, backend).await;
 
-    let (message, _welcome) = alice_group
+    let (message, _welcome, ..) = alice_group
         .add_members(backend, &[bob_key_package])
         .await
         .expect("Could not add member.");
@@ -138,7 +138,7 @@ async fn test_valsem001(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoPr
         bob_key_package,
     } = validation_test_setup(PURE_CIPHERTEXT_WIRE_FORMAT_POLICY, ciphersuite, backend).await;
 
-    let (message, _welcome) = alice_group
+    let (message, _welcome, ..) = alice_group
         .add_members(backend, &[bob_key_package])
         .await
         .expect("Could not add member.");
@@ -174,7 +174,7 @@ async fn test_valsem002(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoPr
         bob_key_package,
     } = validation_test_setup(PURE_PLAINTEXT_WIRE_FORMAT_POLICY, ciphersuite, backend).await;
 
-    let (message, _welcome) = alice_group
+    let (message, _welcome, ..) = alice_group
         .add_members(backend, &[bob_key_package])
         .await
         .expect("Could not add member.");
@@ -219,7 +219,7 @@ async fn test_valsem003(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoPr
     } = validation_test_setup(PURE_PLAINTEXT_WIRE_FORMAT_POLICY, ciphersuite, backend).await;
 
     // Alice can't process her own commits, so we'll have to add Bob.
-    let (_message, welcome) = alice_group
+    let (_message, welcome, ..) = alice_group
         .add_members(backend, &[bob_key_package])
         .await
         .expect("Could not add member.");
@@ -242,7 +242,7 @@ async fn test_valsem003(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoPr
     .expect("error creating bob's group from welcome");
 
     // Now that we added bob, Alice needs to create a new message that Bob can process.
-    let (message, _welcome) = alice_group
+    let (message, _welcome, ..) = alice_group
         .self_update(backend, None)
         .await
         .expect("Could not self update.");
@@ -264,7 +264,7 @@ async fn test_valsem003(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoPr
     }
 
     // Do a second Commit to increase the epoch number
-    let (message, _welcome) = bob_group
+    let (message, _welcome, ..) = bob_group
         .self_update(backend, None)
         .await
         .expect("Could not add member.");
@@ -323,7 +323,7 @@ async fn test_valsem004(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoPr
         bob_key_package,
     } = validation_test_setup(PURE_PLAINTEXT_WIRE_FORMAT_POLICY, ciphersuite, backend).await;
 
-    let (message, _welcome) = alice_group
+    let (message, _welcome, ..) = alice_group
         .add_members(backend, &[bob_key_package])
         .await
         .expect("Could not add member.");
@@ -373,7 +373,7 @@ async fn test_valsem005(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoPr
         bob_key_package,
     } = validation_test_setup(PURE_PLAINTEXT_WIRE_FORMAT_POLICY, ciphersuite, backend).await;
 
-    let (message, _welcome) = alice_group
+    let (message, _welcome, ..) = alice_group
         .add_members(backend, &[bob_key_package])
         .await
         .expect("Could not add member.");
@@ -418,7 +418,7 @@ async fn test_valsem006(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoPr
         bob_key_package,
     } = validation_test_setup(PURE_CIPHERTEXT_WIRE_FORMAT_POLICY, ciphersuite, backend).await;
 
-    let (_message, welcome) = alice_group
+    let (_message, welcome, ..) = alice_group
         .add_members(backend, &[bob_key_package])
         .await
         .expect("Could not add member.");
@@ -484,7 +484,7 @@ async fn test_valsem007(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoPr
         bob_key_package,
     } = validation_test_setup(PURE_PLAINTEXT_WIRE_FORMAT_POLICY, ciphersuite, backend).await;
 
-    let (message, _welcome) = alice_group
+    let (message, _welcome, ..) = alice_group
         .add_members(backend, &[bob_key_package])
         .await
         .expect("Could not add member.");
@@ -529,7 +529,7 @@ async fn test_valsem008(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoPr
     } = validation_test_setup(PURE_PLAINTEXT_WIRE_FORMAT_POLICY, ciphersuite, backend).await;
 
     // Alice can't process her own commits, so we'll have to add Bob.
-    let (_message, welcome) = alice_group
+    let (_message, welcome, ..) = alice_group
         .add_members(backend, &[bob_key_package])
         .await
         .expect("Could not add member.");
@@ -552,7 +552,7 @@ async fn test_valsem008(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoPr
     .expect("error creating bob's group from welcome");
 
     // Now that we added bob, Alice needs to create a new message that Bob can process.
-    let (message, _welcome) = alice_group
+    let (message, _welcome, ..) = alice_group
         .self_update(backend, None)
         .await
         .expect("Could not self update.");
@@ -605,7 +605,7 @@ async fn test_valsem009(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoPr
         bob_key_package,
     } = validation_test_setup(PURE_PLAINTEXT_WIRE_FORMAT_POLICY, ciphersuite, backend).await;
 
-    let (message, _welcome) = alice_group
+    let (message, _welcome, ..) = alice_group
         .add_members(backend, &[bob_key_package])
         .await
         .expect("Could not add member.");
@@ -650,7 +650,7 @@ async fn test_valsem010(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoPr
     } = validation_test_setup(PURE_PLAINTEXT_WIRE_FORMAT_POLICY, ciphersuite, backend).await;
 
     // Alice can't process her own commits, so we'll have to add Bob.
-    let (_message, welcome) = alice_group
+    let (_message, welcome, ..) = alice_group
         .add_members(backend, &[bob_key_package])
         .await
         .expect("Could not add member.");
@@ -673,7 +673,7 @@ async fn test_valsem010(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoPr
     .expect("error creating bob's group from welcome");
 
     // Now that we added bob, Alice needs to create a new message that Bob can process.
-    let (message, _welcome) = alice_group
+    let (message, _welcome, ..) = alice_group
         .self_update(backend, None)
         .await
         .expect("Could not self update.");

@@ -73,6 +73,7 @@ pub(crate) struct CreateCommitResult {
     pub(crate) commit: MlsPlaintext,
     pub(crate) welcome_option: Option<Welcome>,
     pub(crate) staged_commit: StagedCommit,
+    pub(crate) group_info: PublicGroupState,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
