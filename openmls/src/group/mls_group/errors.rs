@@ -58,6 +58,9 @@ pub enum MlsGroupStateError {
     /// Can't execute operation because a pending commit exists.
     #[error("Can't execute operation because a pending commit exists.")]
     PendingCommit,
+    /// Requested pending proposal hasn't been found in local pending proposals
+    #[error("Requested pending proposal hasn't been found in local pending proposals.")]
+    PendingProposalNotFound,
 }
 
 /// Parse message error

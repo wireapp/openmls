@@ -199,7 +199,7 @@ async fn gce_proposal_can_roundtrip(
 
     // Alice adds an extension
     let new_extensions = [Extension::RatchetTree(RatchetTreeExtension::new(vec![]))];
-    let gce_proposal = alice_group
+    let (gce_proposal, ..) = alice_group
         .propose_extension(backend, &new_extensions.clone())
         .await
         .unwrap();
@@ -291,7 +291,7 @@ async fn validating_commit_with_more_than_one_gce_proposal_should_fail(
 
     // Alice creates a commit with 2 GroupContextExtension proposals, should fail
     let ratchet_tree = Extension::RatchetTree(RatchetTreeExtension::new(vec![]));
-    let first_gce_proposal = alice_group
+    let (first_gce_proposal, ..) = alice_group
         .propose_extension(backend, &[ratchet_tree])
         .await
         .unwrap();
@@ -368,7 +368,7 @@ async fn gce_proposal_must_be_applied_first_then_used_to_validate_other_add_prop
             &[ExtensionType::Capabilities, ExtensionType::ExternalSenders],
             CapabilitiesExtension::default().proposals(),
         ));
-    let gce_proposal = alice_group
+    let (gce_proposal, ..) = alice_group
         .propose_extension(backend, &[new_required_capabilities])
         .await
         .unwrap();
@@ -376,7 +376,7 @@ async fn gce_proposal_must_be_applied_first_then_used_to_validate_other_add_prop
     // Charlie does not have ExternalSenders in its extensions, hence it should fail to be added to the group
     let (_, charlie_key_package_bundle) =
         setup_client("Charlie", ciphersuite, vec![], backend).await;
-    let charlie_add_proposal = alice_group
+    let (charlie_add_proposal, ..) = alice_group
         .propose_add_member(backend, charlie_key_package_bundle.key_package())
         .await
         .unwrap();
@@ -516,7 +516,7 @@ async fn gce_proposal_must_be_applied_first_but_ignored_for_remove_proposals(
         .key_package
         .hash_ref(backend.crypto())
         .unwrap();
-    let charlie_remove_proposal = alice_group
+    let (charlie_remove_proposal, ..) = alice_group
         .propose_remove_member(backend, &charlie_kpr)
         .await
         .unwrap();
@@ -539,7 +539,7 @@ async fn gce_proposal_must_be_applied_first_but_ignored_for_remove_proposals(
 
     // Bob is able to process GCE proposal
     let unverified_message = bob_group
-        .parse_message(extension_proposal.unwrap().into(), backend)
+        .parse_message(extension_proposal.unwrap().0.into(), backend)
         .unwrap();
     let gce_message = bob_group
         .process_unverified_message(unverified_message, None, backend)
@@ -720,7 +720,7 @@ async fn group_setup<'a>(
         .await
         .unwrap();
 
-    let (_, welcome, _) = alice_group
+    let (_, welcome, ..) = alice_group
         .add_members(backend, &[bob_key_package_bundle.key_package().clone()])
         .await
         .unwrap();

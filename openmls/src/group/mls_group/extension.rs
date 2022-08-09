@@ -5,6 +5,7 @@
 use tls_codec::Serialize;
 
 use crate::prelude::CreateGroupContextExtProposalError;
+use crate::prelude::hash_ref::ProposalRef;
 
 use super::*;
 
@@ -17,7 +18,7 @@ impl MlsGroup {
         &mut self,
         backend: &impl OpenMlsCryptoProvider,
         extensions: &[Extension],
-    ) -> Result<MlsMessageOut, CreateGroupContextExtProposalError> {
+    ) -> Result<(MlsMessageOut, ProposalRef), CreateGroupContextExtProposalError> {
         self.is_operational()?;
 
         let sign_key = self
@@ -39,18 +40,20 @@ impl MlsGroup {
             backend,
         )?;
 
-        self.proposal_store.add(QueuedProposal::from_mls_plaintext(
+        let queued_proposal = QueuedProposal::from_mls_plaintext(
             self.ciphersuite(),
             backend,
             gce_proposal.clone(),
-        )?);
+        )?;
+        let proposal_ref = queued_proposal.proposal_reference();
+        self.proposal_store.add(queued_proposal);
 
         let mls_message = self.plaintext_to_mls_message(gce_proposal, backend)?;
 
         // Since the state of the group might be changed, arm the state flag
         self.flag_state_change();
 
-        Ok(mls_message)
+        Ok((mls_message, proposal_ref))
     }
 
     /// Get a group's [`Extension`].

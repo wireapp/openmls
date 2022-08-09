@@ -31,6 +31,7 @@ use config::*;
 use errors::*;
 use resumption::*;
 use ser::*;
+use crate::prelude::hash_ref::ProposalRef;
 
 // Crate
 pub(crate) mod config;
@@ -265,6 +266,12 @@ impl MlsGroup {
     /// Clears any pending proposal
     pub fn clear_pending_proposals(&mut self) {
         self.proposal_store.empty()
+    }
+
+    /// Clears a pending proposal by reference
+    pub fn clear_pending_proposal(&mut self, proposal_ref: ProposalRef) -> Result<(), MlsGroupStateError> {
+        self.proposal_store.remove(proposal_ref)
+            .ok_or(MlsGroupStateError::PendingProposalNotFound)
     }
 
     /// Returns a reference to the [`StagedCommit`] of the most recently created

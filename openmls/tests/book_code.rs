@@ -55,8 +55,7 @@ async fn generate_key_package_bundle(
         .expect("An unexpected error occurred.");
 
     // Create the key package bundle
-    let key_package_bundle =
-        KeyPackageBundle::new(ciphersuites, &credential_bundle, backend, extensions)?;
+    let key_package_bundle = KeyPackageBundle::new(ciphersuites, &credential_bundle, backend, extensions)?;
     // ANCHOR_END: create_key_package_bundle
     // ANCHOR: store_key_package_bundle
     let key_package = key_package_bundle.key_package().clone();
@@ -99,20 +98,17 @@ async fn book_operations(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoP
     // ANCHOR_END: set_group_id
 
     // Generate credential bundles
-    let alice_credential =
-        generate_credential_bundle("Alice".into(), ciphersuite.signature_algorithm(), backend)
-            .await
-            .expect("An unexpected error occurred.");
+    let alice_credential = generate_credential_bundle("Alice".into(), ciphersuite.signature_algorithm(), backend)
+        .await
+        .expect("An unexpected error occurred.");
 
-    let bob_credential =
-        generate_credential_bundle("Bob".into(), ciphersuite.signature_algorithm(), backend)
-            .await
-            .expect("An unexpected error occurred.");
+    let bob_credential = generate_credential_bundle("Bob".into(), ciphersuite.signature_algorithm(), backend)
+        .await
+        .expect("An unexpected error occurred.");
 
-    let charlie_credential =
-        generate_credential_bundle("Charlie".into(), ciphersuite.signature_algorithm(), backend)
-            .await
-            .expect("An unexpected error occurred.");
+    let charlie_credential = generate_credential_bundle("Charlie".into(), ciphersuite.signature_algorithm(), backend)
+        .await
+        .expect("An unexpected error occurred.");
 
     // Generate KeyPackages
     let alice_key_package = generate_key_package_bundle(&[ciphersuite], &alice_credential, backend)
@@ -162,15 +158,9 @@ async fn book_operations(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoP
 
     // Check that we received the correct proposals
     if let Some(staged_commit) = alice_group.pending_commit() {
-        let add = staged_commit
-            .add_proposals()
-            .next()
-            .expect("Expected a proposal.");
+        let add = staged_commit.add_proposals().next().expect("Expected a proposal.");
         // Check that Bob was added
-        assert_eq!(
-            add.add_proposal().key_package().credential(),
-            &bob_credential
-        );
+        assert_eq!(add.add_proposal().key_package().credential(), &bob_credential);
         // Check that Alice added Bob
         assert!(matches!(
             add.sender(),
@@ -225,13 +215,10 @@ async fn book_operations(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoP
 
     // Message serialization
 
-    let bytes = mls_message_out
-        .to_bytes()
-        .expect("Could not serialize message.");
+    let bytes = mls_message_out.to_bytes().expect("Could not serialize message.");
 
     // ANCHOR: mls_message_in_from_bytes
-    let mls_message_in =
-        MlsMessageIn::try_from_bytes(&bytes).expect("Could not deserialize message.");
+    let mls_message_in = MlsMessageIn::try_from_bytes(&bytes).expect("Could not deserialize message.");
     // ANCHOR_END: mls_message_in_from_bytes
 
     // ANCHOR: parse_message
@@ -266,8 +253,7 @@ async fn book_operations(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoP
     // ANCHOR: self_update
     let (mls_message_out, welcome_option, ..) = bob_group
         .self_update(
-            backend,
-            None, // We don't provide a key package, it will be created on the fly instead
+            backend, None, // We don't provide a key package, it will be created on the fly instead
         )
         .await
         .expect("Could not update own key package.");
@@ -297,9 +283,7 @@ async fn book_operations(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoP
         unreachable!("Expected a StagedCommit.");
     }
 
-    bob_group
-        .merge_pending_commit()
-        .expect("error merging pending commit");
+    bob_group.merge_pending_commit().expect("error merging pending commit");
 
     // Check we didn't receive a Welcome message
     assert!(welcome_option.is_none());
@@ -311,17 +295,13 @@ async fn book_operations(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoP
     );
 
     // Make sure that both groups have the same public tree
-    assert_eq!(
-        alice_group.export_ratchet_tree(),
-        bob_group.export_ratchet_tree()
-    );
+    assert_eq!(alice_group.export_ratchet_tree(), bob_group.export_ratchet_tree());
 
     // === Alice updates and commits ===
     // ANCHOR: propose_self_update
-    let mls_message_out = alice_group
+    let (mls_message_out, ..) = alice_group
         .propose_self_update(
-            backend,
-            None, // We don't provide a key package, it will be created on the fly instead
+            backend, None, // We don't provide a key package, it will be created on the fly instead
         )
         .await
         .expect("Could not create update proposal.");
@@ -339,10 +319,7 @@ async fn book_operations(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoP
     if let ProcessedMessage::ProposalMessage(staged_proposal) = bob_processed_message {
         if let Proposal::Update(ref update_proposal) = staged_proposal.proposal() {
             // Check that Alice updated
-            assert_eq!(
-                update_proposal.key_package().credential(),
-                &alice_credential
-            );
+            assert_eq!(update_proposal.key_package().credential(), &alice_credential);
             // Store proposal
             alice_group.store_pending_proposal(*staged_proposal.clone());
         } else {
@@ -405,22 +382,17 @@ async fn book_operations(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoP
     );
 
     // Make sure that both groups have the same public tree
-    assert_eq!(
-        alice_group.export_ratchet_tree(),
-        bob_group.export_ratchet_tree()
-    );
+    assert_eq!(alice_group.export_ratchet_tree(), bob_group.export_ratchet_tree());
 
     // === Bob adds Charlie ===
-    let charlie_key_package =
-        generate_key_package_bundle(&[ciphersuite], &charlie_credential, backend)
-            .await
-            .expect("An unexpected error occurred.");
+    let charlie_key_package = generate_key_package_bundle(&[ciphersuite], &charlie_credential, backend)
+        .await
+        .expect("An unexpected error occurred.");
 
-    let (queued_message, welcome) =
-        match bob_group.add_members(backend, &[charlie_key_package]).await {
-            Ok((qm, welcome, ..)) => (qm, welcome),
-            Err(e) => panic!("Could not add member to group: {:?}", e),
-        };
+    let (queued_message, welcome) = match bob_group.add_members(backend, &[charlie_key_package]).await {
+        Ok((qm, welcome, ..)) => (qm, welcome),
+        Err(e) => panic!("Could not add member to group: {:?}", e),
+    };
 
     let unverified_message = alice_group
         .parse_message(queued_message.into(), backend)
@@ -429,9 +401,7 @@ async fn book_operations(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoP
         .process_unverified_message(unverified_message, None, backend)
         .await
         .expect("Could not process unverified message.");
-    bob_group
-        .merge_pending_commit()
-        .expect("error merging pending commit");
+    bob_group.merge_pending_commit().expect("error merging pending commit");
 
     // Merge Commit
     if let ProcessedMessage::StagedCommitMessage(staged_commit) = alice_processed_message {
@@ -452,14 +422,8 @@ async fn book_operations(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoP
     .expect("Error creating group from Welcome");
 
     // Make sure that all groups have the same public tree
-    assert_eq!(
-        alice_group.export_ratchet_tree(),
-        bob_group.export_ratchet_tree(),
-    );
-    assert_eq!(
-        alice_group.export_ratchet_tree(),
-        charlie_group.export_ratchet_tree()
-    );
+    assert_eq!(alice_group.export_ratchet_tree(), bob_group.export_ratchet_tree(),);
+    assert_eq!(alice_group.export_ratchet_tree(), charlie_group.export_ratchet_tree());
 
     // Check that Alice, Bob & Charlie are the members of the group
     let members = alice_group.members();
@@ -505,8 +469,7 @@ async fn book_operations(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoP
         .expect("Could not process unverified message.");
 
     // === Charlie updates and commits ===
-    let (queued_message, welcome_option, ..) = match charlie_group.self_update(backend, None).await
-    {
+    let (queued_message, welcome_option, ..) = match charlie_group.self_update(backend, None).await {
         Ok(qm) => qm,
         Err(e) => panic!("Error performing self-update: {:?}", e),
     };
@@ -561,14 +524,8 @@ async fn book_operations(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoP
     );
 
     // Make sure that all groups have the same public tree
-    assert_eq!(
-        alice_group.export_ratchet_tree(),
-        bob_group.export_ratchet_tree(),
-    );
-    assert_eq!(
-        alice_group.export_ratchet_tree(),
-        charlie_group.export_ratchet_tree()
-    );
+    assert_eq!(alice_group.export_ratchet_tree(), bob_group.export_ratchet_tree(),);
+    assert_eq!(alice_group.export_ratchet_tree(), charlie_group.export_ratchet_tree());
 
     // ANCHOR: retrieve_members
     let charlie_members = charlie_group.members();
@@ -584,9 +541,7 @@ async fn book_operations(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoP
     // Make sure that this is Bob's actual KP reference.
     assert_eq!(
         &bob_kp_ref,
-        bob_group
-            .key_package_ref()
-            .expect("An unexpected error occurred.")
+        bob_group.key_package_ref().expect("An unexpected error occurred.")
     );
 
     // === Charlie removes Bob ===
@@ -611,9 +566,7 @@ async fn book_operations(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoP
         .credential()
         .expect("Couldn't retrieve credential from unverified message.");
 
-    assert!(alice_members
-        .iter()
-        .any(|kp| kp.credential() == sender_credential));
+    assert!(alice_members.iter().any(|kp| kp.credential() == sender_credential));
 
     assert_eq!(sender_credential, &charlie_credential);
 
@@ -628,9 +581,7 @@ async fn book_operations(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoP
         .process_unverified_message(unverified_message, None, backend)
         .await
         .expect("Could not process unverified message.");
-    let charlies_old_kpr = *charlie_group
-        .key_package_ref()
-        .expect("An unexpected error occurred.");
+    let charlies_old_kpr = *charlie_group.key_package_ref().expect("An unexpected error occurred.");
     charlie_group
         .merge_pending_commit()
         .expect("error merging pending commit");
@@ -639,16 +590,11 @@ async fn book_operations(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoP
     // ANCHOR: inspect_staged_commit
     if let ProcessedMessage::StagedCommitMessage(staged_commit) = alice_processed_message {
         // We expect a remove proposal
-        let remove = staged_commit
-            .remove_proposals()
-            .next()
-            .expect("Expected a proposal.");
+        let remove = staged_commit.remove_proposals().next().expect("Expected a proposal.");
         // Check that Bob was removed
         assert_eq!(
             remove.remove_proposal().removed(),
-            bob_group
-                .key_package_ref()
-                .expect("An unexpected error occurred.")
+            bob_group.key_package_ref().expect("An unexpected error occurred.")
         );
         // Check that Charlie removed Bob
         assert!(matches!(
@@ -675,8 +621,8 @@ async fn book_operations(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoP
             .expect("An unexpected error occurred.");
 
         // We construct a RemoveOperation enum to help us interpret the remove operation
-        let remove_operation = RemoveOperation::new(remove_proposal, &bob_group)
-            .expect("An unexpected Error occurred.");
+        let remove_operation =
+            RemoveOperation::new(remove_proposal, &bob_group).expect("An unexpected Error occurred.");
 
         match remove_operation {
             RemoveOperation::WeLeft => unreachable!(),
@@ -710,10 +656,7 @@ async fn book_operations(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoP
     // ANCHOR_END: getting_removed
 
     // Make sure that all groups have the same public tree
-    assert_eq!(
-        alice_group.export_ratchet_tree(),
-        charlie_group.export_ratchet_tree()
-    );
+    assert_eq!(alice_group.export_ratchet_tree(), charlie_group.export_ratchet_tree());
 
     // Make sure the group only contains two members
     assert_eq!(alice_group.members().len(), 2);
@@ -738,12 +681,10 @@ async fn book_operations(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoP
 
     // Create RemoveProposal and process it
     // ANCHOR: propose_remove
-    let mls_message_out = alice_group
+    let (mls_message_out, ..) = alice_group
         .propose_remove_member(
             backend,
-            charlie_group
-                .key_package_ref()
-                .expect("An unexpected error occurred."),
+            charlie_group.key_package_ref().expect("An unexpected error occurred."),
         )
         .await
         .expect("Could not create proposal to remove Charlie.");
@@ -763,9 +704,7 @@ async fn book_operations(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoP
             // Check that Charlie was removed
             assert_eq!(
                 remove_proposal.removed(),
-                charlie_group
-                    .key_package_ref()
-                    .expect("An unexpected error occurred.")
+                charlie_group.key_package_ref().expect("An unexpected error occurred.")
             );
             // Store proposal
             charlie_group.store_pending_proposal(*staged_proposal.clone());
@@ -786,7 +725,7 @@ async fn book_operations(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoP
 
     // Create AddProposal and process it
     // ANCHOR: propose_add
-    let mls_message_out = alice_group
+    let (mls_message_out, ..) = alice_group
         .propose_add_member(backend, &bob_key_package)
         .await
         .expect("Could not create proposal to add Bob");
@@ -900,10 +839,7 @@ async fn book_operations(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoP
 
     // Get sender information
     // As provided by the `unverified_message`
-    let sender_cred_from_msg = unverified_message
-        .credential()
-        .expect("Expected a credential.")
-        .clone();
+    let sender_cred_from_msg = unverified_message.credential().expect("Expected a credential.").clone();
 
     // As provided by looking up the sender manually via the `member()` function
     // ANCHOR: member_lookup
@@ -940,10 +876,7 @@ async fn book_operations(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoP
     // === Bob leaves the group ===
 
     // ANCHOR: leaving
-    let queued_message = bob_group
-        .leave_group(backend)
-        .await
-        .expect("Could not leave group");
+    let queued_message = bob_group.leave_group(backend).await.expect("Could not leave group");
     // ANCHOR_END: leaving
 
     let unverified_message = alice_group
@@ -980,16 +913,11 @@ async fn book_operations(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoP
 
     // Check that we received the correct proposals
     if let Some(staged_commit) = alice_group.pending_commit() {
-        let remove = staged_commit
-            .remove_proposals()
-            .next()
-            .expect("Expected a proposal.");
+        let remove = staged_commit.remove_proposals().next().expect("Expected a proposal.");
         // Check that Bob was removed
         assert_eq!(
             remove.remove_proposal().removed(),
-            bob_group
-                .key_package_ref()
-                .expect("An unexpected error occurred.")
+            bob_group.key_package_ref().expect("An unexpected error occurred.")
         );
         // Check that Bob removed himself
         assert!(matches!(
@@ -1003,9 +931,7 @@ async fn book_operations(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoP
         unreachable!("Expected a StagedCommit.");
     }
 
-    alice_group
-        .merge_pending_commit()
-        .expect("Could not merge Commit.");
+    alice_group.merge_pending_commit().expect("Could not merge Commit.");
 
     let unverified_message = bob_group
         .parse_message(queued_message.into(), backend)
@@ -1017,16 +943,11 @@ async fn book_operations(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoP
 
     // Check that we received the correct proposals
     if let ProcessedMessage::StagedCommitMessage(staged_commit) = bob_processed_message {
-        let remove = staged_commit
-            .remove_proposals()
-            .next()
-            .expect("Expected a proposal.");
+        let remove = staged_commit.remove_proposals().next().expect("Expected a proposal.");
         // Check that Bob was removed
         assert_eq!(
             remove.remove_proposal().removed(),
-            bob_group
-                .key_package_ref()
-                .expect("An unexpected error occurred.")
+            bob_group.key_package_ref().expect("An unexpected error occurred.")
         );
         // Check that Bob removed himself
         assert!(matches!(
@@ -1099,9 +1020,7 @@ async fn book_operations(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoP
     )
     .to_lowercase();
     let mut buf = vec![];
-    bob_group
-        .save(&mut buf)
-        .expect("Could not write group state to file");
+    bob_group.save(&mut buf).expect("Could not write group state to file");
 
     // Check that the state flag gets reset when saving
     assert_eq!(bob_group.state_changed(), InnerState::Persisted);
@@ -1121,10 +1040,9 @@ async fn test_empty_input_errors(ciphersuite: Ciphersuite, backend: &impl OpenMl
     let group_id = GroupId::from_slice(b"Test Group");
 
     // Generate credential bundles
-    let alice_credential =
-        generate_credential_bundle("Alice".into(), ciphersuite.signature_algorithm(), backend)
-            .await
-            .expect("An unexpected error occurred.");
+    let alice_credential = generate_credential_bundle("Alice".into(), ciphersuite.signature_algorithm(), backend)
+        .await
+        .expect("An unexpected error occurred.");
 
     // Generate KeyPackages
     let alice_key_package = generate_key_package_bundle(&[ciphersuite], &alice_credential, backend)
@@ -1155,9 +1073,10 @@ async fn test_empty_input_errors(ciphersuite: Ciphersuite, backend: &impl OpenMl
         AddMembersError::EmptyInput(EmptyInputError::AddMembers)
     );
     assert_eq!(
-        alice_group.remove_members(backend, &[]).await.expect_err(
-            "No EmptyInputError when trying to pass an empty slice to `remove_members`."
-        ),
+        alice_group
+            .remove_members(backend, &[])
+            .await
+            .expect_err("No EmptyInputError when trying to pass an empty slice to `remove_members`."),
         RemoveMembersError::EmptyInput(EmptyInputError::RemoveMembers)
     );
 }

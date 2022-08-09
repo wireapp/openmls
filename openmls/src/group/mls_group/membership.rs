@@ -10,6 +10,7 @@ use tls_codec::Serialize;
 
 use crate::prelude::PublicGroupState;
 use crate::{ciphersuite::hash_ref::HashReference, ciphersuite::hash_ref::KeyPackageRef};
+use crate::prelude::hash_ref::ProposalRef;
 
 use super::{
     errors::{AddMembersError, LeaveGroupError, RemoveMembersError},
@@ -169,7 +170,7 @@ impl MlsGroup {
         &mut self,
         backend: &impl OpenMlsCryptoProvider,
         key_package: &KeyPackage,
-    ) -> Result<MlsMessageOut, ProposeAddMemberError> {
+    ) -> Result<(MlsMessageOut, ProposalRef), ProposeAddMemberError> {
         self.is_operational()?;
 
         let credential = self.credential()?;
@@ -199,18 +200,20 @@ impl MlsGroup {
                 }
             })?;
 
-        self.proposal_store.add(QueuedProposal::from_mls_plaintext(
+        let queued_proposal = QueuedProposal::from_mls_plaintext(
             self.ciphersuite(),
             backend,
             add_proposal.clone(),
-        )?);
+        )?;
+        let proposal_ref = queued_proposal.proposal_reference();
+        self.proposal_store.add(queued_proposal);
 
         let mls_message = self.plaintext_to_mls_message(add_proposal, backend)?;
 
         // Since the state of the group might be changed, arm the state flag
         self.flag_state_change();
 
-        Ok(mls_message)
+        Ok((mls_message, proposal_ref))
     }
 
     /// Creates proposals to remove members from the group.
@@ -220,7 +223,7 @@ impl MlsGroup {
         &mut self,
         backend: &impl OpenMlsCryptoProvider,
         member: &KeyPackageRef,
-    ) -> Result<MlsMessageOut, ProposeRemoveMemberError> {
+    ) -> Result<(MlsMessageOut, ProposalRef), ProposeRemoveMemberError> {
         self.is_operational()?;
 
         let credential = self.credential()?;
@@ -242,18 +245,21 @@ impl MlsGroup {
             backend,
         )?;
 
-        self.proposal_store.add(QueuedProposal::from_mls_plaintext(
+
+        let queued_proposal = QueuedProposal::from_mls_plaintext(
             self.ciphersuite(),
             backend,
             remove_proposal.clone(),
-        )?);
+        )?;
+        let proposal_ref = queued_proposal.proposal_reference();
+        self.proposal_store.add(queued_proposal);
 
         let mls_message = self.plaintext_to_mls_message(remove_proposal, backend)?;
 
         // Since the state of the group might be changed, arm the state flag
         self.flag_state_change();
 
-        Ok(mls_message)
+        Ok((mls_message, proposal_ref))
     }
 
     /// Leave the group.

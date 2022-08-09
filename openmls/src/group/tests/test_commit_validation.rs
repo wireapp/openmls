@@ -415,7 +415,7 @@ async fn test_valsem201(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoPr
 
     // Create a commit covering an update proposal.
     // Have charlie create an update proposal and then let Alice commit to it.
-    let charlie_update_proposal = charlie_group
+    let (charlie_update_proposal, ..) = charlie_group
         .propose_self_update(backend, None)
         .await
         .expect("error creating self-update proposal");
