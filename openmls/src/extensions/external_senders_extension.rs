@@ -27,6 +27,16 @@ pub struct ExternalSender {
     pub signature_key: SignaturePublicKey,
 }
 
+#[cfg(test)]
+impl From<Credential> for ExternalSender {
+    fn from(credential: Credential) -> Self {
+        Self {
+            signature_key: credential.signature_key().clone(),
+            credential,
+        }
+    }
+}
+
 impl ExternalSender {
     /// temporary solution for building an [`ExternalSender`] given a public key
     /// TODO: remove as soon as a certificate is available

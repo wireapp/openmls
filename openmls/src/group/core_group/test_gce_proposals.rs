@@ -207,7 +207,7 @@ async fn gce_proposal_can_roundtrip(
     bob_group.store_pending_proposal(
         QueuedProposal::from_mls_message(ciphersuite, backend, gce_proposal.mls_message).unwrap(),
     );
-    let (commit, _) = bob_group
+    let (commit, ..) = bob_group
         .commit_to_pending_proposals(backend)
         .await
         .unwrap();
@@ -295,7 +295,7 @@ async fn validating_commit_with_more_than_one_gce_proposal_should_fail(
     );
 
     // Bob creates a commit with just 1 GCE proposal
-    let (commit, _) = bob_group
+    let (commit, ..) = bob_group
         .commit_to_pending_proposals(backend)
         .await
         .unwrap();
@@ -478,7 +478,7 @@ async fn gce_proposal_must_be_applied_first_but_ignored_for_remove_proposals(
     // Charlie does not have ExternalSenders in its extensions
     let (_, charlie_key_package_bundle) =
         setup_client("Charlie", ciphersuite, vec![], backend).await;
-    let (commit, _) = alice_group
+    let (commit, ..) = alice_group
         .add_members(backend, &[charlie_key_package_bundle.key_package().clone()])
         .await
         .unwrap();
@@ -563,7 +563,7 @@ async fn gce_proposal_must_be_applied_first_but_ignored_for_external_remove_prop
     // Alice & Bob have ExternalSenders support even though it is not required
     let debbie_credential = debbie_credential_bundle.credential();
     let external_senders =
-        Extension::ExternalSenders(ExternalSendersExtension::from(&[debbie_credential.clone()]));
+        Extension::ExternalSenders(ExternalSendersExtension::from(&[debbie_credential.clone().into()]));
     let (mut alice_group, ..) = group_setup(
         ciphersuite.clone(),
         &[
@@ -595,6 +595,7 @@ async fn gce_proposal_must_be_applied_first_but_ignored_for_external_remove_prop
         alice_group.group_id().clone(),
         alice_group.epoch(),
         &debbie_credential_bundle,
+        0,
         backend,
     )
     .unwrap();
@@ -713,7 +714,7 @@ async fn group_setup<'a>(
         .await
         .unwrap();
 
-    let (_, welcome) = alice_group
+    let (_, welcome, _) = alice_group
         .add_members(backend, &[bob_key_package_bundle.key_package().clone()])
         .await
         .unwrap();
