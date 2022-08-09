@@ -265,7 +265,7 @@ async fn remover(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider)
         .key_package_ref()
         .expect("An unexpected error occurred.")
         .clone();
-    let queued_messages = alice_group
+    let (queued_messages, ..) = alice_group
         .propose_remove_member(backend, bob_kpr)
         .await
         .expect("Could not propose removal");
@@ -535,7 +535,7 @@ async fn test_pending_commit_logic(ciphersuite: Ciphersuite, backend: &impl Open
     assert!(alice_group.pending_commit().is_none());
 
     // Let's add bob
-    let proposal = alice_group
+    let (proposal, ..) = alice_group
         .propose_add_member(backend, &bob_key_package)
         .await
         .expect("error creating self-update proposal");

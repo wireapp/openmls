@@ -1,6 +1,7 @@
 use crate::prelude::PublicGroupState;
 use core_group::create_commit_params::CreateCommitParams;
 use tls_codec::Serialize;
+use crate::prelude::hash_ref::ProposalRef;
 
 use super::*;
 
@@ -83,7 +84,7 @@ impl MlsGroup {
         &mut self,
         backend: &impl OpenMlsCryptoProvider,
         key_package_bundle_option: Option<KeyPackageBundle>,
-    ) -> Result<MlsMessageOut, ProposeSelfUpdateError> {
+    ) -> Result<(MlsMessageOut, ProposalRef), ProposeSelfUpdateError> {
         self.is_operational()?;
 
         let credential = self.credential()?;
@@ -120,17 +121,19 @@ impl MlsGroup {
         )?;
 
         self.own_kpbs.push(key_package_bundle);
-        self.proposal_store.add(QueuedProposal::from_mls_plaintext(
+        let queued_proposal = QueuedProposal::from_mls_plaintext(
             self.ciphersuite(),
             backend,
             update_proposal.clone(),
-        )?);
+        )?;
+        let proposal_ref = queued_proposal.proposal_reference();
+        self.proposal_store.add(queued_proposal);
 
         let mls_message = self.plaintext_to_mls_message(update_proposal, backend)?;
 
         // Since the state of the group might be changed, arm the state flag
         self.flag_state_change();
 
-        Ok(mls_message)
+        Ok((mls_message, proposal_ref))
     }
 }

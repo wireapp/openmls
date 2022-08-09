@@ -1,7 +1,13 @@
+use std::collections::{hash_map::Entry, HashMap, HashSet};
+
+use openmls_traits::{OpenMlsCryptoProvider, types::Ciphersuite};
+
+use serde::{Deserialize, Serialize};
+
 use crate::{
     ciphersuite::{
-        hash_ref::{KeyPackageRef, ProposalRef},
         *,
+        hash_ref::{KeyPackageRef, ProposalRef},
     },
     error::LibraryError,
     framing::*,
@@ -11,10 +17,6 @@ use crate::{
         ProposalType, RemoveProposal, UpdateProposal,
     },
 };
-
-use openmls_traits::{types::Ciphersuite, OpenMlsCryptoProvider};
-use serde::{Deserialize, Serialize};
-use std::collections::{hash_map::Entry, HashMap, HashSet};
 
 /// A [ProposalStore] can store the standalone proposals that are received from the DS
 /// in between two commit messages.
@@ -44,6 +46,22 @@ impl ProposalStore {
     pub(crate) fn is_empty(&self) -> bool {
         self.queued_proposals.is_empty()
     }
+
+    /// Removes a proposal from queue
+    pub(crate) fn remove(&mut self, proposal_ref: ProposalRef) -> Option<()> {
+        let maybe_index = self.queued_proposals.iter()
+            .enumerate()
+            .find_map(|(i, p)| {
+                if p.proposal_reference() == proposal_ref {
+                    Some(i)
+                } else { None }
+            });
+        if let Some(index) = maybe_index {
+            self.queued_proposals.swap_remove(index);
+        }
+        maybe_index.map(|_| ())
+    }
+
     pub(crate) fn empty(&mut self) {
         self.queued_proposals = Vec::new();
     }

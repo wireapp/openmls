@@ -1725,7 +1725,7 @@ async fn test_valsem109(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoPr
         .expect("error signing kpb");
 
     // We first go the manual route
-    let update_proposal = bob_group
+    let (update_proposal, ..) = bob_group
         .propose_self_update(backend, Some(update_kpb.clone()))
         .await
         .expect("error while creating remove proposal");
@@ -1889,7 +1889,7 @@ async fn test_valsem110(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoPr
         .expect("error signing kpb");
 
     // We first go the manual route
-    let update_proposal = bob_group
+    let (update_proposal, ..) = bob_group
         .propose_self_update(backend, Some(update_kpb.clone()))
         .await
         .expect("error while creating remove proposal");

@@ -5,6 +5,7 @@ use std::{collections::HashMap, sync::RwLock};
 
 use openmls_rust_crypto::OpenMlsRustCrypto;
 use openmls_traits::{key_store::OpenMlsKeyStore, types::Ciphersuite, OpenMlsCryptoProvider};
+
 use tls_codec::Serialize;
 
 use crate::{
@@ -224,12 +225,12 @@ impl Client {
                     .await?;
                 (msg, welcome)
             }
-            ActionType::Proposal => (
-                group
+            ActionType::Proposal => {
+                let (proposal, ..) = group
                     .propose_self_update(&self.crypto, key_package_bundle_option)
-                    .await?,
-                None,
-            ),
+                    .await?;
+                (proposal, None)
+            }
         };
         Ok((msg, welcome))
     }
@@ -257,7 +258,7 @@ impl Client {
             ActionType::Proposal => {
                 let mut messages = Vec::new();
                 for key_package in key_packages {
-                    let message = group.propose_add_member(&self.crypto, key_package).await?;
+                    let (message, ..) = group.propose_add_member(&self.crypto, key_package).await?;
                     messages.push(message);
                 }
                 (messages, None)
@@ -290,7 +291,7 @@ impl Client {
             ActionType::Proposal => {
                 let mut messages = Vec::new();
                 for target in targets {
-                    let message = group.propose_remove_member(&self.crypto, target).await?;
+                    let (message, ..) = group.propose_remove_member(&self.crypto, target).await?;
                     messages.push(message);
                 }
                 (messages, None)
