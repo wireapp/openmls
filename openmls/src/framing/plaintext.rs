@@ -452,7 +452,7 @@ pub(crate) struct MlsPlaintextTbs {
     pub(super) sender: Sender,
     pub(super) authenticated_data: TlsByteVecU32,
     pub(super) content_type: ContentType,
-    pub(super) payload: MlsPlaintextContentType,
+    pub(crate) payload: MlsPlaintextContentType,
 }
 
 fn encode_tbs<'a>(
@@ -476,7 +476,7 @@ fn encode_tbs<'a>(
 
 #[derive(PartialEq, Debug, Clone)]
 pub(crate) struct VerifiableMlsPlaintext {
-    pub(super) tbs: MlsPlaintextTbs,
+    pub(crate) tbs: MlsPlaintextTbs,
     pub(super) signature: Signature,
     pub(super) confirmation_tag: Option<ConfirmationTag>,
     pub(super) membership_tag: Option<MembershipTag>,

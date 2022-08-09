@@ -29,12 +29,11 @@ mod test_duplicate_extension;
 #[cfg(test)]
 mod test_external_init;
 #[cfg(test)]
+mod test_gce_proposals;
+#[cfg(test)]
 mod test_past_secrets;
 #[cfg(test)]
 mod test_proposals;
-
-#[cfg(any(feature = "test-utils", test))]
-use crate::prelude::CreateGroupContextExtProposalError;
 
 use crate::{
     ciphersuite::{hash_ref::KeyPackageRef, signable::*},
@@ -62,7 +61,10 @@ use std::io::{Error, Read, Write};
 use tls_codec::Serialize as TlsSerializeTrait;
 
 use super::{
-    errors::{CoreGroupBuildError, CreateAddProposalError, ExporterError, ProposalValidationError},
+    errors::{
+        CoreGroupBuildError, CreateAddProposalError, CreateGroupContextExtProposalError,
+        ExporterError, ProposalValidationError,
+    },
     group_context::*,
 };
 
@@ -370,12 +372,12 @@ impl CoreGroup {
     }
 
     /// Create a `GroupContextExtensions` proposal.
-    #[cfg(any(feature = "test-utils", test))]
-    pub(crate) fn create_group_context_ext_proposal(
+    pub(crate) fn create_group_context_ext_proposal<'a>(
         &self,
         framing_parameters: FramingParameters,
         credential_bundle: &CredentialBundle,
         extensions: &[Extension],
+        pending_proposals: impl Iterator<Item = &'a QueuedProposal>,
         backend: &impl OpenMlsCryptoProvider,
     ) -> Result<MlsPlaintext, CreateGroupContextExtProposalError> {
         // Ensure that the group supports all the extensions that are wanted.
@@ -394,8 +396,23 @@ impl CoreGroup {
                 .validate_required_capabilities(required_capabilities)?;
             // Ensure that all other key packages support all the required
             // extensions as well.
-            for (_index, key_package) in self.treesync().full_leaves()? {
-                key_package.check_extension_support(required_capabilities.extensions())?;
+            // Ignore leaves included in remove proposals
+            let remove_proposals = pending_proposals
+                .filter_map(|p| {
+                    if let Proposal::Remove(remove) = p.proposal() {
+                        Some(remove.removed)
+                    } else {
+                        None
+                    }
+                })
+                .collect::<Vec<_>>();
+            let leaves = self.treesync().leaves();
+            let leaves = leaves.iter().filter(|(kpr, _)| {
+                !kpr.map(|k| remove_proposals.contains(&k))
+                    .unwrap_or_default()
+            });
+            for (_, key_package) in leaves {
+                key_package.check_extension_support(required_capabilities.extensions())?
             }
         }
         let proposal = GroupContextExtensionProposal::new(extensions);

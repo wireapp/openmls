@@ -333,6 +333,25 @@ impl CoreGroup {
         Ok(public_key_set)
     }
 
+    /// Validate GroupContextExtensions proposals. There must not be more than 1
+    pub(crate) fn validate_group_context_extensions_proposals(
+        &self,
+        proposal_queue: &ProposalQueue,
+    ) -> Result<(), ProposalValidationError> {
+        let nb_gce = proposal_queue
+            .queued_proposals()
+            .filter(|p| matches!(p.proposal(), Proposal::GroupContextExtensions(_)))
+            .count();
+
+        if nb_gce > 1 {
+            return Err(ProposalValidationError::TooManyGroupContextExtensions(
+                nb_gce,
+            ));
+        }
+
+        Ok(())
+    }
+
     /// Validate the new key package in a path
     /// TODO: #730 - There's nothing testing this function.
     /// - ValSem109
