@@ -8,6 +8,9 @@ use crate::{
     test_utils::*,
 };
 
+use wasm_bindgen_test::*;
+wasm_bindgen_test_configure!(run_in_browser);
+
 /// Test the encoding for PreSharedKeyProposal, that also covers some of the
 /// other PSK-related structs
 #[apply(backends)]

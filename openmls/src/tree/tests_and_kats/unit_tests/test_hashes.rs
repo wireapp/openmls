@@ -2,6 +2,9 @@ use openmls_rust_crypto::OpenMlsRustCrypto;
 
 use crate::{test_utils::*, tree::*};
 
+use wasm_bindgen_test::*;
+wasm_bindgen_test_configure!(run_in_browser);
+
 #[apply(ciphersuites_and_backends)]
 fn test_parent_hash(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider) {
     // Number of leaf nodes in the tree

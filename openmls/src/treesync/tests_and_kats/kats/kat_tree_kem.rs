@@ -32,6 +32,9 @@ use serde::{self, Deserialize, Serialize};
 use std::{collections::HashSet, convert::TryFrom};
 use tls_codec::{Deserialize as TlsDeserialize, TlsVecU32};
 
+use wasm_bindgen_test::*;
+wasm_bindgen_test_configure!(run_in_browser);
+
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct TreeKemTestVector {
     pub cipher_suite: u16,

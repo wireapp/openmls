@@ -6,6 +6,9 @@ use crate::{
     versions::ProtocolVersion,
 };
 
+use wasm_bindgen_test::*;
+wasm_bindgen_test_configure!(run_in_browser);
+
 #[apply(ciphersuites_and_backends)]
 fn secret_init(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider) {
     // These two secrets must be incompatible
@@ -22,6 +25,9 @@ fn secret_init(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider) {
 #[should_panic]
 #[apply(ciphersuites_and_backends)]
 fn secret_incompatible(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider) {
+    #[cfg(target_family = "wasm")]
+    return;
+
     // These two secrets must be incompatible
     let default_secret =
         Secret::random(ciphersuite, backend, None).expect("Not enough randomness.");

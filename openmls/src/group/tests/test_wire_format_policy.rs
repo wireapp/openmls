@@ -12,6 +12,9 @@ use crate::{
     group::{errors::*, *},
 };
 
+use wasm_bindgen_test::*;
+wasm_bindgen_test_configure!(run_in_browser);
+
 use super::utils::{generate_credential_bundle, generate_key_package_bundle};
 
 // Creates a group with one member

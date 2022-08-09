@@ -21,6 +21,9 @@ use openmls_traits::{key_store::OpenMlsKeyStore, types::Ciphersuite, OpenMlsCryp
 use std::borrow::BorrowMut;
 use tls_codec::{Deserialize, Serialize};
 
+use wasm_bindgen_test::*;
+wasm_bindgen_test_configure!(run_in_browser);
+
 #[apply(ciphersuites_and_backends)]
 async fn gce_are_forwarded_in_welcome(
     ciphersuite: Ciphersuite,
@@ -61,6 +64,9 @@ async fn cannot_create_group_when_keypackage_lacks_required_capability(
     ciphersuite: Ciphersuite,
     backend: &impl OpenMlsCryptoProvider,
 ) {
+    #[cfg(target_family = "wasm")]
+    return;
+
     let required_capabilities = RequiredCapabilitiesExtension::new(
         // External senders is required...
         &[ExtensionType::Capabilities, ExtensionType::ExternalSenders],

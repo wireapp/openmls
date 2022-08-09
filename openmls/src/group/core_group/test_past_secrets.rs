@@ -5,6 +5,9 @@ use crate::{
     test_utils::*,
 };
 
+use wasm_bindgen_test::*;
+wasm_bindgen_test_configure!(run_in_browser);
+
 #[apply(ciphersuites_and_backends)]
 fn test_secret_tree_store(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider) {
     // Create a store that keeps up to 3 epochs

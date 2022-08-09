@@ -1,6 +1,11 @@
 use crate::tree::index::*;
 use thiserror::Error;
 
+#[cfg(test)]
+use wasm_bindgen_test::*;
+#[cfg(test)]
+wasm_bindgen_test_configure!(run_in_browser);
+
 /// TreeMath error
 #[derive(Error, Debug, PartialEq, Clone)]
 pub(crate) enum TreeMathError {
@@ -150,6 +155,7 @@ pub(crate) fn leaf_direct_path(
 // computations:
 
 #[test]
+#[wasm_bindgen_test]
 fn invalid_inputs() {
     assert_eq!(
         Err(TreeMathError::InvalidInput),
@@ -158,6 +164,7 @@ fn invalid_inputs() {
 }
 
 #[test]
+#[wasm_bindgen_test]
 fn test_leaf_in_tree() {
     let tests = [(0u32, 2u32), (1, 2), (4, 5), (9, 10)];
     for test in tests.iter() {
@@ -166,6 +173,7 @@ fn test_leaf_in_tree() {
 }
 
 #[test]
+#[wasm_bindgen_test]
 fn test_leaf_not_in_tree() {
     let tests = [(2u32, 2u32), (7, 7)];
     for test in tests.iter() {

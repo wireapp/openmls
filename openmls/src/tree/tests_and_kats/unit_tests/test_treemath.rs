@@ -1,8 +1,10 @@
 use openmls_rust_crypto::OpenMlsRustCrypto;
 use openmls_traits::types::SignatureScheme;
 
+use wasm_bindgen_test::*;
+wasm_bindgen_test_configure!(run_in_browser);
+
 use crate::{
-    
     test_utils::*,
     tree::{
         index::{LeafIndex, NodeIndex},
@@ -18,6 +20,7 @@ use std::convert::TryFrom;
 ///  - direct_path_root contains the direct path and the root
 ///  - dirpath_long contains the leaf, the direct path and the root
 #[test]
+#[wasm_bindgen_test]
 fn test_dir_path() {
     const SIZE: u32 = 100;
     for size in 0..SIZE {
@@ -79,6 +82,7 @@ fn test_tree_hash(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider
 }
 
 #[test]
+#[wasm_bindgen_test]
 fn verify_descendants() {
     const LEAVES: usize = 100;
     for size in 1..LEAVES {
@@ -92,6 +96,7 @@ fn verify_descendants() {
     }
 }
 #[test]
+#[wasm_bindgen_test]
 fn test_treemath_functions() {
     assert_eq!(0, treemath::root(LeafIndex::from(0u32)).as_u32());
     // The tree with only one leaf has only one node, which is leaf and root at the
@@ -102,6 +107,7 @@ fn test_treemath_functions() {
 }
 
 #[test]
+#[wasm_bindgen_test]
 fn invalid_inputs() {
     assert_eq!(
         Err(TreeMathError::LeafNotInTree),

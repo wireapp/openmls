@@ -9,6 +9,9 @@ use crate::{
     test_utils::*,
 };
 
+use wasm_bindgen_test::*;
+wasm_bindgen_test_configure!(run_in_browser);
+
 /// Tests the creation of a `PublicGroupState` and verifies it was correctly
 /// signed
 #[apply(ciphersuites_and_backends)]

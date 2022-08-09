@@ -15,6 +15,9 @@ use crate::{
     },
 };
 
+use wasm_bindgen_test::*;
+wasm_bindgen_test_configure!(run_in_browser);
+
 // Common setup for tests.
 fn setup(
     ciphersuite: Ciphersuite,

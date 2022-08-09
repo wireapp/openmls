@@ -11,6 +11,9 @@ use crate::{
 use openmls_rust_crypto::OpenMlsRustCrypto;
 use tls_codec::Serialize;
 
+use wasm_bindgen_test::*;
+wasm_bindgen_test_configure!(run_in_browser);
+
 #[apply(ciphersuites_and_backends)]
 async fn create_commit_optional_path(
     ciphersuite: Ciphersuite,

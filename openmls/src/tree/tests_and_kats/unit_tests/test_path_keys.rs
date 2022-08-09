@@ -4,7 +4,11 @@ use super::test_util::*;
 use crate::ciphersuite::*;
 use crate::tree::path_keys::*;
 
+use wasm_bindgen_test::*;
+wasm_bindgen_test_configure!(run_in_browser);
+
 #[test]
+#[wasm_bindgen_test]
 fn test_insert_retrieve() {
     fn key() -> HpkePrivateKey {
         HpkePrivateKey::new(vec![1, 2, 3, 4, 5, 6])

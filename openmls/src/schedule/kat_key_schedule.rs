@@ -10,6 +10,11 @@ use crate::{ciphersuite::*, group::*, schedule::*, test_utils::*};
 #[cfg(test)]
 use crate::test_utils::{read, write};
 
+#[cfg(test)]
+use wasm_bindgen_test::*;
+#[cfg(test)]
+wasm_bindgen_test_configure!(run_in_browser);
+
 use openmls_rust_crypto::OpenMlsRustCrypto;
 use openmls_traits::{
     key_store::OpenMlsKeyStore, random::OpenMlsRand, types::HpkeKeyPair, OpenMlsCryptoProvider,
@@ -278,7 +283,11 @@ async fn write_test_vectors() {
 
 #[apply(backends)]
 async fn read_test_vectors_key_schedule(backend: &impl OpenMlsCryptoProvider) {
+    #[cfg(not(target_family = "wasm"))]
     let tests: Vec<KeyScheduleTestVector> = read("test_vectors/kat_key_schedule_openmls.json");
+    #[cfg(target_family = "wasm")]
+    let tests: Vec<KeyScheduleTestVector> = serde_json::from_slice(include_bytes!("../../test_vectors/kat_key_schedule_openmls.json")).unwrap();
+
     for test_vector in tests {
         match run_test_vector(test_vector, backend).await {
             Ok(_) => {}

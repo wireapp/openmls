@@ -6,6 +6,9 @@ use openmls_traits::key_store::OpenMlsKeyStore;
 use openmls_traits::{random::OpenMlsRand, OpenMlsCryptoProvider};
 use tls_codec::Serialize;
 
+use wasm_bindgen_test::*;
+wasm_bindgen_test_configure!(run_in_browser);
+
 use crate::{
     ciphersuite::Secret, schedule::psk::PskBundle, schedule::psk::*, versions::ProtocolVersion,
 };

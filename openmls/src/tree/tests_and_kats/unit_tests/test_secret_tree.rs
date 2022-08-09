@@ -11,6 +11,9 @@ use crate::{
 };
 use std::collections::HashMap;
 
+use wasm_bindgen_test::*;
+wasm_bindgen_test_configure!(run_in_browser);
+
 // This tests the boundaries of the generations from a SecretTree
 #[apply(ciphersuites_and_backends)]
 fn test_boundaries(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider) {

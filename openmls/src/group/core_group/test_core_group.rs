@@ -4,6 +4,9 @@ use openmls_traits::{
 };
 use tls_codec::Serialize;
 
+use wasm_bindgen_test::*;
+wasm_bindgen_test_configure!(run_in_browser);
+
 use crate::{
     ciphersuite::{hash_ref::KeyPackageRef, signable::Signable, AeadNonce},
     credentials::*,

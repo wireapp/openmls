@@ -3,6 +3,11 @@ use thiserror::Error;
 
 use super::tree::NodeIndex;
 
+#[cfg(test)]
+use wasm_bindgen_test::*;
+#[cfg(test)]
+wasm_bindgen_test_configure!(run_in_browser);
+
 /// Tree math error
 #[derive(Error, Debug, PartialEq, Clone)]
 pub(crate) enum TreeMathError {
@@ -170,11 +175,13 @@ pub(crate) fn node_width(n: usize) -> usize {
 }
 
 #[test]
+#[wasm_bindgen_test]
 fn invalid_inputs() {
     assert_eq!(Err(TreeMathError::NodeNotInTree), parent(1000u32, 100u32));
 }
 
 #[test]
+#[wasm_bindgen_test]
 fn test_node_in_tree() {
     let tests = [(0u32, 2u32), (1, 2), (2, 4), (5, 6), (2, 10)];
     for test in tests.iter() {
@@ -183,6 +190,7 @@ fn test_node_in_tree() {
 }
 
 #[test]
+#[wasm_bindgen_test]
 fn test_node_not_in_tree() {
     let tests = [(3u32, 2u32), (13, 7)];
     for test in tests.iter() {

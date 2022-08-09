@@ -6,6 +6,9 @@ use openmls_rust_crypto::OpenMlsRustCrypto;
 use openmls_traits::crypto::OpenMlsCrypto;
 use tls_codec::{Deserialize, Serialize};
 
+use wasm_bindgen_test::*;
+wasm_bindgen_test_configure!(run_in_browser);
+
 /// Creates a simple test setup for various encoding tests.
 async fn create_encoding_test_setup(backend: &impl OpenMlsCryptoProvider) -> TestSetup {
     // Create a test config for a single client supporting all possible

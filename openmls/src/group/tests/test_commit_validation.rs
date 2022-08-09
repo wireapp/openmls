@@ -9,6 +9,9 @@ use tls_codec::{Deserialize, Serialize};
 use rstest::*;
 use rstest_reuse::{self, *};
 
+use wasm_bindgen_test::*;
+wasm_bindgen_test_configure!(run_in_browser);
+
 use crate::group::*;
 use crate::{
     ciphersuite::signable::{Signable, Verifiable},

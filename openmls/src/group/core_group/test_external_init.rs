@@ -20,6 +20,9 @@ use super::{
     CoreGroup,
 };
 
+use wasm_bindgen_test::*;
+wasm_bindgen_test_configure!(run_in_browser);
+
 #[apply(ciphersuites_and_backends)]
 async fn test_external_init(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider) {
     // Basic group setup.

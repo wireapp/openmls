@@ -3,6 +3,9 @@ use openmls_traits::types::SignatureScheme;
 
 use crate::test_utils::*;
 
+use wasm_bindgen_test::*;
+wasm_bindgen_test_configure!(run_in_browser);
+
 use super::*;
 
 // Tests that the builder for CreateCommitParams works as expected

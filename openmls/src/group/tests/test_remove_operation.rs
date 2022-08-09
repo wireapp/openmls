@@ -4,7 +4,10 @@ use super::utils::{generate_credential_bundle, generate_key_package_bundle};
 use crate::{credentials::*, framing::*, group::*, test_utils::*, *};
 use openmls_rust_crypto::OpenMlsRustCrypto;
 
-// Tests the differen variants of the RemoveOperation enum.
+use wasm_bindgen_test::*;
+wasm_bindgen_test_configure!(run_in_browser);
+
+// Tests the different variants of the RemoveOperation enum.
 #[apply(ciphersuites_and_backends)]
 async fn test_remove_operation_variants(
     ciphersuite: Ciphersuite,

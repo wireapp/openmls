@@ -13,7 +13,11 @@ use crate::{
     messages::proposals::ProposalType,
 };
 
+use wasm_bindgen_test::*;
+wasm_bindgen_test_configure!(run_in_browser);
+
 #[test]
+#[wasm_bindgen_test]
 fn capabilities() {
     // A capabilities extension with the default values for openmls.
     let extension_bytes = [
@@ -53,6 +57,7 @@ fn capabilities() {
 }
 
 #[test]
+#[wasm_bindgen_test]
 fn key_package_id() {
     // A key package extension with the default values for openmls.
     let data = &[0u8, 8, 1, 2, 3, 4, 5, 6, 6, 6];
@@ -68,15 +73,16 @@ fn key_package_id() {
     assert_eq!(&data[..], &serialized_extension_struct);
 }
 
-#[test]
-fn lifetime() {
+#[async_std::test]
+#[wasm_bindgen_test]
+async fn lifetime() {
     // A freshly created extensions must be valid.
     let ext = LifetimeExtension::default();
     assert!(ext.is_valid());
 
     // An extension without lifetime is invalid (waiting for 1 second).
     let ext = LifetimeExtension::new(0);
-    std::thread::sleep(std::time::Duration::from_secs(1));
+    async_std::task::sleep(std::time::Duration::from_secs(1)).await;
     assert!(!ext.is_valid());
 
     // Test (de)serializing invalid extension
@@ -262,6 +268,7 @@ async fn ratchet_tree_extension(ciphersuite: Ciphersuite, backend: &impl OpenMls
 }
 
 #[test]
+#[wasm_bindgen_test]
 fn required_capabilities() {
     // A required capabilities extension with the default values for openmls (none).
     let extension_bytes = vec![0u8, 6, 0, 0, 0, 2, 0, 0];

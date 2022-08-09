@@ -97,6 +97,9 @@ use crate::{
     versions::ProtocolVersion,
 };
 
+use wasm_bindgen_test::*;
+wasm_bindgen_test_configure!(run_in_browser);
+
 use openmls_traits::{types::SignatureScheme, OpenMlsCryptoProvider};
 
 use itertools::izip;

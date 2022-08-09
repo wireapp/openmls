@@ -7,6 +7,9 @@ use tls_codec::Serialize;
 use rstest::*;
 use rstest_reuse::{self, *};
 
+use wasm_bindgen_test::*;
+wasm_bindgen_test_configure!(run_in_browser);
+
 use crate::{
     credentials::CredentialBundle,
     framing::{MessageDecryptionError, ProcessedMessage},

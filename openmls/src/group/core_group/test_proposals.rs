@@ -19,6 +19,9 @@ use crate::{
 use openmls_rust_crypto::OpenMlsRustCrypto;
 use openmls_traits::{types::Ciphersuite, OpenMlsCryptoProvider};
 
+use wasm_bindgen_test::*;
+wasm_bindgen_test_configure!(run_in_browser);
+
 use tls_codec::Serialize;
 
 use super::CoreGroup;

@@ -18,6 +18,9 @@ use openmls_traits::{
 };
 use tls_codec::{Deserialize, Serialize};
 
+use wasm_bindgen_test::*;
+wasm_bindgen_test_configure!(run_in_browser);
+
 #[apply(ciphersuites_and_backends)]
 fn test_welcome_msg(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider) {
     test_welcome_message_with_version(ciphersuite, backend, ProtocolVersion::Mls10);
@@ -128,6 +131,7 @@ fn test_welcome_message_with_version(
 }
 
 #[test]
+#[wasm_bindgen_test]
 fn invalid_welcomes() {
     // An almost good welcome message.
     let mut bytes = &[

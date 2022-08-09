@@ -143,12 +143,16 @@ mod serialization_tests {
 
     use super::*;
 
+    use wasm_bindgen_test::*;
+    wasm_bindgen_test_configure!(run_in_browser);
+
     #[derive(serde::Deserialize, serde::Serialize)]
     struct MapTest {
         map: HashMap<HashReference, String>,
     }
 
     #[test]
+    #[wasm_bindgen_test]
     fn test_serialization() {
         let hash = HashReference {
             value: b"Hello I'm Alice!".to_owned(),
@@ -160,6 +164,7 @@ mod serialization_tests {
     }
 
     #[test]
+    #[wasm_bindgen_test]
     fn test_deserialization() {
         let value = serde_json::Value::String("48656c6c6f2049276d20416c69636521".to_owned());
         let hash: HashReference = serde_json::from_value(value).unwrap();
@@ -167,6 +172,7 @@ mod serialization_tests {
     }
 
     #[test]
+    #[wasm_bindgen_test]
     fn test_map_serialization() {
         let mut test_map = MapTest {
             map: HashMap::new(),
@@ -184,6 +190,7 @@ mod serialization_tests {
     }
 
     #[test]
+    #[wasm_bindgen_test]
     fn test_map_deserialization() {
         let input = serde_json::json!({
             "map": {

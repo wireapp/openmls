@@ -8,6 +8,9 @@ use crate::{
     test_utils::*,
 };
 
+use wasm_bindgen_test::*;
+wasm_bindgen_test_configure!(run_in_browser);
+
 /// This test encodes and decodes the `ProposalOrRef` struct and makes sure the
 /// decoded values are the same as the original
 #[apply(ciphersuites_and_backends)]

@@ -6,6 +6,9 @@ use rstest_reuse::{self, *};
 use openmls_rust_crypto::OpenMlsRustCrypto;
 use tls_codec::{Deserialize, Serialize};
 
+use wasm_bindgen_test::*;
+wasm_bindgen_test_configure!(run_in_browser);
+
 use crate::{
     ciphersuite::{
         hash_ref::KeyPackageRef,

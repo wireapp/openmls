@@ -19,6 +19,9 @@ use serde::{self, Deserialize, Serialize};
 use thiserror::Error;
 use tls_codec::{Deserialize as TlsDeserialize, Serialize as TlsSerializeTrait};
 
+use wasm_bindgen_test::*;
+wasm_bindgen_test_configure!(run_in_browser);
+
 #[derive(Serialize, Deserialize, Debug, Clone, Default)]
 pub struct TranscriptTestVector {
     pub cipher_suite: u16,
@@ -323,7 +326,10 @@ pub fn run_test_vector(
 
 #[apply(backends)]
 fn read_test_vectors_transcript(backend: &impl OpenMlsCryptoProvider) {
+    #[cfg(not(target_family = "wasm"))]
     let tests: Vec<TranscriptTestVector> = read("test_vectors/kat_transcripts.json");
+    #[cfg(target_family = "wasm")]
+    let tests: Vec<TranscriptTestVector> = serde_json::from_slice(include_bytes!("../../../test_vectors/kat_transcripts.json")).unwrap();
 
     for test_vector in tests {
         match run_test_vector(test_vector, backend) {

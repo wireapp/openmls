@@ -6,7 +6,11 @@ use crate::binary_tree::{
 
 use super::array_representation::{tree::NodeIndex, treemath::TreeMathError};
 
+use wasm_bindgen_test::*;
+wasm_bindgen_test_configure!(run_in_browser);
+
 #[test]
+#[wasm_bindgen_test]
 fn test_tree_basics() {
     // Test tree creation: Wrong number of nodes.
     let mut nodes = vec![1, 0];
@@ -92,6 +96,7 @@ fn test_tree_basics() {
 }
 
 #[test]
+#[wasm_bindgen_test]
 fn test_node_references() {
     // Test empty diff.
     let mut tree =
@@ -201,6 +206,7 @@ fn test_node_references() {
 }
 
 #[test]
+#[wasm_bindgen_test]
 fn test_diff_merging() {
     let mut tree = MlsBinaryTree::new(vec![2, 0, 4]).expect("Error creating tree.");
     let original_tree = tree.clone();
@@ -273,6 +279,7 @@ fn test_diff_merging() {
 }
 
 #[test]
+#[wasm_bindgen_test]
 fn test_leaf_addition_and_removal_errors() {
     let tree = MlsBinaryTree::new((0..3).collect()).expect("error creating tree");
     let mut diff = tree.empty_diff().expect("error creating empty diff");
@@ -306,6 +313,7 @@ fn test_leaf_addition_and_removal_errors() {
 }
 
 #[test]
+#[wasm_bindgen_test]
 fn test_tree_navigation() {
     let tree = MlsBinaryTree::new((0..3).collect()).expect("error creating tree");
 
@@ -356,6 +364,7 @@ fn test_tree_navigation() {
 }
 
 #[test]
+#[wasm_bindgen_test]
 fn test_direct_path_manipulation() {
     let small_tree = MlsBinaryTree::new(vec![0]).expect("error creating tree");
 
@@ -524,6 +533,7 @@ fn test_direct_path_manipulation() {
 }
 
 #[test]
+#[wasm_bindgen_test]
 fn test_subtree_root_position() {
     // Computing with a 1-node tree will always lead to a SameLeafError. See below.
 
@@ -580,6 +590,7 @@ fn test_subtree_root_position() {
 }
 
 #[test]
+#[wasm_bindgen_test]
 fn test_subtree_root_copath_node() {
     // The tree needs to have at least two leaves, as the function will error
     // out if the given leaf indices are identical. (Tested below.)
@@ -652,6 +663,7 @@ fn test_subtree_root_copath_node() {
 }
 
 #[test]
+#[wasm_bindgen_test]
 fn test_subtree_path() {
     // This should work on a one-node tree.
     let tree = MlsBinaryTree::new(vec![0]).expect("error creating tree");
@@ -726,6 +738,7 @@ fn test_subtree_path() {
 }
 
 #[test]
+#[wasm_bindgen_test]
 fn test_diff_iter() {
     let tree = MlsBinaryTree::new((0..101).collect()).expect("error creating tree");
 
@@ -744,6 +757,7 @@ fn test_diff_iter() {
 }
 
 #[test]
+#[wasm_bindgen_test]
 fn test_export_diff_nodes() {
     let tree = MlsBinaryTree::new((0..101).collect()).expect("error creating tree");
 
@@ -760,6 +774,7 @@ fn test_export_diff_nodes() {
 }
 
 #[test]
+#[wasm_bindgen_test]
 fn test_diff_mutable_access_after_manipulation() {
     let tree = MlsBinaryTree::new((0..101).collect()).expect("error creating tree");
 

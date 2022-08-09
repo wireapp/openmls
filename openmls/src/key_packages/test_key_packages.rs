@@ -2,10 +2,13 @@ use crate::test_utils::*;
 use openmls_rust_crypto::OpenMlsRustCrypto;
 use tls_codec::Deserialize;
 
+use wasm_bindgen_test::*;
+wasm_bindgen_test_configure!(run_in_browser);
+
 use crate::{extensions::*, key_packages::*};
 
 #[apply(ciphersuites_and_backends)]
-fn generate_key_package(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider) {
+async fn generate_key_package(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider) {
     let credential_bundle = CredentialBundle::new_basic(vec![1, 2, 3], ciphersuite.into(), backend)
         .expect("An unexpected error occurred.");
 
@@ -18,7 +21,7 @@ fn generate_key_package(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoPr
         vec![lifetime_extension],
     )
     .expect("An unexpected error occurred.");
-    std::thread::sleep(std::time::Duration::from_millis(1));
+    async_std::task::sleep(std::time::Duration::from_millis(1)).await;
     assert!(kpb.key_package().verify(backend).is_ok());
 
     // Now we add an invalid lifetime.
@@ -30,7 +33,7 @@ fn generate_key_package(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoPr
         vec![lifetime_extension],
     )
     .expect("An unexpected error occurred.");
-    std::thread::sleep(std::time::Duration::from_millis(1));
+    async_std::task::sleep(std::time::Duration::from_millis(1)).await;
     assert!(kpb.key_package().verify(backend).is_err());
 
     // Now with two lifetime extensions, the key package should be invalid.

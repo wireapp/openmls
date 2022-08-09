@@ -144,6 +144,9 @@ mod unit_tests {
     use super::*;
     use crate::test_utils::*;
 
+    use wasm_bindgen_test::*;
+    wasm_bindgen_test_configure!(run_in_browser);
+
     /// Make sure that xoring works by xoring a nonce with a reuse guard, testing if
     /// it has changed, xoring it again and testing that it's back in its original
     /// state.

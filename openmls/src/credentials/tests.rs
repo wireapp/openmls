@@ -2,7 +2,11 @@ use crate::test_utils::*;
 
 use super::*;
 
+use wasm_bindgen_test::*;
+wasm_bindgen_test_configure!(run_in_browser);
+
 #[test]
+#[wasm_bindgen_test]
 fn test_protocol_version() {
     use crate::versions::ProtocolVersion;
     let mls10_version = ProtocolVersion::Mls10;

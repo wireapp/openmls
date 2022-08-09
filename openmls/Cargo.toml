@@ -32,6 +32,7 @@ fluvio-wasm-timer = "0.2"
 async-std = { version = "1.12", features = ["attributes"], optional = true }
 rstest = { version = "0.15", optional = true }
 rstest_reuse = { version = "0.4", optional = true }
+wasm-bindgen-test = { version = "0.3", optional = true }
 hex = "0.4"
 
 [dependencies.x509-parser]
@@ -46,7 +47,7 @@ rayon = "^1.5.0"
 default = []
 single-threaded = ["openmls_traits/single-threaded"]
 crypto-subtle = [] # Enable subtle crypto APIs that have to be used with care.
-test-utils = ["itertools", "openmls_rust_crypto/provider", "rand", "async-std", "rstest", "rstest_reuse"]
+test-utils = ["itertools", "openmls_rust_crypto/provider", "rand", "async-std", "rstest", "rstest_reuse", "wasm-bindgen-test"]
 evercrypt = ["openmls_evercrypt"] # Evercrypt needs to be enabled individually
 crypto-debug = [] # ☣️ Enable logging of sensitive cryptographic information
 content-debug = [] # ☣️ Enable logging of sensitive message content

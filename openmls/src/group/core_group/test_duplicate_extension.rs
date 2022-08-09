@@ -10,6 +10,9 @@ use openmls_traits::crypto::OpenMlsCrypto;
 use openmls_traits::OpenMlsCryptoProvider;
 use tls_codec::Deserialize;
 
+use wasm_bindgen_test::*;
+wasm_bindgen_test_configure!(run_in_browser);
+
 // This tests the ratchet tree extension to test if the duplicate detection works
 #[apply(ciphersuites_and_backends)]
 async fn duplicate_ratchet_tree_extension(

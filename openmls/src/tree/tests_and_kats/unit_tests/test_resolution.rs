@@ -9,6 +9,9 @@ use crate::{
     tree::*,
 };
 
+use wasm_bindgen_test::*;
+wasm_bindgen_test_configure!(run_in_browser);
+
 /// This test makes sure the filtering of the exclusion list during resolution
 /// works as intended.
 #[apply(ciphersuites_and_backends)]
@@ -214,6 +217,7 @@ fn test_original_child_resolution(
 /// Test if unmerged leaves are properly excluded when computing the parent hash
 /// of a parent node higher up in the tree.
 #[test]
+#[wasm_bindgen_test]
 fn test_exclusion_for_parent_nodes() {
     // Create a large tree members.
     let mls_group_config = MlsGroupConfig::test_default();

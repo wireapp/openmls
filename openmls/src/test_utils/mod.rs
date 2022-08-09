@@ -100,6 +100,7 @@ pub use openmls_rust_crypto::OpenMlsRustCrypto;
   )
 ]
 #[allow(non_snake_case)]
+#[wasm_bindgen_test]
 pub fn backends(backend: &impl OpenMlsCryptoProvider) {}
 
 // For now we only use Evercrypt on specific platforms and only if the feature was enabled
@@ -139,6 +140,7 @@ pub fn backends(backend: &impl OpenMlsCryptoProvider) {}
     )
 )]
 #[allow(non_snake_case)]
+#[wasm_bindgen_test]
 pub fn ciphersuites(ciphersuite: Ciphersuite) {}
 
 // === Ciphersuites & backends ===
@@ -158,6 +160,7 @@ pub fn ciphersuites(ciphersuite: Ciphersuite) {}
   )
 ]
 #[allow(non_snake_case)]
+#[wasm_bindgen_test]
 pub fn ciphersuites_and_backends(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider) {}
 
 // For now we only use Evercrypt on specific platforms and only if the feature was enabled

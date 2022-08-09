@@ -15,6 +15,10 @@ use crate::{
     test_utils::*,
     *,
 };
+
+use wasm_bindgen_test::*;
+wasm_bindgen_test_configure!(run_in_browser);
+
 use ::rand::rngs::OsRng;
 use ::rand::RngCore;
 use openmls_traits::key_store::OpenMlsKeyStore;
@@ -315,6 +319,7 @@ pub fn randombytes(n: usize) -> Vec<u8> {
 }
 
 #[test]
+#[wasm_bindgen_test]
 fn test_random() {
     random_usize();
     randombytes(0);

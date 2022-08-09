@@ -13,6 +13,9 @@ use crate::{
     tree::RatchetTree,
 };
 
+use wasm_bindgen_test::*;
+wasm_bindgen_test_configure!(run_in_browser);
+
 #[apply(backends)]
 fn test_trim(backend: &impl OpenMlsCryptoProvider) {
     // Build a list of nodes, for which we need credentials and key package bundles
@@ -78,6 +81,7 @@ fn test_trim(backend: &impl OpenMlsCryptoProvider) {
 }
 
 #[test]
+#[wasm_bindgen_test]
 fn test_truncation_after_removal() {
     // Set up a group with 8 members.
     let mls_group_config = MlsGroupConfig::test_default();
@@ -123,6 +127,7 @@ fn test_truncation_after_removal() {
 }
 
 #[test]
+#[wasm_bindgen_test]
 fn test_truncation_after_update() {
     // Set up a group with 8 members.
     let mls_group_config = MlsGroupConfig::test_default();

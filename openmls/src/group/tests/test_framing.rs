@@ -3,6 +3,9 @@ use crate::{group::*, test_utils::*, *};
 use openmls_rust_crypto::OpenMlsRustCrypto;
 use openmls_traits::crypto::OpenMlsCrypto;
 
+use wasm_bindgen_test::*;
+wasm_bindgen_test_configure!(run_in_browser);
+
 #[apply(backends)]
 async fn padding(backend: &impl OpenMlsCryptoProvider) {
     // Create a test config for a single client supporting all possible

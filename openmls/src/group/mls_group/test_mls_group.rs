@@ -15,6 +15,9 @@ use crate::{
     test_utils::*,
 };
 
+use wasm_bindgen_test::*;
+wasm_bindgen_test_configure!(run_in_browser);
+
 async fn generate_credential_bundle(
     key_store: &impl OpenMlsCryptoProvider,
     identity: Vec<u8>,

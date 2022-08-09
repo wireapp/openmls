@@ -5,6 +5,10 @@ use openmls_rust_crypto::OpenMlsRustCrypto;
 use openmls_traits::{key_store::OpenMlsKeyStore, types::Ciphersuite, OpenMlsCryptoProvider};
 use rstest::*;
 use rstest_reuse::{self, *};
+
+use wasm_bindgen_test::*;
+wasm_bindgen_test_configure!(run_in_browser);
+
 use tls_codec::{Deserialize, Serialize};
 
 use crate::{

@@ -5,6 +5,9 @@ use crate::{
     tree::sender_ratchet::*, versions::ProtocolVersion,
 };
 
+use wasm_bindgen_test::*;
+wasm_bindgen_test_configure!(run_in_browser);
+
 // Test the maximum forward ratcheting
 #[apply(ciphersuites_and_backends)]
 fn test_max_forward_distance(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider) {
@@ -130,6 +133,7 @@ fn test_forward_secrecy(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoPr
 
 // Test if a sender ratchet overflow is caught
 #[test]
+#[wasm_bindgen_test]
 fn sender_ratchet_generation_overflow() {
     let backend = OpenMlsRustCrypto::default();
     let ciphersuite = Ciphersuite::MLS_128_DHKEMX25519_AES128GCM_SHA256_Ed25519;
