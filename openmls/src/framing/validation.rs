@@ -34,6 +34,10 @@
 //! ProcessedMessage (Application, Proposal, ExternalProposal, Commit, External Commit)
 //! ```
 
+use openmls_traits::OpenMlsCryptoProvider;
+
+use core_group::{proposals::QueuedProposal, staged_commit::StagedCommit};
+
 use crate::{
     ciphersuite::{hash_ref::KeyPackageRef, signable::Verifiable},
     error::LibraryError,
@@ -42,8 +46,6 @@ use crate::{
     tree::{index::SecretTreeLeafIndex, sender_ratchet::SenderRatchetConfiguration},
     treesync::TreeSync,
 };
-use core_group::{proposals::QueuedProposal, staged_commit::StagedCommit};
-use openmls_traits::OpenMlsCryptoProvider;
 
 use super::*;
 
@@ -184,8 +186,8 @@ impl DecryptedMessage {
                     }
                 }
             }
-            // Preconfigured senders are not supported yet #106/#151.
-            Sender::Preconfigured(_) => match self.plaintext.content() {
+            // External senders are not supported yet #106/#151.
+            Sender::External(_) => match self.plaintext.content() {
                 MlsPlaintextContentType::Proposal(Proposal::Remove(RemoveProposal { removed })) => {
                     treesync
                         .leaf_from_id(removed)
@@ -281,10 +283,10 @@ impl UnverifiedMessage {
 pub(crate) enum UnverifiedContextMessage {
     /// Unverified message from a group member
     Group(UnverifiedGroupMessage),
-    /// Unverified message from a preconfigured sender
+    /// Unverified message from a external sender
     /// TODO: #106
     #[allow(dead_code)]
-    Preconfigured(UnverifiedPreconfiguredMessage),
+    External(UnverifiedExternalMessage),
 }
 
 impl UnverifiedContextMessage {
@@ -320,7 +322,7 @@ impl UnverifiedContextMessage {
                     })?,
                 }))
             }
-            Sender::Preconfigured(_) => Ok(Self::Preconfigured(UnverifiedPreconfiguredMessage {
+            Sender::External(_) => Ok(Self::External(UnverifiedExternalMessage {
                 plaintext,
             })),
         }
@@ -359,13 +361,13 @@ impl UnverifiedGroupMessage {
     }
 }
 
-// TODO #151/#106: We don't support preconfigured senders yet
+// TODO #151/#106: We don't support external senders yet
 /// Part of [UnverifiedContextMessage].
-pub(crate) struct UnverifiedPreconfiguredMessage {
+pub(crate) struct UnverifiedExternalMessage {
     plaintext: VerifiableMlsPlaintext,
 }
 
-impl UnverifiedPreconfiguredMessage {
+impl UnverifiedExternalMessage {
     /// Verifies the signature on an [UnverifiedExternalMessage] and returns a [VerifiedExternalMessage] if the
     /// verification is successful.
     /// This function implements the following checks:
@@ -391,15 +393,12 @@ impl UnverifiedPreconfiguredMessage {
         external_senders: Option<&'a ExternalSendersExtension>,
     ) -> Result<&'a SignaturePublicKey, ValidationError> {
         match self.plaintext.sender() {
-            Sender::Preconfigured(sender) => external_senders
-                .and_then(|extension_senders| {
-                    extension_senders
-                        .senders
-                        .iter()
-                        .find(|&extension| extension == sender)
-                        .map(|c| c.signature_key())
-                })
-                .ok_or(ValidationError::MissingRequiredSignatureKey),
+            Sender::External(sender_index) => {
+                external_senders
+                    .and_then(|es| es.senders.get(*sender_index as usize))
+                    .map(|s| &s.signature_key)
+                    .ok_or(ValidationError::MissingRequiredSignatureKey)
+            },
             _ => Err(ValidationError::LibraryError(LibraryError::custom(
                 "We have terribly messed up in 'CoreGroup::process_unverified_message'",
             ))),

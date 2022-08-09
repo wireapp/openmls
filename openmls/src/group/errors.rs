@@ -152,9 +152,9 @@ pub enum StageCommitError {
     /// External Committer used the wrong index.
     #[error("External Committer used the wrong index.")]
     InconsistentSenderIndex,
-    /// The sender is of type preconfigured, which is not valid.
-    #[error("The sender is of type preconfigured, which is not valid.")]
-    SenderTypePreconfigured,
+    /// The sender is of type external, which is not valid.
+    #[error("The sender is of type external, which is not valid.")]
+    SenderTypeExternal,
     /// Too many new members: the tree is full.
     #[error("Too many new members: the tree is full.")]
     TooManyNewMembers,
@@ -213,8 +213,8 @@ pub enum ValidationError {
     /// The MlsPlaintext is not a Commit or an external Add proposal despite the sender begin of type NewMember.
     #[error("The MlsPlaintext is not a Commit or an external Add proposal despite the sender begin of type NewMember.")]
     NotACommitOrExternalAddProposal,
-    /// The MlsPlaintext is not an external proposal despite the sender being of type Preconfigured.
-    #[error("The MlsPlaintext is not an external proposal despite the sender being of type Preconfigured.")]
+    /// The MlsPlaintext is not an external proposal despite the sender being of type External.
+    #[error("The MlsPlaintext is not an external proposal despite the sender being of type External.")]
     NotExternalProposal,
     /// An external proposal referenced a client which is not a member of the group
     #[error("An external proposal referenced a client which is not a member of the group")]
@@ -305,6 +305,9 @@ pub enum ProposalValidationError {
     /// The Commit includes update proposals from the committer.
     #[error("The Commit includes update proposals from the committer.")]
     CommitterIncludedOwnUpdate,
+    /// There cannot be more than 1 GroupContextExtensions proposal in a commit
+    #[error("Expected 1 GroupContextExtensions proposal per commit found {0}")]
+    TooManyGroupContextExtensions(usize),
     /// The capabilities of the add proposal are insufficient for this group.
     #[error("The capabilities of the add proposal are insufficient for this group.")]
     InsufficientCapabilities,
@@ -416,6 +419,9 @@ pub(crate) enum ApplyProposalsError {
     /// Own KeyPackageBundle was not found in the key store.
     #[error("Own KeyPackageBundle was not found in the key store.")]
     MissingKeyPackageBundle,
+    /// See [`KeyPackageExtensionSupportError`] for more details.
+    #[error(transparent)]
+    KeyPackageExtensionSupportError(#[from] KeyPackageExtensionSupportError),
 }
 
 // Core group build error
@@ -450,7 +456,7 @@ pub(crate) enum CoreGroupParseMessageError {
 
 /// Create group context ext proposal error
 #[derive(Error, Debug, PartialEq, Clone)]
-pub(crate) enum CreateGroupContextExtProposalError {
+pub enum CreateGroupContextExtProposalError {
     /// See [`LibraryError`] for more details.
     #[error(transparent)]
     LibraryError(#[from] LibraryError),
@@ -460,4 +466,10 @@ pub(crate) enum CreateGroupContextExtProposalError {
     /// See [`ExtensionError`] for more details.
     #[error(transparent)]
     Extension(#[from] ExtensionError),
+    /// The own CredentialBundle could not be found in the key store.
+    #[error("The own CredentialBundle could not be found in the key store.")]
+    NoMatchingCredentialBundle,
+    /// See [`MlsGroupStateError`] for more details.
+    #[error(transparent)]
+    GroupStateError(#[from] MlsGroupStateError),
 }

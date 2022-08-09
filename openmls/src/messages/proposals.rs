@@ -274,11 +274,14 @@ pub struct GroupContextExtensionProposal {
 
 impl GroupContextExtensionProposal {
     /// Create a new [`GroupContextExtensionProposal`].
-    #[cfg(any(feature = "test-utils", test))]
     pub(crate) fn new(extensions: &[Extension]) -> Self {
         Self {
             extensions: extensions.into(),
         }
+    }
+
+    pub(crate) fn extensions(&self) -> &[Extension] {
+        self.extensions.as_slice()
     }
 }
 

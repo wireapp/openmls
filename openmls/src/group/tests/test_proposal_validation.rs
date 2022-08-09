@@ -3,7 +3,6 @@
 
 use openmls_rust_crypto::OpenMlsRustCrypto;
 use openmls_traits::{key_store::OpenMlsKeyStore, types::Ciphersuite, OpenMlsCryptoProvider};
-
 use rstest::*;
 use rstest_reuse::{self, *};
 use tls_codec::{Deserialize, Serialize};
@@ -2227,7 +2226,7 @@ async fn test_valsem112(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoPr
         ParseMessageError::ValidationError(ValidationError::NotACommitOrExternalAddProposal)
     );
 
-    // We can't test with sender type Preconfigured, since that currently panics
+    // We can't test with sender type External, since that currently panics
     // with `unimplemented`.
     // TODO This test should thus be extended when fixing #106.
 
@@ -2342,9 +2341,13 @@ async fn test_valsem114(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoPr
             .unwrap();
 
     // Define the MlsGroup configuration
+    let ds_external_sender = ExternalSender {
+        credential: ds_credential_bundle.credential().to_owned(),
+        signature_key: ds_credential_bundle.key_pair().into_tuple().1,
+    };
     let mls_group_config = MlsGroupConfig::builder()
         .wire_format_policy(PURE_PLAINTEXT_WIRE_FORMAT_POLICY)
-        .external_senders(vec![ds_credential_bundle.credential().to_owned()])
+        .external_senders(vec![ds_external_sender.clone()])
         .build();
 
     let kpr = key_package
@@ -2360,7 +2363,7 @@ async fn test_valsem114(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoPr
         .group()
         .group_context_extensions()
         .iter()
-        .any(|e| matches!(e, Extension::ExternalSenders(ExternalSendersExtension { senders }) if senders.iter().any(|s| s == ds_credential_bundle.credential()) )));
+        .any(|e| matches!(e, Extension::ExternalSenders(ExternalSendersExtension { senders }) if senders[0] == ds_external_sender )));
 
     // Generate credential bundles
     let bob_credential = generate_credential_bundle(
@@ -2390,19 +2393,20 @@ async fn test_valsem114(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoPr
 
     let bob_group = MlsGroup::new_from_welcome(
         backend,
-        &MlsGroupConfig::default(),
+        &mls_group_config,
         welcome,
         Some(alice_group.export_ratchet_tree()),
     )
     .await
     .unwrap();
     assert_eq!(bob_group.members().len(), 2);
+
     // Bob has external senders after joining from Welcome message
     assert!(bob_group
         .group()
         .group_context_extensions()
         .iter()
-        .any(|e| matches!(e, Extension::ExternalSenders(ExternalSendersExtension { senders }) if senders.iter().any(|s| s == ds_credential_bundle.credential()) )));
+        .any(|e| matches!(e, Extension::ExternalSenders(ExternalSendersExtension { senders }) if senders[0] == ds_external_sender )));
 
     let bob_kpr = bob_group.key_package_ref().unwrap();
 
@@ -2412,6 +2416,7 @@ async fn test_valsem114(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoPr
         bob_group.group_id().clone(),
         bob_group.epoch(),
         &ds_credential_bundle,
+        0,
         backend,
     )
     .unwrap();
@@ -2423,17 +2428,40 @@ async fn test_valsem114(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoPr
         .parse_message(bob_external_remove_proposal.clone().into(), backend)
         .unwrap();
     // Fails because proposal was actually signed by DS, not Bob
-    assert_eq!(
-        alice_group
-            .process_unverified_message(
-                proposal.clone(),
-                Some(bob_credential.signature_key()),
-                backend
-            )
-            .await
-            .unwrap_err(),
+    let process = alice_group
+        .process_unverified_message(
+            proposal.clone(),
+            Some(bob_credential.signature_key()),
+            backend,
+        )
+        .await;
+    assert!(matches!(
+        process.unwrap_err(),
         UnverifiedMessageError::InvalidSignature
-    );
+    ));
+
+    // Trying to do an external remove proposal where sender_index is out of bounds
+    let oob_external_remove_proposal = ExternalProposal::new_remove(
+        bob_kpr.clone(),
+        bob_group.group_id().clone(),
+        bob_group.epoch(),
+        &ds_credential_bundle,
+        u32::MAX,
+        backend,
+    )
+    .unwrap();
+
+    let proposal = alice_group
+        .parse_message(oob_external_remove_proposal.clone().into(), backend)
+        .unwrap();
+
+    let process = alice_group
+        .process_unverified_message(proposal, None, backend)
+        .await;
+    assert!(matches!(
+        process.unwrap_err(),
+        UnverifiedMessageError::MissingSignatureKey
+    ));
 
     // Then some positive tests
 
@@ -2475,14 +2503,15 @@ async fn test_valsem114(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoPr
         alice_group.group_id().clone(),
         alice_group.epoch(),
         &ds_credential_bundle,
+        0,
         backend,
     )
     .unwrap();
 
-    assert_eq!(
-        alice_group
-            .parse_message(invalid_bob_external_remove_proposal.clone().into(), backend)
-            .unwrap_err(),
+    let parse =
+        alice_group.parse_message(invalid_bob_external_remove_proposal.clone().into(), backend);
+    assert!(matches!(
+        parse.unwrap_err(),
         ParseMessageError::ValidationError(ValidationError::UnknownMemberFromExternal)
-    );
+    ));
 }

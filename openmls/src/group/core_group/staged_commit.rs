@@ -126,6 +126,8 @@ impl CoreGroup {
         // ValSem107
         // ValSem108
         self.validate_remove_proposals(&proposal_queue)?;
+        // ValSem115
+        self.validate_group_context_extensions_proposals(&proposal_queue)?;
 
         let public_key_set = match sender {
             Sender::Member(hash_ref) => {
@@ -135,9 +137,9 @@ impl CoreGroup {
                 // ValSem112
                 self.validate_update_proposals(&proposal_queue, hash_ref)?
             }
-            Sender::Preconfigured(_) => {
+            Sender::External(_) => {
                 // A commit cannot be issued by a pre-configured sender.
-                return Err(StageCommitError::SenderTypePreconfigured);
+                return Err(StageCommitError::SenderTypeExternal);
             }
             Sender::NewMember => {
                 // ValSem240: External Commit, inline Proposals: There MUST be at least one ExternalInit proposal.
@@ -172,7 +174,7 @@ impl CoreGroup {
             }
             Sender::NewMember => diff.free_leaf_index()?,
             _ => {
-                return Err(StageCommitError::SenderTypePreconfigured);
+                return Err(StageCommitError::SenderTypeExternal);
             }
         };
 
@@ -278,12 +280,16 @@ impl CoreGroup {
             &self.interim_transcript_hash,
         )?;
 
+        let provisional_extensions = apply_proposals_values
+            .extensions
+            .unwrap_or_else(|| self.group_context.extensions());
+
         let provisional_group_context = GroupContext::new(
             self.group_context.group_id().clone(),
             provisional_epoch,
             diff.compute_tree_hashes(backend, ciphersuite)?,
             confirmed_transcript_hash.clone(),
-            self.group_context.extensions(),
+            provisional_extensions,
         );
 
         // Prepare the PskSecret

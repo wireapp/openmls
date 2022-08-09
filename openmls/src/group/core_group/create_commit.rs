@@ -3,7 +3,11 @@ use openmls_traits::OpenMlsCryptoProvider;
 use crate::{
     ciphersuite::signable::Signable,
     framing::*,
-    group::{core_group::*, errors::CreateCommitError, *},
+    group::{
+        core_group::*,
+        errors::{ApplyProposalsError, CreateCommitError},
+        *,
+    },
     messages::*,
     treesync::{
         diff::TreeSyncDiff,
@@ -120,6 +124,8 @@ impl CoreGroup {
         // ValSem107
         // ValSem108
         self.validate_remove_proposals(&proposal_queue)?;
+        // ValSem115
+        self.validate_group_context_extensions_proposals(&proposal_queue)?;
         // Validate update proposals for member commits
         if let Some(hash_ref) = own_kpr {
             // ValSem109
@@ -133,9 +139,12 @@ impl CoreGroup {
         let apply_proposals_values = self
             .apply_proposals(&mut diff, backend, &proposal_queue, &[])
             .map_err(|e| match e {
-                crate::group::errors::ApplyProposalsError::LibraryError(e) => e.into(),
-                crate::group::errors::ApplyProposalsError::MissingKeyPackageBundle => {
-                    CreateCommitError::OwnKeyNotFound
+                ApplyProposalsError::LibraryError(e) => e.into(),
+                ApplyProposalsError::MissingKeyPackageBundle => CreateCommitError::OwnKeyNotFound,
+                ApplyProposalsError::KeyPackageExtensionSupportError(_) => {
+                    CreateCommitError::ProposalValidationError(
+                        ProposalValidationError::InsufficientCapabilities,
+                    )
                 }
             })?;
         if apply_proposals_values.self_removed {
@@ -230,13 +239,17 @@ impl CoreGroup {
         // Calculate tree hash
         let tree_hash = diff.compute_tree_hashes(backend, ciphersuite)?;
 
+        let provisional_extensions = apply_proposals_values
+            .extensions
+            .unwrap_or_else(|| self.group_context.extensions());
+
         // Calculate group context
         let provisional_group_context = GroupContext::new(
             self.group_context.group_id().clone(),
             provisional_epoch,
             tree_hash.clone(),
             confirmed_transcript_hash.clone(),
-            self.group_context.extensions(),
+            provisional_extensions,
         );
 
         let joiner_secret = JoinerSecret::new(

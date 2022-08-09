@@ -13,8 +13,9 @@ pub enum Sender {
     /// The sender is a member of the group
     #[tls_codec(discriminant = 1)]
     Member(KeyPackageRef),
-    /// The sender is not a member of the group and has a preconfigured value instead
-    Preconfigured(Credential),
+    /// The sender is not a member of the group and is represented by the index of this sender
+    /// in group's [`ExternalSendersExtension`] extension
+    External(u32),
     /// The sender is a new member of the group that joins through an External Commit
     NewMember,
 }

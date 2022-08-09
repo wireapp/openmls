@@ -189,7 +189,7 @@ impl MlsPlaintext {
     }
 
     /// This constructor builds an `MlsPlaintext` containing an External Proposal.
-    /// The sender type is either `Sender::Preconfigured` or `Sender::NewMember`.
+    /// The sender type is either `Sender::External` or `Sender::NewMember`.
     pub(crate) fn member_external_proposal(
         framing_parameters: FramingParameters,
         sender: Sender,
@@ -452,7 +452,7 @@ pub(crate) struct MlsPlaintextTbs {
     pub(super) sender: Sender,
     pub(super) authenticated_data: TlsByteVecU32,
     pub(super) content_type: ContentType,
-    pub(super) payload: MlsPlaintextContentType,
+    pub(crate) payload: MlsPlaintextContentType,
 }
 
 fn encode_tbs<'a>(
@@ -476,7 +476,7 @@ fn encode_tbs<'a>(
 
 #[derive(PartialEq, Debug, Clone)]
 pub(crate) struct VerifiableMlsPlaintext {
-    pub(super) tbs: MlsPlaintextTbs,
+    pub(crate) tbs: MlsPlaintextTbs,
     pub(super) signature: Signature,
     pub(super) confirmation_tag: Option<ConfirmationTag>,
     pub(super) membership_tag: Option<MembershipTag>,
