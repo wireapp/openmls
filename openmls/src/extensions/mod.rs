@@ -107,7 +107,8 @@ pub enum ExtensionType {
     RequiredCapabilities = 6,
 
     /// Contains authorized clients allowed to craft external proposals to a group
-    ExternalSenders = 7,
+    // TODO: change to 0x0005 when moving to draft-16
+    ExternalSenders = 0xff00,
 }
 
 impl TryFrom<u16> for ExtensionType {
