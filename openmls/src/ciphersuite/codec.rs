@@ -7,22 +7,13 @@ use tls_codec::{Error, TlsSliceU16, TlsSliceU8, TlsVecU8};
 
 impl tls_codec::Serialize for SignaturePublicKey {
     fn tls_serialize<W: Write>(&self, writer: &mut W) -> Result<usize, Error> {
-        let written = self.signature_scheme.tls_serialize(writer)?;
-        TlsSliceU16(&self.value).tls_serialize(writer).map(|l| l + written)
-    }
-}
-
-impl tls_codec::Deserialize for SignaturePublicKey {
-    fn tls_deserialize<R: Read>(bytes: &mut R) -> Result<Self, Error> {
-        let signature_scheme = SignatureScheme::tls_deserialize(bytes)?;
-        let value = TlsByteVecU16::tls_deserialize(bytes)?.into();
-        Ok(Self { value, signature_scheme })
+        TlsSliceU16(&self.value).tls_serialize(writer)
     }
 }
 
 impl tls_codec::Size for SignaturePublicKey {
     fn tls_serialized_len(&self) -> usize {
-        TlsSliceU16(&self.value).tls_serialized_len() + self.signature_scheme.tls_serialized_len()
+        TlsSliceU16(&self.value).tls_serialized_len()
     }
 }
 

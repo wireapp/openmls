@@ -1,30 +1,48 @@
-use openmls_traits::types::SignatureScheme;
-use super::{Deserialize, Serialize};
-use crate::{
-    credentials::Credential,
-    prelude::SignaturePublicKey
-};
-use tls_codec::{TlsDeserialize, TlsSerialize, TlsSize, TlsVecU16};
-use crate::prelude::{BasicCredential, CredentialType, MlsCredentialType};
+use std::io::Read;
 
+use openmls_traits::types::SignatureScheme;
+use tls_codec::{Error, TlsByteVecU16, TlsDeserialize, TlsSerialize, TlsSize, TlsVecU16};
+
+use crate::prelude::{BasicCredential, CredentialType, MlsCredentialType};
+use crate::{credentials::Credential, prelude::SignaturePublicKey};
+
+use super::{Deserialize, Serialize};
 
 /// # External Senders
 ///
 /// Allows declaring clients allowed to create external proposals.
 /// Clients are ([`ExternalSender`])
-#[derive(PartialEq, Clone, Debug, Default, Serialize, Deserialize, TlsSerialize, TlsDeserialize, TlsSize)]
+#[derive(
+    PartialEq, Clone, Debug, Default, Serialize, Deserialize, TlsSerialize, TlsDeserialize, TlsSize,
+)]
 pub struct ExternalSendersExtension {
     /// [Credential] of the senders allowed to send external proposals
     pub senders: TlsVecU16<ExternalSender>,
 }
 
 /// A client not in a MLS group allowed to create external proposals for a group
-#[derive(PartialEq, Clone, Debug, Serialize, Deserialize, TlsSerialize, TlsDeserialize, TlsSize)]
+#[derive(PartialEq, Clone, Debug, Serialize, Deserialize, TlsSerialize, TlsSize)]
 pub struct ExternalSender {
     /// Sender's credential
     pub credential: Credential,
     /// Sender's public signature key
     pub signature_key: SignaturePublicKey,
+}
+
+impl tls_codec::Deserialize for ExternalSender {
+    fn tls_deserialize<R: Read>(bytes: &mut R) -> Result<Self, Error> {
+        let credential: Credential = Credential::tls_deserialize(bytes)?.into();
+        let public_key_bytes = TlsByteVecU16::tls_deserialize(bytes)?;
+        let signature_scheme = credential.signature_scheme().map_err(|_| Error::DecodingError("Could not extract signature scheme from credential while deserializing external sender".to_string()))?;
+        let signature_key = SignaturePublicKey::new(public_key_bytes.into(), signature_scheme)
+            .map_err(|e| {
+                Error::DecodingError(format!("Error deserializing signature public key {:?}", e))
+            })?;
+        Ok(Self {
+            credential,
+            signature_key,
+        })
+    }
 }
 
 #[cfg(test)]
@@ -48,9 +66,12 @@ impl ExternalSender {
         };
         let credential = Credential {
             credential_type: CredentialType::Basic,
-            credential: MlsCredentialType::Basic(credential)
+            credential: MlsCredentialType::Basic(credential),
         };
-        Self { signature_key, credential }
+        Self {
+            signature_key,
+            credential,
+        }
     }
 }
 
