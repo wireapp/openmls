@@ -113,7 +113,7 @@ async fn validation_test_setup(
             .expect("Error deserializing PGS");
     let tree_option = alice_group.export_ratchet_tree();
 
-    let (_bob_group, message) = MlsGroup::join_by_external_commit(
+    let (_bob_group, message, ..) = MlsGroup::join_by_external_commit(
         backend,
         Some(&tree_option),
         verifiable_public_group_state,
@@ -427,7 +427,7 @@ async fn test_valsem243(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoPr
             .expect("Error deserializing PGS");
     let tree_option = alice_group.export_ratchet_tree();
 
-    let (_bob_group, message) = MlsGroup::join_by_external_commit(
+    let (_bob_group, message, ..) = MlsGroup::join_by_external_commit(
         backend,
         Some(&tree_option), // Note that this isn't actually used.
         verifiable_public_group_state,
@@ -564,7 +564,7 @@ async fn test_valsem244(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoPr
             .expect("Error deserializing PGS");
     let tree_option = alice_group.export_ratchet_tree();
 
-    let (_bob_group, message) = MlsGroup::join_by_external_commit(
+    let (_bob_group, message, ..) = MlsGroup::join_by_external_commit(
         backend,
         Some(&tree_option),
         verifiable_public_group_state,

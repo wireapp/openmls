@@ -5,6 +5,7 @@ use crate::{
     },
     messages::public_group_state::VerifiablePublicGroupState,
 };
+use crate::prelude::PublicGroupState;
 
 use super::*;
 
@@ -145,7 +146,7 @@ impl MlsGroup {
         mls_group_config: &MlsGroupConfig,
         aad: &[u8],
         credential_bundle: &CredentialBundle,
-    ) -> Result<(Self, MlsMessageOut), ExternalCommitError> {
+    ) -> Result<(Self, MlsMessageOut, PublicGroupState), ExternalCommitError> {
         let resumption_secret_store =
             ResumptionSecretStore::new(mls_group_config.number_of_resumption_secrets);
 
@@ -181,6 +182,6 @@ impl MlsGroup {
             state_changed: InnerState::Changed,
         };
 
-        Ok((mls_group, create_commit_result.commit.into()))
+        Ok((mls_group, create_commit_result.commit.into(), create_commit_result.group_info))
     }
 }
