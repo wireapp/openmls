@@ -109,6 +109,9 @@ pub enum ExtensionType {
     /// Contains authorized clients allowed to craft external proposals to a group
     // TODO: change to 0x0005 when moving to draft-16
     ExternalSenders = 0xff00,
+
+    /// Contains a non standard extension
+    Custom = 0xff01,
 }
 
 impl TryFrom<u16> for ExtensionType {
@@ -145,6 +148,7 @@ impl ExtensionType {
             | ExtensionType::ExternalSenders
             | ExtensionType::ParentHash
             | ExtensionType::RatchetTree
+            | ExtensionType::Custom
             | ExtensionType::RequiredCapabilities => true,
         }
     }
@@ -178,6 +182,9 @@ pub enum Extension {
 
     /// A [`RequiredCapabilitiesExtension`]
     RequiredCapabilities(RequiredCapabilitiesExtension),
+
+    /// A [`RequiredCapabilitiesExtension`]
+    Custom(u32, TlsByteVecU32),
 }
 
 impl tls_codec::Size for Extension {
@@ -193,6 +200,7 @@ impl tls_codec::Size for Extension {
             Extension::ParentHash(e) => e.tls_serialized_len(),
             Extension::RatchetTree(e) => e.tls_serialized_len(),
             Extension::RequiredCapabilities(e) => e.tls_serialized_len(),
+            Extension::Custom(code, content) => code.tls_serialized_len() + content.tls_serialized_len(),
         }
     }
 }
@@ -215,6 +223,10 @@ impl tls_codec::Serialize for Extension {
             Extension::ParentHash(e) => e.tls_serialize(&mut extension_data),
             Extension::RatchetTree(e) => e.tls_serialize(&mut extension_data),
             Extension::RequiredCapabilities(e) => e.tls_serialize(&mut extension_data),
+            Extension::Custom(code, content) => {
+                code.tls_serialize(&mut extension_data)
+                    .and_then(|w| content.tls_serialize(writer).map(|l| l + w))
+            },
         }?;
         debug_assert_eq!(extension_data_written, extension_data_len);
         debug_assert_eq!(extension_data_written, extension_data.len());
@@ -256,6 +268,11 @@ impl tls_codec::Deserialize for Extension {
             ExtensionType::RequiredCapabilities => Extension::RequiredCapabilities(
                 RequiredCapabilitiesExtension::tls_deserialize(&mut extension_data)?,
             ),
+            ExtensionType::Custom => {
+                let code = u32::tls_deserialize(&mut extension_data)?;
+                let content = TlsByteVecU32::tls_deserialize(&mut extension_data)?;
+                Self::Custom(code, content)
+            }
             ExtensionType::Reserved => {
                 return Err(tls_codec::Error::DecodingError(format!(
                     "{:?} is not a valid extension type",
@@ -366,6 +383,7 @@ impl Extension {
             Extension::ParentHash(_) => ExtensionType::ParentHash,
             Extension::RatchetTree(_) => ExtensionType::RatchetTree,
             Extension::RequiredCapabilities(_) => ExtensionType::RequiredCapabilities,
+            Extension::Custom(_, _) => ExtensionType::Custom,
         }
     }
 }
