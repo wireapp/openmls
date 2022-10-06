@@ -24,8 +24,8 @@ rand = { version = "0.8", optional = true }
 getrandom = { version = "0.2", features = ["js"] }
 # Crypto backends required for KAT and testing - "test-utils" feature
 itertools = { version = "0.10", optional = true }
-openmls_rust_crypto = { version = "0.1.0", path = "../openmls_rust_crypto", optional = true }
-openmls_evercrypt = { version = "0.1.0", path = "../evercrypt_backend", optional = true }
+openmls_rust_crypto = { version = "0.1", path = "../openmls_rust_crypto", optional = true }
+openmls_evercrypt = { version = "0.1", path = "../evercrypt_backend", optional = true }
 thiserror = "^1.0"
 backtrace = "0.3"
 fluvio-wasm-timer = "0.2"
