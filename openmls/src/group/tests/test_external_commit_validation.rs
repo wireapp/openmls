@@ -566,8 +566,8 @@ async fn test_valsem244(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoPr
 
     let (_bob_group, message, ..) = MlsGroup::join_by_external_commit(
         backend,
-        Some(&tree_option),
-        verifiable_public_group_state,
+        Some(&tree_option.clone()),
+        verifiable_public_group_state.clone(),
         alice_group.configuration(),
         &[],
         &bob_credential_bundle,
@@ -647,6 +647,30 @@ async fn test_valsem244(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoPr
             ExternalCommitValidationError::InvalidRemoveProposal
         ))
     );
+
+    // Verify that Alice can also (just like Bob) rejoin the group with an external commit
+    let alice_credential = alice_group.credential().unwrap();
+    let alice_credential_bundle: CredentialBundle = backend
+        .key_store()
+        .read(
+            &alice_credential
+                .signature_key()
+                .tls_serialize_detached()
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+
+    let alice_external_commit = MlsGroup::join_by_external_commit(
+        backend,
+        Some(&tree_option),
+        verifiable_public_group_state,
+        alice_group.configuration(),
+        &[],
+        &alice_credential_bundle,
+    )
+    .await;
+    assert!(alice_external_commit.is_ok());
 
     // Positive case
     let unverified_message = alice_group

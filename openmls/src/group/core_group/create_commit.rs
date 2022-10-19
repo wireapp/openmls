@@ -147,7 +147,7 @@ impl CoreGroup {
                     )
                 }
             })?;
-        if apply_proposals_values.self_removed {
+        if apply_proposals_values.self_removed && params.commit_type() != CommitType::External {
             return Err(CreateCommitError::CannotRemoveSelf);
         }
 
