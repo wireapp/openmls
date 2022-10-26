@@ -65,7 +65,6 @@ impl ExternalProposal {
         sender_index: u32,
         backend: &impl OpenMlsCryptoProvider,
     ) -> Result<MlsMessageOut, ProposeAddMemberError> {
-
         let sender = Sender::External(sender_index);
         Self::Remove(RemoveProposal { removed })
             .create_message(sender, group_id, epoch, credential, backend)
@@ -80,16 +79,7 @@ impl ExternalProposal {
         credential: &CredentialBundle,
         backend: &impl OpenMlsCryptoProvider,
     ) -> Result<MlsMessageOut, LibraryError> {
-        let framing_parameters = FramingParameters::new(&[], WireFormat::MlsPlaintext);
-        MlsPlaintext::member_external_proposal(
-            framing_parameters,
-            sender,
-            self,
-            credential,
-            group_id,
-            epoch,
-            backend,
-        )
-        .map(MlsMessageOut::from)
+        MlsPlaintext::member_external_proposal(sender, self, credential, group_id, epoch, backend)
+            .map(MlsMessageOut::from)
     }
 }

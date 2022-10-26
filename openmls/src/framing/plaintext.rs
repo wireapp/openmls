@@ -191,7 +191,6 @@ impl MlsPlaintext {
     /// This constructor builds an `MlsPlaintext` containing an External Proposal.
     /// The sender type is either `Sender::External` or `Sender::NewMember`.
     pub(crate) fn member_external_proposal(
-        framing_parameters: FramingParameters,
         sender: Sender,
         proposal: ExternalProposal,
         credential_bundle: &CredentialBundle,
@@ -205,7 +204,7 @@ impl MlsPlaintext {
         };
 
         let message = MlsPlaintextTbs::new(
-            framing_parameters.wire_format(),
+            WireFormat::MlsPlaintext,
             group_id,
             epoch,
             sender,

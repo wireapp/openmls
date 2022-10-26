@@ -113,6 +113,17 @@ impl MlsMessageIn {
         self.mls_message.is_handshake_message()
     }
 
+    /// Returns `true` if this is a handshake message and either an external proposal or external commit
+    pub fn is_external(&self) -> bool {
+        match &self.mls_message {
+            MlsMessage::Plaintext(p) => {
+                matches!(p.sender(), Sender::NewMember | Sender::External(_))
+            }
+            // external message cannot be encrypted
+            MlsMessage::Ciphertext(_) => false,
+        }
+    }
+
     /// Tries to deserialize from a byte slice. Returns [`MlsMessageError::UnableToDecode`] on failure.
     pub fn try_from_bytes(bytes: &[u8]) -> Result<Self, MlsMessageError> {
         Ok(Self {

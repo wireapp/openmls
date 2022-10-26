@@ -4,8 +4,8 @@ use crate::{
         errors::{CoreGroupBuildError, ExternalCommitError, WelcomeError},
     },
     messages::public_group_state::VerifiablePublicGroupState,
+    prelude::PublicGroupState,
 };
-use crate::prelude::PublicGroupState;
 
 use super::*;
 
@@ -151,8 +151,7 @@ impl MlsGroup {
             ResumptionSecretStore::new(mls_group_config.number_of_resumption_secrets);
 
         // Prepare the commit parameters
-        let framing_parameters =
-            FramingParameters::new(aad, mls_group_config.wire_format_policy().outgoing());
+        let framing_parameters = FramingParameters::new(aad, WireFormat::MlsPlaintext);
 
         let proposal_store = ProposalStore::new();
         let params = CreateCommitParams::builder()
@@ -182,6 +181,10 @@ impl MlsGroup {
             state_changed: InnerState::Changed,
         };
 
-        Ok((mls_group, create_commit_result.commit.into(), create_commit_result.group_info))
+        Ok((
+            mls_group,
+            create_commit_result.commit.into(),
+            create_commit_result.group_info,
+        ))
     }
 }
