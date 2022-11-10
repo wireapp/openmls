@@ -79,7 +79,7 @@ impl VerifiablePublicGroupState {
 
     /// Returns a reference to the `Ciphersuite` of the unverified
     /// `PublicGroupState`.
-    pub(crate) fn ciphersuite(&self) -> Ciphersuite {
+    pub fn ciphersuite(&self) -> Ciphersuite {
         self.tbs.ciphersuite
     }
 
