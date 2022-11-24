@@ -34,6 +34,8 @@ rstest = { version = "0.15", optional = true }
 rstest_reuse = { version = "0.4", optional = true }
 wasm-bindgen-test = { version = "0.3", optional = true }
 hex = "0.4"
+anyhow = "1.0"
+openmls_memory_keystore = { version = "0.1.0", path = "../memory_keystore" }
 
 [dependencies.x509-parser]
 git = "https://github.com/wireapp/x509-parser"

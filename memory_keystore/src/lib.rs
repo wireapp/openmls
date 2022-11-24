@@ -3,14 +3,14 @@ use std::{collections::HashMap, sync::RwLock};
 
 #[derive(Debug, Default)]
 pub struct MemoryKeyStore {
-    values: RwLock<HashMap<Vec<u8>, Vec<u8>>>,
+    pub values: RwLock<HashMap<Vec<u8>, Vec<u8>>>,
 }
 
 #[cfg_attr(not(feature = "single-threaded"), async_trait::async_trait)]
 #[cfg_attr(feature = "single-threaded", async_trait::async_trait(?Send))]
 impl OpenMlsKeyStore for MemoryKeyStore {
     /// The error type returned by the [`OpenMlsKeyStore`].
-    type Error = Error;
+    /*type Error = Error;
 
     /// Store a value `v` that implements the [`KeyStoreValue`] trait for
     /// serialization for ID `k`.
@@ -52,7 +52,7 @@ impl OpenMlsKeyStore for MemoryKeyStore {
         let mut values = self.values.write().unwrap();
         values.remove(k);
         Ok(())
-    }
+    }*/
 }
 
 /// Errors thrown by the key store.
