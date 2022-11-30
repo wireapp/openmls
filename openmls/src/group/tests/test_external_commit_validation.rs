@@ -878,30 +878,22 @@ fn test_valsem248(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider
     // Set old confirmation tag
     signed_plaintext.set_confirmation_tag(original_plaintext.confirmation_tag().unwrap().clone());
 
-    let verifiable_plaintext: VerifiableMlsAuthContent =
-        VerifiableMlsAuthContent::from_plaintext(signed_plaintext, None);
+    let verifiable_plaintext = VerifiableMlsAuthContent::from_plaintext(signed_plaintext, None);
 
     // Have Alice process the commit resulting from external init.
-    let message_in = MlsMessageIn::from(verifiable_plaintext);
-
-    let unverified_message = alice_group.parse_message(message_in, backend).unwrap();
-
     let err = alice_group
-        .process_unverified_message(unverified_message, None, backend)
+        .process_message(backend, verifiable_plaintext.into())
         .unwrap_err();
 
     assert_eq!(
         err,
-        UnverifiedMessageError::InvalidCommit(StageCommitError::ExternalCommitValidation(
+        ProcessMessageError::InvalidCommit(StageCommitError::ExternalCommitValidation(
             ExternalCommitValidationError::ReferencedProposal
         ))
     );
 
     // Positive case
-    let unverified_message = alice_group
-        .parse_message(MlsMessageIn::from(original_plaintext), backend)
-        .expect("Could not parse message.");
     alice_group
-        .process_unverified_message(unverified_message, None, backend)
-        .expect("Unexpected error.");
+        .process_message(backend, original_plaintext.into())
+        .unwrap();
 }
