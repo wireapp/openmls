@@ -555,82 +555,6 @@ fn test_valsem243(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider
         .expect("Unexpected error.");
 }
 
-// ValSem244: External Commit, referenced Proposals: There MUST NOT be any ExternalInit proposals.
-#[apply(ciphersuites_and_backends)]
-fn test_valsem244(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider) {
-    // Test with MlsPlaintext
-    let ECValidationTestSetup {
-        mut alice_group,
-        bob_credential_bundle,
-        mut plaintext,
-        original_plaintext,
-    } = validation_test_setup(PURE_PLAINTEXT_WIRE_FORMAT_POLICY, ciphersuite, backend);
-
-    let mut content = if let MlsContentBody::Commit(commit) = plaintext.content() {
-        commit.clone()
-    } else {
-        panic!("Unexpected content type.");
-    };
-
-    // Add an extra external init proposal by reference.
-    // First create an external init proposal.
-    let second_ext_init_prop = Proposal::ExternalInit(ExternalInitProposal::from(vec![1, 2, 3]));
-
-    let queued_proposal = QueuedProposal::from_proposal_and_sender(
-        ciphersuite,
-        backend,
-        second_ext_init_prop,
-        &Sender::Member(alice_group.own_leaf_index()),
-    )
-    .expect("error creating queued proposal");
-
-    // Add it to Alice's proposal store
-    alice_group.store_pending_proposal(queued_proposal.clone());
-
-    let proposal_reference = ProposalOrRef::Reference(queued_proposal.proposal_reference());
-
-    content.proposals.push(proposal_reference);
-
-    plaintext.set_content_body(MlsContentBody::Commit(content));
-
-    // We have to re-sign, since we changed the content.
-    let mut signed_plaintext: MlsPlaintext = plaintext
-        .payload()
-        .clone()
-        .sign(backend, &bob_credential_bundle)
-        .expect("Error signing modified payload.");
-
-    // Set old confirmation tag
-    signed_plaintext.set_confirmation_tag(
-        original_plaintext
-            .confirmation_tag()
-            .expect("no confirmation tag on original message")
-            .clone(),
-    );
-
-    let verifiable_plaintext: VerifiableMlsAuthContent =
-        VerifiableMlsAuthContent::from_plaintext(signed_plaintext, None);
-
-    // Have alice process the commit resulting from external init.
-    let message_in = MlsMessageIn::from(verifiable_plaintext);
-
-    let err = alice_group
-        .process_message(backend, message_in)
-        .expect_err("Could process message despite the external commit including an external init proposal by reference.");
-
-    assert_eq!(
-        err,
-        ProcessMessageError::InvalidCommit(StageCommitError::ExternalCommitValidation(
-            ExternalCommitValidationError::MultipleExternalInitProposals
-        ))
-    );
-
-    // Positive case
-    alice_group
-        .process_message(backend, MlsMessageIn::from(original_plaintext))
-        .expect("Unexpected error.");
-}
-
 // ValSem245: External Commit: MUST contain a path.
 #[apply(ciphersuites_and_backends)]
 fn test_valsem245(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider) {
@@ -851,10 +775,6 @@ fn test_valsem248(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider
     )
     .unwrap();
 
-    alice_group
-        .propose_add_member(backend, &bob_key_package)
-        .unwrap();
-
     let add_proposal = Proposal::Add(AddProposal {
         key_package: bob_key_package,
     });
@@ -885,12 +805,7 @@ fn test_valsem248(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider
         .process_message(backend, verifiable_plaintext.into())
         .unwrap_err();
 
-    assert_eq!(
-        err,
-        ProcessMessageError::InvalidCommit(StageCommitError::ExternalCommitValidation(
-            ExternalCommitValidationError::ReferencedProposal
-        ))
-    );
+    assert_eq!(err, ProcessMessageError::InvalidExternalCommit);
 
     // Positive case
     alice_group

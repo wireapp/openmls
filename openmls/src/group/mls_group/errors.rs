@@ -95,6 +95,9 @@ pub enum ProcessMessageError {
     /// See [`StageCommitError`] for more details.
     #[error(transparent)]
     InvalidCommit(#[from] StageCommitError),
+    /// Invalid external commit
+    #[error("Invalid external commit")]
+    InvalidExternalCommit,
 }
 
 /// Create message error

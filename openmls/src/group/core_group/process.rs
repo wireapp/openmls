@@ -231,7 +231,15 @@ impl CoreGroup {
                             )?,
                         ))
                     }
-                    MlsContentBody::Commit(_) => {
+                    MlsContentBody::Commit(commit) => {
+                        let contains_proposal_ref = commit
+                            .proposals
+                            .iter()
+                            .any(|p| matches!(p, ProposalOrRef::Reference(_)));
+                        if contains_proposal_ref {
+                            return Err(ProcessMessageError::InvalidExternalCommit);
+                        }
+
                         let staged_commit = self.stage_commit(
                             verified_new_member_message.plaintext(),
                             proposal_store,

@@ -430,15 +430,6 @@ impl CoreGroup {
             return Err(ExternalCommitValidationError::InvalidInlineProposals);
         }
 
-        if proposal_queue.queued_proposals().any(|proposal| {
-            matches!(
-                proposal.proposal_or_ref_type(),
-                ProposalOrRefType::Reference
-            )
-        }) {
-            return Err(ExternalCommitValidationError::ReferencedProposal);
-        }
-
         let remove_proposals = proposal_queue.filtered_by_type(ProposalType::Remove);
         for proposal in remove_proposals {
             if proposal.proposal_or_ref_type() == ProposalOrRefType::Proposal {
