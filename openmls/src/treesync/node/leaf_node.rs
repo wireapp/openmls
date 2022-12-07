@@ -102,7 +102,7 @@ impl LeafNode {
     /// Return a [`KeyPackageRef`] of this node('s key package).
     /// Note that this returns `None` if the key package reference has not been
     /// set explicitly with [`Self::set_key_package_ref()`].
-    pub(crate) fn key_package_ref(&self) -> Option<&KeyPackageRef> {
+    pub fn key_package_ref(&self) -> Option<&KeyPackageRef> {
         self.key_package_ref.as_ref()
     }
 
