@@ -510,6 +510,14 @@ impl MlsEntity for KeyPackageBundle {
     }
 }
 
+impl MlsEntity for KeyPackageBundle {
+    const ID: &'static str = "KeyPackageBundle";
+
+    fn key(&self) -> &[u8] {
+        todo!()
+    }
+}
+
 impl From<KeyPackageBundle> for KeyPackageBundlePayload {
     fn from(kpb: KeyPackageBundle) -> Self {
         Self {
