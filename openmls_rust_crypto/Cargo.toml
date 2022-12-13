@@ -27,3 +27,4 @@ hpke = { version = "0.1.0", package = "hpke-rs", default-features = false, featu
 hpke-rs-crypto = { version = "0.1.1" }
 hpke-rs-rust-crypto = { version = "0.1.1" }
 thiserror = "1.0"
+serde_json = "1.0"

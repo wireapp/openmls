@@ -47,6 +47,7 @@ mod codec;
 #[cfg(test)]
 mod tests;
 use errors::*;
+use openmls_traits::key_store::MlsEntity;
 
 // Public
 pub mod errors;
@@ -233,6 +234,14 @@ impl PartialEq for BasicCredential {
 pub struct CredentialBundle {
     credential: Credential,
     signature_private_key: SignaturePrivateKey,
+}
+
+impl MlsEntity for CredentialBundle {
+    const ID: &'static str = "CredentialBundle";
+
+    fn key(&self) -> &[u8] {
+        todo!()
+    }
 }
 
 impl CredentialBundle {

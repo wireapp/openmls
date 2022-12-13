@@ -100,6 +100,7 @@ use tls_codec::{
 // Private
 mod codec;
 use errors::*;
+use openmls_traits::key_store::MlsEntity;
 
 // Public
 pub mod errors;
@@ -499,6 +500,14 @@ impl SignedStruct<KeyPackageBundlePayload> for KeyPackageBundle {
 pub struct KeyPackageBundle {
     pub(crate) key_package: KeyPackage,
     pub(crate) private_key: HpkePrivateKey,
+}
+
+impl MlsEntity for KeyPackageBundle {
+    const ID: &'static str = "KeyPackageBundle";
+
+    fn key(&self) -> &[u8] {
+        todo!()
+    }
 }
 
 impl From<KeyPackageBundle> for KeyPackageBundlePayload {

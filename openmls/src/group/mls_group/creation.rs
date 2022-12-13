@@ -51,7 +51,8 @@ impl MlsGroup {
             .ok_or(NewGroupError::NoMatchingKeyPackageBundle)?;
         backend
             .key_store()
-            .delete(&kph)
+            // TODO: we shouldn't clone here. Delete takes ownership for a reason. This call should be at the end of the method
+            .delete(key_package_bundle.clone())
             .map_err(|_| NewGroupError::KeyStoreDeletionError)?;
         let credential_bundle: CredentialBundle = backend
             .key_store()
@@ -118,7 +119,7 @@ impl MlsGroup {
     ) -> Result<Self, WelcomeError> {
         let resumption_psk_store =
             ResumptionPskStore::new(mls_group_config.number_of_resumption_psks);
-        let (key_package_bundle, hash_ref) = welcome
+        let (key_package_bundle, _hash_ref) = welcome
             .secrets()
             .iter()
             .find_map(|egs| {
@@ -133,7 +134,8 @@ impl MlsGroup {
         // Delete the KeyPackageBundle from the key store
         backend
             .key_store()
-            .delete(&hash_ref)
+            // TODO: we shouldn't clone here. Delete takes ownership for a reason. This call should be at the end of the method
+            .delete(key_package_bundle.clone())
             .map_err(|_| WelcomeError::KeyStoreDeletionError)?;
         // TODO #751
         let mut group =

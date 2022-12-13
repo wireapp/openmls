@@ -2,6 +2,7 @@
 
 use super::*;
 use crate::group::{GroupEpoch, GroupId};
+use openmls_traits::key_store::MlsEntity;
 use openmls_traits::{key_store::OpenMlsKeyStore, random::OpenMlsRand, OpenMlsCryptoProvider};
 use serde::{Deserialize, Serialize};
 use tls_codec::{Serialize as TlsSerializeTrait, VLBytes};
@@ -66,6 +67,14 @@ impl ExternalPsk {
 #[derive(Serialize, Deserialize)]
 pub(crate) struct PskBundle {
     secret: Secret,
+}
+
+impl MlsEntity for PskBundle {
+    const ID: &'static str = "PskBundle";
+
+    fn key(&self) -> &[u8] {
+        todo!()
+    }
 }
 
 impl PskBundle {
