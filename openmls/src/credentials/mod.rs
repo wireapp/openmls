@@ -47,6 +47,7 @@ mod codec;
 #[cfg(test)]
 mod tests;
 use errors::*;
+use openmls_traits::key_store::{MlsEntity, MlsEntityId};
 
 // Public
 pub mod errors;
@@ -319,5 +320,13 @@ impl CredentialBundle {
             .into_signature_public_key_enriched(self.credential().signature_scheme());
         let private_key = self.signature_private_key.clone();
         SignatureKeypair::from_parts(public_key, private_key)
+    }
+}
+
+impl MlsEntity for CredentialBundle {
+    const ID: MlsEntityId = MlsEntityId::CredentialBundle;
+
+    fn key(&self) -> &[u8] {
+        self.credential.signature_key().as_slice()
     }
 }

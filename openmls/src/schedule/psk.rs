@@ -2,6 +2,7 @@
 
 use super::*;
 use crate::group::{GroupEpoch, GroupId};
+use openmls_traits::key_store::{MlsEntity, MlsEntityId};
 use openmls_traits::{key_store::OpenMlsKeyStore, random::OpenMlsRand, OpenMlsCryptoProvider};
 use serde::{Deserialize, Serialize};
 use tls_codec::{Serialize as TlsSerializeTrait, VLBytes};
@@ -78,6 +79,14 @@ impl PskBundle {
     /// Return the secret
     pub(crate) fn secret(&self) -> &Secret {
         &self.secret
+    }
+}
+
+impl MlsEntity for PskBundle {
+    const ID: MlsEntityId = MlsEntityId::PskBundle;
+
+    fn key(&self) -> &[u8] {
+        unimplemented!("PskBundle")
     }
 }
 

@@ -59,6 +59,7 @@ impl Client {
                     .tls_serialize_detached()
                     .expect("Error serializing signature key."),
             )
+            .map_err(|_| ClientError::KeystoreError)?
             .ok_or(ClientError::NoMatchingCredential)?;
         let kpb = KeyPackageBundle::new(
             ciphersuites,
@@ -99,6 +100,7 @@ impl Client {
                     .tls_serialize_detached()
                     .expect("Error serializing signature key."),
             )
+            .map_err(|_| ClientError::KeystoreError)?
             .ok_or(ClientError::NoMatchingCredential)?;
         let kpb = KeyPackageBundle::new(
             &[ciphersuite],

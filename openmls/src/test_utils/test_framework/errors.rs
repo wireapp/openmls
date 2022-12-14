@@ -48,6 +48,8 @@ pub enum ClientError {
     NoMatchingGroup,
     #[error("")]
     NoCiphersuite,
+    #[error("")]
+    KeystoreError,
     /// See [`WelcomeError`] for more details.
     #[error(transparent)]
     FailedToJoinGroup(#[from] WelcomeError),

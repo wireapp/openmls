@@ -32,6 +32,8 @@ pub enum NewGroupError {
     /// Unsupported extension type in required capabilities.
     #[error("Unsupported extension type in required capabilities.")]
     UnsupportedExtensionType,
+    #[error("")]
+    KeystoreError,
 }
 
 /// EmptyInput error
@@ -109,6 +111,8 @@ pub enum CreateMessageError {
     /// See [`MlsGroupStateError`] for more details.
     #[error(transparent)]
     GroupStateError(#[from] MlsGroupStateError),
+    #[error("")]
+    KeystoreError,
 }
 
 /// Add members error
@@ -129,6 +133,8 @@ pub enum AddMembersError {
     /// See [`MlsGroupStateError`] for more details.
     #[error(transparent)]
     GroupStateError(#[from] MlsGroupStateError),
+    #[error("")]
+    KeystoreError,
 }
 
 /// Propose add members error
@@ -217,6 +223,8 @@ pub enum SelfUpdateError {
     /// See [`MlsGroupStateError`] for more details.
     #[error(transparent)]
     GroupStateError(#[from] MlsGroupStateError),
+    #[error("")]
+    KeystoreError,
 }
 
 /// Propose self update error
@@ -231,6 +239,8 @@ pub enum ProposeSelfUpdateError {
     /// See [`MlsGroupStateError`] for more details.
     #[error(transparent)]
     GroupStateError(#[from] MlsGroupStateError),
+    #[error("")]
+    KeystoreError,
 }
 
 /// Commit to pending proposals error
@@ -262,6 +272,8 @@ pub enum ExportGroupInfoError {
     /// See [`MlsGroupStateError`] for more details.
     #[error(transparent)]
     GroupStateError(#[from] MlsGroupStateError),
+    #[error("")]
+    KeystoreError,
 }
 
 /// Export secret error

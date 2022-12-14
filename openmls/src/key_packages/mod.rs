@@ -100,6 +100,7 @@ use tls_codec::{
 // Private
 mod codec;
 use errors::*;
+use openmls_traits::key_store::{MlsEntity, MlsEntityId};
 
 // Public
 pub mod errors;
@@ -756,6 +757,14 @@ impl KeyPackageBundle {
     /// Get a reference to the `HpkePrivateKey`.
     pub(crate) fn private_key(&self) -> &HpkePrivateKey {
         &self.private_key
+    }
+}
+
+impl MlsEntity for KeyPackageBundle {
+    const ID: MlsEntityId = MlsEntityId::KeyPackageBundle;
+
+    fn key(&self) -> &[u8] {
+        self.key_package.credential().signature_key().as_slice()
     }
 }
 

@@ -48,6 +48,7 @@ impl MlsGroup {
         let key_package_bundle: KeyPackageBundle = backend
             .key_store()
             .read(&kph)
+            .map_err(|_| NewGroupError::KeystoreError)?
             .ok_or(NewGroupError::NoMatchingKeyPackageBundle)?;
         backend
             .key_store()
@@ -65,6 +66,7 @@ impl MlsGroup {
                         LibraryError::custom("Unable to serialize signature public key")
                     })?,
             )
+            .map_err(|_| NewGroupError::KeystoreError)?
             .ok_or(NewGroupError::NoMatchingCredentialBundle)?;
         let group_config = CoreGroupConfig {
             add_ratchet_tree_extension: mls_group_config.use_ratchet_tree_extension,
@@ -125,9 +127,12 @@ impl MlsGroup {
                 let hash_ref = egs.new_member().as_slice().to_vec();
                 backend
                     .key_store()
-                    .read(&hash_ref)
-                    .map(|kpb: KeyPackageBundle| (kpb, hash_ref))
+                    .read::<KeyPackageBundle>(&hash_ref)
+                    .map_err(|_| WelcomeError::KeystoreError)
+                    .transpose()
+                    .map(|kpb| kpb.map(|k| (k, hash_ref)))
             })
+            .transpose()?
             .ok_or(WelcomeError::NoMatchingKeyPackageBundle)?;
 
         // Delete the KeyPackageBundle from the key store

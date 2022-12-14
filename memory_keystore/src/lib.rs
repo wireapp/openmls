@@ -1,4 +1,4 @@
-use openmls_traits::key_store::{FromKeyStoreValue, OpenMlsKeyStore, ToKeyStoreValue};
+use openmls_traits::key_store::{MlsEntity, OpenMlsKeyStore};
 use std::{collections::HashMap, sync::RwLock};
 
 #[derive(Debug, Default)]
@@ -10,14 +10,18 @@ impl OpenMlsKeyStore for MemoryKeyStore {
     /// The error type returned by the [`OpenMlsKeyStore`].
     type Error = Error;
 
+    type Deserializer<'de> = serde_json::Deserializer<serde_json::de::SliceRead<'de>>;
+    type Serializer = serde_json::Serializer<Vec<u8>>;
+
     /// Store a value `v` that implements the [`KeyStoreValue`] trait for
     /// serialization for ID `k`.
     ///
     /// Returns an error if storing fails.
-    fn store<V: ToKeyStoreValue>(&self, k: &[u8], v: &V) -> Result<(), Self::Error> {
-        let value = v
-            .to_key_store_value()
-            .map_err(|_| Error::SerializationError)?;
+    fn store<V: MlsEntity>(&self, k: &[u8], v: &V) -> Result<(), Self::Error> {
+        let mut serializer = Self::serializer();
+        v.serialize(&mut serializer).unwrap();
+        let value = serializer.into_inner();
+
         // We unwrap here, because this is the only function claiming a write
         // lock on `credential_bundles`. It only holds the lock very briefly and
         // should not panic during that period.
@@ -30,15 +34,17 @@ impl OpenMlsKeyStore for MemoryKeyStore {
     /// [`KeyStoreValue`] trait for deserialization.
     ///
     /// Returns [`None`] if no value is stored for `k` or reading fails.
-    fn read<V: FromKeyStoreValue>(&self, k: &[u8]) -> Option<V> {
+    fn read<V: MlsEntity>(&self, k: &[u8]) -> Result<Option<V>, Self::Error> {
         // We unwrap here, because the two functions claiming a write lock on
         // `init_key_package_bundles` (this one and `generate_key_package_bundle`) only
         // hold the lock very briefly and should not panic during that period.
         let values = self.values.read().unwrap();
         if let Some(value) = values.get(k) {
-            V::from_key_store_value(value).ok()
+            Ok(Some(
+                V::deserialize(&mut Self::deserializer(&value)).unwrap(),
+            ))
         } else {
-            None
+            Ok(None)
         }
     }
 
@@ -50,6 +56,14 @@ impl OpenMlsKeyStore for MemoryKeyStore {
         let mut values = self.values.write().unwrap();
         values.remove(k);
         Ok(())
+    }
+
+    fn deserializer(bytes: &[u8]) -> Self::Deserializer<'_> {
+        serde_json::Deserializer::from_slice(bytes)
+    }
+
+    fn serializer() -> Self::Serializer {
+        serde_json::Serializer::new(Vec::with_capacity(128))
     }
 }
 

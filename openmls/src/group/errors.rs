@@ -79,6 +79,8 @@ pub enum WelcomeError {
     /// This error indicates the public tree is invalid. See [`PublicTreeError`] for more details.
     #[error(transparent)]
     PublicTreeError(#[from] PublicTreeError),
+    #[error("")]
+    KeystoreError,
 }
 
 /// External Commit error

@@ -39,6 +39,7 @@ impl MlsGroup {
                     .tls_serialize_detached()
                     .map_err(LibraryError::missing_bound_check)?,
             )
+            .map_err(|_| CreateMessageError::KeystoreError)?
             .ok_or(CreateMessageError::NoMatchingCredentialBundle)?;
 
         let ciphertext = self

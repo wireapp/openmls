@@ -32,6 +32,7 @@ impl MlsGroup {
                     .tls_serialize_detached()
                     .map_err(LibraryError::missing_bound_check)?,
             )
+            .map_err(|_| SelfUpdateError::KeystoreError)?
             .ok_or(SelfUpdateError::NoMatchingCredentialBundle)?;
 
         // Create Commit over all proposals. If a `KeyPackageBundle` was passed
@@ -113,6 +114,7 @@ impl MlsGroup {
                     .tls_serialize_detached()
                     .map_err(LibraryError::missing_bound_check)?,
             )
+            .map_err(|_| ProposeSelfUpdateError::KeystoreError)?
             .ok_or(ProposeSelfUpdateError::NoMatchingCredentialBundle)?;
 
         let old_credential = self.credential()?;
@@ -124,6 +126,7 @@ impl MlsGroup {
                     .tls_serialize_detached()
                     .map_err(LibraryError::missing_bound_check)?,
             )
+            .map_err(|_| ProposeSelfUpdateError::KeystoreError)?
             .ok_or(ProposeSelfUpdateError::NoMatchingCredentialBundle)?;
 
         let tree = self.group.treesync();

@@ -66,6 +66,7 @@ impl MlsGroup {
                             .tls_serialize_detached()
                             .map_err(LibraryError::missing_bound_check)?,
                     )
+                    .map_err(|_| ExportGroupInfoError::KeystoreError)?
                     .ok_or(ExportGroupInfoError::NoMatchingCredentialBundle)?;
                 Ok(self
                     .group
