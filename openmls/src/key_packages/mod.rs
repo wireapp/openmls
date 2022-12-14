@@ -100,7 +100,7 @@ use tls_codec::{
 // Private
 mod codec;
 use errors::*;
-use openmls_traits::key_store::MlsEntity;
+use openmls_traits::key_store::{MlsEntity, MlsEntityType};
 
 // Public
 pub mod errors;
@@ -511,7 +511,7 @@ impl MlsEntity for KeyPackageBundle {
 }
 
 impl MlsEntity for KeyPackageBundle {
-    const ID: &'static str = "KeyPackageBundle";
+    const ID: MlsEntityType = MlsEntityType::KeyPackageBundle;
 
     fn key(&self) -> &[u8] {
         todo!()

@@ -47,7 +47,7 @@ mod codec;
 #[cfg(test)]
 mod tests;
 use errors::*;
-use openmls_traits::key_store::MlsEntity;
+use openmls_traits::key_store::{MlsEntity, MlsEntityType};
 
 // Public
 pub mod errors;
@@ -237,7 +237,7 @@ pub struct CredentialBundle {
 }
 
 impl MlsEntity for CredentialBundle {
-    const ID: &'static str = "CredentialBundle";
+    const ID: MlsEntityType = MlsEntityType::CredentialBundle;
 
     fn key(&self) -> &[u8] {
         todo!()

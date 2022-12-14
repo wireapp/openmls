@@ -2,8 +2,14 @@
 
 use std::fmt::Debug;
 
+pub enum MlsEntityType {
+    KeyPackageBundle,
+    CredentialBundle,
+    PskBundle,
+}
+
 pub trait MlsEntity: serde::Serialize + serde::de::DeserializeOwned {
-    const ID: &'static str;
+    const ID: MlsEntityType;
 
     fn key(&self) -> &[u8];
 }

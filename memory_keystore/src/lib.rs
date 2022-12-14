@@ -1,4 +1,4 @@
-use openmls_traits::key_store::{MlsEntity, OpenMlsKeyStore};
+use openmls_traits::key_store::{MlsEntity, MlsEntityType, OpenMlsKeyStore};
 use serde_json::de::SliceRead;
 use std::{collections::HashMap, sync::RwLock};
 
@@ -20,6 +20,13 @@ impl OpenMlsKeyStore for MemoryKeyStore {
     /// Returns an error if storing fails.
     fn store<V: MlsEntity>(&self, k: &[u8], v: &V) -> Result<(), Self::Error> {
         let mut serializer = Self::serializer();
+
+        // example
+        let sql_table = match V::ID {
+            MlsEntityType::KeyPackageBundle => "kpb_table",
+            MlsEntityType::CredentialBundle => "cb_table",
+            MlsEntityType::PskBundle => "pskb_table",
+        };
 
         v.serialize(&mut serializer).unwrap();
         let value = serializer.into_inner();
