@@ -283,6 +283,9 @@ pub enum ValidationError {
     /// The message is from an epoch too far in the past.
     #[error("The message is from an epoch too far in the past.")]
     NoPastEpochData,
+    /// The proposal is invalid for the Sender of type [External](crate::prelude::Sender::External)
+    #[error("The proposal is invalid for the Sender of type External")]
+    InvalidExternalProposal,
 }
 
 /// Proposal validation error
@@ -464,6 +467,9 @@ pub(crate) enum CoreGroupBuildError<KeyStoreError> {
     /// Error storing leaf private key in key store.
     #[error("Error storing leaf private key in key store.")]
     KeyStoreError(KeyStoreError),
+    /// Invalid extensions set in configuration
+    #[error("Invalid extensions set in configuration")]
+    InvalidExtensions(#[from] InvalidExtensionError),
 }
 
 // CoreGroup parse message error

@@ -214,10 +214,33 @@ impl CoreGroup {
                     Some(credential),
                 ))
             }
-            UnverifiedContextMessage::External(_external_message) => {
-                // We don't support messages from external senders yet
-                // TODO #151/#106
-                todo!()
+            UnverifiedContextMessage::External(external_message) => {
+                let verified_external_message = external_message.into_verified(backend.crypto())?;
+                let authenticated_content = verified_external_message.take_authenticated_content();
+                let sender = authenticated_content.sender().clone();
+                let data = authenticated_content.authenticated_data().to_owned();
+                match authenticated_content.content() {
+                    FramedContentBody::Application(_) => {
+                        Err(ProcessMessageError::UnauthorizedExternalApplicationMessage)
+                    }
+                    FramedContentBody::Proposal(proposal) => {
+                        let content = match proposal {
+                            Proposal::Remove(_) => ProcessedMessageContent::ProposalMessage(
+                                Box::new(QueuedProposal::from_authenticated_content(
+                                    self.ciphersuite(),
+                                    backend,
+                                    authenticated_content,
+                                )?),
+                            ),
+                            // TODO #151/#106
+                            _ => return Err(ProcessMessageError::UnsupportedProposalType),
+                        };
+                        Ok(ProcessedMessage::new(
+                            group_id, epoch, sender, data, content, None,
+                        ))
+                    }
+                    FramedContentBody::Commit(_) => unimplemented!(),
+                }
             }
             UnverifiedContextMessage::NewMember(unverified_new_member_message) => {
                 let credential = unverified_new_member_message.credential().clone();

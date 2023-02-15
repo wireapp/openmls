@@ -21,14 +21,27 @@ pub struct ExternalSender {
     credential: Credential,
 }
 
+impl ExternalSender {
+    /// Creates a new `ExternalSender` instance.
+    pub fn new(signature_key: SignaturePublicKey, credential: Credential) -> Self {
+        Self {
+            signature_key,
+            credential,
+        }
+    }
+
+    #[cfg(test)]
+    pub(crate) fn credential(&self) -> &Credential {
+        &self.credential
+    }
+}
+
 /// ExternalSender (extension data)
 ///
 /// ```c
 /// // draft-ietf-mls-protocol-16
 /// ExternalSender external_senders<V>;
 /// ```
-// TODO(884): Remove `#[allow(unused)]` when #884 is closed.
-#[allow(unused)]
 pub type ExternalSendersExtension = Vec<ExternalSender>;
 
 #[cfg(test)]

@@ -1103,7 +1103,7 @@ fn book_operations(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvide
     );
 
     // ANCHOR: external_join_proposal
-    let proposal = JoinProposal::new(
+    let proposal = ExternalProposal::new_join(
         bob_key_package,
         alice_group.group_id().clone(),
         alice_group.epoch(),
