@@ -96,6 +96,7 @@ impl CoreGroup {
             self.treesync(),
             self.message_secrets_store
                 .leaves_for_epoch(decrypted_message.verifiable_content().epoch()),
+            self.group_context_extensions().external_senders(),
         )?;
         let pk = OpenMlsSignaturePublicKey::from_signature_key(
             signature_key,

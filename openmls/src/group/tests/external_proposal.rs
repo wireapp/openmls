@@ -442,49 +442,190 @@ fn test_external_remove_proposal(ciphersuite: Ciphersuite, backend: &impl OpenMl
 
     let remove_proposal =
         MlsMessageIn::tls_deserialize(&mut bob_external_remove_proposal.as_slice()).unwrap();
-    // Alice should not accept external proposal with wrong signature key (simulates signature not in external senders)
     // Alice validates the message
-    let proposal = alice_group
+    let processed_message = alice_group
         .process_message(backend, remove_proposal)
         .unwrap();
+    // commit the proposal
+    let ProcessedMessageContent::ProposalMessage(remove_proposal) = processed_message.into_content() else { panic!("Not a remove proposal");};
+    alice_group.store_pending_proposal(*remove_proposal);
+    alice_group
+        .commit_to_pending_proposals(backend, &credential.signer)
+        .unwrap();
+    alice_group.merge_pending_commit(backend).unwrap();
 
-    // // Alice should not require a signature key. She should iterate those present in [ExternalSendersExtension]
-    // // and if one matches the message is verified.
-    // // Here she has DS signature key in her extensions
-    // alice_group
-    //     .process_unverified_message(proposal.clone(), None, backend)
-    //     .unwrap();
+    // Trying to do an external remove proposal of Bob now should fail as he no longer is in the group
+    let invalid_bob_external_remove_proposal = ExternalProposal::new_remove(
+        // Bob is no longer in the group
+        bob_index,
+        alice_group.group_id().clone(),
+        alice_group.epoch(),
+        &ds_credential_bundle.signer,
+        0,
+    )
+    .unwrap()
+    .tls_serialize_detached()
+    .unwrap();
+    let invalid_remove_proposal =
+        MlsMessageIn::tls_deserialize(&mut invalid_bob_external_remove_proposal.as_slice())
+            .unwrap();
+    let processed_message = alice_group
+        .process_message(backend, invalid_remove_proposal)
+        .unwrap();
+    // commit the proposal
+    let ProcessedMessageContent::ProposalMessage(remove_proposal) = processed_message.into_content() else { panic!("Not a remove proposal");};
+    alice_group.store_pending_proposal(*remove_proposal);
+    assert_eq!(
+        alice_group
+            .commit_to_pending_proposals(backend, &credential.signer)
+            .unwrap_err(),
+        CommitToPendingProposalsError::CreateCommitError(
+            CreateCommitError::ProposalValidationError(
+                ProposalValidationError::UnknownMemberRemoval
+            )
+        )
+    );
+}
 
-    // // commit the proposal
-    // alice_group.store_pending_proposal(
-    //     QueuedProposal::from_mls_message(
-    //         ciphersuite,
-    //         backend,
-    //         bob_external_remove_proposal.clone().mls_message,
-    //     )
-    //     .unwrap(),
-    // );
-    // alice_group.commit_to_pending_proposals(backend).unwrap();
-    // alice_group.merge_pending_commit().unwrap();
+#[apply(ciphersuites_and_backends)]
+fn test_external_remove_proposal_invalid_sender(
+    ciphersuite: Ciphersuite,
+    backend: &impl OpenMlsCryptoProvider,
+) {
+    let group_id = GroupId::from_slice(b"Test Group");
+    // Generate credential bundles
+    let credential =
+        generate_credential_bundle("Alice".into(), ciphersuite.signature_algorithm(), backend);
 
-    // // Bob is no longer in the group
-    // assert_eq!(alice_group.members().len(), 1);
+    // delivery service credentials. DS will craft an external remove proposal
+    let ds_credential_bundle = generate_credential_bundle(
+        "delivery-service".into(),
+        ciphersuite.signature_algorithm(),
+        backend,
+    );
 
-    // // Trying to do an external remove proposal of Bob now should fail as he no longer is in the group
-    // let invalid_bob_external_remove_proposal = ExternalProposal::new_remove(
-    //     // Bob is no longer in the group
-    //     bob_kpr.clone(),
-    //     alice_group.group_id().clone(),
-    //     alice_group.epoch(),
-    //     &ds_credential_bundle,
-    //     backend,
-    // )
-    // .unwrap();
+    // Define the MlsGroup configuration
+    let mls_group_config = MlsGroupConfig::builder()
+        .wire_format_policy(PURE_PLAINTEXT_WIRE_FORMAT_POLICY)
+        .crypto_config(CryptoConfig {
+            ciphersuite,
+            version: ProtocolVersion::default(),
+        })
+        .external_senders(vec![ExternalSender::new(
+            ds_credential_bundle
+                .credential_with_key
+                .signature_key
+                .clone(),
+            ds_credential_bundle.credential_with_key.credential.clone(),
+        )])
+        .build();
 
-    // assert_eq!(
-    //     alice_group
-    //         .parse_message(invalid_bob_external_remove_proposal.clone().into(), backend)
-    //         .unwrap_err(),
-    //     ParseMessageError::ValidationError(ValidationError::UnknownMemberFromExternal)
-    // );
+    let mut alice_group = MlsGroup::new_with_group_id(
+        backend,
+        &credential.signer,
+        &mls_group_config,
+        group_id,
+        credential.credential_with_key.clone(),
+    )
+    .unwrap();
+
+    // Generate credential bundles
+    let bob_credential =
+        generate_credential_bundle("Bob".into(), ciphersuite.signature_algorithm(), backend);
+
+    // Generate KeyPackages
+    let bob_key_package =
+        generate_key_package(ciphersuite, Extensions::empty(), backend, bob_credential);
+
+    // Adding Bob to the group
+    alice_group
+        .add_members(backend, &credential.signer, &[bob_key_package])
+        .unwrap();
+    alice_group.merge_pending_commit(backend).unwrap();
+
+    // get Bob's index
+    let bob_index = alice_group
+        .members()
+        .find_map(|member| {
+            if member.credential.identity() == b"Bob" {
+                Some(member.index)
+            } else {
+                None
+            }
+        })
+        .unwrap();
+    // Now Delivery Service wants to (already) remove Bob with invalid sender index
+    let bob_external_remove_proposal = ExternalProposal::new_remove(
+        bob_index,
+        alice_group.group_id().clone(),
+        alice_group.epoch(),
+        &ds_credential_bundle.signer,
+        10, // invalid sender index
+    )
+    .unwrap()
+    .tls_serialize_detached()
+    .unwrap();
+
+    let remove_proposal =
+        MlsMessageIn::tls_deserialize(&mut bob_external_remove_proposal.as_slice()).unwrap();
+    // Alice tries to validate the message and should fail as sender is invalid
+    let error = alice_group
+        .process_message(backend, remove_proposal)
+        .unwrap_err();
+    assert_eq!(
+        error,
+        ProcessMessageError::ValidationError(ValidationError::UnauthorizedExternalSender)
+    );
+}
+
+#[apply(ciphersuites_and_backends)]
+fn test_external_remove_proposal_no_sender(
+    ciphersuite: Ciphersuite,
+    backend: &impl OpenMlsCryptoProvider,
+) {
+    let ProposalValidationTestSetup {
+        alice_group,
+        bob_group: _,
+    } = validation_test_setup(PURE_PLAINTEXT_WIRE_FORMAT_POLICY, ciphersuite, backend);
+    let (mut alice_group, _alice_signer) = alice_group;
+    // delivery service credentials. DS will craft an external remove proposal
+    let ds_credential_bundle = generate_credential_bundle(
+        "delivery-service".into(),
+        ciphersuite.signature_algorithm(),
+        backend,
+    );
+
+    // get Bob's index
+    let bob_index = alice_group
+        .members()
+        .find_map(|member| {
+            if member.credential.identity() == b"Bob" {
+                Some(member.index)
+            } else {
+                None
+            }
+        })
+        .unwrap();
+    // Now Delivery Service wants to remove Bob with invalid sender index but there's no extension
+    let bob_external_remove_proposal = ExternalProposal::new_remove(
+        bob_index,
+        alice_group.group_id().clone(),
+        alice_group.epoch(),
+        &ds_credential_bundle.signer,
+        1, // invalid sender index
+    )
+    .unwrap()
+    .tls_serialize_detached()
+    .unwrap();
+
+    let remove_proposal =
+        MlsMessageIn::tls_deserialize(&mut bob_external_remove_proposal.as_slice()).unwrap();
+    // Alice tries to validate the message and should fail as sender is invalid
+    let error = alice_group
+        .process_message(backend, remove_proposal)
+        .unwrap_err();
+    assert_eq!(
+        error,
+        ProcessMessageError::ValidationError(ValidationError::NoExternalSendersExtension)
+    );
 }

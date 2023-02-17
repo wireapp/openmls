@@ -194,7 +194,9 @@ impl CoreGroupBuilder {
         mut self,
         external_senders: ExternalSendersExtension,
     ) -> Self {
-        self.external_senders = Some(external_senders);
+        if !external_senders.is_empty() {
+            self.external_senders = Some(external_senders);
+        }
         self
     }
     /// Set the number of past epochs the group should keep secrets.
@@ -663,7 +665,6 @@ impl CoreGroup {
     }
 
     /// Get the group context extensions.
-    #[cfg(test)]
     pub(crate) fn group_context_extensions(&self) -> &Extensions {
         self.public_group.group_context().extensions()
     }

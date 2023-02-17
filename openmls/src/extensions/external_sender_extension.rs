@@ -30,9 +30,12 @@ impl ExternalSender {
         }
     }
 
-    #[cfg(test)]
     pub(crate) fn credential(&self) -> &Credential {
         &self.credential
+    }
+
+    pub(crate) fn signature_key(&self) -> &SignaturePublicKey {
+        &self.signature_key
     }
 }
 

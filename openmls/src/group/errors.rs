@@ -286,6 +286,12 @@ pub enum ValidationError {
     /// The proposal is invalid for the Sender of type [External](crate::prelude::Sender::External)
     #[error("The proposal is invalid for the Sender of type External")]
     InvalidExternalProposal,
+    /// The provided external sender is not authorized to send external proposals
+    #[error("The provided external sender is not authorized to send external proposals")]
+    UnauthorizedExternalSender,
+    /// The group doesn't contain external senders extension
+    #[error("The group doesn't contain external senders extension")]
+    NoExternalSendersExtension,
 }
 
 /// Proposal validation error

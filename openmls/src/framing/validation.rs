@@ -39,8 +39,10 @@
 //! ```
 // TODO #106/#151: Update the above diagram
 
-use crate::{group::errors::ValidationError, treesync::TreeSync};
-use core_group::proposals::QueuedProposal;
+use crate::{
+    extensions::ExternalSendersExtension, group::errors::ValidationError, treesync::TreeSync,
+};
+use core_group::{proposals::QueuedProposal, staged_commit::StagedCommit};
 use openmls_traits::{crypto::OpenMlsCrypto, OpenMlsCryptoProvider};
 
 use crate::{
@@ -50,7 +52,7 @@ use crate::{
 
 use super::{
     mls_auth_content::{AuthenticatedContent, VerifiableAuthenticatedContent},
-    mls_content::{ContentType, FramedContentBody},
+    mls_content::ContentType,
     public_message::PublicMessage,
     *,
 };
@@ -157,6 +159,7 @@ impl DecryptedMessage {
         &self,
         treesync: &TreeSync,
         old_leaves: &[Member],
+        external_senders: Option<&ExternalSendersExtension>,
     ) -> Result<CredentialWithKey, ValidationError> {
         let sender = self.sender();
         match sender {
@@ -199,19 +202,15 @@ impl DecryptedMessage {
                     }
                 }
             }
-            Sender::External(_) => {
-                let content = AuthenticatedContent::from(self.verifiable_content().clone());
-                match content.content() {
-                    FramedContentBody::Proposal(Proposal::Remove(remove)) => treesync
-                        .leaf(remove.removed())
-                        .map(|leaf_node| CredentialWithKey {
-                            credential: leaf_node.credential().clone(),
-                            signature_key: leaf_node.signature_key().clone(),
-                        })
-                        .ok_or(ValidationError::UnknownMember),
-                    // External senders are not completely supported yet #106/#151.
-                    _ => Err(ValidationError::InvalidExternalProposal),
-                }
+            Sender::External(index) => {
+                let sender = external_senders
+                    .ok_or(ValidationError::NoExternalSendersExtension)?
+                    .get(*index as usize)
+                    .ok_or(ValidationError::UnauthorizedExternalSender)?;
+                Ok(CredentialWithKey {
+                    credential: sender.credential().clone(),
+                    signature_key: sender.signature_key().clone(),
+                })
             }
             Sender::NewMemberCommit | Sender::NewMemberProposal => {
                 // Fetch the credential from the message itself.
