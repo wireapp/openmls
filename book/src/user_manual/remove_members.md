@@ -28,3 +28,19 @@ A member is removed from a group if another member commits to a remove proposal 
 ```rust,no_run,noplayground
 {{#include ../../../openmls/tests/book_code.rs:getting_removed}}
 ```
+
+## External Proposal
+
+Parties outside the group can also make proposals to remove members as long as they're part of the `ExternalSendersExtension` list.
+Since those proposals are crafted by outsiders, they are always plaintext messages.
+
+```rust,no_run,noplayground
+{{#include ../../../openmls/tests/book_code.rs:external_remove_proposal}}
+```
+
+It is then up to the group members to validate the proposal and commit it.
+Note that in this scenario it is up to the application to define a proper authorization policy to grant the sender.
+
+```rust,no_run,noplayground
+{{#include ../../../openmls/tests/book_code.rs:decrypt_external_external_proposal}}
+```
