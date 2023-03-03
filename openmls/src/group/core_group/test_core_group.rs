@@ -18,6 +18,10 @@ use crate::{
     treesync::errors::ApplyUpdatePathError,
 };
 
+use wasm_bindgen_test::wasm_bindgen_test;
+
+wasm_bindgen_test::wasm_bindgen_test_configure!(run_in_browser);
+
 pub(crate) fn setup_alice_group(
     ciphersuite: Ciphersuite,
     backend: &impl OpenMlsCryptoProvider,
@@ -52,6 +56,7 @@ pub(crate) fn setup_alice_group(
 }
 
 #[apply(ciphersuites_and_backends)]
+#[wasm_bindgen_test]
 fn test_core_group_persistence(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider) {
     let (alice_group, _, _, _) = setup_alice_group(ciphersuite, backend);
 
@@ -80,6 +85,7 @@ pub fn flip_last_byte(ctxt: &mut HpkeCiphertext) {
 }
 
 #[apply(ciphersuites_and_backends)]
+#[wasm_bindgen_test]
 fn test_failed_groupinfo_decryption(
     ciphersuite: Ciphersuite,
     backend: &impl OpenMlsCryptoProvider,
@@ -191,6 +197,7 @@ fn test_failed_groupinfo_decryption(
 /// Test what happens if the KEM ciphertext for the receiver in the UpdatePath
 /// is broken.
 #[apply(ciphersuites_and_backends)]
+#[wasm_bindgen_test]
 fn test_update_path(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider) {
     // === Alice creates a group with her and Bob ===
     let (
@@ -446,6 +453,7 @@ fn test_psks(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider) {
 
 // Test several scenarios when PSKs are used in a group
 #[apply(ciphersuites_and_backends)]
+#[wasm_bindgen_test]
 fn test_staged_commit_creation(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider) {
     // Basic group setup.
     let group_aad = b"Alice's test group";
@@ -513,6 +521,7 @@ fn test_staged_commit_creation(ciphersuite: Ciphersuite, backend: &impl OpenMlsC
 
 // Test processing of own commits
 #[apply(ciphersuites_and_backends)]
+#[wasm_bindgen_test]
 fn test_own_commit_processing(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider) {
     // Basic group setup.
     let group_aad = b"Alice's test group";
@@ -586,6 +595,7 @@ pub(crate) fn setup_client(
 }
 
 #[apply(ciphersuites_and_backends)]
+#[wasm_bindgen_test]
 fn test_proposal_application_after_self_was_removed(
     ciphersuite: Ciphersuite,
     backend: &impl OpenMlsCryptoProvider,
