@@ -30,13 +30,14 @@
 //! There are multiple [`CredentialType`]s, although OpenMLS currently only
 //! supports the [`BasicCredential`].
 
+use std::convert::TryFrom;
+use std::io::Write;
+
 use openmls_traits::{
     types::{CryptoError, SignatureScheme},
     OpenMlsCryptoProvider,
 };
 use serde::{Deserialize, Serialize};
-use std::convert::TryFrom;
-use std::io::Write;
 #[cfg(test)]
 use tls_codec::Serialize as TlsSerializeTrait;
 use tls_codec::{Error, TlsByteVecU16, TlsDeserialize, TlsSerialize, TlsSize, TlsVecU16};
@@ -44,14 +45,14 @@ use x509_parser::der_parser::asn1_rs::oid;
 use x509_parser::der_parser::Oid;
 use x509_parser::prelude::{Logger, Validator, X509Certificate, X509StructureValidator};
 
+use errors::*;
+
 use crate::{ciphersuite::*, error::LibraryError};
 
 // Private
 mod codec;
 #[cfg(test)]
 mod tests;
-use errors::*;
-
 // Public
 pub mod errors;
 
@@ -158,29 +159,18 @@ impl Certificate {
         const ECDSA_SHA256: Oid = oid!(1.2.840 .10045 .4 .3 .2);
         const ECDSA_SHA384: Oid = oid!(1.2.840 .10045 .4 .3 .3);
         const ECDSA_SHA512: Oid = oid!(1.2.840 .10045 .4 .3 .4);
-        // for signature algorithm parameters
-        // see https://www.rfc-editor.org/rfc/rfc7670.html#appendix-A.1
-        const SECP_256_R1: Oid = oid!(1.2.840 .10045 .3 .1 .7);
-        // see https://datatracker.ietf.org/doc/html/rfc5480#section-2.1.1.1
-        const SECP_384_R1: Oid = oid!(1.3.132 .0 .34);
-        const SECP_521_R1: Oid = oid!(1.3.132 .0 .35);
 
         let alg = &certificate.signature_algorithm.algorithm;
-        let params = certificate
-            .signature_algorithm
-            .parameters
-            .as_ref()
-            .and_then(|p| p.as_oid().ok());
 
         if *alg == ED25519 {
             Ok(SignatureScheme::ED25519)
         } else if *alg == ED448 {
             Ok(SignatureScheme::ED448)
-        } else if *alg == ECDSA_SHA256 && params == Some(SECP_256_R1) {
+        } else if *alg == ECDSA_SHA256 {
             Ok(SignatureScheme::ECDSA_SECP256R1_SHA256)
-        } else if *alg == ECDSA_SHA384 && params == Some(SECP_384_R1) {
+        } else if *alg == ECDSA_SHA384 {
             Ok(SignatureScheme::ECDSA_SECP384R1_SHA384)
-        } else if *alg == ECDSA_SHA512 && params == Some(SECP_521_R1) {
+        } else if *alg == ECDSA_SHA512 {
             Ok(SignatureScheme::ECDSA_SECP521R1_SHA512)
         } else {
             Err(CredentialError::UnsupportedSignatureScheme)
