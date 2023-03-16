@@ -160,7 +160,7 @@ impl Certificate {
         const ECDSA_SHA384: Oid = oid!(1.2.840 .10045 .4 .3 .3);
         const ECDSA_SHA512: Oid = oid!(1.2.840 .10045 .4 .3 .4);
 
-        let alg = &certificate.signature_algorithm.algorithm;
+        let alg = &certificate.subject_pki.algorithm.algorithm;
 
         if *alg == ED25519 {
             Ok(SignatureScheme::ED25519)
