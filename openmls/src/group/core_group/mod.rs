@@ -36,11 +36,12 @@ use super::builder::TempBuilderPG1;
 use super::errors::CreateCommitError;
 
 use self::create_commit_params::{CommitType, CreateCommitParams};
-#[cfg(test)]
-use super::errors::CreateGroupContextExtProposalError;
+use super::errors::ProposeGroupContextExtensionError;
 use super::public_group::diff::compute_path::PathComputationResult;
 use super::public_group::PublicGroup;
-use crate::binary_tree::array_representation::TreeSize;
+use crate::{
+    binary_tree::array_representation::TreeSize, treesync::errors::MemberExtensionValidationError,
+};
 #[cfg(test)]
 use std::io::{Error, Read, Write};
 
@@ -198,6 +199,13 @@ impl CoreGroupBuilder {
                 .public_group_builder
                 .with_external_senders(external_senders);
         }
+        self
+    }
+    /// Set the [`Extensions`] of the leaves in [`CoreGroup`].
+    pub(crate) fn with_leaf_extensions(mut self, leaf_extensions: Extensions) -> Self {
+        self.public_group_builder = self
+            .public_group_builder
+            .with_leaf_extensions(leaf_extensions);
         self
     }
     /// Set the number of past epochs the group should keep secrets.
@@ -414,16 +422,11 @@ impl CoreGroup {
         )
     }
 
-    /// Create a `GroupContextExtensions` proposal.
-    #[cfg(test)]
-    pub(crate) fn create_group_context_ext_proposal(
+    pub(crate) fn members_supports_extensions<'a>(
         &self,
-        framing_parameters: FramingParameters,
-        extensions: Extensions,
-        signer: &impl Signer,
-    ) -> Result<AuthenticatedContent, CreateGroupContextExtProposalError> {
-        // Ensure that the group supports all the extensions that are wanted.
-
+        extensions: &Extensions,
+        pending_proposals: impl Iterator<Item = &'a QueuedProposal>,
+    ) -> Result<(), MemberExtensionValidationError> {
         let required_extension = extensions
             .iter()
             .find(|extension| extension.extension_type() == ExtensionType::RequiredCapabilities);
@@ -435,11 +438,32 @@ impl CoreGroup {
                 .validate_required_capabilities(required_capabilities)?;
             // Ensure that all other leaf nodes support all the required
             // extensions as well.
+            let removed = pending_proposals.filter_map(|proposal| {
+                if let Proposal::Remove(remove) = proposal.proposal() {
+                    Some(remove.removed())
+                } else {
+                    None
+                }
+            });
             self.public_group()
-                .check_extension_support(required_capabilities.extension_types())?;
+                .check_extension_support(required_capabilities.extension_types(), removed)?;
         }
-        let proposal = GroupContextExtensionProposal::new(extensions);
-        let proposal = Proposal::GroupContextExtensions(proposal);
+        Ok(())
+    }
+
+    /// Create a `GroupContextExtensions` proposal.
+    pub(crate) fn create_group_context_ext_proposal<'a>(
+        &self,
+        framing_parameters: FramingParameters,
+        extensions: Extensions,
+        pending_proposals: impl Iterator<Item = &'a QueuedProposal>,
+        signer: &impl Signer,
+    ) -> Result<AuthenticatedContent, ProposeGroupContextExtensionError> {
+        // Ensure that the group supports all the extensions that are wanted.
+        self.members_supports_extensions(&extensions, pending_proposals)?;
+
+        let gce_proposal = GroupContextExtensionProposal::new(extensions);
+        let proposal = Proposal::GroupContextExtensions(gce_proposal);
         AuthenticatedContent::member_proposal(
             framing_parameters,
             self.own_leaf_index(),
@@ -849,6 +873,8 @@ impl CoreGroup {
             .validate_remove_proposals(&proposal_queue)?;
         self.public_group
             .validate_pre_shared_key_proposals(&proposal_queue)?;
+        self.public_group()
+            .validate_group_context_extensions_proposals(&proposal_queue)?;
         // Validate update proposals for member commits
         if let Sender::Member(sender_index) = &sender {
             // ValSem110
@@ -883,12 +909,13 @@ impl CoreGroup {
                     apply_proposals_values.exclusion_list(),
                     params.commit_type(),
                     signer,
-                    params.take_credential_with_key()
+                    params.take_credential_with_key(),
+                    apply_proposals_values.extensions
                 )?
             } else {
                 // If path is not needed, update the group context and return
                 // empty path processing results
-                diff.update_group_context(backend)?;
+                diff.update_group_context(backend, apply_proposals_values.extensions)?;
                 PathComputationResult::default()
             };
 
