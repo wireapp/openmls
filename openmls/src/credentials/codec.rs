@@ -41,7 +41,7 @@ impl tls_codec::Deserialize for Credential {
                 BasicCredential::tls_deserialize(bytes)?,
             ))),
             CredentialType::X509 => Ok(Credential::from(MlsCredentialType::X509(
-                Certificate::tls_deserialize(bytes)?,
+                MlsCertificate::tls_deserialize(bytes)?,
             ))),
         }
     }

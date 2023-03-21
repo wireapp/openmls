@@ -38,13 +38,11 @@ use openmls_traits::{
     OpenMlsCryptoProvider,
 };
 use serde::{Deserialize, Serialize};
+use spki::ObjectIdentifier;
 #[cfg(test)]
 use tls_codec::Serialize as TlsSerializeTrait;
 use tls_codec::{Error, TlsByteVecU16, TlsDeserialize, TlsSerialize, TlsSize, TlsVecU16};
-use x509_parser::{
-    der_parser::{asn1_rs::oid, Oid},
-    prelude::{Logger, Validator, X509Certificate, X509StructureValidator},
-};
+use x509_cert::Certificate;
 
 use errors::*;
 
@@ -67,7 +65,7 @@ pub mod errors;
 pub enum CredentialType {
     /// A [`BasicCredential`]
     Basic = 1,
-    /// An X.509 [`Certificate`]
+    /// An X.509 [`MlsCertificate`]
     X509 = 2,
 }
 
@@ -90,107 +88,126 @@ impl TryFrom<u16> for CredentialType {
 #[derive(
     Debug, PartialEq, Clone, Serialize, Deserialize, TlsDeserialize, TlsSerialize, TlsSize,
 )]
-pub struct Certificate {
+pub struct MlsCertificate {
     identity: TlsByteVecU16,
     cert_chain: TlsVecU16<TlsByteVecU16>,
 }
 
-impl Certificate {
-    fn parse(&self) -> Result<Vec<X509Certificate>, CredentialError> {
+trait X509Ext {
+    fn is_valid(&self) -> Result<(), CredentialError>;
+
+    fn is_time_valid(&self) -> Result<bool, CredentialError>;
+
+    fn public_key(&self) -> Result<SignaturePublicKey, CredentialError>;
+
+    fn signature_scheme(&self) -> Result<SignatureScheme, CredentialError>;
+
+    fn is_signed_by(
+        &self,
+        backend: &impl OpenMlsCryptoProvider,
+        issuer: &Certificate,
+    ) -> Result<(), CredentialError>;
+}
+
+impl X509Ext for Certificate {
+    fn is_valid(&self) -> Result<(), CredentialError> {
+        if !self.is_time_valid()? {
+            return Err(CredentialError::InvalidCertificate);
+        }
+        Ok(())
+    }
+
+    fn is_time_valid(&self) -> Result<bool, CredentialError> {
+        // 'not_before' < now < 'not_after'
+        let x509_cert::time::Validity {
+            not_before,
+            not_after,
+        } = self.tbs_certificate.validity;
+        let x509_cert::time::Validity {
+            not_before: now, ..
+        } = x509_cert::time::Validity::from_now(core::time::Duration::default())?;
+
+        let now = now.to_unix_duration();
+        let is_nbf = now > not_before.to_unix_duration();
+        let is_naf = now < not_after.to_unix_duration();
+        Ok(is_nbf && is_naf)
+    }
+
+    fn public_key(&self) -> Result<SignaturePublicKey, CredentialError> {
+        let pk = self
+            .tbs_certificate
+            .subject_public_key_info
+            .subject_public_key
+            .as_bytes()
+            .ok_or(CredentialError::IncompleteCertificate("spki"))?;
+        let scheme = self.signature_scheme()?;
+        SignaturePublicKey::new(pk.to_vec(), scheme)
+            .map_err(|_| CredentialError::InvalidCertificate)
+    }
+
+    fn signature_scheme(&self) -> Result<SignatureScheme, CredentialError> {
+        // see https://github.com/bcgit/bc-java/blob/r1rv71/core/src/main/java/org/bouncycastle/asn1/edec/EdECObjectIdentifiers.java
+        const ED25519: ObjectIdentifier = ObjectIdentifier::new_unwrap("1.3.101.112");
+        const ED448: ObjectIdentifier = ObjectIdentifier::new_unwrap("1.3.101.113");
+        // see https://github.com/bcgit/bc-java/blob/r1rv71/core/src/main/java/org/bouncycastle/asn1/x9/X9ObjectIdentifiers.java
+        const ECDSA_SHA256: ObjectIdentifier = ObjectIdentifier::new_unwrap("1.2.840.10045.4.3.2");
+        const ECDSA_SHA384: ObjectIdentifier = ObjectIdentifier::new_unwrap("1.2.840.10045.4.3.3");
+        const ECDSA_SHA512: ObjectIdentifier = ObjectIdentifier::new_unwrap("1.2.840.10045.4.3.4");
+
+        let alg = self.tbs_certificate.subject_public_key_info.algorithm.oid;
+        let scheme = match alg {
+            ED25519 => SignatureScheme::ED25519,
+            ED448 => SignatureScheme::ED448,
+            ECDSA_SHA256 => SignatureScheme::ECDSA_SECP256R1_SHA256,
+            ECDSA_SHA384 => SignatureScheme::ECDSA_SECP384R1_SHA384,
+            ECDSA_SHA512 => SignatureScheme::ECDSA_SECP521R1_SHA512,
+            _ => return Err(CredentialError::UnsupportedSignatureScheme),
+        };
+        Ok(scheme)
+    }
+
+    fn is_signed_by(
+        &self,
+        backend: &impl OpenMlsCryptoProvider,
+        issuer: &Certificate,
+    ) -> Result<(), CredentialError> {
+        let issuer_pk = issuer.public_key()?;
+        let cert_signature = self
+            .signature
+            .as_bytes()
+            .ok_or(CredentialError::InvalidCertificate)?;
+
+        use x509_cert::der::Encode as _;
+        let mut raw_tbs: Vec<u8> = vec![];
+        self.tbs_certificate.encode(&mut raw_tbs)?;
+        Ok(issuer_pk
+            .verify(backend, &cert_signature.into(), &raw_tbs)
+            .map_err(|_| CredentialError::InvalidSignature)?)
+    }
+}
+
+impl MlsCertificate {
+    fn pki_path(&self) -> Result<x509_cert::PkiPath, CredentialError> {
         self.cert_chain.iter().try_fold(
-            Vec::new(),
-            |mut acc, certificate| -> Result<Vec<X509Certificate>, CredentialError> {
+            vec![],
+            |mut acc, certificate| -> Result<x509_cert::PkiPath, CredentialError> {
                 acc.push(Self::parse_single(certificate)?);
                 Ok(acc)
             },
         )
     }
 
-    fn parse_single(certificate: &TlsByteVecU16) -> Result<X509Certificate, CredentialError> {
-        use x509_parser::nom::Parser as _;
-
-        let mut parser = x509_parser::certificate::X509CertificateParser::new()
-            .with_deep_parse_extensions(false);
-        parser
-            .parse(certificate.as_slice())
-            .map(|(_, cert)| cert)
-            .map_err(|_| CredentialError::InvalidCertificateFormat)
+    fn parse_single(certificate: &TlsByteVecU16) -> Result<Certificate, CredentialError> {
+        use x509_cert::der::Decode as _;
+        Ok(x509_cert::Certificate::from_der(certificate.as_slice())?)
     }
 
-    /// Is signed by issuer
-    fn is_verified(
-        backend: &impl OpenMlsCryptoProvider,
-        certificate: &X509Certificate,
-        issuer: &X509Certificate,
-    ) -> Result<(), CredentialError> {
-        let issuer_pk = Self::public_key(issuer)?;
-        let signature = certificate.signature_value.data.to_vec().into();
-        let payload = certificate.tbs_certificate.as_ref();
-        issuer_pk
-            .verify(backend, &signature, payload)
-            .map_err(|_| CredentialError::InvalidCertificateChain)
-    }
-
-    fn is_valid<'a>(
-        certificate: &'a X509Certificate,
-    ) -> Result<&'a X509Certificate<'a>, CredentialError> {
-        if Self::is_time_valid(certificate) && Self::is_structure_valid(certificate) {
-            Ok(certificate)
-        } else {
-            Err(CredentialError::InvalidCertificate)
-        }
-    }
-
-    fn is_structure_valid(certificate: &X509Certificate) -> bool {
-        // validates structure (fields etc..)
-        struct NoopLogger;
-        impl Logger for NoopLogger {
-            fn warn(&mut self, _: &str) {}
-            fn err(&mut self, _: &str) {}
-        }
-        X509StructureValidator.validate(certificate, &mut NoopLogger)
-    }
-
-    fn is_time_valid(certificate: &X509Certificate) -> bool {
-        // 'not_before' < now < 'not_after'
-        certificate.validity().is_valid()
-    }
-
-    fn signature_scheme(certificate: &X509Certificate) -> Result<SignatureScheme, CredentialError> {
-        // see https://github.com/bcgit/bc-java/blob/r1rv71/core/src/main/java/org/bouncycastle/asn1/edec/EdECObjectIdentifiers.java
-        const ED25519: Oid = oid!(1.3.101 .112);
-        const ED448: Oid = oid!(1.3.101 .113);
-        // see https://github.com/bcgit/bc-java/blob/r1rv71/core/src/main/java/org/bouncycastle/asn1/x9/X9ObjectIdentifiers.java
-        const ECDSA_SHA256: Oid = oid!(1.2.840 .10045 .4 .3 .2);
-        const ECDSA_SHA384: Oid = oid!(1.2.840 .10045 .4 .3 .3);
-        const ECDSA_SHA512: Oid = oid!(1.2.840 .10045 .4 .3 .4);
-
-        let alg = &certificate.subject_pki.algorithm.algorithm;
-
-        if *alg == ED25519 {
-            Ok(SignatureScheme::ED25519)
-        } else if *alg == ED448 {
-            Ok(SignatureScheme::ED448)
-        } else if *alg == ECDSA_SHA256 {
-            Ok(SignatureScheme::ECDSA_SECP256R1_SHA256)
-        } else if *alg == ECDSA_SHA384 {
-            Ok(SignatureScheme::ECDSA_SECP384R1_SHA384)
-        } else if *alg == ECDSA_SHA512 {
-            Ok(SignatureScheme::ECDSA_SECP521R1_SHA512)
-        } else {
-            Err(CredentialError::UnsupportedSignatureScheme)
-        }
-    }
-
-    fn public_key(certificate: &X509Certificate) -> Result<SignaturePublicKey, CredentialError> {
-        let public_key = &certificate.subject_pki.subject_public_key;
-        let signature_scheme = Self::signature_scheme(certificate);
-        SignaturePublicKey::new(public_key.data.to_vec(), signature_scheme?)
-            .map_err(|_| CredentialError::IncompleteCertificate("subjectPublicKeyInfo".to_string()))
-    }
-
-    fn leaf_certificate(&self) -> &TlsByteVecU16 {
-        &self.cert_chain[0]
+    fn get_leaf_certificate(&self) -> Result<Certificate, CredentialError> {
+        let leaf = self
+            .cert_chain
+            .get(0)
+            .ok_or(CredentialError::InvalidCertificateChain)?;
+        Self::parse_single(leaf)
     }
 }
 
@@ -201,8 +218,8 @@ impl Certificate {
 pub enum MlsCredentialType {
     /// A [`BasicCredential`]
     Basic(BasicCredential),
-    /// An X.509 [`Certificate`]
-    X509(Certificate),
+    /// An X.509 [`MlsCertificate`]
+    X509(MlsCertificate),
 }
 
 /// Credential.
@@ -233,29 +250,31 @@ impl Credential {
                 .map_err(|_| CredentialError::InvalidSignature),
             // TODO: implement verification for X509 certificates. See issue #134.
             MlsCredentialType::X509(certificate_chain) => {
-                let certificates = certificate_chain.parse()?;
-                certificates
+                certificate_chain
+                    .pki_path()?
                     .iter()
                     .enumerate()
                     .map(Ok)
-                    .reduce(
-                        |a, b| -> Result<(usize, &X509Certificate), CredentialError> {
-                            let (current_index, current) = a?;
-                            let (next_index, next) = b?;
-                            if current_index == 0 {
-                                // this is leaf certificate
-                                Certificate::public_key(current)?
-                                    // verify that payload is signed by leaf certificate
-                                    .verify(backend, signature, payload)
-                                    .map_err(|_| CredentialError::InvalidSignature)?;
-                            }
-                            // is valid in time + x509 structure (fields etc..)
-                            Certificate::is_valid(current)
-                                // verifies current signed by issuer
-                                .and(Certificate::is_verified(backend, current, next))?;
-                            Ok((next_index, next))
-                        },
-                    )
+                    .reduce(|a, b| -> Result<(usize, &Certificate), CredentialError> {
+                        let (child_idx, child_cert) = a?;
+                        let (parent_idx, parent_cert) = b?;
+
+                        // leaf certificate
+                        if child_idx == 0 {
+                            child_cert
+                                .public_key()?
+                                .verify(backend, signature, payload)
+                                .map_err(|_| CredentialError::InvalidSignature)?;
+                        }
+
+                        // verify not expired
+                        child_cert.is_valid()?;
+
+                        // verify that child is signed by parent
+                        child_cert.is_signed_by(backend, &parent_cert)?;
+
+                        Ok((parent_idx, parent_cert))
+                    })
                     .ok_or_else(|| {
                         CredentialError::LibraryError(LibraryError::custom(
                             "Cannot have validated an empty certificate chain",
@@ -285,9 +304,7 @@ impl Credential {
             MlsCredentialType::X509(certificate_chain) => {
                 // TODO: implement getter for signature scheme for X509 certificates. See issue #134.
                 // TODO: (wire) highly inefficient, parsing certificate twice to avoid propagating lifetime everywhere
-                let leaf = certificate_chain.leaf_certificate();
-                let leaf = Certificate::parse_single(leaf)?;
-                Certificate::signature_scheme(&leaf)
+                certificate_chain.get_leaf_certificate()?.signature_scheme()
             }
         }
     }
@@ -297,12 +314,11 @@ impl Credential {
         match &self.credential {
             MlsCredentialType::Basic(basic_credential) => &basic_credential.public_key,
             MlsCredentialType::X509(certificates) => {
-                // TODO: (wire) implement x509 properly
-                let leaf = certificates.leaf_certificate();
-                // should be safe as we already have checked certificate beforehand
                 // TODO: (wire) highly inefficient, parsing certificate twice to avoid propagating lifetime everywhere
-                let leaf = Certificate::parse_single(leaf).unwrap();
-                let signature_key = Certificate::public_key(&leaf).unwrap();
+                let signature_key = certificates
+                    .get_leaf_certificate()
+                    .and_then(|l| l.public_key())
+                    .unwrap();
                 // TODO: conscious memory leak
                 Box::leak(Box::new(signature_key))
             }
@@ -408,7 +424,7 @@ impl CredentialBundle {
         let credential = Credential {
             credential_type: CredentialType::X509,
             // TODO: (wire) implement x509 properly. Identity should not be there and extracted from certificate instead
-            credential: MlsCredentialType::X509(Certificate {
+            credential: MlsCredentialType::X509(MlsCertificate {
                 identity: identity.into(),
                 cert_chain,
             }),
