@@ -11,6 +11,9 @@ pub enum CredentialError {
     /// A library error occurred.
     #[error(transparent)]
     LibraryError(#[from] LibraryError),
+    /// x509 DER decoding error
+    #[error(transparent)]
+    X509DerError(#[from] x509_cert::der::Error),
     /// The type of credential is not supported.
     #[error("Unsupported credential type.")]
     UnsupportedCredentialType,
@@ -30,7 +33,7 @@ pub enum CredentialError {
     InvalidCertificate,
     /// x509 certificate lacks some fields required by MLS
     #[error("x509 certificate lacks required field {0}.")]
-    IncompleteCertificate(String),
+    IncompleteCertificate(&'static str),
     /// Incomplete x509 certificate chain
     #[error("x509 certificate chain is either empty or contains a single self-signed certificate which is not allowed.")]
     IncompleteCertificateChain,

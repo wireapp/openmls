@@ -12,10 +12,10 @@ pub struct Signature {
     value: TlsByteVecU16,
 }
 
-impl From<Vec<u8>> for Signature {
-    fn from(value: Vec<u8>) -> Self {
+impl From<&[u8]> for Signature {
+    fn from(bytes: &[u8]) -> Self {
         Self {
-            value: value.into(),
+            value: bytes.into(),
         }
     }
 }

@@ -34,11 +34,8 @@ rstest = { version = "0.15", optional = true }
 rstest_reuse = { version = "0.4", optional = true }
 wasm-bindgen-test = { version = "0.3", optional = true }
 hex = "0.4"
-
-[dependencies.x509-parser]
-git = "https://github.com/wireapp/x509-parser"
-tag = "v1.0.2-pre.core-crypto-0.6.0"
-features = ["validate"]
+x509-cert = "0.2"
+spki = "0.7"
 
 [target.'cfg(not(target_family = "wasm"))'.dependencies]
 rayon = "^1.5.0"
