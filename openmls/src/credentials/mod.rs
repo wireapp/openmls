@@ -38,7 +38,6 @@ use openmls_traits::{
     OpenMlsCryptoProvider,
 };
 use serde::{Deserialize, Serialize};
-use spki::ObjectIdentifier;
 #[cfg(test)]
 use tls_codec::Serialize as TlsSerializeTrait;
 use tls_codec::{Error, TlsByteVecU16, TlsDeserialize, TlsSerialize, TlsSize, TlsVecU16};
@@ -146,22 +145,21 @@ impl X509Ext for Certificate {
     }
 
     fn signature_scheme(&self) -> Result<SignatureScheme, CredentialError> {
-        // see https://github.com/bcgit/bc-java/blob/r1rv71/core/src/main/java/org/bouncycastle/asn1/edec/EdECObjectIdentifiers.java
-        const ED25519: ObjectIdentifier = ObjectIdentifier::new_unwrap("1.3.101.112");
-        const ED448: ObjectIdentifier = ObjectIdentifier::new_unwrap("1.3.101.113");
-        // see https://github.com/bcgit/bc-java/blob/r1rv71/core/src/main/java/org/bouncycastle/asn1/x9/X9ObjectIdentifiers.java
-        const ECDSA_SHA256: ObjectIdentifier = ObjectIdentifier::new_unwrap("1.2.840.10045.4.3.2");
-        const ECDSA_SHA384: ObjectIdentifier = ObjectIdentifier::new_unwrap("1.2.840.10045.4.3.3");
-        const ECDSA_SHA512: ObjectIdentifier = ObjectIdentifier::new_unwrap("1.2.840.10045.4.3.4");
-
         let alg = self.tbs_certificate.subject_public_key_info.algorithm.oid;
-        let scheme = match alg {
-            ED25519 => SignatureScheme::ED25519,
-            ED448 => SignatureScheme::ED448,
-            ECDSA_SHA256 => SignatureScheme::ECDSA_SECP256R1_SHA256,
-            ECDSA_SHA384 => SignatureScheme::ECDSA_SECP384R1_SHA384,
-            ECDSA_SHA512 => SignatureScheme::ECDSA_SECP521R1_SHA512,
-            _ => return Err(CredentialError::UnsupportedSignatureScheme),
+        let alg = oid_registry::Oid::new(std::borrow::Cow::Borrowed(alg.as_bytes()));
+
+        let scheme = if alg == oid_registry::OID_SIG_ED25519 {
+            SignatureScheme::ED25519
+        } else if alg == oid_registry::OID_SIG_ED448 {
+            SignatureScheme::ED448
+        } else if alg == oid_registry::OID_SIG_ECDSA_WITH_SHA256 {
+            SignatureScheme::ECDSA_SECP256R1_SHA256
+        } else if alg == oid_registry::OID_SIG_ECDSA_WITH_SHA384 {
+            SignatureScheme::ECDSA_SECP384R1_SHA384
+        } else if alg == oid_registry::OID_SIG_ECDSA_WITH_SHA512 {
+            SignatureScheme::ECDSA_SECP521R1_SHA512
+        } else {
+            return Err(CredentialError::UnsupportedSignatureScheme);
         };
         Ok(scheme)
     }
