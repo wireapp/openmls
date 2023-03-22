@@ -4,16 +4,17 @@
 //! to add a client from a MLS group
 //! `Remove` & `ReInit are nto yet implemented`
 
+use openmls_traits::OpenMlsCryptoProvider;
+
 use crate::{
     credentials::CredentialBundle,
     error::LibraryError,
-    framing::{FramingParameters, MlsMessageOut, MlsPlaintext, Sender, WireFormat},
+    framing::{MlsMessageOut, MlsPlaintext, Sender},
     group::{mls_group::errors::ProposeAddMemberError, GroupEpoch, GroupId},
     key_packages::KeyPackage,
     messages::{AddProposal, Proposal, RemoveProposal},
     prelude::KeyPackageRef,
 };
-use openmls_traits::OpenMlsCryptoProvider;
 
 /// External Proposal.
 /// External proposal allows parties outside a group to request changes to the latter.
