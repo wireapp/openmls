@@ -12,6 +12,14 @@ pub struct Signature {
     value: TlsByteVecU16,
 }
 
+impl From<Vec<u8>> for Signature {
+    fn from(value: Vec<u8>) -> Self {
+        Self {
+            value: value.into(),
+        }
+    }
+}
+
 /// A private signature key.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[cfg_attr(any(feature = "test-utils", test), derive(PartialEq))]

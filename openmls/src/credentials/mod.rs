@@ -41,9 +41,10 @@ use serde::{Deserialize, Serialize};
 #[cfg(test)]
 use tls_codec::Serialize as TlsSerializeTrait;
 use tls_codec::{Error, TlsByteVecU16, TlsDeserialize, TlsSerialize, TlsSize, TlsVecU16};
-use x509_parser::der_parser::asn1_rs::oid;
-use x509_parser::der_parser::Oid;
-use x509_parser::prelude::{Logger, Validator, X509Certificate, X509StructureValidator};
+use x509_parser::{
+    der_parser::{asn1_rs::oid, Oid},
+    prelude::{Logger, Validator, X509Certificate, X509StructureValidator},
+};
 
 use errors::*;
 
@@ -118,11 +119,15 @@ impl Certificate {
 
     /// Is signed by issuer
     fn is_verified(
+        backend: &impl OpenMlsCryptoProvider,
         certificate: &X509Certificate,
         issuer: &X509Certificate,
     ) -> Result<(), CredentialError> {
-        certificate
-            .verify_signature(Some(&issuer.subject_pki))
+        let issuer_pk = Self::public_key(issuer)?;
+        let signature = certificate.signature_value.data.to_vec().into();
+        let payload = certificate.tbs_certificate.as_ref();
+        issuer_pk
+            .verify(backend, &signature, payload)
             .map_err(|_| CredentialError::InvalidCertificateChain)
     }
 
@@ -247,7 +252,7 @@ impl Credential {
                             // is valid in time + x509 structure (fields etc..)
                             Certificate::is_valid(current)
                                 // verifies current signed by issuer
-                                .and(Certificate::is_verified(current, next))?;
+                                .and(Certificate::is_verified(backend, current, next))?;
                             Ok((next_index, next))
                         },
                     )
