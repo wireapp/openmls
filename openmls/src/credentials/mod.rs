@@ -89,7 +89,8 @@ impl TryFrom<u16> for CredentialType {
 )]
 pub struct MlsCertificate {
     identity: TlsByteVecU16,
-    cert_chain: TlsVecU16<TlsByteVecU16>,
+    /// raw x509 certificates chain in DER format
+    pub cert_chain: TlsVecU16<TlsByteVecU16>,
 }
 
 trait X509Ext {
@@ -227,7 +228,8 @@ pub enum MlsCredentialType {
 #[derive(Debug, PartialEq, Clone, Serialize, Deserialize)]
 pub struct Credential {
     pub(crate) credential_type: CredentialType,
-    pub(crate) credential: MlsCredentialType,
+    /// Value
+    pub credential: MlsCredentialType,
 }
 
 impl Credential {
