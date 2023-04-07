@@ -88,7 +88,8 @@ impl TryFrom<u16> for CredentialType {
     Debug, PartialEq, Clone, Serialize, Deserialize, TlsDeserialize, TlsSerialize, TlsSize,
 )]
 pub struct MlsCertificate {
-    identity: TlsByteVecU16,
+    /// Duplicated identity pending a final & clean solution
+    pub identity: TlsByteVecU16,
     /// raw x509 certificates chain in DER format
     pub cert_chain: TlsVecU16<TlsByteVecU16>,
 }
