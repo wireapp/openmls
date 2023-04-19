@@ -11,7 +11,7 @@ use crate::{
 };
 
 impl CoreGroup {
-    fn derive_epoch_secrets(
+    async fn derive_epoch_secrets(
         &self,
         backend: &impl OpenMlsCryptoProvider,
         apply_proposals_values: ApplyProposalsValues,
@@ -28,7 +28,9 @@ impl CoreGroup {
             let external_priv = epoch_secrets
                 .external_secret()
                 .derive_external_keypair(backend.crypto(), self.ciphersuite())
-                .private;
+                .map_err(LibraryError::unexpected_crypto_error)?
+                .private
+                .into();
             let init_secret = InitSecret::from_kem_output(
                 backend,
                 self.ciphersuite(),
@@ -59,9 +61,9 @@ impl CoreGroup {
                 backend.key_store(),
                 &self.resumption_psk_store,
                 &apply_proposals_values.presharedkeys,
-            )?;
+            ).await?;
 
-            PskSecret::new(backend, self.ciphersuite(), psks)?
+            PskSecret::new(backend, self.ciphersuite(), psks).await?
         };
 
         // Create key schedule
@@ -111,7 +113,7 @@ impl CoreGroup {
     ///  - ValSem244
     /// Returns an error if the given commit was sent by the owner of this
     /// group.
-    pub(crate) fn stage_commit(
+    pub(crate) async fn stage_commit(
         &self,
         mls_content: &AuthenticatedContent,
         proposal_store: &ProposalStore,
@@ -228,7 +230,8 @@ impl CoreGroup {
                 self.group_epoch_secrets(),
                 commit_secret,
                 &serialized_provisional_group_context,
-            )?
+            )
+            .await?
             .split_secrets(
                 serialized_provisional_group_context,
                 diff.tree_size(),
@@ -271,14 +274,14 @@ impl CoreGroup {
     ///
     /// This function should not fail and only returns a [`Result`], because it
     /// might throw a `LibraryError`.
-    pub(crate) fn merge_commit<KeyStore: OpenMlsKeyStore>(
+    pub(crate) async fn merge_commit<KeyStore: OpenMlsKeyStore>(
         &mut self,
         backend: &impl OpenMlsCryptoProvider<KeyStoreProvider = KeyStore>,
         staged_commit: StagedCommit,
     ) -> Result<Option<MessageSecrets>, MergeCommitError<KeyStore::Error>> {
         // Get all keypairs from the old epoch, so we can later store the ones
         // that are still relevant in the new epoch.
-        let old_epoch_keypairs = self.read_epoch_keypairs(backend);
+        let old_epoch_keypairs = self.read_epoch_keypairs(backend).await;
         match staged_commit.state {
             StagedCommitState::PublicState(staged_diff) => {
                 self.public_group.merge_diff(*staged_diff);
@@ -310,6 +313,7 @@ impl CoreGroup {
                 let new_owned_encryption_keys = self
                     .public_group()
                     .owned_encryption_keys(self.own_leaf_index());
+
                 // From the old and new keys, keep the ones that are still relevant in the new epoch.
                 let epoch_keypairs: Vec<EncryptionKeyPair> = old_epoch_keypairs
                     .into_iter()
@@ -318,7 +322,6 @@ impl CoreGroup {
                     .filter(|keypair| new_owned_encryption_keys.contains(keypair.public_key()))
                     .collect();
                 // We should have private keys for all owned encryption keys.
-
                 debug_assert_eq!(new_owned_encryption_keys.len(), epoch_keypairs.len());
                 if new_owned_encryption_keys.len() != epoch_keypairs.len() {
                     return Err(LibraryError::custom(
@@ -326,15 +329,21 @@ impl CoreGroup {
                     )
                     .into());
                 }
+
                 // Store the relevant keys under the new epoch
                 self.store_epoch_keypairs(backend, epoch_keypairs.as_slice())
+                    .await
                     .map_err(MergeCommitError::KeyStoreError)?;
+
                 // Delete the old keys.
                 self.delete_previous_epoch_keypairs(backend)
+                    .await
                     .map_err(MergeCommitError::KeyStoreError)?;
+
                 if let Some(keypair) = state.new_leaf_keypair_option {
                     keypair
                         .delete_from_key_store(backend)
+                        .await
                         .map_err(MergeCommitError::KeyStoreError)?;
                 }
 
@@ -346,15 +355,16 @@ impl CoreGroup {
     #[cfg(test)]
     /// Helper function that reads the decryption keys from the key store
     /// (unwrapping the result) and stages the given commit.
-    pub(crate) fn read_keys_and_stage_commit(
+    pub(crate) async fn read_keys_and_stage_commit(
         &self,
         mls_content: &AuthenticatedContent,
         proposal_store: &ProposalStore,
         own_leaf_nodes: &[LeafNode],
         backend: &impl OpenMlsCryptoProvider,
     ) -> Result<StagedCommit, StageCommitError> {
-        let (old_epoch_keypairs, leaf_node_keypairs) =
-            self.read_decryption_keypairs(backend, own_leaf_nodes)?;
+        let (old_epoch_keypairs, leaf_node_keypairs) = self
+            .read_decryption_keypairs(backend, own_leaf_nodes)
+            .await?;
 
         self.stage_commit(
             mls_content,
@@ -363,6 +373,7 @@ impl CoreGroup {
             leaf_node_keypairs,
             backend,
         )
+        .await
     }
 }
 

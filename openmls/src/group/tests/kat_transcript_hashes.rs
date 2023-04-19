@@ -6,28 +6,21 @@
 use std::convert::TryFrom;
 
 use openmls_rust_crypto::OpenMlsRustCrypto;
-use openmls_traits::{crypto::OpenMlsCrypto, random::OpenMlsRand, OpenMlsCryptoProvider};
+use openmls_traits::{crypto::OpenMlsCrypto, OpenMlsCryptoProvider};
 use serde::{self, Deserialize, Serialize};
-use tls_codec::{Deserialize as TlsDeserializeTrait, Serialize as TlsSerializeTrait};
+use tls_codec::Deserialize as TlsDeserializeTrait;
 
 #[cfg(test)]
-use crate::test_utils::{read, write};
+use crate::test_utils::read;
 use crate::{
-    binary_tree::array_representation::LeafNodeIndex,
     framing::{mls_auth_content::AuthenticatedContent, *},
-    group::{
-        tests::utils::{generate_credential_with_key, randombytes},
-        *,
-    },
-    messages::*,
+    group::*,
     schedule::*,
     test_utils::*,
     versions::ProtocolVersion,
 };
 
 const TEST_VECTOR_PATH_READ: &str = "test_vectors/transcript-hashes.json";
-const TEST_VECTOR_PATH_WRITE: &str = "test_vectors/transcript-hashes-new.json";
-const NUM_TESTS: usize = 100;
 
 /// ```json
 /// {
@@ -138,127 +131,4 @@ pub fn run_test_vector(test_vector: TranscriptTestVector) {
         test_vector.interim_transcript_hash_after,
         got_interim_transcript_hash_after
     );
-}
-
-// -------------------------------------------------------------------------------------------------
-
-#[test]
-fn write_test_vectors() {
-    let mut tests = Vec::new();
-
-    for &ciphersuite in OpenMlsRustCrypto::default()
-        .crypto()
-        .supported_ciphersuites()
-        .iter()
-    {
-        for _ in 0..NUM_TESTS {
-            let test = generate_test_vector(ciphersuite);
-            tests.push(test);
-        }
-    }
-
-    write(TEST_VECTOR_PATH_WRITE, &tests);
-}
-
-pub fn generate_test_vector(ciphersuite: Ciphersuite) -> TranscriptTestVector {
-    let backend = OpenMlsRustCrypto::default();
-
-    let confirmation_key = ConfirmationKey::random(ciphersuite, &backend);
-
-    let interim_transcript_hash_before = randombytes(ciphersuite.hash_length());
-
-    // Note: This does not have a valid `confirmation_tag` for now and is only used to
-    // calculate `confirmed_transcript_hash_after`.
-    let mut authenticated_content = {
-        let aad = backend.rand().random_vec(48).unwrap();
-        let framing_parameters = FramingParameters::new(&aad, WireFormat::PublicMessage);
-
-        // XXX: Use random but valid sender.
-        let sender = Sender::build_member(LeafNodeIndex::new(7));
-
-        let commit = Commit {
-            proposals: vec![],
-            path: None,
-        };
-
-        let group_context = {
-            let tree_hash_before = backend
-                .rand()
-                .random_vec(ciphersuite.hash_length())
-                .unwrap();
-
-            let confirmed_transcript_hash_before = backend
-                .rand()
-                .random_vec(ciphersuite.hash_length())
-                .unwrap();
-
-            GroupContext::new(
-                ciphersuite,
-                GroupId::random(&backend),
-                random_u64(),
-                tree_hash_before,
-                confirmed_transcript_hash_before,
-                Extensions::empty(),
-            )
-        };
-
-        let signer = {
-            let credential_with_key_and_signer = generate_credential_with_key(
-                b"Alice".to_vec(),
-                ciphersuite.signature_algorithm(),
-                &backend,
-            );
-
-            credential_with_key_and_signer.signer
-        };
-
-        AuthenticatedContent::commit(framing_parameters, sender, commit, &group_context, &signer)
-            .unwrap()
-    };
-
-    // Now, calculate `confirmed_transcript_hash_after` ...
-    let confirmed_transcript_hash_after = {
-        let input = ConfirmedTranscriptHashInput::try_from(&authenticated_content).unwrap();
-
-        input
-            .calculate_confirmed_transcript_hash(
-                backend.crypto(),
-                ciphersuite,
-                &interim_transcript_hash_before,
-            )
-            .unwrap()
-    };
-
-    // ... and the `confirmation_tag` ...
-    let confirmation_tag = {
-        confirmation_key
-            .tag(&backend, &confirmed_transcript_hash_after)
-            .unwrap()
-    };
-
-    // ... and set it in `authenticated_content`.
-    authenticated_content.set_confirmation_tag(confirmation_tag.clone());
-
-    let interim_transcript_hash_after = {
-        let input = InterimTranscriptHashInput::from(&confirmation_tag);
-
-        input
-            .calculate_interim_transcript_hash(
-                backend.crypto(),
-                ciphersuite,
-                &confirmed_transcript_hash_after,
-            )
-            .unwrap()
-    };
-
-    TranscriptTestVector {
-        cipher_suite: (&ciphersuite).into(),
-
-        confirmation_key: confirmation_key.as_slice().to_vec(),
-        authenticated_content: authenticated_content.tls_serialize_detached().unwrap(),
-        interim_transcript_hash_before,
-
-        confirmed_transcript_hash_after,
-        interim_transcript_hash_after,
-    }
 }

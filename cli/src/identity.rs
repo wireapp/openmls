@@ -10,14 +10,22 @@ pub struct Identity {
 }
 
 impl Identity {
-    pub(crate) fn new(ciphersuite: Ciphersuite, crypto: &OpenMlsRustCrypto, id: &[u8]) -> Self {
+    pub(crate) async fn new(
+        ciphersuite: Ciphersuite,
+        crypto: &OpenMlsRustCrypto,
+        id: &[u8],
+    ) -> Self {
         let credential = Credential::new(id.to_vec(), CredentialType::Basic).unwrap();
-        let signature_keys = SignatureKeyPair::new(ciphersuite.signature_algorithm()).unwrap();
+        let signature_keys = SignatureKeyPair::new(
+            ciphersuite.signature_algorithm(),
+            &mut *crypto.rand().borrow_rand().unwrap(),
+        )
+        .unwrap();
         let credential_with_key = CredentialWithKey {
             credential,
             signature_key: signature_keys.to_public_vec().into(),
         };
-        signature_keys.store(crypto.key_store()).unwrap();
+        signature_keys.store(crypto.key_store()).await.unwrap();
 
         let key_package = KeyPackage::builder()
             .build(
@@ -29,6 +37,7 @@ impl Identity {
                 &signature_keys,
                 credential_with_key.clone(),
             )
+            .await
             .unwrap();
 
         Self {

@@ -766,7 +766,7 @@ impl ExternalSecret {
         &self,
         crypto: &impl OpenMlsCrypto,
         ciphersuite: Ciphersuite,
-    ) -> HpkeKeyPair {
+    ) -> Result<HpkeKeyPair, CryptoError> {
         crypto.derive_hpke_keypair(ciphersuite.hpke_config(), self.secret.as_slice())
     }
 

@@ -165,7 +165,7 @@ mod unit_tests {
     /// it has changed, xoring it again and testing that it's back in its original
     /// state.
     #[apply(backends)]
-    fn test_xor(backend: &impl OpenMlsCryptoProvider) {
+    async fn test_xor(backend: &impl OpenMlsCryptoProvider) {
         let reuse_guard: ReuseGuard =
             ReuseGuard::try_from_random(backend).expect("An unexpected error occurred.");
         let original_nonce = AeadNonce::random(backend);

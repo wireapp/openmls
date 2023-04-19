@@ -13,7 +13,10 @@ use crate::{
 };
 
 #[apply(ciphersuites_and_backends)]
-fn test_past_secrets_in_group(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider) {
+async fn test_past_secrets_in_group(
+    ciphersuite: Ciphersuite,
+    backend: &impl OpenMlsCryptoProvider,
+) {
     // Test this for different parameters
     for max_epochs in (0..10usize).step_by(2) {
         let group_id = GroupId::from_slice(b"Test Group");
@@ -23,12 +26,12 @@ fn test_past_secrets_in_group(ciphersuite: Ciphersuite, backend: &impl OpenMlsCr
             b"Alice".to_vec(),
             ciphersuite.signature_algorithm(),
             backend,
-        );
+        ).await;
         let bob_credential_with_keys = generate_credential_with_key(
             b"Bob".to_vec(),
             ciphersuite.signature_algorithm(),
             backend,
-        );
+        ).await;
 
         // Generate KeyPackages
         let bob_key_package = generate_key_package(
@@ -36,7 +39,8 @@ fn test_past_secrets_in_group(ciphersuite: Ciphersuite, backend: &impl OpenMlsCr
             Extensions::empty(),
             backend,
             bob_credential_with_keys,
-        );
+        )
+        .await;
 
         // Define the MlsGroup configuration
 
@@ -53,6 +57,7 @@ fn test_past_secrets_in_group(ciphersuite: Ciphersuite, backend: &impl OpenMlsCr
             group_id.clone(),
             alice_credential_with_keys.credential_with_key.clone(),
         )
+        .await
         .expect("An unexpected error occurred.");
 
         // Alice adds Bob
@@ -62,10 +67,12 @@ fn test_past_secrets_in_group(ciphersuite: Ciphersuite, backend: &impl OpenMlsCr
                 &alice_credential_with_keys.signer,
                 &[bob_key_package],
             )
+            .await
             .expect("An unexpected error occurred.");
 
         alice_group
             .merge_pending_commit(backend)
+            .await
             .expect("error merging pending commit");
 
         let mut bob_group = MlsGroup::new_from_welcome(
@@ -74,6 +81,7 @@ fn test_past_secrets_in_group(ciphersuite: Ciphersuite, backend: &impl OpenMlsCr
             welcome.into_welcome().expect("Unexpected message type."),
             Some(alice_group.export_ratchet_tree().into()),
         )
+        .await
         .expect("Error creating group from Welcome");
 
         // Generate application message for different epochs
@@ -90,12 +98,14 @@ fn test_past_secrets_in_group(ciphersuite: Ciphersuite, backend: &impl OpenMlsCr
 
             let (message, _welcome, _group_info) = alice_group
                 .self_update(backend, &alice_credential_with_keys.signer)
+                .await
                 .expect("An unexpected error occurred.");
 
             update_commits.push(message.clone());
 
             alice_group
                 .merge_pending_commit(backend)
+                .await
                 .expect("error merging pending commit");
         }
 
@@ -104,6 +114,7 @@ fn test_past_secrets_in_group(ciphersuite: Ciphersuite, backend: &impl OpenMlsCr
         for update_commit in update_commits {
             let bob_processed_message = bob_group
                 .process_message(backend, update_commit.into_protocol_message().unwrap())
+                .await
                 .expect("An unexpected error occurred.");
 
             if let ProcessedMessageContent::StagedCommitMessage(staged_commit) =
@@ -111,6 +122,7 @@ fn test_past_secrets_in_group(ciphersuite: Ciphersuite, backend: &impl OpenMlsCr
             {
                 bob_group
                     .merge_staged_commit(backend, *staged_commit)
+                    .await
                     .expect("Error merging commit.");
             } else {
                 unreachable!("Expected a StagedCommit.");
@@ -123,6 +135,7 @@ fn test_past_secrets_in_group(ciphersuite: Ciphersuite, backend: &impl OpenMlsCr
         for application_message in application_messages.iter().take(max_epochs / 2) {
             let err = bob_group
                 .process_message(backend, application_message.clone())
+                .await
                 .expect_err("An unexpected error occurred.");
             assert_eq!(
                 err,
@@ -136,6 +149,7 @@ fn test_past_secrets_in_group(ciphersuite: Ciphersuite, backend: &impl OpenMlsCr
         for application_message in application_messages.iter().skip(max_epochs / 2) {
             let bob_processed_message = bob_group
                 .process_message(backend, application_message.clone())
+                .await
                 .expect("An unexpected error occurred.");
 
             if let ProcessedMessageContent::ApplicationMessage(application_message) =

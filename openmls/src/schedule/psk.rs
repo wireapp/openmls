@@ -279,7 +279,7 @@ impl PreSharedKeyId {
     /// Save this `PreSharedKeyId` in the keystore.
     ///
     /// Note: The nonce is not saved as it must be unique for each time it's being applied.
-    pub fn write_to_key_store<KeyStore: OpenMlsKeyStore>(
+    pub async fn write_to_key_store<KeyStore: OpenMlsKeyStore>(
         &self,
         backend: &impl OpenMlsCryptoProvider<KeyStoreProvider = KeyStore>,
         ciphersuite: Ciphersuite,
@@ -296,6 +296,7 @@ impl PreSharedKeyId {
         backend
             .key_store()
             .store(&keystore_id, &psk_bundle)
+            .await
             .map_err(|_| PskError::KeyStore)
     }
 
@@ -401,7 +402,7 @@ impl PskSecret {
     /// psk_secret_[i] = KDF.Extract(psk_input[i-1], psk_secret_[i-1])
     /// psk_secret     = psk_secret[n]
     /// ```
-    pub(crate) fn new(
+    pub(crate) async fn new(
         backend: &impl OpenMlsCryptoProvider,
         ciphersuite: Ciphersuite,
         psks: Vec<(&PreSharedKeyId, Secret)>,
@@ -468,7 +469,7 @@ impl From<Secret> for PskSecret {
     }
 }
 
-pub(crate) fn load_psks<'p>(
+pub(crate) async fn load_psks<'p>(
     key_store: &impl OpenMlsKeyStore,
     resumption_psk_store: &ResumptionPskStore,
     psk_ids: &'p [PreSharedKeyId],
@@ -487,7 +488,8 @@ pub(crate) fn load_psks<'p>(
                 }
             }
             Psk::External(_) => {
-                if let Some(psk_bundle) = key_store.read::<PskBundle>(&psk_id.keystore_id()?) {
+                if let Some(psk_bundle) = key_store.read::<PskBundle>(&psk_id.keystore_id()?).await
+                {
                     psk_bundles.push((psk_id, psk_bundle.secret));
                 } else {
                     return Err(PskError::KeyNotFound);

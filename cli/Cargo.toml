@@ -2,11 +2,12 @@
 name = "cli"
 version = "0.1.0"
 authors = ["OpenMLS Authors"]
-edition = "2018"
+edition = "2021"
 
 [dependencies]
 url = "2.2"
-reqwest = { version = "0.11", features = ["blocking", "json"] }
+reqwest = { version = "0.11", features = ["json"] }
+tokio = { version = "1.24", features = ["full"] }
 base64 = "0.13"
 log = "0.4"
 pretty_env_logger = "0.4"

@@ -268,7 +268,7 @@ impl CredentialWithKey {
 #[cfg(any(test, feature = "test-utils"))]
 pub mod test_utils {
     use openmls_basic_credential::SignatureKeyPair;
-    use openmls_traits::{types::SignatureScheme, OpenMlsCryptoProvider};
+    use openmls_traits::{random::OpenMlsRand, types::SignatureScheme, OpenMlsCryptoProvider};
 
     use super::{Credential, CredentialType, CredentialWithKey};
 
@@ -277,15 +277,19 @@ pub mod test_utils {
     /// The signature keys are stored in the key store.
     ///
     /// Returns the [`Credential`] and the [`SignatureKeyPair`].
-    pub fn new_credential(
+    pub async fn new_credential(
         backend: &impl OpenMlsCryptoProvider,
         identity: &[u8],
         credential_type: CredentialType,
         signature_scheme: SignatureScheme,
     ) -> (CredentialWithKey, SignatureKeyPair) {
         let credential = Credential::new(identity.into(), credential_type).unwrap();
-        let signature_keys = SignatureKeyPair::new(signature_scheme).unwrap();
-        signature_keys.store(backend.key_store()).unwrap();
+        let signature_keys = SignatureKeyPair::new(
+            signature_scheme,
+            &mut *backend.rand().borrow_rand().unwrap(),
+        )
+        .unwrap();
+        signature_keys.store(backend.key_store()).await.unwrap();
 
         (
             CredentialWithKey {

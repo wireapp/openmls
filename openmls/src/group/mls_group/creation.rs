@@ -21,7 +21,7 @@ impl MlsGroup {
     ///
     /// This function removes the private key corresponding to the
     /// `key_package` from the key store.
-    pub fn new<KeyStore: OpenMlsKeyStore>(
+    pub async fn new<KeyStore: OpenMlsKeyStore>(
         backend: &impl OpenMlsCryptoProvider<KeyStoreProvider = KeyStore>,
         signer: &impl Signer,
         mls_group_config: &MlsGroupConfig,
@@ -34,10 +34,11 @@ impl MlsGroup {
             GroupId::random(backend),
             credential_with_key,
         )
+        .await
     }
 
     /// Creates a new group with a given group ID with the creator as the only member.
-    pub fn new_with_group_id<KeyStore: OpenMlsKeyStore>(
+    pub async fn new_with_group_id<KeyStore: OpenMlsKeyStore>(
         backend: &impl OpenMlsCryptoProvider<KeyStoreProvider = KeyStore>,
         signer: &impl Signer,
         mls_group_config: &MlsGroupConfig,
@@ -60,6 +61,7 @@ impl MlsGroup {
         .with_max_past_epoch_secrets(mls_group_config.max_past_epochs)
         .with_lifetime(*mls_group_config.lifetime())
         .build(backend, signer)
+        .await
         .map_err(|e| match e {
             CoreGroupBuildError::LibraryError(e) => e.into(),
             // We don't support PSKs yet
@@ -103,7 +105,7 @@ impl MlsGroup {
     /// ([`WelcomeError::NoMatchingKeyPackage`]) if no [`KeyPackage`]
     /// can be found.
     // TODO: #1326 This should take an MlsMessage rather than a Welcome message.
-    pub fn new_from_welcome<KeyStore: OpenMlsKeyStore>(
+    pub async fn new_from_welcome<KeyStore: OpenMlsKeyStore>(
         backend: &impl OpenMlsCryptoProvider<KeyStoreProvider = KeyStore>,
         mls_group_config: &MlsGroupConfig,
         welcome: Welcome,
@@ -111,22 +113,24 @@ impl MlsGroup {
     ) -> Result<Self, WelcomeError<KeyStore::Error>> {
         let resumption_psk_store =
             ResumptionPskStore::new(mls_group_config.number_of_resumption_psks);
-        let (key_package, _) = welcome
-            .secrets()
-            .iter()
-            .find_map(|egs| {
-                let hash_ref = egs.new_member().as_slice().to_vec();
-                backend
-                    .key_store()
-                    .read(&hash_ref)
-                    .map(|kp: KeyPackage| (kp, hash_ref))
-            })
-            .ok_or(WelcomeError::NoMatchingKeyPackage)?;
+
+        let mut key_package: Option<KeyPackage> = None;
+        for egs in welcome.secrets().iter() {
+            if let Some(kp) = backend.key_store().read(egs.new_member().as_slice()).await {
+                key_package.replace(kp);
+                break;
+            }
+        }
+
+        let Some(key_package) = key_package.take() else {
+            return Err(WelcomeError::NoMatchingKeyPackage);
+        };
 
         // TODO #751
         let private_key = backend
             .key_store()
             .read::<HpkePrivateKey>(key_package.hpke_init_key().as_slice())
+            .await
             .ok_or(WelcomeError::NoMatchingKeyPackage)?;
         let key_package_bundle = KeyPackageBundle {
             key_package,
@@ -138,6 +142,7 @@ impl MlsGroup {
         key_package_bundle
             .key_package
             .delete(backend)
+            .await
             .map_err(WelcomeError::KeyStoreError)?;
 
         let mut group = CoreGroup::new_from_welcome(
@@ -146,7 +151,8 @@ impl MlsGroup {
             key_package_bundle,
             backend,
             resumption_psk_store,
-        )?;
+        )
+        .await?;
         group.set_max_past_epochs(mls_group_config.max_past_epochs);
 
         let mls_group = MlsGroup {
@@ -176,7 +182,7 @@ impl MlsGroup {
     ///
     /// Note: If there is a group member in the group with the same identity as us,
     /// this will create a remove proposal.
-    pub fn join_by_external_commit(
+    pub async fn join_by_external_commit(
         backend: &impl OpenMlsCryptoProvider,
         signer: &impl Signer,
         ratchet_tree: Option<RatchetTreeIn>,
@@ -200,7 +206,8 @@ impl MlsGroup {
             params,
             ratchet_tree,
             verifiable_group_info,
-        )?;
+        )
+        .await?;
         group.set_max_past_epochs(mls_group_config.max_past_epochs);
 
         let mls_group = MlsGroup {

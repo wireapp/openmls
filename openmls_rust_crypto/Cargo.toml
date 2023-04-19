@@ -2,7 +2,7 @@
 name = "openmls_rust_crypto"
 authors = ["OpenMLS Authors"]
 version = "0.1.0"
-edition = "2018"
+edition = "2021"
 description = "A crypto backend for OpenMLS implementing openmls_traits using RustCrypto primitives."
 license = "MIT"
 documentation = "https://docs.rs/openmls_rust_crypto"
@@ -17,14 +17,18 @@ sha2 = { version = "0.10" }
 aes-gcm = { version = "0.9" }
 chacha20poly1305 = { version = "0.9" }
 hmac = { version = "0.12" }
-ed25519-dalek = { version = "1.0" }
-rand-07 = {version = "0.7", package = "rand" } # only needed because of ed25519-dalek
-p256 = { version = "0.11" }
+ed25519-dalek = { version = "2.0.0-rc.2", features = ["rand_core"] }
+p256 = { version = "0.13" }
+p384 = { version = "0.13" }
 hkdf = { version = "0.12" }
-rand = "0.8"
+rand_core = "0.6"
 rand_chacha = { version = "0.3" }
-hpke = { version = "0.1.0", package = "hpke-rs", default-features = false, features = ["hazmat", "serialization"] }
-hpke-rs-crypto = { version = "0.1.1" }
-hpke-rs-rust-crypto = { version = "0.1.1" }
 tls_codec = { workspace = true }
+zeroize = { version = "1.6", features = ["derive"] }
+signature = "2.1"
 thiserror = "1.0"
+
+[dependencies.hpke]
+git = "https://github.com/rozbb/rust-hpke.git"
+rev = "2867b0ae90a36f27e2c312fe741f268ad558abbd"
+features = ["x25519", "p256", "p384", "serde_impls"]

@@ -18,7 +18,7 @@ use openmls_traits::{types::Ciphersuite, OpenMlsCryptoProvider};
 use super::{proposals::ProposalStore, CoreGroup};
 
 #[apply(ciphersuites_and_backends)]
-fn test_external_init(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider) {
+async fn test_external_init(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider) {
     let (
         framing_parameters,
         mut group_alice,
@@ -26,11 +26,11 @@ fn test_external_init(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProv
         mut group_bob,
         bob_signer,
         bob_credential_with_key,
-    ) = setup_alice_bob_group(ciphersuite, backend);
+    ) = setup_alice_bob_group(ciphersuite, backend).await;
 
     // Now set up Charlie and try to init externally.
     let (charlie_credential, _charlie_kpb, charlie_signer, _charlie_pk) =
-        setup_client("Charlie", ciphersuite, backend);
+        setup_client("Charlie", ciphersuite, backend).await;
 
     // Have Alice export everything that Charly needs.
     let verifiable_group_info = group_alice
@@ -51,6 +51,7 @@ fn test_external_init(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProv
         None,
         verifiable_group_info,
     )
+    .await
     .expect("Error initializing group externally.");
 
     // Have alice and bob process the commit resulting from external init.
@@ -58,21 +59,26 @@ fn test_external_init(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProv
 
     let staged_commit = group_alice
         .read_keys_and_stage_commit(&create_commit_result.commit, &proposal_store, &[], backend)
+        .await
         .expect("error staging commit");
     group_alice
         .merge_commit(backend, staged_commit)
+        .await
         .expect("error merging commit");
 
     let staged_commit = group_bob
         .read_keys_and_stage_commit(&create_commit_result.commit, &proposal_store, &[], backend)
+        .await
         .expect("error staging commit");
     group_bob
         .merge_commit(backend, staged_commit)
+        .await
         .expect("error merging commit");
 
     // Have charly process their own staged commit
     group_charly
         .merge_commit(backend, create_commit_result.staged_commit)
+        .await
         .expect("error merging own external commit");
 
     assert_eq!(
@@ -93,17 +99,21 @@ fn test_external_init(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProv
         .build();
     let create_commit_result = group_charly
         .create_commit(params, backend, &charlie_signer)
+        .await
         .expect("Error creating commit");
 
     let staged_commit = group_alice
         .read_keys_and_stage_commit(&create_commit_result.commit, &proposal_store, &[], backend)
+        .await
         .expect("error staging commit");
     group_alice
         .merge_commit(backend, staged_commit)
+        .await
         .expect("error merging commit");
 
     group_charly
         .merge_commit(backend, create_commit_result.staged_commit)
+        .await
         .expect("error merging commit");
 
     // Now we assume that Bob somehow lost his group state and wants to add
@@ -129,6 +139,7 @@ fn test_external_init(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProv
         Some(ratchet_tree.into()),
         verifiable_group_info,
     )
+    .await
     .expect("Error initializing group externally.");
 
     // Let's make sure there's a remove in the commit.
@@ -152,21 +163,26 @@ fn test_external_init(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProv
     let proposal_store = ProposalStore::default();
     let staged_commit = group_alice
         .read_keys_and_stage_commit(&create_commit_result.commit, &proposal_store, &[], backend)
+        .await
         .expect("error staging commit");
     group_alice
         .merge_commit(backend, staged_commit)
+        .await
         .expect("error merging commit");
 
     let staged_commit = group_charly
         .read_keys_and_stage_commit(&create_commit_result.commit, &proposal_store, &[], backend)
+        .await
         .expect("error staging commit");
     group_charly
         .merge_commit(backend, staged_commit)
+        .await
         .expect("error merging commit");
 
     // Have Bob process his own staged commit
     new_group_bob
         .merge_commit(backend, create_commit_result.staged_commit)
+        .await
         .expect("error merging own external commit");
 
     assert_eq!(
@@ -181,12 +197,12 @@ fn test_external_init(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProv
 }
 
 #[apply(ciphersuites_and_backends)]
-fn test_external_init_single_member_group(
+async fn test_external_init_single_member_group(
     ciphersuite: Ciphersuite,
     backend: &impl OpenMlsCryptoProvider,
 ) {
     let (mut group_alice, _alice_credential_with_key, alice_signer, _alice_pk) =
-        setup_alice_group(ciphersuite, backend);
+        setup_alice_group(ciphersuite, backend).await;
 
     // Framing parameters
     let group_aad = b"Alice's test group";
@@ -194,7 +210,7 @@ fn test_external_init_single_member_group(
 
     // Now set up charly and try to init externally.
     let (charly_credential, _charly_kpb, charly_signer, _charly_pk) =
-        setup_client("Charly", ciphersuite, backend);
+        setup_client("Charly", ciphersuite, backend).await;
 
     // Have Alice export everything that Charly needs.
     let verifiable_group_info = group_alice
@@ -216,19 +232,23 @@ fn test_external_init_single_member_group(
         Some(ratchet_tree.into()),
         verifiable_group_info,
     )
+    .await
     .expect("Error initializing group externally.");
 
     // Have alice and bob process the commit resulting from external init.
     let proposal_store = ProposalStore::default();
     let staged_commit = group_alice
         .read_keys_and_stage_commit(&create_commit_result.commit, &proposal_store, &[], backend)
+        .await
         .expect("error staging commit");
     group_alice
         .merge_commit(backend, staged_commit)
+        .await
         .expect("error merging commit");
 
     group_charly
         .merge_commit(backend, create_commit_result.staged_commit)
+        .await
         .expect("error merging own external commit");
 
     assert_eq!(
@@ -243,7 +263,7 @@ fn test_external_init_single_member_group(
 }
 
 #[apply(ciphersuites_and_backends)]
-fn test_external_init_broken_signature(
+async fn test_external_init_broken_signature(
     ciphersuite: Ciphersuite,
     backend: &impl OpenMlsCryptoProvider,
 ) {
@@ -254,11 +274,11 @@ fn test_external_init_broken_signature(
         _group_bob,
         _bob_signer,
         _bob_credential_with_key,
-    ) = setup_alice_bob_group(ciphersuite, backend);
+    ) = setup_alice_bob_group(ciphersuite, backend).await;
 
     // Now set up charly and try to init externally.
     let (_charlie_credential, _charlie_kpb, charlie_signer, _charlie_pk) =
-        setup_client("Charlie", ciphersuite, backend);
+        setup_client("Charlie", ciphersuite, backend).await;
 
     let verifiable_group_info = {
         let mut verifiable_group_info = group_alice
@@ -283,6 +303,7 @@ fn test_external_init_broken_signature(
             None,
             verifiable_group_info
         )
+        .await
         .expect_err("Signature was corrupted. This should have failed.")
     );
 }

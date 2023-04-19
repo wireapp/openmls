@@ -77,11 +77,7 @@ use crate::{
 };
 
 #[cfg(test)]
-use super::errors::CreateGroupContextExtProposalError;
-#[cfg(test)]
 use crate::treesync::node::leaf_node::TreePosition;
-#[cfg(test)]
-use std::io::{Error, Read, Write};
 
 #[derive(Debug)]
 pub(crate) struct CreateCommitResult {
@@ -216,7 +212,7 @@ impl CoreGroupBuilder {
     ///
     /// This function performs cryptographic operations and there requires an
     /// [`OpenMlsCryptoProvider`].
-    pub(crate) fn build<KeyStore: OpenMlsKeyStore>(
+    pub(crate) async fn build<KeyStore: OpenMlsKeyStore>(
         self,
         backend: &impl OpenMlsCryptoProvider<KeyStoreProvider = KeyStore>,
         signer: &impl Signer,
@@ -252,9 +248,9 @@ impl CoreGroupBuilder {
 
         // Prepare the PskSecret
         let psk_secret = {
-            let psks = load_psks(backend.key_store(), &resumption_psk_store, &self.psk_ids)?;
+            let psks = load_psks(backend.key_store(), &resumption_psk_store, &self.psk_ids).await?;
 
-            PskSecret::new(backend, ciphersuite, psks)?
+            PskSecret::new(backend, ciphersuite, psks).await?
         };
 
         let mut key_schedule = KeySchedule::init(ciphersuite, backend, &joiner_secret, psk_secret)?;
@@ -296,6 +292,7 @@ impl CoreGroupBuilder {
         // Store the private key of the own leaf in the key store as an epoch keypair.
         group
             .store_epoch_keypairs(backend, &[leaf_keypair])
+            .await
             .map_err(CoreGroupBuildError::KeyStoreError)?;
 
         Ok(group)
@@ -423,7 +420,7 @@ impl CoreGroup {
         framing_parameters: FramingParameters,
         extensions: Extensions,
         signer: &impl Signer,
-    ) -> Result<AuthenticatedContent, CreateGroupContextExtProposalError> {
+    ) -> Result<AuthenticatedContent, crate::prelude::CreateGroupContextExtProposalError> {
         // Ensure that the group supports all the extensions that are wanted.
 
         let required_extension = extensions
@@ -558,19 +555,22 @@ impl CoreGroup {
                     .group_epoch_secrets()
                     .external_secret()
                     .derive_external_keypair(backend.crypto(), self.ciphersuite())
+                    .map_err(LibraryError::unexpected_crypto_error)?
                     .public;
-                Extension::ExternalPub(ExternalPubExtension::new(HpkePublicKey::from(external_pub)))
+                Ok(Extension::ExternalPub(ExternalPubExtension::new(
+                    HpkePublicKey::from(external_pub),
+                )))
             };
 
             if with_ratchet_tree {
-                Extensions::from_vec(vec![ratchet_tree_extension(), external_pub_extension()])
+                Extensions::from_vec(vec![ratchet_tree_extension(), external_pub_extension()?])
                     .map_err(|_| {
                         LibraryError::custom(
                             "There should not have been duplicate extensions here.",
                         )
                     })?
             } else {
-                Extensions::single(external_pub_extension())
+                Extensions::single(external_pub_extension()?)
             }
         };
 
@@ -603,13 +603,13 @@ impl CoreGroup {
 
     /// Loads the state from persisted state
     #[cfg(test)]
-    pub(crate) fn load<R: Read>(reader: R) -> Result<CoreGroup, Error> {
+    pub(crate) fn load(reader: impl std::io::Read) -> Result<CoreGroup, std::io::Error> {
         serde_json::from_reader(reader).map_err(|e| e.into())
     }
 
     /// Persists the state
     #[cfg(test)]
-    pub(crate) fn save<W: Write>(&self, writer: &mut W) -> Result<(), Error> {
+    pub(crate) fn save(&self, writer: &mut impl std::io::Write) -> Result<(), std::io::Error> {
         let serialized_core_group = serde_json::to_string_pretty(self)?;
         writer.write_all(&serialized_core_group.into_bytes())
     }
@@ -754,7 +754,7 @@ impl CoreGroup {
     /// indexed by this group's [`GroupId`] and [`GroupEpoch`].
     ///
     /// Returns an error if access to the key store fails.
-    pub(super) fn store_epoch_keypairs<KeyStore: OpenMlsKeyStore>(
+    pub(super) async fn store_epoch_keypairs<KeyStore: OpenMlsKeyStore>(
         &self,
         backend: &impl OpenMlsCryptoProvider<KeyStoreProvider = KeyStore>,
         keypair_references: &[EncryptionKeyPair],
@@ -767,13 +767,14 @@ impl CoreGroup {
         backend
             .key_store()
             .store(&k.0, &keypair_references.to_vec())
+            .await
     }
 
     /// Read the [`EncryptionKeyPair`]s of this group and its current
     /// [`GroupEpoch`] from the `backend`'s key store.
     ///
     /// Returns `None` if access to the key store fails.
-    pub(super) fn read_epoch_keypairs<KeyStore: OpenMlsKeyStore>(
+    pub(super) async fn read_epoch_keypairs<KeyStore: OpenMlsKeyStore>(
         &self,
         backend: &impl OpenMlsCryptoProvider<KeyStoreProvider = KeyStore>,
     ) -> Vec<EncryptionKeyPair> {
@@ -785,6 +786,7 @@ impl CoreGroup {
         backend
             .key_store()
             .read::<Vec<EncryptionKeyPair>>(&k.0)
+            .await
             .unwrap_or_default()
     }
 
@@ -792,7 +794,7 @@ impl CoreGroup {
     /// the `backend`'s key store.
     ///
     /// Returns an error if access to the key store fails.
-    pub(super) fn delete_previous_epoch_keypairs<KeyStore: OpenMlsKeyStore>(
+    pub(super) async fn delete_previous_epoch_keypairs<KeyStore: OpenMlsKeyStore>(
         &self,
         backend: &impl OpenMlsCryptoProvider<KeyStoreProvider = KeyStore>,
     ) -> Result<(), KeyStore::Error> {
@@ -801,12 +803,15 @@ impl CoreGroup {
             self.context().epoch().as_u64() - 1,
             self.own_leaf_index(),
         );
-        backend.key_store().delete::<Vec<EncryptionKeyPair>>(&k.0)
+        backend
+            .key_store()
+            .delete::<Vec<EncryptionKeyPair>>(&k.0)
+            .await
     }
 
-    pub(crate) fn create_commit<KeyStore: OpenMlsKeyStore>(
+    pub(crate) async fn create_commit<KeyStore: OpenMlsKeyStore>(
         &self,
-        mut params: CreateCommitParams,
+        mut params: CreateCommitParams<'_>,
         backend: &impl OpenMlsCryptoProvider<KeyStoreProvider = KeyStore>,
         signer: &impl Signer,
     ) -> Result<CreateCommitResult, CreateCommitError<KeyStore::Error>> {
@@ -944,9 +949,10 @@ impl CoreGroup {
                 backend.key_store(),
                 &self.resumption_psk_store,
                 &apply_proposals_values.presharedkeys,
-            )?;
+            )
+            .await?;
 
-            PskSecret::new(backend, ciphersuite, psks)?
+            PskSecret::new(backend, ciphersuite, psks).await?
         };
 
         // Create key schedule
@@ -986,6 +992,7 @@ impl CoreGroup {
             let external_pub = provisional_epoch_secrets
                 .external_secret()
                 .derive_external_keypair(backend.crypto(), ciphersuite)
+                .map_err(LibraryError::unexpected_crypto_error)?
                 .public;
             let external_pub_extension =
                 Extension::ExternalPub(ExternalPubExtension::new(external_pub.into()));

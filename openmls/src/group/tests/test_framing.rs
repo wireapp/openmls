@@ -26,7 +26,7 @@ use crate::{
 };
 
 #[apply(backends)]
-fn padding(backend: &impl OpenMlsCryptoProvider) {
+async fn padding(backend: &impl OpenMlsCryptoProvider) {
     // Create a test config for a single client supporting all possible
     // ciphersuites.
     let alice_config = TestClientConfig {
@@ -53,7 +53,7 @@ fn padding(backend: &impl OpenMlsCryptoProvider) {
     };
 
     // Initialize the test setup according to config.
-    let test_setup = setup(test_setup_config, backend);
+    let test_setup = setup(test_setup_config, backend).await;
 
     let test_clients = test_setup.clients.borrow();
     let alice = test_clients
@@ -99,7 +99,7 @@ fn padding(backend: &impl OpenMlsCryptoProvider) {
 
 /// Check that PrivateMessageContent's padding field is verified to be all-zero.
 #[apply(ciphersuites_and_backends)]
-fn bad_padding(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider) {
+async fn bad_padding(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider) {
     let tests = {
         // { 2^i } ∪ { 2^i +- 1 }
         let padding_sizes = [
@@ -121,7 +121,8 @@ fn bad_padding(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider) {
             b"Alice".to_vec(),
             ciphersuite.signature_algorithm(),
             backend,
-        );
+        )
+        .await;
 
         let sender = Sender::build_member(LeafNodeIndex::new(654));
 

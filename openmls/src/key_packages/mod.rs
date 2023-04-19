@@ -246,7 +246,8 @@ impl KeyPackage {
             .map_err(LibraryError::unexpected_crypto_error)?;
         let init_key = backend
             .crypto()
-            .derive_hpke_keypair(config.ciphersuite.hpke_config(), ikm.as_slice());
+            .derive_hpke_keypair(config.ciphersuite.hpke_config(), ikm.as_slice())
+            .map_err(LibraryError::unexpected_crypto_error)?;
         let (key_package, encryption_keypair) = Self::new_from_keys(
             config,
             backend,
@@ -316,16 +317,18 @@ impl KeyPackage {
     }
 
     /// Delete this key package and its private key from the key store.
-    pub fn delete<KeyStore: OpenMlsKeyStore>(
+    pub async fn delete<KeyStore: OpenMlsKeyStore>(
         &self,
         backend: &impl OpenMlsCryptoProvider<KeyStoreProvider = KeyStore>,
     ) -> Result<(), KeyStore::Error> {
         backend
             .key_store()
-            .delete::<Self>(self.hash_ref(backend.crypto()).unwrap().as_slice())?;
+            .delete::<Self>(self.hash_ref(backend.crypto()).unwrap().as_slice())
+            .await?;
         backend
             .key_store()
             .delete::<HpkePrivateKey>(self.hpke_init_key().as_slice())
+            .await
     }
 
     /// Get a reference to the extensions of this key package.
@@ -391,7 +394,7 @@ impl KeyPackage {
 #[allow(clippy::too_many_arguments)]
 impl KeyPackage {
     /// Generate a new key package with a given init key
-    pub fn new_from_init_key<KeyStore: OpenMlsKeyStore>(
+    pub async fn new_from_init_key<KeyStore: OpenMlsKeyStore>(
         config: CryptoConfig,
         backend: &impl OpenMlsCryptoProvider<KeyStoreProvider = KeyStore>,
         signer: &impl Signer,
@@ -421,11 +424,13 @@ impl KeyPackage {
                 key_package.hash_ref(backend.crypto())?.as_slice(),
                 &key_package,
             )
+            .await
             .map_err(KeyPackageNewError::KeyStoreError)?;
 
         // Store the encryption key pair in the key store.
         encryption_key_pair
             .write_to_key_store(backend)
+            .await
             .map_err(KeyPackageNewError::KeyStoreError)?;
 
         Ok(key_package)
@@ -435,7 +440,7 @@ impl KeyPackage {
     /// provided `encryption_key`.
     #[cfg(test)]
     #[allow(clippy::too_many_arguments)]
-    pub(crate) fn new_from_encryption_key<KeyStore: OpenMlsKeyStore>(
+    pub(crate) async fn new_from_encryption_key<KeyStore: OpenMlsKeyStore>(
         config: CryptoConfig,
         backend: &impl OpenMlsCryptoProvider<KeyStoreProvider = KeyStore>,
         signer: &impl Signer,
@@ -449,13 +454,15 @@ impl KeyPackage {
         let ikm = Secret::random(config.ciphersuite, backend, config.version).unwrap();
         let init_key = backend
             .crypto()
-            .derive_hpke_keypair(config.ciphersuite.hpke_config(), ikm.as_slice());
+            .derive_hpke_keypair(config.ciphersuite.hpke_config(), ikm.as_slice())
+            .map_err(LibraryError::unexpected_crypto_error)?;
 
         // Store the private part of the init_key into the key store.
         // The key is the public key.
         backend
             .key_store()
-            .store::<HpkePrivateKey>(&init_key.public, &init_key.private)
+            .store::<HpkePrivateKey>(&init_key.public, &init_key.private.into())
+            .await
             .map_err(KeyPackageNewError::KeyStoreError)?;
 
         // We don't need the private key here. It's stored in the key store for
@@ -489,6 +496,7 @@ impl KeyPackage {
                 key_package.hash_ref(backend.crypto())?.as_slice(),
                 &key_package,
             )
+            .await
             .map_err(KeyPackageNewError::KeyStoreError)?;
 
         Ok(key_package)
@@ -612,7 +620,7 @@ impl KeyPackageBuilder {
     }
 
     /// Finalize and build the key package.
-    pub fn build<KeyStore: OpenMlsKeyStore>(
+    pub async fn build<KeyStore: OpenMlsKeyStore>(
         self,
         config: CryptoConfig,
         backend: &impl OpenMlsCryptoProvider<KeyStoreProvider = KeyStore>,
@@ -642,18 +650,24 @@ impl KeyPackageBuilder {
                 key_package.hash_ref(backend.crypto())?.as_slice(),
                 &key_package,
             )
+            .await
             .map_err(KeyPackageNewError::KeyStoreError)?;
 
         // Store the encryption key pair in the key store.
         encryption_keypair
             .write_to_key_store(backend)
+            .await
             .map_err(KeyPackageNewError::KeyStoreError)?;
 
         // Store the private part of the init_key into the key store.
         // The key is the public key.
         backend
             .key_store()
-            .store::<HpkePrivateKey>(key_package.hpke_init_key().as_slice(), &init_private_key)
+            .store::<HpkePrivateKey>(
+                key_package.hpke_init_key().as_slice(),
+                &init_private_key.into(),
+            )
+            .await
             .map_err(KeyPackageNewError::KeyStoreError)?;
 
         Ok(key_package)
@@ -672,7 +686,7 @@ pub(crate) struct KeyPackageBundle {
 // Public `KeyPackageBundle` functions.
 impl KeyPackageBundle {
     /// Get a reference to the public part of this bundle, i.e. the [`KeyPackage`].
-    pub(crate) fn key_package(&self) -> &KeyPackage {
+    pub fn key_package(&self) -> &KeyPackage {
         &self.key_package
     }
 
@@ -684,7 +698,7 @@ impl KeyPackageBundle {
 
 #[cfg(test)]
 impl KeyPackageBundle {
-    pub(crate) fn new(
+    pub(crate) async fn new(
         backend: &impl OpenMlsCryptoProvider,
         signer: &impl Signer,
         ciphersuite: Ciphersuite,
@@ -700,10 +714,12 @@ impl KeyPackageBundle {
                 signer,
                 credential_with_key,
             )
+            .await
             .unwrap();
         let private_key = backend
             .key_store()
             .read::<HpkePrivateKey>(key_package.hpke_init_key().as_slice())
+            .await
             .unwrap();
         Self {
             key_package,

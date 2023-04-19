@@ -30,7 +30,7 @@ struct ValidationTestSetup {
 }
 
 // Validation test setup
-fn validation_test_setup(
+async fn validation_test_setup(
     wire_format_policy: WireFormatPolicy,
     ciphersuite: Ciphersuite,
     backend: &impl OpenMlsCryptoProvider,
@@ -39,10 +39,10 @@ fn validation_test_setup(
 
     // Generate credentials with keys
     let alice_credential =
-        generate_credential_with_key("Alice".into(), ciphersuite.signature_algorithm(), backend);
+        generate_credential_with_key("Alice".into(), ciphersuite.signature_algorithm(), backend).await;
 
     let bob_credential =
-        generate_credential_with_key("Bob".into(), ciphersuite.signature_algorithm(), backend);
+        generate_credential_with_key("Bob".into(), ciphersuite.signature_algorithm(), backend).await;
 
     // Generate KeyPackages
     let alice_key_package = generate_key_package(
@@ -50,14 +50,16 @@ fn validation_test_setup(
         Extensions::empty(),
         backend,
         alice_credential.clone(),
-    );
+    )
+    .await;
 
     let bob_key_package = generate_key_package(
         ciphersuite,
         Extensions::empty(),
         backend,
         bob_credential.clone(),
-    );
+    )
+    .await;
 
     // Define the MlsGroup configuration
     let mls_group_config = MlsGroupConfig::builder()
@@ -73,6 +75,7 @@ fn validation_test_setup(
         group_id,
         alice_credential.credential_with_key.clone(),
     )
+    .await
     .expect("An unexpected error occurred.");
 
     // === Alice adds Bob & Bob joins ===
@@ -82,10 +85,12 @@ fn validation_test_setup(
             &alice_credential.signer,
             &[bob_key_package.clone()],
         )
+        .await
         .expect("Could not add member.");
 
     alice_group
         .merge_pending_commit(backend)
+        .await
         .expect("error merging pending commit");
 
     let bob_group = MlsGroup::new_from_welcome(
@@ -94,6 +99,7 @@ fn validation_test_setup(
         welcome.into_welcome().expect("Unexpected message type."),
         Some(alice_group.export_ratchet_tree().into()),
     )
+    .await
     .expect("error creating bob's group from welcome");
 
     ValidationTestSetup {
@@ -108,7 +114,7 @@ fn validation_test_setup(
 
 // ValSem002 Group id
 #[apply(ciphersuites_and_backends)]
-fn test_valsem002(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider) {
+async fn test_valsem002(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider) {
     let ValidationTestSetup {
         mut alice_group,
         mut bob_group,
@@ -116,10 +122,11 @@ fn test_valsem002(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider
         _bob_credential: _,
         _alice_key_package: _,
         _bob_key_package: _,
-    } = validation_test_setup(PURE_PLAINTEXT_WIRE_FORMAT_POLICY, ciphersuite, backend);
+    } = validation_test_setup(PURE_PLAINTEXT_WIRE_FORMAT_POLICY, ciphersuite, backend).await;
 
     let (message, _welcome, _group_info) = alice_group
         .self_update(backend, &_alice_credential.signer)
+        .await
         .expect("Could not self-update.");
 
     let serialized_message = message
@@ -139,6 +146,7 @@ fn test_valsem002(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider
 
     let err = bob_group
         .process_message(backend, message_in)
+        .await
         .expect_err("Could parse message despite wrong group ID.");
 
     assert_eq!(
@@ -149,12 +157,13 @@ fn test_valsem002(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider
     // Positive case
     bob_group
         .process_message(backend, ProtocolMessage::from(original_message))
+        .await
         .expect("Unexpected error.");
 }
 
 // ValSem003 Epoch
 #[apply(ciphersuites_and_backends)]
-fn test_valsem003(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider) {
+async fn test_valsem003(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider) {
     let ValidationTestSetup {
         mut alice_group,
         mut bob_group,
@@ -162,20 +171,23 @@ fn test_valsem003(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider
         _bob_credential: _,
         _alice_key_package: _,
         _bob_key_package: _,
-    } = validation_test_setup(PURE_PLAINTEXT_WIRE_FORMAT_POLICY, ciphersuite, backend);
+    } = validation_test_setup(PURE_PLAINTEXT_WIRE_FORMAT_POLICY, ciphersuite, backend).await;
 
     // Alice needs to create a new message that Bob can process.
     let (message, _welcome, _group_info) = alice_group
         .self_update(backend, &_alice_credential.signer)
+        .await
         .expect("Could not self update.");
-    alice_group.merge_pending_commit(backend).unwrap();
+    alice_group.merge_pending_commit(backend).await.unwrap();
 
     alice_group
         .merge_pending_commit(backend)
+        .await
         .expect("Could not merge commit.");
 
     let processed_message = bob_group
         .process_message(backend, message.into_protocol_message().unwrap())
+        .await
         .expect("Could not process message.");
 
     if let ProcessedMessageContent::StagedCommitMessage(staged_commit) =
@@ -183,6 +195,7 @@ fn test_valsem003(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider
     {
         bob_group
             .merge_staged_commit(backend, *staged_commit)
+            .await
             .expect("Error merging commit.");
     } else {
         unreachable!("Expected StagedCommit.");
@@ -191,6 +204,7 @@ fn test_valsem003(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider
     // Do a second Commit to increase the epoch number
     let (message, _welcome, _group_info) = alice_group
         .self_update(backend, &_alice_credential.signer)
+        .await
         .expect("Could not add member.");
 
     let current_epoch = alice_group.epoch();
@@ -207,6 +221,7 @@ fn test_valsem003(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider
     plaintext.set_epoch(current_epoch.as_u64() + 1);
     let err = bob_group
         .process_message(backend, plaintext.clone())
+        .await
         .expect_err("Could parse message despite wrong epoch.");
     assert_eq!(
         err,
@@ -217,6 +232,7 @@ fn test_valsem003(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider
     plaintext.set_epoch(current_epoch.as_u64() - 1);
     let err = bob_group
         .process_message(backend, plaintext)
+        .await
         .expect_err("Could parse message despite wrong epoch.");
     assert_eq!(
         err,
@@ -226,6 +242,7 @@ fn test_valsem003(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider
     // Positive case
     let processed_msg = bob_group
         .process_message(backend, original_message.clone())
+        .await
         .unwrap();
 
     if let ProcessedMessageContent::StagedCommitMessage(staged_commit) =
@@ -233,6 +250,7 @@ fn test_valsem003(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider
     {
         bob_group
             .merge_staged_commit(backend, *staged_commit)
+            .await
             .unwrap();
     } else {
         unreachable!();
@@ -241,14 +259,14 @@ fn test_valsem003(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider
     // Processing a commit twice should fail i.e. an epoch can only be used once in a commit message
     let process_twice = bob_group.process_message(backend, original_message);
     assert_eq!(
-        process_twice.unwrap_err(),
+        process_twice.await.unwrap_err(),
         ProcessMessageError::ValidationError(ValidationError::WrongEpoch)
     );
 }
 
 // ValSem004 Sender: Member: check the member exists
 #[apply(ciphersuites_and_backends)]
-fn test_valsem004(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider) {
+async fn test_valsem004(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider) {
     let ValidationTestSetup {
         mut alice_group,
         mut bob_group,
@@ -256,10 +274,11 @@ fn test_valsem004(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider
         _bob_credential: _,
         _alice_key_package: _,
         _bob_key_package: _,
-    } = validation_test_setup(PURE_PLAINTEXT_WIRE_FORMAT_POLICY, ciphersuite, backend);
+    } = validation_test_setup(PURE_PLAINTEXT_WIRE_FORMAT_POLICY, ciphersuite, backend).await;
 
     let (message, _welcome, _group_info) = alice_group
         .self_update(backend, &_alice_credential.signer)
+        .await
         .expect("Could not self-update.");
 
     let serialized_message = message
@@ -289,6 +308,7 @@ fn test_valsem004(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider
 
     let err = bob_group
         .process_message(backend, message_in)
+        .await
         .expect_err("Could parse message despite wrong sender.");
 
     assert_eq!(
@@ -299,12 +319,13 @@ fn test_valsem004(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider
     // Positive case
     bob_group
         .process_message(backend, ProtocolMessage::from(original_message))
+        .await
         .expect("Unexpected error.");
 }
 
 // ValSem005 Application messages must use ciphertext
 #[apply(ciphersuites_and_backends)]
-fn test_valsem005(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider) {
+async fn test_valsem005(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider) {
     let ValidationTestSetup {
         mut alice_group,
         mut bob_group,
@@ -312,10 +333,11 @@ fn test_valsem005(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider
         _bob_credential: _,
         _alice_key_package: _,
         _bob_key_package: _,
-    } = validation_test_setup(PURE_PLAINTEXT_WIRE_FORMAT_POLICY, ciphersuite, backend);
+    } = validation_test_setup(PURE_PLAINTEXT_WIRE_FORMAT_POLICY, ciphersuite, backend).await;
 
     let (message, _welcome, _group_info) = alice_group
         .self_update(backend, &_alice_credential.signer)
+        .await
         .expect("Could not self-update.");
 
     let serialized_message = message
@@ -344,6 +366,7 @@ fn test_valsem005(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider
 
     let err = bob_group
         .process_message(backend, message_in)
+        .await
         .expect_err("Could parse message despite unencrypted application message.");
 
     assert_eq!(
@@ -354,12 +377,13 @@ fn test_valsem005(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider
     // Positive case
     bob_group
         .process_message(backend, ProtocolMessage::from(original_message))
+        .await
         .expect("Unexpected error.");
 }
 
 // ValSem006 Ciphertext: decryption needs to work
 #[apply(ciphersuites_and_backends)]
-fn test_valsem006(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider) {
+async fn test_valsem006(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider) {
     let ValidationTestSetup {
         mut alice_group,
         mut bob_group,
@@ -367,7 +391,7 @@ fn test_valsem006(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider
         _bob_credential: _,
         _alice_key_package: _,
         _bob_key_package: _,
-    } = validation_test_setup(PURE_CIPHERTEXT_WIRE_FORMAT_POLICY, ciphersuite, backend);
+    } = validation_test_setup(PURE_CIPHERTEXT_WIRE_FORMAT_POLICY, ciphersuite, backend).await;
 
     let message = alice_group
         .create_message(backend, &_alice_credential.signer, &[1, 2, 3])
@@ -390,6 +414,7 @@ fn test_valsem006(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider
 
     let err = bob_group
         .process_message(backend, message_in)
+        .await
         .expect_err("Could parse message despite garbled ciphertext.");
 
     assert_eq!(
@@ -402,12 +427,13 @@ fn test_valsem006(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider
     // Positive case
     bob_group
         .process_message(backend, ProtocolMessage::from(original_message))
+        .await
         .expect("Unexpected error.");
 }
 
 // ValSem007 Membership tag presence
 #[apply(ciphersuites_and_backends)]
-fn test_valsem007(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider) {
+async fn test_valsem007(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider) {
     let ValidationTestSetup {
         mut alice_group,
         mut bob_group,
@@ -415,10 +441,11 @@ fn test_valsem007(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider
         _bob_credential: _,
         _alice_key_package: _,
         _bob_key_package: _,
-    } = validation_test_setup(PURE_PLAINTEXT_WIRE_FORMAT_POLICY, ciphersuite, backend);
+    } = validation_test_setup(PURE_PLAINTEXT_WIRE_FORMAT_POLICY, ciphersuite, backend).await;
 
     let (message, _welcome, _group_info) = alice_group
         .self_update(backend, &_alice_credential.signer)
+        .await
         .expect("Could not self-update.");
 
     let serialized_message = message
@@ -438,6 +465,7 @@ fn test_valsem007(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider
 
     let err = bob_group
         .process_message(backend, message_in)
+        .await
         .expect_err("Could parse message despite missing membership tag.");
 
     assert_eq!(
@@ -448,12 +476,13 @@ fn test_valsem007(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider
     // Positive case
     bob_group
         .process_message(backend, ProtocolMessage::from(original_message))
+        .await
         .expect("Unexpected error.");
 }
 
 // ValSem008 Membership tag verification
 #[apply(ciphersuites_and_backends)]
-fn test_valsem008(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider) {
+async fn test_valsem008(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider) {
     let ValidationTestSetup {
         mut alice_group,
         mut bob_group,
@@ -461,11 +490,12 @@ fn test_valsem008(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider
         _bob_credential: _,
         _alice_key_package: _,
         _bob_key_package: _,
-    } = validation_test_setup(PURE_PLAINTEXT_WIRE_FORMAT_POLICY, ciphersuite, backend);
+    } = validation_test_setup(PURE_PLAINTEXT_WIRE_FORMAT_POLICY, ciphersuite, backend).await;
 
     // Alice needs to create a new message that Bob can process.
     let (message, _welcome, _group_info) = alice_group
         .self_update(backend, &_alice_credential.signer)
+        .await
         .expect("Could not self-update.");
 
     let serialized_message = message
@@ -488,6 +518,7 @@ fn test_valsem008(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider
 
     let err = bob_group
         .process_message(backend, message_in)
+        .await
         .expect_err("Could process message despite wrong membership tag.");
 
     assert_eq!(
@@ -498,12 +529,13 @@ fn test_valsem008(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider
     // Positive case
     bob_group
         .process_message(backend, ProtocolMessage::from(original_message))
+        .await
         .expect("Unexpected error.");
 }
 
 // ValSem009 Confirmation tag presence
 #[apply(ciphersuites_and_backends)]
-fn test_valsem009(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider) {
+async fn test_valsem009(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider) {
     let ValidationTestSetup {
         mut alice_group,
         mut bob_group,
@@ -511,10 +543,11 @@ fn test_valsem009(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider
         _bob_credential: _,
         _alice_key_package: _,
         _bob_key_package: _,
-    } = validation_test_setup(PURE_PLAINTEXT_WIRE_FORMAT_POLICY, ciphersuite, backend);
+    } = validation_test_setup(PURE_PLAINTEXT_WIRE_FORMAT_POLICY, ciphersuite, backend).await;
 
     let (message, _welcome, _group_info) = alice_group
         .self_update(backend, &_alice_credential.signer)
+        .await
         .expect("Could not self-update.");
 
     let serialized_message = message
@@ -543,6 +576,7 @@ fn test_valsem009(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider
 
     let err = bob_group
         .process_message(backend, message_in)
+        .await
         .expect_err("Could parse message despite missing confirmation tag.");
 
     assert_eq!(
@@ -553,12 +587,13 @@ fn test_valsem009(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider
     // Positive case
     bob_group
         .process_message(backend, ProtocolMessage::from(original_message))
+        .await
         .expect("Unexpected error.");
 }
 
 // ValSem010 Signature verification
 #[apply(ciphersuites_and_backends)]
-fn test_valsem010(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider) {
+async fn test_valsem010(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider) {
     let ValidationTestSetup {
         mut alice_group,
         mut bob_group,
@@ -566,11 +601,12 @@ fn test_valsem010(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider
         _bob_credential: _,
         _alice_key_package: _,
         _bob_key_package: _,
-    } = validation_test_setup(PURE_PLAINTEXT_WIRE_FORMAT_POLICY, ciphersuite, backend);
+    } = validation_test_setup(PURE_PLAINTEXT_WIRE_FORMAT_POLICY, ciphersuite, backend).await;
 
     // Alice needs to create a new message that Bob can process.
     let (message, _welcome, _group_info) = alice_group
         .self_update(backend, &_alice_credential.signer)
+        .await
         .expect("Could not self update.");
 
     let serialized_message = message
@@ -600,6 +636,7 @@ fn test_valsem010(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider
 
     let err = bob_group
         .process_message(backend, message_in)
+        .await
         .expect_err("Could process message despite wrong signature.");
 
     assert_eq!(err, ProcessMessageError::InvalidSignature);
@@ -607,5 +644,6 @@ fn test_valsem010(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider
     // Positive case
     bob_group
         .process_message(backend, ProtocolMessage::from(original_message))
+        .await
         .expect("Unexpected error.");
 }

@@ -21,7 +21,7 @@ impl MlsGroup {
     /// commit.
     // FIXME: #1217
     #[allow(clippy::type_complexity)]
-    pub fn self_update<KeyStore: OpenMlsKeyStore>(
+    pub async fn self_update<KeyStore: OpenMlsKeyStore>(
         &mut self,
         backend: &impl OpenMlsCryptoProvider<KeyStoreProvider = KeyStore>,
         signer: &impl Signer,
@@ -37,7 +37,7 @@ impl MlsGroup {
             .build();
         // Create Commit over all proposals.
         // TODO #751
-        let create_commit_result = self.group.create_commit(params, backend, signer)?;
+        let create_commit_result = self.group.create_commit(params, backend, signer).await?;
 
         // Convert PublicMessage messages to MLSMessage and encrypt them if required by
         // the configuration
@@ -64,7 +64,7 @@ impl MlsGroup {
     /// Creates a proposal to update the own leaf node. Optionally, a
     /// [`LeafNode`] can be provided to update the leaf node. Note that its
     /// private key must be manually added to the key store.
-    fn _propose_self_udpate<KeyStore: OpenMlsKeyStore>(
+    pub(crate) async fn _propose_self_update<KeyStore: OpenMlsKeyStore>(
         &mut self,
         backend: &impl OpenMlsCryptoProvider<KeyStoreProvider = KeyStore>,
         signer: &impl Signer,
@@ -102,6 +102,7 @@ impl MlsGroup {
             // TODO #1207: Move to the top of the function.
             keypair
                 .write_to_key_store(backend)
+                .await
                 .map_err(ProposeSelfUpdateError::KeyStoreError)?;
         };
 
@@ -117,13 +118,15 @@ impl MlsGroup {
     }
 
     /// Creates a proposal to update the own leaf node.
-    pub fn propose_self_update<KeyStore: OpenMlsKeyStore>(
+    pub async fn propose_self_update<KeyStore: OpenMlsKeyStore>(
         &mut self,
         backend: &impl OpenMlsCryptoProvider<KeyStoreProvider = KeyStore>,
         signer: &impl Signer,
         leaf_node: Option<LeafNode>,
     ) -> Result<(MlsMessageOut, ProposalRef), ProposeSelfUpdateError<KeyStore::Error>> {
-        let update_proposal = self._propose_self_udpate(backend, signer, leaf_node)?;
+        let update_proposal = self
+            ._propose_self_update(backend, signer, leaf_node)
+            .await?;
         let proposal = QueuedProposal::from_authenticated_content_by_ref(
             self.ciphersuite(),
             backend,
@@ -141,13 +144,15 @@ impl MlsGroup {
     }
 
     /// Creates a proposal to update the own leaf node.
-    pub fn propose_self_update_by_value<KeyStore: OpenMlsKeyStore>(
+    pub async fn propose_self_update_by_value<KeyStore: OpenMlsKeyStore>(
         &mut self,
         backend: &impl OpenMlsCryptoProvider<KeyStoreProvider = KeyStore>,
         signer: &impl Signer,
         leaf_node: Option<LeafNode>,
     ) -> Result<(MlsMessageOut, ProposalRef), ProposeSelfUpdateError<KeyStore::Error>> {
-        let update_proposal = self._propose_self_udpate(backend, signer, leaf_node)?;
+        let update_proposal = self
+            ._propose_self_update(backend, signer, leaf_node)
+            .await?;
         let proposal = QueuedProposal::from_authenticated_content_by_value(
             self.ciphersuite(),
             backend,

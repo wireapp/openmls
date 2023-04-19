@@ -59,7 +59,10 @@ struct TestElement {
     psk_secret: Vec<u8>,
 }
 
-fn run_test_vector(test: TestElement, backend: &impl OpenMlsCryptoProvider) -> Result<(), String> {
+async fn run_test_vector(
+    test: TestElement,
+    backend: &impl OpenMlsCryptoProvider,
+) -> Result<(), String> {
     let ciphersuite = Ciphersuite::try_from(test.cipher_suite).unwrap();
     // Skip unsupported ciphersuites.
     if !backend
@@ -71,29 +74,29 @@ fn run_test_vector(test: TestElement, backend: &impl OpenMlsCryptoProvider) -> R
         return Ok(());
     }
 
-    let psk_ids = test
-        .psks
-        .iter()
-        .map(|psk| {
-            let external_psk = ExternalPsk::new(psk.psk_id.clone());
-            let psk_type = Psk::External(external_psk);
+    let mut psk_ids = vec![];
+    for psk in test.psks.into_iter() {
+        let external_psk = ExternalPsk::new(psk.psk_id.clone());
+        let psk_type = Psk::External(external_psk);
 
-            let psk_id = PreSharedKeyId::new_with_nonce(psk_type, psk.psk_nonce.clone());
+        let psk_id = PreSharedKeyId::new_with_nonce(psk_type, psk.psk_nonce.clone());
 
-            psk_id
-                .write_to_key_store(backend, ciphersuite, &psk.psk)
-                .unwrap();
-            psk_id
-        })
-        .collect::<Vec<_>>();
+        psk_id
+            .write_to_key_store(backend, ciphersuite, &psk.psk)
+            .await
+            .unwrap();
+        psk_ids.push(psk_id);
+    }
 
     // Prepare the PskSecret
     let psk_secret = {
         let resumption_psk_store = ResumptionPskStore::new(1024);
 
-        let psks = load_psks(backend.key_store(), &resumption_psk_store, &psk_ids).unwrap();
+        let psks = load_psks(backend.key_store(), &resumption_psk_store, &psk_ids)
+            .await
+            .unwrap();
 
-        PskSecret::new(backend, ciphersuite, psks).unwrap()
+        PskSecret::new(backend, ciphersuite, psks).await.unwrap()
     };
 
     if psk_secret.secret().as_slice() == test.psk_secret {
@@ -104,14 +107,14 @@ fn run_test_vector(test: TestElement, backend: &impl OpenMlsCryptoProvider) -> R
 }
 
 #[apply(backends)]
-fn read_test_vectors_ps(backend: &impl OpenMlsCryptoProvider) {
+async fn read_test_vectors_ps(backend: &impl OpenMlsCryptoProvider) {
     let _ = pretty_env_logger::try_init();
     log::debug!("Reading test vectors ...");
 
     let tests: Vec<TestElement> = read("test_vectors/psk_secret.json");
 
     for test_vector in tests {
-        match run_test_vector(test_vector, backend) {
+        match run_test_vector(test_vector, backend).await {
             Ok(_) => {}
             Err(e) => panic!("Error while checking PSK secret test vector.\n{e:?}"),
         }

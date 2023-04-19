@@ -73,14 +73,15 @@ mod test {
     use crate::{credentials::CredentialType, test_utils::*};
 
     #[apply(ciphersuites)]
-    fn test_serialize_deserialize(ciphersuite: Ciphersuite) {
+    async fn test_serialize_deserialize(ciphersuite: Ciphersuite) {
+        let mut rng = rand::thread_rng();
         let tests = {
             let mut external_sender_extensions = Vec::new();
 
             for _ in 0..8 {
                 let credential = Credential::new(b"Alice".to_vec(), CredentialType::Basic).unwrap();
                 let signature_keys =
-                    SignatureKeyPair::new(ciphersuite.signature_algorithm()).unwrap();
+                    SignatureKeyPair::new(ciphersuite.signature_algorithm(), &mut rng).unwrap();
 
                 external_sender_extensions.push(ExternalSender {
                     signature_key: signature_keys.to_public_vec().into(),

@@ -9,8 +9,6 @@ use std::fmt::Display;
 #[cfg(test)]
 use crate::ciphersuite::*;
 use crate::extensions::*;
-#[cfg(test)]
-use crate::utils::*;
 
 use openmls_traits::OpenMlsCryptoProvider;
 use serde::{Deserialize, Serialize};

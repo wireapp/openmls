@@ -179,7 +179,7 @@ impl LeafNode {
     /// This function can be used when generating an update. In most other cases
     /// a leaf node should be generated as part of a new [`KeyPackage`].
     #[cfg(test)]
-    pub(crate) fn updated<KeyStore: OpenMlsKeyStore>(
+    pub(crate) async fn updated<KeyStore: OpenMlsKeyStore>(
         &self,
         config: CryptoConfig,
         tree_info_tbs: TreeInfoTbs,
@@ -198,6 +198,7 @@ impl LeafNode {
             backend,
             signer,
         )
+        .await
     }
 
     /// Generate a fresh leaf node.
@@ -208,7 +209,7 @@ impl LeafNode {
     /// This function can be used when generating an update. In most other cases
     /// a leaf node should be generated as part of a new [`KeyPackage`].
     #[cfg(test)]
-    pub(crate) fn generate_update<KeyStore: OpenMlsKeyStore>(
+    pub(crate) async fn generate_update<KeyStore: OpenMlsKeyStore>(
         config: CryptoConfig,
         credential_with_key: CredentialWithKey,
         capabilities: Capabilities,
@@ -234,6 +235,7 @@ impl LeafNode {
         // Store the encryption key pair in the key store.
         encryption_key_pair
             .write_to_key_store(backend)
+            .await
             .map_err(LeafNodeGenerationError::KeyStoreError)?;
 
         Ok(leaf_node)

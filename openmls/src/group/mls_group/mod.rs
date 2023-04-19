@@ -295,18 +295,22 @@ impl MlsGroup {
     // === Load & save ===
 
     /// Loads the state from persisted state.
-    pub fn load(group_id: &GroupId, backend: &impl OpenMlsCryptoProvider) -> Option<MlsGroup> {
-        backend.key_store().read(group_id.as_slice())
+    pub async fn load(
+        group_id: &GroupId,
+        backend: &impl OpenMlsCryptoProvider,
+    ) -> Option<MlsGroup> {
+        backend.key_store().read(group_id.as_slice()).await
     }
 
     /// Persists the state.
-    pub fn save<KeyStore: OpenMlsKeyStore>(
+    pub async fn save<KeyStore: OpenMlsKeyStore>(
         &mut self,
         backend: &impl OpenMlsCryptoProvider<KeyStoreProvider = KeyStore>,
     ) -> Result<(), KeyStore::Error> {
         backend
             .key_store()
-            .store(self.group_id().as_slice(), &*self)?;
+            .store(self.group_id().as_slice(), &*self)
+            .await?;
 
         self.state_changed = InnerState::Persisted;
         Ok(())

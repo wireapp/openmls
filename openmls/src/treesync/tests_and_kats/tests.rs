@@ -16,7 +16,7 @@ mod test_unmerged_leaves;
 /// Pathological example taken from ...
 ///   https://github.com/mlswg/mls-protocol/issues/690#issue-1244086547.
 #[apply(ciphersuites_and_backends)]
-fn that_commit_secret_is_derived_from_end_of_update_path_not_root(
+async fn that_commit_secret_is_derived_from_end_of_update_path_not_root(
     ciphersuite: Ciphersuite,
     backend: &impl OpenMlsCryptoProvider,
 ) {
@@ -36,13 +36,13 @@ fn that_commit_secret_is_derived_from_end_of_update_path_not_root(
         backend: OpenMlsRustCrypto,
     }
 
-    fn create_member(
+    async fn create_member(
         ciphersuite: Ciphersuite,
         backend: OpenMlsRustCrypto,
         name: Vec<u8>,
     ) -> Member {
         let credential_with_key_and_signer =
-            generate_credential_with_key(name.clone(), ciphersuite.signature_algorithm(), &backend);
+            generate_credential_with_key(name.clone(), ciphersuite.signature_algorithm(), &backend).await;
         let key_package = KeyPackage::builder()
             .build(
                 CryptoConfig::with_default_version(ciphersuite),
@@ -50,6 +50,7 @@ fn that_commit_secret_is_derived_from_end_of_update_path_not_root(
                 &credential_with_key_and_signer.signer,
                 credential_with_key_and_signer.credential_with_key.clone(),
             )
+            .await
             .unwrap();
 
         Member {
@@ -82,10 +83,10 @@ fn that_commit_secret_is_derived_from_end_of_update_path_not_root(
             .unwrap()
     }
 
-    let alice = create_member(ciphersuite, OpenMlsRustCrypto::default(), "alice".into());
-    let bob = create_member(ciphersuite, OpenMlsRustCrypto::default(), "bob".into());
-    let charlie = create_member(ciphersuite, OpenMlsRustCrypto::default(), "charlie".into());
-    let dave = create_member(ciphersuite, OpenMlsRustCrypto::default(), "dave".into());
+    let alice = create_member(ciphersuite, OpenMlsRustCrypto::default(), "alice".into()).await;
+    let bob = create_member(ciphersuite, OpenMlsRustCrypto::default(), "bob".into()).await;
+    let charlie = create_member(ciphersuite, OpenMlsRustCrypto::default(), "charlie".into()).await;
+    let dave = create_member(ciphersuite, OpenMlsRustCrypto::default(), "dave".into()).await;
 
     // `A` creates a group with `B`, `C`, and `D` ...
     let mut alice_group = MlsGroup::new(
@@ -97,6 +98,7 @@ fn that_commit_secret_is_derived_from_end_of_update_path_not_root(
             .credential_with_key
             .clone(),
     )
+    .await
     .unwrap();
     alice_group.print_ratchet_tree("Alice (after new)");
 
@@ -106,9 +108,13 @@ fn that_commit_secret_is_derived_from_end_of_update_path_not_root(
             &alice.credential_with_key_and_signer.signer,
             &[bob.key_package, charlie.key_package, dave.key_package],
         )
+        .await
         .expect("Adding members failed.");
 
-    alice_group.merge_pending_commit(&alice.backend).unwrap();
+    alice_group
+        .merge_pending_commit(&alice.backend)
+        .await
+        .unwrap();
     alice_group.print_ratchet_tree("Alice (after add_members)");
 
     // ---------------------------------------------------------------------------------------------
@@ -121,6 +127,7 @@ fn that_commit_secret_is_derived_from_end_of_update_path_not_root(
             welcome.into_welcome().unwrap(),
             None,
         )
+        .await
         .expect("Joining the group failed.")
     };
     charlie_group.print_ratchet_tree("Charlie (after new)");
@@ -133,10 +140,12 @@ fn that_commit_secret_is_derived_from_end_of_update_path_not_root(
             &charlie.credential_with_key_and_signer.signer,
             &[alice, bob],
         )
+        .await
         .expect("Removal of members failed.");
 
     charlie_group
         .merge_pending_commit(&charlie.backend)
+        .await
         .unwrap();
     charlie_group.print_ratchet_tree("Charlie (after remove)");
 

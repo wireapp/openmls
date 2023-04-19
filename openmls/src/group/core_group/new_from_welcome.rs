@@ -13,7 +13,7 @@ use crate::{
 
 impl CoreGroup {
     // Join a group from a welcome message
-    pub fn new_from_welcome<KeyStore: OpenMlsKeyStore>(
+    pub async fn new_from_welcome<KeyStore: OpenMlsKeyStore>(
         welcome: Welcome,
         ratchet_tree: Option<RatchetTreeIn>,
         key_package_bundle: KeyPackageBundle,
@@ -29,9 +29,12 @@ impl CoreGroup {
             backend,
             key_package_bundle.key_package.leaf_node().encryption_key(),
         )
+        .await
         .ok_or(WelcomeError::NoMatchingEncryptionKey)?;
+
         leaf_keypair
             .delete_from_key_store(backend)
+            .await
             .map_err(|_| WelcomeError::NoMatchingEncryptionKey)?;
 
         let ciphersuite = welcome.ciphersuite();
@@ -67,9 +70,10 @@ impl CoreGroup {
                 backend.key_store(),
                 &resumption_psk_store,
                 &group_secrets.psks,
-            )?;
+            )
+            .await?;
 
-            PskSecret::new(backend, ciphersuite, psks)?
+            PskSecret::new(backend, ciphersuite, psks).await?
         };
 
         // Create key schedule
@@ -239,6 +243,7 @@ impl CoreGroup {
         };
         group
             .store_epoch_keypairs(backend, group_keypairs.as_slice())
+            .await
             .map_err(WelcomeError::KeyStoreError)?;
 
         Ok(group)

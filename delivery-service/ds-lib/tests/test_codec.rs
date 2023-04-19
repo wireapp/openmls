@@ -5,20 +5,24 @@ use openmls_rust_crypto::OpenMlsRustCrypto;
 use openmls_traits::OpenMlsCryptoProvider;
 use tls_codec::{Deserialize, Serialize};
 
-#[test]
-fn test_client_info() {
+#[tokio::test]
+async fn test_client_info() {
     let crypto = &OpenMlsRustCrypto::default();
     let client_name = "Client1";
     let ciphersuite = Ciphersuite::MLS_128_DHKEMX25519_AES128GCM_SHA256_Ed25519;
 
     let credential =
         Credential::new(client_name.as_bytes().to_vec(), CredentialType::Basic).unwrap();
-    let signature_keys = SignatureKeyPair::new(ciphersuite.signature_algorithm()).unwrap();
+    let signature_keys = SignatureKeyPair::new(
+        ciphersuite.signature_algorithm(),
+        &mut *crypto.rand().borrow_rand().unwrap(),
+    )
+    .unwrap();
     let credential_with_key = CredentialWithKey {
         credential,
         signature_key: signature_keys.to_public_vec().into(),
     };
-    signature_keys.store(crypto.key_store()).unwrap();
+    signature_keys.store(crypto.key_store()).await.unwrap();
 
     let client_key_package = KeyPackage::builder()
         .build(
@@ -30,6 +34,7 @@ fn test_client_info() {
             &signature_keys,
             credential_with_key,
         )
+        .await
         .unwrap();
 
     let client_key_package = vec![(

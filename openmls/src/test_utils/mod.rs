@@ -28,18 +28,18 @@ use crate::{
 
 pub mod test_framework;
 
-pub(crate) fn write(file_name: &str, obj: impl Serialize) {
-    let mut file = match File::create(file_name) {
-        Ok(f) => f,
-        Err(_) => panic!("Couldn't open file {file_name}."),
-    };
-    file.write_all(
-        serde_json::to_string_pretty(&obj)
-            .expect("Error serializing test vectors")
-            .as_bytes(),
-    )
-    .expect("Error writing test vector file");
-}
+// pub(crate) fn write(file_name: &str, obj: impl Serialize) {
+//     let mut file = match File::create(file_name) {
+//         Ok(f) => f,
+//         Err(_) => panic!("Couldn't open file {file_name}."),
+//     };
+//     file.write_all(
+//         serde_json::to_string_pretty(&obj)
+//             .expect("Error serializing test vectors")
+//             .as_bytes(),
+//     )
+//     .expect("Error writing test vector file");
+// }
 
 pub(crate) fn read<T: DeserializeOwned>(file_name: &str) -> T {
     let file = match File::open(file_name) {
@@ -96,20 +96,26 @@ pub(crate) struct GroupCandidate {
 }
 
 #[cfg(test)]
-pub(crate) fn generate_group_candidate(
+pub(crate) async fn generate_group_candidate(
     identity: &[u8],
     ciphersuite: Ciphersuite,
     backend: &impl OpenMlsCryptoProvider,
     use_store: bool,
 ) -> GroupCandidate {
+    use openmls_traits::random::OpenMlsRand;
+
     let credential_with_key_and_signer = {
         let credential = Credential::new(identity.to_vec(), CredentialType::Basic).unwrap();
 
-        let signature_keypair = SignatureKeyPair::new(ciphersuite.signature_algorithm()).unwrap();
+        let signature_keypair = SignatureKeyPair::new(
+            ciphersuite.signature_algorithm(),
+            &mut *backend.rand().borrow_rand().unwrap(),
+        )
+        .unwrap();
 
         // Store if there is a key store.
         if use_store {
-            signature_keypair.store(backend.key_store()).unwrap();
+            signature_keypair.store(backend.key_store()).await.unwrap();
         }
 
         let signature_pkey = OpenMlsSignaturePublicKey::new(
@@ -138,17 +144,20 @@ pub(crate) fn generate_group_candidate(
                     &credential_with_key_and_signer.signer,
                     credential_with_key_and_signer.credential_with_key.clone(),
                 )
+                .await
                 .unwrap();
 
             let encryption_keypair = EncryptionKeyPair::read_from_key_store(
                 backend,
                 key_package.leaf_node().encryption_key(),
             )
+            .await
             .unwrap();
             let init_keypair = {
                 let private = backend
                     .key_store()
                     .read::<HpkePrivateKey>(key_package.hpke_init_key().as_slice())
+                    .await
                     .unwrap();
 
                 HpkeKeyPair {
@@ -200,52 +209,20 @@ pub(crate) fn generate_group_candidate(
 
 // === Define backend per platform ===
 
-// For now we only use Evercrypt on specific platforms and only if the feature was enabled
-
-#[cfg(all(
-    target_arch = "x86_64",
-    not(target_os = "macos"),
-    not(target_family = "wasm"),
-    feature = "evercrypt",
-))]
-pub use openmls_evercrypt::OpenMlsEvercrypt;
 // This backend is currently used on all platforms
 pub use openmls_rust_crypto::OpenMlsRustCrypto;
 
 // === Backends ===
 
-#[cfg(any(
-    not(target_arch = "x86_64"),
-    target_os = "macos",
-    target_family = "wasm",
-    not(feature = "evercrypt")
-))]
 #[template]
 #[export]
 #[rstest(backend,
     case::rust_crypto(&OpenMlsRustCrypto::default()),
   )
 ]
+#[tokio::test]
 #[allow(non_snake_case)]
-pub fn backends(backend: &impl OpenMlsCryptoProvider) {}
-
-// For now we only use Evercrypt on specific platforms and only if the feature was enabled
-
-#[cfg(all(
-    target_arch = "x86_64",
-    not(target_os = "macos"),
-    not(target_family = "wasm"),
-    feature = "evercrypt",
-))]
-#[template]
-#[export]
-#[rstest(backend,
-    case::rust_crypto(&OpenMlsRustCrypto::default()),
-    case::evercrypt(&openmls_evercrypt::OpenMlsEvercrypt::default()),
-  )
-]
-#[allow(non_snake_case)]
-pub fn backends(backend: &impl OpenMlsCryptoProvider) {}
+pub async fn backends(backend: &impl OpenMlsCryptoProvider) {}
 
 // === Ciphersuites ===
 
@@ -261,50 +238,32 @@ pub fn backends(backend: &impl OpenMlsCryptoProvider) {}
     case::MLS_128_DHKEMP256_AES128GCM_SHA256_P256(
         Ciphersuite::MLS_128_DHKEMP256_AES128GCM_SHA256_P256
     ),
+    case::MLS_256_DHKEMP384_AES256GCM_SHA384_P384(
+        Ciphersuite::MLS_256_DHKEMP384_AES256GCM_SHA384_P384
+    ),
     case::MLS_128_DHKEMX25519_CHACHA20POLY1305_SHA256_Ed25519(
         Ciphersuite::MLS_128_DHKEMX25519_CHACHA20POLY1305_SHA256_Ed25519
     )
 )]
 #[allow(non_snake_case)]
-pub fn ciphersuites(ciphersuite: Ciphersuite) {}
+#[tokio::test]
+pub async fn ciphersuites(ciphersuite: Ciphersuite) {}
 
 // === Ciphersuites & backends ===
 
-#[cfg(any(
-    not(target_arch = "x86_64"),
-    target_os = "macos",
-    target_family = "wasm",
-    not(feature = "evercrypt"),
-))]
 #[template]
 #[export]
 #[rstest(ciphersuite, backend,
     case::rust_crypto_MLS_128_DHKEMX25519_AES128GCM_SHA256_Ed25519(Ciphersuite::MLS_128_DHKEMX25519_AES128GCM_SHA256_Ed25519, &OpenMlsRustCrypto::default()),
     case::rust_crypto_MLS_128_DHKEMP256_AES128GCM_SHA256_P256(Ciphersuite::MLS_128_DHKEMP256_AES128GCM_SHA256_P256, &OpenMlsRustCrypto::default()),
+    case::rust_crypto_MLS_256_DHKEMP384_AES256GCM_SHA384_P384(Ciphersuite::MLS_256_DHKEMP384_AES256GCM_SHA384_P384, &OpenMlsRustCrypto::default()),
     case::rust_crypto_MLS_128_DHKEMX25519_CHACHA20POLY1305_SHA256_Ed25519(Ciphersuite::MLS_128_DHKEMX25519_CHACHA20POLY1305_SHA256_Ed25519, &OpenMlsRustCrypto::default()),
   )
 ]
+#[tokio::test]
 #[allow(non_snake_case)]
-pub fn ciphersuites_and_backends(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider) {}
-
-// For now we only use Evercrypt on specific platforms and only if the feature was enabled
-
-#[cfg(all(
-    target_arch = "x86_64",
-    not(target_os = "macos"),
-    not(target_family = "wasm"),
-    feature = "evercrypt",
-))]
-#[template]
-#[export]
-#[rstest(ciphersuite, backend,
-    case::rust_crypto_MLS_128_DHKEMX25519_AES128GCM_SHA256_Ed25519(Ciphersuite::MLS_128_DHKEMX25519_AES128GCM_SHA256_Ed25519, &OpenMlsRustCrypto::default()),
-    case::rust_crypto_MLS_128_DHKEMP256_AES128GCM_SHA256_P256(Ciphersuite::MLS_128_DHKEMP256_AES128GCM_SHA256_P256, &OpenMlsRustCrypto::default()),
-    case::rust_crypto_MLS_128_DHKEMX25519_CHACHA20POLY1305_SHA256_Ed25519(Ciphersuite::MLS_128_DHKEMX25519_CHACHA20POLY1305_SHA256_Ed25519, &OpenMlsRustCrypto::default()),
-    case::evercrypt_MLS_128_DHKEMX25519_AES128GCM_SHA256_Ed25519(Ciphersuite::MLS_128_DHKEMX25519_AES128GCM_SHA256_Ed25519, &openmls_evercrypt::OpenMlsEvercrypt::default()),
-    case::evercrypt_MLS_128_DHKEMP256_AES128GCM_SHA256_P256(Ciphersuite::MLS_128_DHKEMP256_AES128GCM_SHA256_P256, &openmls_evercrypt::OpenMlsEvercrypt::default()),
-    case::evercrypt_MLS_128_DHKEMX25519_CHACHA20POLY1305_SHA256_Ed25519(Ciphersuite::MLS_128_DHKEMX25519_CHACHA20POLY1305_SHA256_Ed25519, &openmls_evercrypt::OpenMlsEvercrypt::default()),
-  )
-]
-#[allow(non_snake_case)]
-pub fn ciphersuites_and_backends(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider) {}
+pub async fn ciphersuites_and_backends(
+    ciphersuite: Ciphersuite,
+    backend: &impl OpenMlsCryptoProvider,
+) {
+}

@@ -9,7 +9,7 @@ use openmls::{
 };
 
 #[apply(ciphersuites)]
-fn decryption_key_index_computation(ciphersuite: Ciphersuite) {
+async fn decryption_key_index_computation(ciphersuite: Ciphersuite) {
     println!("Testing ciphersuite {ciphersuite:?}");
 
     // Some basic setup functions for the MlsGroup.
@@ -19,10 +19,12 @@ fn decryption_key_index_computation(ciphersuite: Ciphersuite) {
         mls_group_config,
         number_of_clients,
         CodecUse::StructMessages,
-    );
+    )
+    .await;
     // Create a basic group with more than 4 members to create a tree with intermediate nodes.
     let group_id = setup
         .create_random_group(10, ciphersuite)
+        .await
         .expect("An unexpected error occurred.");
     let mut groups = setup.groups.write().expect("An unexpected error occurred.");
     let group = groups
@@ -46,6 +48,7 @@ fn decryption_key_index_computation(ciphersuite: Ciphersuite) {
             remover_id,
             &[LeafNodeIndex::new(2)],
         )
+        .await
         .expect("An unexpected error occurred.");
 
     // Then we have the member at index 7 remove the one at index 3. This
@@ -65,10 +68,11 @@ fn decryption_key_index_computation(ciphersuite: Ciphersuite) {
             remover_id,
             &[LeafNodeIndex::new(3)],
         )
+        .await
         .expect("An unexpected error occurred.");
 
     // Since the decryption failure doesn't cause a panic, but only an error
     // message in the callback, we also have to check that the group states
     // match for all group members.
-    setup.check_group_states(group);
+    setup.check_group_states(group).await;
 }

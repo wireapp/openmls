@@ -48,7 +48,10 @@ struct TestElement {
     tree_after: Vec<u8>,
 }
 
-fn run_test_vector(test: TestElement, backend: &impl OpenMlsCryptoProvider) -> Result<(), String> {
+async fn run_test_vector(
+    test: TestElement,
+    backend: &impl OpenMlsCryptoProvider,
+) -> Result<(), String> {
     let ciphersuite = Ciphersuite::MLS_128_DHKEMX25519_AES128GCM_SHA256_Ed25519;
 
     let group_id = GroupId::random(backend);
@@ -120,14 +123,14 @@ fn run_test_vector(test: TestElement, backend: &impl OpenMlsCryptoProvider) -> R
 }
 
 #[apply(backends)]
-fn read_test_vectors_tree_operations(backend: &impl OpenMlsCryptoProvider) {
+async fn read_test_vectors_tree_operations(backend: &impl OpenMlsCryptoProvider) {
     let _ = pretty_env_logger::try_init();
     log::debug!("Reading test vectors ...");
 
     let tests: Vec<TestElement> = read("test_vectors/tree-operations.json");
 
     for test_vector in tests {
-        match run_test_vector(test_vector, backend) {
+        match run_test_vector(test_vector, backend).await {
             Ok(_) => {}
             Err(e) => panic!("Error while checking tree operations test vector.\n{e:?}"),
         }

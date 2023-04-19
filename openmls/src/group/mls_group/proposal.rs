@@ -122,7 +122,7 @@ impl MlsGroup {
     );
 
     /// Generate a proposal
-    pub fn propose<KeyStore: OpenMlsKeyStore>(
+    pub async fn propose<KeyStore: OpenMlsKeyStore>(
         &mut self,
         backend: &impl OpenMlsCryptoProvider<KeyStoreProvider = KeyStore>,
         signer: &impl Signer,
@@ -142,9 +142,11 @@ impl MlsGroup {
             Propose::Update(leaf_node) => match ref_or_value {
                 ProposalOrRefType::Proposal => self
                     .propose_self_update_by_value(backend, signer, leaf_node)
+                    .await
                     .map_err(|e| e.into()),
                 ProposalOrRefType::Reference => self
                     .propose_self_update(backend, signer, leaf_node)
+                    .await
                     .map_err(|e| e.into()),
             },
 

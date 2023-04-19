@@ -302,7 +302,8 @@ impl PathSecret {
             .map_err(LibraryError::unexpected_crypto_error)?;
         let HpkeKeyPair { public, private } = backend
             .crypto()
-            .derive_hpke_keypair(ciphersuite.hpke_config(), node_secret.as_slice());
+            .derive_hpke_keypair(ciphersuite.hpke_config(), node_secret.as_slice())
+            .map_err(LibraryError::unexpected_crypto_error)?;
 
         Ok((HpkePublicKey::from(public), private).into())
     }
@@ -459,6 +460,7 @@ impl GroupSecrets {
 
 #[cfg(test)]
 impl GroupSecrets {
+    #[allow(dead_code)]
     pub fn random_encoded(
         ciphersuite: Ciphersuite,
         backend: &impl OpenMlsCryptoProvider,

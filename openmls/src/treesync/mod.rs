@@ -724,12 +724,12 @@ mod test {
     }
 
     #[apply(ciphersuites_and_backends)]
-    fn test_ratchet_tree_trailing_blank_nodes(
+    async fn test_ratchet_tree_trailing_blank_nodes(
         ciphersuite: Ciphersuite,
         backend: &impl OpenMlsCryptoProvider,
     ) {
         let (key_package, _, _) =
-            crate::key_packages::test_key_packages::key_package(ciphersuite, backend);
+            crate::key_packages::test_key_packages::key_package(ciphersuite, backend).await;
         let node_in = NodeIn::from(Node::LeafNode(LeafNode::from(key_package)));
         let tests = [
             (vec![], false),

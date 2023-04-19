@@ -84,7 +84,9 @@ use std::convert::TryFrom;
 use itertools::izip;
 use openmls_basic_credential::SignatureKeyPair;
 use openmls_rust_crypto::OpenMlsRustCrypto;
-use openmls_traits::{signatures::Signer, types::SignatureScheme, OpenMlsCryptoProvider};
+use openmls_traits::{
+    random::OpenMlsRand, signatures::Signer, types::SignatureScheme, OpenMlsCryptoProvider,
+};
 use serde::{self, Deserialize, Serialize};
 use thiserror::Error;
 
@@ -139,15 +141,19 @@ pub struct EncryptionTestVector {
     leaves: Vec<LeafSequence>,
 }
 
-fn generate_credential(
+async fn generate_credential(
     identity: Vec<u8>,
     credential_type: CredentialType,
     signature_algorithm: SignatureScheme,
     backend: &impl OpenMlsCryptoProvider,
 ) -> (CredentialWithKey, SignatureKeyPair) {
     let credential = Credential::new(identity, credential_type).unwrap();
-    let signature_keys = SignatureKeyPair::new(signature_algorithm).unwrap();
-    signature_keys.store(backend.key_store()).unwrap();
+    let signature_keys = SignatureKeyPair::new(
+        signature_algorithm,
+        &mut *backend.rand().borrow_rand().unwrap(),
+    )
+    .unwrap();
+    signature_keys.store(backend.key_store()).await.unwrap();
 
     (
         CredentialWithKey {
@@ -159,7 +165,7 @@ fn generate_credential(
 }
 
 #[cfg(any(feature = "test-utils", test))]
-fn group(
+async fn group(
     ciphersuite: Ciphersuite,
     backend: &impl OpenMlsCryptoProvider,
 ) -> (CoreGroup, CredentialWithKey, SignatureKeyPair) {
@@ -170,7 +176,8 @@ fn group(
         CredentialType::Basic,
         ciphersuite.signature_algorithm(),
         backend,
-    );
+    )
+    .await;
 
     let group = CoreGroup::builder(
         GroupId::random(backend),
@@ -178,13 +185,14 @@ fn group(
         credential_with_key.clone(),
     )
     .build(backend, &signer)
+    .await
     .unwrap();
 
     (group, credential_with_key, signer)
 }
 
 #[cfg(any(feature = "test-utils", test))]
-fn receiver_group(
+async fn receiver_group(
     ciphersuite: Ciphersuite,
     backend: &impl OpenMlsCryptoProvider,
     group_id: GroupId,
@@ -196,7 +204,8 @@ fn receiver_group(
         CredentialType::Basic,
         ciphersuite.signature_algorithm(),
         backend,
-    );
+    )
+    .await;
 
     let group = CoreGroup::builder(
         group_id,
@@ -204,6 +213,7 @@ fn receiver_group(
         credential_with_key.clone(),
     )
     .build(backend, &signer)
+    .await
     .unwrap();
 
     (group, credential_with_key, signer)
@@ -321,13 +331,11 @@ fn build_application_messages(
 }
 
 #[cfg(any(feature = "test-utils", test))]
-pub fn generate_test_vector(
+pub async fn generate_test_vector(
     n_generations: u32,
     n_leaves: u32,
     ciphersuite: Ciphersuite,
 ) -> EncryptionTestVector {
-    use openmls_traits::random::OpenMlsRand;
-
     use crate::binary_tree::array_representation::TreeSize;
 
     let ciphersuite_name = ciphersuite;
@@ -357,7 +365,7 @@ pub fn generate_test_vector(
         nonce: bytes_to_hex(sender_data_nonce.as_slice()),
     };
 
-    let (mut group, _, signer) = group(ciphersuite, &crypto);
+    let (mut group, _, signer) = group(ciphersuite, &crypto).await;
     *group.message_secrets_test_mut().sender_data_secret_mut() = SenderDataSecret::from_slice(
         sender_data_secret_bytes,
         ProtocolVersion::default(),
@@ -453,32 +461,32 @@ pub fn generate_test_vector(
     }
 }
 
-#[test]
-fn write_test_vectors() {
-    let _ = pretty_env_logger::try_init();
-    use openmls_traits::crypto::OpenMlsCrypto;
-    let mut tests = Vec::new();
-    const NUM_LEAVES: u32 = 10;
-    const NUM_GENERATIONS: u32 = 15;
+// #[tokio::test]
+// async fn write_test_vectors() {
+//     let _ = pretty_env_logger::try_init();
+//     use openmls_traits::crypto::OpenMlsCrypto;
+//     let mut tests = Vec::new();
+//     const NUM_LEAVES: u32 = 10;
+//     const NUM_GENERATIONS: u32 = 15;
 
-    log::debug!("Generating new test vectors ...");
+//     log::debug!("Generating new test vectors ...");
 
-    for &ciphersuite in OpenMlsRustCrypto::default()
-        .crypto()
-        .supported_ciphersuites()
-        .iter()
-    {
-        for n_leaves in 1u32..NUM_LEAVES {
-            let test = generate_test_vector(NUM_GENERATIONS, n_leaves, ciphersuite);
-            tests.push(test);
-        }
-    }
+//     for &ciphersuite in OpenMlsRustCrypto::default()
+//         .crypto()
+//         .supported_ciphersuites()
+//         .iter()
+//     {
+//         for n_leaves in 1u32..NUM_LEAVES {
+//             let test = generate_test_vector(NUM_GENERATIONS, n_leaves, ciphersuite).await;
+//             tests.push(test);
+//         }
+//     }
 
-    write("test_vectors/kat_encryption_openmls-new.json", &tests);
-}
+//     write("test_vectors/kat_encryption_openmls-new.json", &tests);
+// }
 
 #[cfg(any(feature = "test-utils", test))]
-pub fn run_test_vector(
+pub async fn run_test_vector(
     test_vector: EncryptionTestVector,
     backend: &impl OpenMlsCryptoProvider,
 ) -> Result<(), EncTestVectorError> {
@@ -612,7 +620,8 @@ pub fn run_test_vector(
                 ciphersuite,
                 backend,
                 mls_ciphertext_application.group_id().clone(),
-            );
+            )
+            .await;
             *group.message_secrets_test_mut().sender_data_secret_mut() =
                 SenderDataSecret::from_slice(
                     hex_to_bytes(&test_vector.sender_data_secret).as_slice(),
@@ -766,7 +775,8 @@ pub fn run_test_vector(
                 ciphersuite,
                 backend,
                 mls_ciphertext_handshake.group_id().clone(),
-            );
+            )
+            .await;
             *group.message_secrets_test_mut().sender_data_secret_mut() =
                 SenderDataSecret::from_slice(
                     &hex_to_bytes(&test_vector.sender_data_secret),
@@ -819,14 +829,14 @@ pub fn run_test_vector(
 }
 
 #[apply(backends)]
-fn read_test_vectors_encryption(backend: &impl OpenMlsCryptoProvider) {
+async fn read_test_vectors_encryption(backend: &impl OpenMlsCryptoProvider) {
     let _ = pretty_env_logger::try_init();
     log::debug!("Reading test vectors ...");
 
     let tests: Vec<EncryptionTestVector> = read("test_vectors/kat_encryption_openmls.json");
 
     for test_vector in tests {
-        match run_test_vector(test_vector, backend) {
+        match run_test_vector(test_vector, backend).await {
             Ok(_) => {}
             Err(e) => panic!("Error while checking encryption test vector.\n{e:?}"),
         }
@@ -844,7 +854,9 @@ fn read_test_vectors_encryption(backend: &impl OpenMlsCryptoProvider) {
     ];
     for &tv_file in tv_files.iter() {
         let tv: EncryptionTestVector = read(tv_file);
-        run_test_vector(tv, backend).expect("Error while checking key schedule test vector.");
+        run_test_vector(tv, backend)
+            .await
+            .expect("Error while checking key schedule test vector.");
     }
 
     log::trace!("Finished test vector verification");
