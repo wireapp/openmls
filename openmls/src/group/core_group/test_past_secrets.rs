@@ -45,7 +45,10 @@ async fn test_secret_tree_store(ciphersuite: Ciphersuite, backend: &impl OpenMls
 }
 
 #[apply(ciphersuites_and_backends)]
-async fn test_empty_secret_tree_store(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider) {
+async fn test_empty_secret_tree_store(
+    ciphersuite: Ciphersuite,
+    backend: &impl OpenMlsCryptoProvider,
+) {
     // Create a store that keeps no epochs
     let mut message_secrets_store = MessageSecretsStore::new_with_secret(
         0,

@@ -41,7 +41,7 @@ impl Clone for SignatureKeyPair {
         Self {
             private: self.private.expose_secret().clone().into(),
             public: self.public.clone(),
-            signature_scheme: self.signature_scheme.clone(),
+            signature_scheme: self.signature_scheme,
         }
     }
 }
@@ -220,6 +220,6 @@ impl SignatureKeyPair {
 
     #[cfg(feature = "test-utils")]
     pub fn private(&self) -> &[u8] {
-        &self.private.expose_secret()
+        self.private.expose_secret()
     }
 }

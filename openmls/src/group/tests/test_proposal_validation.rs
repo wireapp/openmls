@@ -106,7 +106,8 @@ async fn new_test_group(
 
     // Generate credentials with keys
     let credential_with_key_and_signer =
-        generate_credential_with_key(identity.into(), ciphersuite.signature_algorithm(), backend).await;
+        generate_credential_with_key(identity.into(), ciphersuite.signature_algorithm(), backend)
+            .await;
 
     // Define the MlsGroup configuration
     let mls_group_config = MlsGroupConfig::builder()
@@ -139,7 +140,8 @@ async fn validation_test_setup(
         new_test_group("Alice", wire_format_policy, ciphersuite, backend).await;
 
     let bob_credential_with_key_and_signer =
-        generate_credential_with_key("Bob".into(), ciphersuite.signature_algorithm(), backend).await;
+        generate_credential_with_key("Bob".into(), ciphersuite.signature_algorithm(), backend)
+            .await;
 
     let bob_key_package = generate_key_package(
         ciphersuite,
@@ -245,14 +247,16 @@ async fn test_valsem101a(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoP
     ] {
         // 0. Initialize Alice
         let (alice_credential_with_keys, _) =
-            generate_credential_with_key_and_key_package("Alice".into(), ciphersuite, backend).await;
+            generate_credential_with_key_and_key_package("Alice".into(), ciphersuite, backend)
+                .await;
 
         // 1. Initialize Bob and Charlie
         let bob_credential_with_keys = generate_credential_with_key(
             b"Bob".to_vec(),
             ciphersuite.signature_algorithm(),
             backend,
-        ).await;
+        )
+        .await;
         let mut charlie_credential_with_keys = generate_credential_with_key(
             b"Charlie".to_vec(),
             ciphersuite.signature_algorithm(),
@@ -425,11 +429,13 @@ async fn test_valsem102(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoPr
     ] {
         // 0. Initialize Alice, Bob, and Charlie
         let (alice_credential_with_key, _) =
-            generate_credential_with_key_and_key_package("Alice".into(), ciphersuite, backend).await;
+            generate_credential_with_key_and_key_package("Alice".into(), ciphersuite, backend)
+                .await;
         let (bob_credential_with_key, mut bob_key_package) =
             generate_credential_with_key_and_key_package("Bob".into(), ciphersuite, backend).await;
         let (_charlie_credential_with_key, charlie_key_package) =
-            generate_credential_with_key_and_key_package("Charlie".into(), ciphersuite, backend).await;
+            generate_credential_with_key_and_key_package("Charlie".into(), ciphersuite, backend)
+                .await;
 
         match bob_and_charlie_share_keys {
             KeyUniqueness::NegativeSameKey => {
@@ -622,13 +628,15 @@ async fn test_valsem101b(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoP
             Extensions::empty(),
             backend,
             bob_credential_with_key.clone(),
-        ).await;
+        )
+        .await;
         let target_key_package = generate_key_package(
             ciphersuite,
             Extensions::empty(),
             backend,
             target_credential_with_key.clone(),
-        ).await;
+        )
+        .await;
 
         // 1. Alice creates a group and tries to add Bob to it
         let mut alice_group = MlsGroup::new_with_group_id(
@@ -846,7 +854,8 @@ async fn test_valsem103_valsem104(ciphersuite: Ciphersuite, backend: &impl OpenM
     ] {
         // 0. Initialize Alice and Bob
         let (alice_credential_with_key, _) =
-            generate_credential_with_key_and_key_package("Alice".into(), ciphersuite, backend).await;
+            generate_credential_with_key_and_key_package("Alice".into(), ciphersuite, backend)
+                .await;
         let (bob_credential_with_key, mut bob_key_package) =
             generate_credential_with_key_and_key_package("Bob".into(), ciphersuite, backend).await;
 
@@ -1062,7 +1071,8 @@ async fn test_valsem105(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoPr
         } = validation_test_setup(PURE_PLAINTEXT_WIRE_FORMAT_POLICY, ciphersuite, backend).await;
 
         let (charlie_credential_with_key, mut charlie_key_package) =
-            generate_credential_with_key_and_key_package("Charlie".into(), ciphersuite, backend).await;
+            generate_credential_with_key_and_key_package("Charlie".into(), ciphersuite, backend)
+                .await;
 
         let kpi = KeyPackageIn::from(charlie_key_package.clone());
         kpi.validate(backend.crypto(), ProtocolVersion::Mls10)
@@ -1110,7 +1120,8 @@ async fn test_valsem105(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoPr
                     "Charlie".into(),
                     ciphersuite,
                     backend,
-                ).await;
+                )
+                .await;
 
             // Let's just pick a ciphersuite that's not the one we're testing right now.
             let wrong_ciphersuite = match ciphersuite {

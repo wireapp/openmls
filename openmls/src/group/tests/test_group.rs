@@ -32,7 +32,8 @@ async fn create_commit_optional_path(
     )
     .await;
     let bob_credential_with_keys =
-        generate_credential_with_key(b"Bob".to_vec(), ciphersuite.signature_algorithm(), backend).await;
+        generate_credential_with_key(b"Bob".to_vec(), ciphersuite.signature_algorithm(), backend)
+            .await;
 
     // Generate Bob's KeyPackage
     let bob_key_package = generate_key_package(
@@ -153,7 +154,7 @@ async fn create_commit_optional_path(
         backend,
         ResumptionPskStore::new(1024),
     )
-    .await 
+    .await
     {
         Ok(group) => group,
         Err(e) => panic!("Error creating group from Welcome: {e:?}"),
@@ -234,7 +235,8 @@ async fn basic_group_setup(ciphersuite: Ciphersuite, backend: &impl OpenMlsCrypt
     )
     .await;
     let bob_credential_with_keys =
-        generate_credential_with_key(b"Bob".to_vec(), ciphersuite.signature_algorithm(), backend).await;
+        generate_credential_with_key(b"Bob".to_vec(), ciphersuite.signature_algorithm(), backend)
+            .await;
 
     // Generate KeyPackages
     let bob_key_package = generate_key_package(
@@ -313,7 +315,8 @@ async fn group_operations(ciphersuite: Ciphersuite, backend: &impl OpenMlsCrypto
     )
     .await;
     let bob_credential_with_keys =
-        generate_credential_with_key(b"Bob".to_vec(), ciphersuite.signature_algorithm(), backend).await;
+        generate_credential_with_key(b"Bob".to_vec(), ciphersuite.signature_algorithm(), backend)
+            .await;
 
     // Generate KeyPackages
     let bob_key_package_bundle = KeyPackageBundle::new(

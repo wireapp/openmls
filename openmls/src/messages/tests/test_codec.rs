@@ -80,7 +80,10 @@ async fn test_pre_shared_key_proposal_codec(backend: &impl OpenMlsCryptoProvider
 /// Test the encoding for ReInitProposal, that also covers some of the
 /// other PSK-related structs
 #[apply(ciphersuites_and_backends)]
-async fn test_reinit_proposal_codec(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider) {
+async fn test_reinit_proposal_codec(
+    ciphersuite: Ciphersuite,
+    backend: &impl OpenMlsCryptoProvider,
+) {
     let orig = ReInitProposal {
         group_id: GroupId::random(backend),
         version: ProtocolVersion::default(),

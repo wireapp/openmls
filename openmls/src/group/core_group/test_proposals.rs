@@ -15,14 +15,14 @@ use crate::{
         errors::*,
         proposals::{ProposalQueue, ProposalStore, QueuedProposal},
         public_group::errors::PublicGroupBuildError,
-        test_core_group::setup_client,
+        test_core_group::{setup_client, setup_client_with_extensions},
         CreateCommitParams, GroupContext, GroupId,
     },
     key_packages::{KeyPackageBundle, KeyPackageIn},
     messages::proposals::{AddProposal, Proposal, ProposalOrRef, ProposalType},
     schedule::psk::store::ResumptionPskStore,
     test_utils::*,
-    treesync::errors::LeafNodeValidationError,
+    treesync::{errors::LeafNodeValidationError, node::leaf_node::Capabilities},
     versions::ProtocolVersion,
 };
 
@@ -376,13 +376,6 @@ async fn test_group_context_extensions(
     let group_aad = b"Alice's test group";
     let framing_parameters = FramingParameters::new(group_aad, WireFormat::PublicMessage);
 
-    let (alice_credential, _, alice_signer, _alice_pk) =
-        setup_client("Alice", ciphersuite, backend).await;
-    let (_bob_credential_with_key, bob_key_package_bundle, _, _) =
-        setup_client("Bob", ciphersuite, backend).await;
-
-    let bob_key_package = bob_key_package_bundle.key_package();
-
     // Set required capabilities
     let extensions = &[ExtensionType::ApplicationId];
     let proposals = &[
@@ -392,15 +385,39 @@ async fn test_group_context_extensions(
         ProposalType::Update,
     ];
     let credentials = &[CredentialType::Basic];
-    let required_capabilities =
-        RequiredCapabilitiesExtension::new(extensions, proposals, credentials);
+    let leaf_capabilities = Capabilities::new(
+        None,
+        None,
+        Some(extensions),
+        Some(proposals),
+        Some(credentials),
+    );
+    // create clients
+    let (alice_credential, _, alice_signer, _alice_pk) = setup_client_with_extensions(
+        "Alice",
+        ciphersuite,
+        backend,
+        Extensions::empty(),
+        leaf_capabilities.clone(),
+    )
+    .await;
+    let (_bob_credential_bundle, bob_key_package_bundle, _, _) = setup_client_with_extensions(
+        "Bob",
+        ciphersuite,
+        backend,
+        Extensions::empty(),
+        leaf_capabilities.clone(),
+    )
+    .await;
+
+    let bob_key_package = bob_key_package_bundle.key_package();
 
     let mut alice_group = CoreGroup::builder(
         GroupId::random(backend),
         CryptoConfig::with_default_version(ciphersuite),
         alice_credential,
     )
-    .with_required_capabilities(required_capabilities)
+    .with_leaf_capabilities(leaf_capabilities)
     .build(backend, &alice_signer)
     .await
     .expect("Error creating CoreGroup.");
@@ -641,6 +658,7 @@ async fn test_group_context_extension_proposal(
         .create_group_context_ext_proposal(
             framing_parameters,
             Extensions::single(required_application_id),
+            proposal_store.proposals(),
             &alice_signer,
         )
         .expect("Error creating gce proposal.");

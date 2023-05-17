@@ -25,7 +25,8 @@ async fn create_group(
 
     // Generate credentials with keys
     let credential_with_key_and_signer =
-        generate_credential_with_key("Alice".into(), ciphersuite.signature_algorithm(), backend).await;
+        generate_credential_with_key("Alice".into(), ciphersuite.signature_algorithm(), backend)
+            .await;
 
     // Define the MlsGroup configuration
     let mls_group_config = MlsGroupConfig::builder()
@@ -57,7 +58,8 @@ async fn receive_message(
 ) -> MlsMessageIn {
     // Generate credentials with keys
     let bob_credential_with_key_and_signer =
-        generate_credential_with_key("Bob".into(), ciphersuite.signature_algorithm(), backend).await;
+        generate_credential_with_key("Bob".into(), ciphersuite.signature_algorithm(), backend)
+            .await;
 
     // Generate KeyPackages
     let bob_key_package = generate_key_package(

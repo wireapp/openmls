@@ -638,7 +638,8 @@ async fn test_valsem246(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoPr
         // the path by generating a new credential for bob, putting it in the path
         // and then re-signing the message with his original credential.
         let bob_new_credential =
-            generate_credential_with_key("Bob".into(), ciphersuite.signature_algorithm(), backend).await;
+            generate_credential_with_key("Bob".into(), ciphersuite.signature_algorithm(), backend)
+                .await;
 
         // Generate KeyPackage
         let bob_new_key_package = generate_key_package(
@@ -804,10 +805,12 @@ mod utils {
             "Alice".into(),
             ciphersuite.signature_algorithm(),
             backend,
-        ).await;
+        )
+        .await;
 
         let bob_credential =
-            generate_credential_with_key("Bob".into(), ciphersuite.signature_algorithm(), backend).await;
+            generate_credential_with_key("Bob".into(), ciphersuite.signature_algorithm(), backend)
+                .await;
 
         // Define the MlsGroup configuration
         let mls_group_config = MlsGroupConfig::builder()

@@ -93,7 +93,7 @@ USAGE:
     interop_client [OPTIONS]
 
 OPTIONS:
-    -h, --host <HOST>    [default: [::1]]
+    -h, --host <HOST>    [default: [0.0.0.0]]
         --help           Print help information
     -p, --port <PORT>    [default: 50051]
 ```

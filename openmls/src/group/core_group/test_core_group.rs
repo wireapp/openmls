@@ -13,7 +13,10 @@ use crate::{
     messages::{group_info::GroupInfoTBS, *},
     schedule::psk::{store::ResumptionPskStore, ExternalPsk, PreSharedKeyId, Psk},
     test_utils::*,
-    treesync::{errors::ApplyUpdatePathError, node::leaf_node::TreeInfoTbs},
+    treesync::{
+        errors::ApplyUpdatePathError,
+        node::leaf_node::{Capabilities, TreeInfoTbs},
+    },
 };
 
 pub(crate) async fn setup_alice_group(
@@ -597,10 +600,12 @@ async fn test_own_commit_processing(
     assert_eq!(error, StageCommitError::OwnCommit);
 }
 
-pub(crate) async fn setup_client(
+pub(crate) async fn setup_client_with_extensions(
     id: &str,
     ciphersuite: Ciphersuite,
     backend: &impl OpenMlsCryptoProvider,
+    extensions: Extensions,
+    capabilities: Capabilities,
 ) -> (
     CredentialWithKey,
     KeyPackageBundle,
@@ -621,14 +626,36 @@ pub(crate) async fn setup_client(
     .unwrap();
 
     // Generate the KeyPackage
-    let key_package_bundle = KeyPackageBundle::new(
+    let key_package_bundle = KeyPackageBundle::new_with_extensions(
         backend,
         &signature_keys,
         ciphersuite,
         credential_with_key.clone(),
+        extensions,
+        capabilities,
     )
     .await;
     (credential_with_key, key_package_bundle, signature_keys, pk)
+}
+
+pub(crate) async fn setup_client(
+    id: &str,
+    ciphersuite: Ciphersuite,
+    backend: &impl OpenMlsCryptoProvider,
+) -> (
+    CredentialWithKey,
+    KeyPackageBundle,
+    SignatureKeyPair,
+    OpenMlsSignaturePublicKey,
+) {
+    setup_client_with_extensions(
+        id,
+        ciphersuite,
+        backend,
+        Extensions::default(),
+        Capabilities::default(),
+    )
+    .await
 }
 
 #[apply(ciphersuites_and_backends)]
