@@ -26,6 +26,7 @@ pub(crate) struct TempBuilderPG1 {
     required_capabilities: Option<RequiredCapabilitiesExtension>,
     external_senders: Option<ExternalSendersExtension>,
     leaf_extensions: Option<Extensions>,
+    leaf_capabilities: Option<Capabilities>,
 }
 
 impl TempBuilderPG1 {
@@ -52,29 +53,31 @@ impl TempBuilderPG1 {
         self
     }
 
+    pub(crate) fn with_leaf_extensions(mut self, leaf_extensions: Extensions) -> Self {
+        if !leaf_extensions.is_empty() {
+            self.leaf_extensions = Some(leaf_extensions);
+        }
+        self
+    }
+
+    pub(crate) fn with_leaf_capabilities(mut self, leaf_capabilities: Capabilities) -> Self {
+        self.leaf_capabilities = Some(leaf_capabilities);
+        self
+    }
+
     pub(crate) fn get_secrets(
         self,
         backend: &impl OpenMlsCryptoProvider,
         signer: &impl Signer,
     ) -> Result<(TempBuilderPG2, CommitSecret, EncryptionKeyPair), PublicGroupBuildError> {
-        let capabilities = self
-            .required_capabilities
-            .as_ref()
-            .map(|re| re.extension_types());
         let (treesync, commit_secret, leaf_keypair) = TreeSync::new(
             backend,
             signer,
             self.crypto_config,
             self.credential_with_key,
             self.lifetime.unwrap_or_default(),
-            Capabilities::new(
-                Some(&[self.crypto_config.version]), // TODO: Allow more versions
-                Some(&[self.crypto_config.ciphersuite]), // TODO: allow more ciphersuites
-                capabilities,
-                None,
-                None,
-            ),
-            self.leaf_extensions.unwrap_or(Extensions::empty()),
+            self.leaf_capabilities.unwrap_or_default(),
+            self.leaf_extensions.unwrap_or_default(),
         )?;
         let required_capabilities = self.required_capabilities.unwrap_or_default();
         required_capabilities.check_support().map_err(|e| match e {
@@ -172,6 +175,7 @@ impl PublicGroup {
             required_capabilities: None,
             external_senders: None,
             leaf_extensions: None,
+            leaf_capabilities: None,
         }
     }
 }

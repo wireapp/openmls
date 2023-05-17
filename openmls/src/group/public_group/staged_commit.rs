@@ -91,6 +91,7 @@ impl PublicGroup {
         // ValSem402
         // ValSem403
         self.validate_pre_shared_key_proposals(&proposal_queue)?;
+        self.validate_group_context_extensions_proposals(&proposal_queue)?;
 
         match sender {
             Sender::Member(leaf_index) => {
@@ -226,7 +227,7 @@ impl PublicGroup {
         };
 
         // Update group context
-        diff.update_group_context(backend)?;
+        diff.update_group_context(backend, apply_proposals_values.extensions.cloned())?;
 
         // Update the confirmed transcript hash before we compute the confirmation tag.
         diff.update_confirmed_transcript_hash(backend, mls_content)?;

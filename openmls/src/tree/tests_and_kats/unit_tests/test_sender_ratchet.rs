@@ -45,7 +45,10 @@ async fn test_max_forward_distance(ciphersuite: Ciphersuite, backend: &impl Open
 
 // Test out-of-order generations
 #[apply(ciphersuites_and_backends)]
-async fn test_out_of_order_generations(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider) {
+async fn test_out_of_order_generations(
+    ciphersuite: Ciphersuite,
+    backend: &impl OpenMlsCryptoProvider,
+) {
     let configuration = &SenderRatchetConfiguration::default();
     let secret = Secret::random(ciphersuite, backend, ProtocolVersion::Mls10)
         .expect("Not enough randomness.");

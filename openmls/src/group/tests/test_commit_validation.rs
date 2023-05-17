@@ -40,13 +40,16 @@ async fn validation_test_setup(
 
     // Generate credentials with keys
     let alice_credential =
-        generate_credential_with_key("Alice".into(), ciphersuite.signature_algorithm(), backend).await;
+        generate_credential_with_key("Alice".into(), ciphersuite.signature_algorithm(), backend)
+            .await;
 
     let bob_credential =
-        generate_credential_with_key("Bob".into(), ciphersuite.signature_algorithm(), backend).await;
+        generate_credential_with_key("Bob".into(), ciphersuite.signature_algorithm(), backend)
+            .await;
 
     let charlie_credential =
-        generate_credential_with_key("Charlie".into(), ciphersuite.signature_algorithm(), backend).await;
+        generate_credential_with_key("Charlie".into(), ciphersuite.signature_algorithm(), backend)
+            .await;
 
     // Generate KeyPackages
     let bob_key_package =
@@ -266,7 +269,8 @@ async fn test_valsem201(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoPr
 
     let add_proposal = || async {
         let dave_credential =
-            generate_credential_with_key("Dave".into(), ciphersuite.signature_algorithm(), backend).await;
+            generate_credential_with_key("Dave".into(), ciphersuite.signature_algorithm(), backend)
+                .await;
         let dave_key_package =
             generate_key_package(ciphersuite, Extensions::empty(), backend, dave_credential).await;
 
@@ -333,8 +337,7 @@ async fn test_valsem201(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoPr
         (vec![remove_proposal(), add_proposal().await], true),
         // path_required + path_required = path_required
         (vec![update_proposal, remove_proposal()], true),
-        // TODO: #566 this should work if GCE proposals validation were implemented
-        // (vec![add_proposal(), gce_proposal()], true),
+        (vec![add_proposal().await, gce_proposal()], true),
     ];
 
     for (proposal, is_path_required) in cases {

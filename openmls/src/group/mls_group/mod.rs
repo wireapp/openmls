@@ -29,6 +29,7 @@ use errors::*;
 // Crate
 pub(crate) mod config;
 pub(crate) mod errors;
+pub(crate) mod extension;
 pub(crate) mod membership;
 pub(crate) mod processing;
 pub(crate) mod proposal;

@@ -147,7 +147,7 @@ impl EncryptionKeyPair {
     ) -> Result<(), KeyStore::Error> {
         backend
             .key_store()
-            .store(&self.public_key().as_slice(), self)
+            .store(self.public_key().as_slice(), self)
             .await
     }
 
@@ -160,7 +160,7 @@ impl EncryptionKeyPair {
         backend: &impl OpenMlsCryptoProvider,
         encryption_key: &EncryptionKey,
     ) -> Option<EncryptionKeyPair> {
-        backend.key_store().read(&encryption_key.as_slice()).await
+        backend.key_store().read(encryption_key.as_slice()).await
     }
 
     /// Delete the [`EncryptionKeyPair`] from the key store of the `backend`.
@@ -174,7 +174,7 @@ impl EncryptionKeyPair {
     ) -> Result<(), KeyStore::Error> {
         backend
             .key_store()
-            .delete::<Self>(&self.public_key().as_slice())
+            .delete::<Self>(self.public_key().as_slice())
             .await
     }
 

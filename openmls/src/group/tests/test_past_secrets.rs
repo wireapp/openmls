@@ -26,12 +26,14 @@ async fn test_past_secrets_in_group(
             b"Alice".to_vec(),
             ciphersuite.signature_algorithm(),
             backend,
-        ).await;
+        )
+        .await;
         let bob_credential_with_keys = generate_credential_with_key(
             b"Bob".to_vec(),
             ciphersuite.signature_algorithm(),
             backend,
-        ).await;
+        )
+        .await;
 
         // Generate KeyPackages
         let bob_key_package = generate_key_package(

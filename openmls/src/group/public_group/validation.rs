@@ -6,8 +6,6 @@ use std::collections::{BTreeSet, HashSet};
 use openmls_traits::types::VerifiableCiphersuite;
 
 use super::PublicGroup;
-#[cfg(test)]
-use crate::treesync::errors::LeafNodeValidationError;
 use crate::{
     binary_tree::array_representation::LeafNodeIndex,
     framing::{
@@ -24,7 +22,7 @@ use crate::{
         Commit,
     },
     schedule::errors::PskError,
-    treesync::node::leaf_node::LeafNode,
+    treesync::{errors::LeafNodeValidationError, node::leaf_node::LeafNode},
 };
 
 impl PublicGroup {
@@ -315,7 +313,7 @@ impl PublicGroup {
             }
 
             // Check that all extensions are contained in the capabilities.
-            if !capabilities.contain_extensions(leaf_node.extensions()) {
+            if !capabilities.are_extensions_supported(leaf_node.extensions()) {
                 return Err(ProposalValidationError::InsufficientCapabilities);
             }
 
@@ -512,16 +510,41 @@ impl PublicGroup {
         }
         Ok(())
     }
+    /// Validate GroupContextExtensions proposals.
+    ///
+    /// There must be at most one GroupContextExtensions proposal.
+    pub(crate) fn validate_group_context_extensions_proposals(
+        &self,
+        proposal_queue: &ProposalQueue,
+    ) -> Result<(), ProposalValidationError> {
+        let gce_count = proposal_queue
+            .queued_proposals()
+            .filter(|p| matches!(p.proposal(), Proposal::GroupContextExtensions(_)))
+            .count();
+
+        if gce_count > 1 {
+            return Err(ProposalValidationError::TooManyGroupContextExtensions(
+                gce_count,
+            ));
+        }
+
+        Ok(())
+    }
 
     /// Returns a [`LeafNodeValidationError`] if an [`ExtensionType`]
     /// in `extensions` is not supported by a leaf in this tree.
-    #[cfg(test)]
+    /// A list of leaves proposed to be removed must be provided as they
+    /// should be ignored by this validation
     pub(crate) fn check_extension_support(
         &self,
         extensions: &[crate::extensions::ExtensionType],
+        removed: impl Iterator<Item = LeafNodeIndex>,
     ) -> Result<(), LeafNodeValidationError> {
-        for leaf in self.treesync().full_leaves() {
-            leaf.check_extension_support(extensions)?;
+        let removed = removed.collect::<Vec<_>>();
+        for (index, leaf) in self.treesync().full_leaves_indexed() {
+            if !removed.contains(&index) {
+                leaf.check_extension_support(extensions)?;
+            }
         }
         Ok(())
     }

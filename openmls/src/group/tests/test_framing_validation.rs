@@ -39,10 +39,12 @@ async fn validation_test_setup(
 
     // Generate credentials with keys
     let alice_credential =
-        generate_credential_with_key("Alice".into(), ciphersuite.signature_algorithm(), backend).await;
+        generate_credential_with_key("Alice".into(), ciphersuite.signature_algorithm(), backend)
+            .await;
 
     let bob_credential =
-        generate_credential_with_key("Bob".into(), ciphersuite.signature_algorithm(), backend).await;
+        generate_credential_with_key("Bob".into(), ciphersuite.signature_algorithm(), backend)
+            .await;
 
     // Generate KeyPackages
     let alice_key_package = generate_key_package(

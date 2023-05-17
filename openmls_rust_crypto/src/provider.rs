@@ -252,12 +252,12 @@ impl OpenMlsCrypto for RustCrypto {
             SignatureScheme::ECDSA_SECP256R1_SHA256 => {
                 let sk = p256::ecdsa::SigningKey::random(&mut *rng);
                 let pk = sk.verifying_key().to_encoded_point(false).to_bytes().into();
-                Ok((sk.to_bytes().to_vec().into(), pk))
+                Ok((sk.to_bytes().to_vec(), pk))
             }
             SignatureScheme::ECDSA_SECP384R1_SHA384 => {
                 let sk = p384::ecdsa::SigningKey::random(&mut *rng);
                 let pk = sk.verifying_key().to_encoded_point(false).to_bytes().into();
-                Ok((sk.to_bytes().to_vec().into(), pk))
+                Ok((sk.to_bytes().to_vec(), pk))
             }
             SignatureScheme::ED25519 => {
                 let mut rng = self
@@ -419,7 +419,7 @@ impl OpenMlsCrypto for RustCrypto {
                 hpke::kdf::HkdfSha384,
                 hpke::kem::DhP384HkdfSha384,
             >(pk_r, info, aad, ptxt, &mut *rng),
-            _ => return Err(CryptoError::UnsupportedKem),
+            _ => Err(CryptoError::UnsupportedKem),
         }
     }
 
@@ -625,7 +625,7 @@ impl OpenMlsCrypto for RustCrypto {
             HpkeKemType::DhKem25519 => {
                 hpke_core::hpke_derive_keypair::<hpke::kem::X25519HkdfSha256>(ikm)
             }
-            _ => return Err(CryptoError::UnsupportedKem),
+            _ => Err(CryptoError::UnsupportedKem),
         }
     }
 }
@@ -746,7 +746,7 @@ mod hpke_core {
         ctx.export(export_info, &mut export)
             .map_err(|_| CryptoError::ExporterError)?;
 
-        Ok((kem_output.to_bytes().to_vec().into(), export.into()))
+        Ok((kem_output.to_bytes().to_vec(), export))
     }
 }
 

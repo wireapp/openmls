@@ -14,7 +14,7 @@ impl CoreGroup {
     async fn derive_epoch_secrets(
         &self,
         backend: &impl OpenMlsCryptoProvider,
-        apply_proposals_values: ApplyProposalsValues,
+        apply_proposals_values: ApplyProposalsValues<'_>,
         epoch_secrets: &GroupEpochSecrets,
         commit_secret: CommitSecret,
         serialized_provisional_group_context: &[u8],
@@ -29,8 +29,7 @@ impl CoreGroup {
                 .external_secret()
                 .derive_external_keypair(backend.crypto(), self.ciphersuite())
                 .map_err(LibraryError::unexpected_crypto_error)?
-                .private
-                .into();
+                .private;
             let init_secret = InitSecret::from_kem_output(
                 backend,
                 self.ciphersuite(),
@@ -61,7 +60,8 @@ impl CoreGroup {
                 backend.key_store(),
                 &self.resumption_psk_store,
                 &apply_proposals_values.presharedkeys,
-            ).await?;
+            )
+            .await?;
 
             PskSecret::new(backend, self.ciphersuite(), psks).await?
         };
@@ -158,7 +158,7 @@ impl CoreGroup {
                 diff.apply_received_update_path(backend, ciphersuite, sender_index, &path)?;
 
                 // Update group context
-                diff.update_group_context(backend)?;
+                diff.update_group_context(backend, apply_proposals_values.extensions.cloned())?;
 
                 let decryption_keypairs: Vec<&EncryptionKeyPair> = old_epoch_keypairs
                     .iter()
@@ -202,7 +202,7 @@ impl CoreGroup {
                 }
 
                 // Even if there is no path, we have to update the group context.
-                diff.update_group_context(backend)?;
+                diff.update_group_context(backend, apply_proposals_values.extensions.cloned())?;
 
                 (
                     CommitSecret::zero_secret(ciphersuite, self.version()),

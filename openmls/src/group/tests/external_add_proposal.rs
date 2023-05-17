@@ -33,7 +33,8 @@ async fn new_test_group(
 
     // Generate credentials with keys
     let credential_with_keys =
-        generate_credential_with_key(identity.into(), ciphersuite.signature_algorithm(), backend).await;
+        generate_credential_with_key(identity.into(), ciphersuite.signature_algorithm(), backend)
+            .await;
 
     // Define the MlsGroup configuration
     let mls_group_config = MlsGroupConfig::builder()
@@ -66,7 +67,8 @@ async fn validation_test_setup(
         new_test_group("Alice", wire_format_policy, ciphersuite, backend).await;
 
     let bob_credential_with_key =
-        generate_credential_with_key("Bob".into(), ciphersuite.signature_algorithm(), backend).await;
+        generate_credential_with_key("Bob".into(), ciphersuite.signature_algorithm(), backend)
+            .await;
 
     let bob_key_package = generate_key_package(
         ciphersuite,
@@ -243,7 +245,8 @@ async fn external_add_proposal_should_be_signed_by_key_package_it_references(
 
     // A new client, Charlie, will now ask joining with an external Add proposal
     let charlie_credential =
-        generate_credential_with_key("Charlie".into(), ciphersuite.signature_algorithm(), backend).await;
+        generate_credential_with_key("Charlie".into(), ciphersuite.signature_algorithm(), backend)
+            .await;
 
     let charlie_kp = generate_key_package(
         ciphersuite,
@@ -286,7 +289,8 @@ async fn new_member_proposal_sender_should_be_reserved_for_join_proposals(
 
     // Add proposal can have a 'new_member_proposal' sender
     let any_credential =
-        generate_credential_with_key("Any".into(), ciphersuite.signature_algorithm(), backend).await;
+        generate_credential_with_key("Any".into(), ciphersuite.signature_algorithm(), backend)
+            .await;
 
     let any_kp = generate_key_package(
         ciphersuite,

@@ -174,7 +174,7 @@ impl User {
             ProcessedMessageContent::ApplicationMessage(application_message) => {
                 let application_message =
                     String::from_utf8(application_message.into_bytes()).unwrap();
-                if group_name.is_none() || group_name.clone().unwrap() == group.group_name {
+                if group_name.is_none() || group_name.unwrap() == group.group_name {
                     message_ret.replace(application_message.clone());
                 }
                 group.conversation.add(application_message);
