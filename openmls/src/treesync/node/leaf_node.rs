@@ -355,7 +355,7 @@ impl LeafNode {
 
     /// Returns the [`Lifetime`] if present.
     /// `None` otherwise.
-    pub(crate) fn life_time(&self) -> Option<&Lifetime> {
+    pub fn life_time(&self) -> Option<&Lifetime> {
         if let LeafNodeSource::KeyPackage(life_time) = &self.payload.leaf_node_source {
             Some(life_time)
         } else {

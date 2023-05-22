@@ -61,7 +61,7 @@ impl Lifetime {
     }
 
     /// Returns true if this lifetime is valid.
-    pub(crate) fn is_valid(&self) -> bool {
+    pub fn is_valid(&self) -> bool {
         match SystemTime::now()
             .duration_since(UNIX_EPOCH)
             .map(|duration| duration.as_secs())
