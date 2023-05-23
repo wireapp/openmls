@@ -9,7 +9,7 @@ use openmls_traits::{crypto::OpenMlsCrypto, OpenMlsCryptoProvider};
 fn criterion_benchmark(c: &mut Criterion) {
     let backend = OpenMlsRustCrypto::default();
     for &ciphersuite in backend.crypto().supported_ciphersuites().iter() {
-        let credential = Credential::new(vec![1, 2, 3], CredentialType::Basic).unwrap();
+        let credential = Credential::new_basic(vec![1, 2, 3]);
         let signer = SignatureKeyPair::new(
             ciphersuite.signature_algorithm(),
             &mut *backend.rand().borrow_rand().unwrap(),

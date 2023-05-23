@@ -92,7 +92,7 @@ use thiserror::Error;
 
 use crate::{
     binary_tree::array_representation::LeafNodeIndex,
-    credentials::{Credential, CredentialType, CredentialWithKey},
+    credentials::{Credential, CredentialWithKey},
     framing::{
         mls_auth_content::AuthenticatedContent, mls_auth_content_in::AuthenticatedContentIn,
         mls_content_in::FramedContentBodyIn, *,
@@ -143,11 +143,10 @@ pub struct EncryptionTestVector {
 
 async fn generate_credential(
     identity: Vec<u8>,
-    credential_type: CredentialType,
     signature_algorithm: SignatureScheme,
     backend: &impl OpenMlsCryptoProvider,
 ) -> (CredentialWithKey, SignatureKeyPair) {
-    let credential = Credential::new(identity, credential_type).unwrap();
+    let credential = Credential::new_basic(identity);
     let signature_keys = SignatureKeyPair::new(
         signature_algorithm,
         &mut *backend.rand().borrow_rand().unwrap(),
@@ -171,13 +170,8 @@ async fn group(
 ) -> (CoreGroup, CredentialWithKey, SignatureKeyPair) {
     use crate::group::config::CryptoConfig;
 
-    let (credential_with_key, signer) = generate_credential(
-        "Kreator".into(),
-        CredentialType::Basic,
-        ciphersuite.signature_algorithm(),
-        backend,
-    )
-    .await;
+    let (credential_with_key, signer) =
+        generate_credential("Kreator".into(), ciphersuite.signature_algorithm(), backend).await;
 
     let group = CoreGroup::builder(
         GroupId::random(backend),
@@ -201,7 +195,6 @@ async fn receiver_group(
 
     let (credential_with_key, signer) = generate_credential(
         "Receiver".into(),
-        CredentialType::Basic,
         ciphersuite.signature_algorithm(),
         backend,
     )

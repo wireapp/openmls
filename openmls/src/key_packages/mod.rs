@@ -37,7 +37,7 @@
 //! let ciphersuite = Ciphersuite::MLS_128_DHKEMX25519_AES128GCM_SHA256_Ed25519;
 //! let backend = OpenMlsRustCrypto::default();
 //!
-//! let credential = Credential::new("identity".into(), CredentialType::Basic).unwrap();
+//! let credential = Credential::new_basic("identity".into());
 //! let signer =
 //!     SignatureKeyPair::new(ciphersuite.signature_algorithm(), &mut *backend.rand().borrow_rand().unwrap())
 //!         .expect("Error generating a signature key pair.");

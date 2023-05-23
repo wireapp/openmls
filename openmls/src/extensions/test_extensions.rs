@@ -41,20 +41,10 @@ async fn ratchet_tree_extension(ciphersuite: Ciphersuite, backend: &impl OpenMls
     let framing_parameters = FramingParameters::new(group_aad, WireFormat::PublicMessage);
 
     // Create credentials and keys
-    let (alice_credential_with_key, alice_signature_keys) = test_utils::new_credential(
-        backend,
-        b"Alice",
-        CredentialType::Basic,
-        ciphersuite.signature_algorithm(),
-    )
-    .await;
-    let (bob_credential_with_key, bob_signature_keys) = test_utils::new_credential(
-        backend,
-        b"Bob",
-        CredentialType::Basic,
-        ciphersuite.signature_algorithm(),
-    )
-    .await;
+    let (alice_credential_with_key, alice_signature_keys) =
+        test_utils::new_credential(backend, b"Alice", ciphersuite.signature_algorithm()).await;
+    let (bob_credential_with_key, bob_signature_keys) =
+        test_utils::new_credential(backend, b"Bob", ciphersuite.signature_algorithm()).await;
 
     // Generate KeyPackages
     let bob_key_package_bundle = KeyPackageBundle::new(

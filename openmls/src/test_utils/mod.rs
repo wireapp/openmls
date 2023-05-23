@@ -94,7 +94,7 @@ pub(crate) async fn generate_group_candidate(
     use openmls_traits::random::OpenMlsRand;
 
     let credential_with_key_and_signer = {
-        let credential = Credential::new(identity.to_vec(), CredentialType::Basic).unwrap();
+        let credential = Credential::new_basic(identity.to_vec());
 
         let signature_keypair = SignatureKeyPair::new(
             ciphersuite.signature_algorithm(),

@@ -5,12 +5,11 @@
 //! For now this credential uses only RustCrypto.
 
 use secrecy::{ExposeSecret, SecretVec};
-use signature::Signer;
 use std::fmt::Debug;
 
 use openmls_traits::{
     key_store::{MlsEntity, MlsEntityId, OpenMlsKeyStore},
-    types::{CryptoError, Error, SignatureScheme},
+    types::{CryptoError, SignatureScheme},
 };
 
 fn expose_sk<S: serde::Serializer>(data: &SecretVec<u8>, ser: S) -> Result<S::Ok, S::Error> {
@@ -91,51 +90,9 @@ impl Debug for SignatureKeyPair {
     }
 }
 
-impl openmls_traits::signatures::Signer for SignatureKeyPair {
-    fn sign(&self, payload: &[u8]) -> Result<Vec<u8>, Error> {
-        match self.signature_scheme {
-            SignatureScheme::ECDSA_SECP256R1_SHA256 => {
-                let k = p256::ecdsa::SigningKey::from_bytes(
-                    self.private.expose_secret().as_slice().into(),
-                )
-                .map_err(|_| Error::SigningError)?;
-                let signature: p256::ecdsa::Signature =
-                    k.try_sign(payload).map_err(|_| Error::SigningError)?;
-                Ok(signature.to_der().to_bytes().into())
-            }
-            SignatureScheme::ECDSA_SECP384R1_SHA384 => {
-                let k = p384::ecdsa::SigningKey::from_bytes(
-                    self.private.expose_secret().as_slice().into(),
-                )
-                .map_err(|_| Error::SigningError)?;
-                let signature: p384::ecdsa::Signature =
-                    k.try_sign(payload).map_err(|_| Error::SigningError)?;
-                Ok(signature.to_der().to_bytes().into())
-            }
-            SignatureScheme::ED25519 => {
-                let exposed = self.private.expose_secret();
-                let k = match exposed.len() {
-                    // Compat layer for legacy keypairs [seed, pk]
-                    ed25519_dalek::KEYPAIR_LENGTH => {
-                        let mut sk = zeroize::Zeroizing::new([0u8; ed25519_dalek::KEYPAIR_LENGTH]);
-                        sk.copy_from_slice(exposed.as_slice());
-                        ed25519_dalek::SigningKey::from_keypair_bytes(&sk)
-                            .map_err(|_| Error::SigningError)?
-                    }
-                    ed25519_dalek::SECRET_KEY_LENGTH => {
-                        let mut sk =
-                            zeroize::Zeroizing::new([0u8; ed25519_dalek::SECRET_KEY_LENGTH]);
-                        sk.copy_from_slice(exposed.as_slice());
-                        ed25519_dalek::SigningKey::from_bytes(&sk)
-                    }
-                    _ => return Err(Error::SigningError),
-                };
-
-                let signature = k.try_sign(payload).map_err(|_| Error::SigningError)?;
-                Ok(signature.to_bytes().into())
-            }
-            _ => Err(Error::SigningError),
-        }
+impl openmls_traits::signatures::DefaultSigner for SignatureKeyPair {
+    fn private_key(&self) -> &[u8] {
+        self.private.expose_secret().as_slice()
     }
 
     fn signature_scheme(&self) -> SignatureScheme {

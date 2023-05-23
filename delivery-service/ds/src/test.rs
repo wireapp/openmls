@@ -12,7 +12,7 @@ fn generate_credential(
     signature_scheme: SignatureScheme,
     crypto_backend: &impl OpenMlsCryptoProvider,
 ) -> (CredentialWithKey, SignatureKeyPair) {
-    let credential = Credential::new(identity, CredentialType::Basic).unwrap();
+    let credential = Credential::new_basic(identity);
     let signature_keys = SignatureKeyPair::new(
         signature_scheme,
         &mut *crypto_backend.rand().borrow_rand().unwrap(),

@@ -4,7 +4,7 @@ use rstest::*;
 use rstest_reuse::apply;
 
 use crate::{
-    credentials::{test_utils::new_credential, CredentialType},
+    credentials::test_utils::new_credential,
     key_packages::KeyPackageBundle,
     treesync::{node::Node, RatchetTree, TreeSync},
 };
@@ -15,23 +15,11 @@ async fn test_free_leaf_computation(
     ciphersuite: Ciphersuite,
     backend: &impl OpenMlsCryptoProvider,
 ) {
-    let (c_0, sk_0) = new_credential(
-        backend,
-        b"leaf0",
-        CredentialType::Basic,
-        ciphersuite.signature_algorithm(),
-    )
-    .await;
+    let (c_0, sk_0) = new_credential(backend, b"leaf0", ciphersuite.signature_algorithm()).await;
 
     let kpb_0 = KeyPackageBundle::new(backend, &sk_0, ciphersuite, c_0).await;
 
-    let (c_3, sk_3) = new_credential(
-        backend,
-        b"leaf3",
-        CredentialType::Basic,
-        ciphersuite.signature_algorithm(),
-    )
-    .await;
+    let (c_3, sk_3) = new_credential(backend, b"leaf3", ciphersuite.signature_algorithm()).await;
     let kpb_3 = KeyPackageBundle::new(backend, &sk_3, ciphersuite, c_3).await;
 
     // Build a rudimentary tree with two populated and two empty leaf nodes.
@@ -51,13 +39,8 @@ async fn test_free_leaf_computation(
 
     // Create and add a new leaf. It should go to leaf index 1
 
-    let (c_2, signer_2) = new_credential(
-        backend,
-        b"leaf2",
-        CredentialType::Basic,
-        ciphersuite.signature_algorithm(),
-    )
-    .await;
+    let (c_2, signer_2) =
+        new_credential(backend, b"leaf2", ciphersuite.signature_algorithm()).await;
     let kpb_2 = KeyPackageBundle::new(backend, &signer_2, ciphersuite, c_2).await;
 
     let mut diff = tree.empty_diff();

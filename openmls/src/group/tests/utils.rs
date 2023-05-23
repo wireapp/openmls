@@ -344,7 +344,7 @@ pub(crate) async fn generate_credential_with_key(
     backend: &impl OpenMlsCryptoProvider,
 ) -> CredentialWithKeyAndSigner {
     let (credential, signer) = {
-        let credential = Credential::new(identity, CredentialType::Basic).unwrap();
+        let credential = Credential::new_basic(identity);
         let signature_keys = SignatureKeyPair::new(
             signature_scheme,
             &mut *backend.rand().borrow_rand().unwrap(),

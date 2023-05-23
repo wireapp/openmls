@@ -14,13 +14,8 @@ async fn create_alice_group(
         .crypto_config(CryptoConfig::with_default_version(ciphersuite))
         .build();
 
-    let (credential_with_key, signature_keys) = new_credential(
-        backend,
-        b"Alice",
-        CredentialType::Basic,
-        ciphersuite.signature_algorithm(),
-    )
-    .await;
+    let (credential_with_key, signature_keys) =
+        new_credential(backend, b"Alice", ciphersuite.signature_algorithm()).await;
 
     let group = MlsGroup::new(
         backend,
@@ -78,13 +73,8 @@ async fn test_external_commit(ciphersuite: Ciphersuite, backend: &impl OpenMlsCr
 
     // Now, Bob wants to join Alice' group by an external commit. (Positive case.)
     {
-        let (bob_credential, bob_signature_keys) = new_credential(
-            backend,
-            b"Bob",
-            CredentialType::Basic,
-            ciphersuite.signature_algorithm(),
-        )
-        .await;
+        let (bob_credential, bob_signature_keys) =
+            new_credential(backend, b"Bob", ciphersuite.signature_algorithm()).await;
 
         let (_bob_group, _, _) = MlsGroup::join_by_external_commit(
             backend,
@@ -103,13 +93,8 @@ async fn test_external_commit(ciphersuite: Ciphersuite, backend: &impl OpenMlsCr
 
     // Now, Bob wants to join Alice' group by an external commit. (Negative case, broken signature.)
     {
-        let (bob_credential, bob_signature_keys) = new_credential(
-            backend,
-            b"Bob",
-            CredentialType::Basic,
-            ciphersuite.signature_algorithm(),
-        )
-        .await;
+        let (bob_credential, bob_signature_keys) =
+            new_credential(backend, b"Bob", ciphersuite.signature_algorithm()).await;
 
         let got_error = MlsGroup::join_by_external_commit(
             backend,
@@ -147,13 +132,8 @@ async fn test_group_info(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoP
     alice_group.merge_pending_commit(backend).await.unwrap();
 
     // Bob wants to join
-    let (bob_credential, bob_signature_keys) = new_credential(
-        backend,
-        b"Bob",
-        CredentialType::Basic,
-        ciphersuite.signature_algorithm(),
-    )
-    .await;
+    let (bob_credential, bob_signature_keys) =
+        new_credential(backend, b"Bob", ciphersuite.signature_algorithm()).await;
 
     let verifiable_group_info = {
         let serialized_group_info = group_info.unwrap().tls_serialize_detached().unwrap();
@@ -207,13 +187,8 @@ async fn test_group_info(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoP
 
     // check that the returned group info from the external join is valid
     // Bob wants to join with another client
-    let (bob_credential, bob_signature_keys) = new_credential(
-        backend,
-        b"Bob 2",
-        CredentialType::Basic,
-        ciphersuite.signature_algorithm(),
-    )
-    .await;
+    let (bob_credential, bob_signature_keys) =
+        new_credential(backend, b"Bob 2", ciphersuite.signature_algorithm()).await;
     let verifiable_group_info = {
         let serialized_group_info = group_info.unwrap().tls_serialize_detached().unwrap();
 

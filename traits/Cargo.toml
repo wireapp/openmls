@@ -21,3 +21,10 @@ serde = { version = "1.0", features = ["derive"] }
 rand_core = "0.6"
 tls_codec = { workspace = true }
 async-trait = { workspace = true }
+# for the default signer
+ed25519-dalek = { version = "2.0.0-rc.2", features = ["rand_core"] }
+p256 = "0.13"
+p384 = "0.13"
+zeroize = "1.6"
+signature = "2.1"
+secrecy = { version = "0.8", features = ["serde"] }

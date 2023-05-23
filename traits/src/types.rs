@@ -151,6 +151,11 @@ pub enum CryptoError {
     ExporterError,
     UnsupportedCiphersuite,
     TlsSerializationError,
+    IncompleteCertificateChain,
+    CertificateDecodingError,
+    CertificateEncodingError,
+    IncompleteCertificate(&'static str),
+    InvalidCertificate,
 }
 
 impl std::fmt::Display for CryptoError {

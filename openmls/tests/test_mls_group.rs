@@ -48,29 +48,14 @@ async fn mls_group_operations(ciphersuite: Ciphersuite, backend: &impl OpenMlsCr
         let group_id = GroupId::from_slice(b"Test Group");
 
         // Generate credentials with keys
-        let (alice_credential, alice_signer) = new_credential(
-            backend,
-            b"Alice",
-            CredentialType::Basic,
-            ciphersuite.signature_algorithm(),
-        )
-        .await;
+        let (alice_credential, alice_signer) =
+            new_credential(backend, b"Alice", ciphersuite.signature_algorithm()).await;
 
-        let (bob_credential, bob_signer) = new_credential(
-            backend,
-            b"Bob",
-            CredentialType::Basic,
-            ciphersuite.signature_algorithm(),
-        )
-        .await;
+        let (bob_credential, bob_signer) =
+            new_credential(backend, b"Bob", ciphersuite.signature_algorithm()).await;
 
-        let (charlie_credential, charlie_signer) = new_credential(
-            backend,
-            b"Charlie",
-            CredentialType::Basic,
-            ciphersuite.signature_algorithm(),
-        )
-        .await;
+        let (charlie_credential, charlie_signer) =
+            new_credential(backend, b"Charlie", ciphersuite.signature_algorithm()).await;
 
         // Generate KeyPackages
         let bob_key_package = generate_key_package(
@@ -994,13 +979,8 @@ async fn test_empty_input_errors(ciphersuite: Ciphersuite, backend: &impl OpenMl
     let group_id = GroupId::from_slice(b"Test Group");
 
     // Generate credentials with keys
-    let (alice_credential, alice_signer) = new_credential(
-        backend,
-        b"Alice",
-        CredentialType::Basic,
-        ciphersuite.signature_algorithm(),
-    )
-    .await;
+    let (alice_credential, alice_signer) =
+        new_credential(backend, b"Alice", ciphersuite.signature_algorithm()).await;
 
     // Define the MlsGroup configuration
     let mls_group_config = MlsGroupConfig::test_default(ciphersuite);
@@ -1046,21 +1026,11 @@ async fn mls_group_ratchet_tree_extension(
         // === Positive case: using the ratchet tree extension ===
 
         // Generate credentials
-        let (alice_credential, alice_signer) = new_credential(
-            backend,
-            b"Alice",
-            CredentialType::Basic,
-            ciphersuite.signature_algorithm(),
-        )
-        .await;
+        let (alice_credential, alice_signer) =
+            new_credential(backend, b"Alice", ciphersuite.signature_algorithm()).await;
 
-        let (bob_credential, bob_signer) = new_credential(
-            backend,
-            b"Bob",
-            CredentialType::Basic,
-            ciphersuite.signature_algorithm(),
-        )
-        .await;
+        let (bob_credential, bob_signer) =
+            new_credential(backend, b"Bob", ciphersuite.signature_algorithm()).await;
 
         // Generate KeyPackages
         let bob_key_package = generate_key_package(
@@ -1108,21 +1078,11 @@ async fn mls_group_ratchet_tree_extension(
         // === Negative case: not using the ratchet tree extension ===
 
         // Generate credentials with keys
-        let (alice_credential, alice_signer) = new_credential(
-            backend,
-            b"Alice",
-            CredentialType::Basic,
-            ciphersuite.signature_algorithm(),
-        )
-        .await;
+        let (alice_credential, alice_signer) =
+            new_credential(backend, b"Alice", ciphersuite.signature_algorithm()).await;
 
-        let (bob_credential, bob_signer) = new_credential(
-            backend,
-            b"Bob",
-            CredentialType::Basic,
-            ciphersuite.signature_algorithm(),
-        )
-        .await;
+        let (bob_credential, bob_signer) =
+            new_credential(backend, b"Bob", ciphersuite.signature_algorithm()).await;
 
         // Generate KeyPackages
         let bob_key_package = generate_key_package(
