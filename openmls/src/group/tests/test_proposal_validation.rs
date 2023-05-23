@@ -370,7 +370,7 @@ async fn test_valsem101a(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoP
             backend,
             &charlie_credential_with_key.signer,
             CredentialWithKey {
-                credential: Credential::new(b"Dave".to_vec(), CredentialType::Basic).unwrap(),
+                credential: Credential::new_basic(b"Dave".to_vec()),
                 signature_key: charlie_credential_with_key
                     .credential_with_key
                     .signature_key,
@@ -617,7 +617,7 @@ async fn test_valsem101b(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoP
             }
             .map(|(name, keypair)| CredentialWithKeyAndSigner {
                 credential_with_key: CredentialWithKey {
-                    credential: Credential::new(name.into(), CredentialType::Basic).unwrap(),
+                    credential: Credential::new_basic(name.into()),
                     signature_key: keypair.to_public_vec().into(),
                 },
                 signer: keypair,

@@ -9,7 +9,8 @@ members = [
     "memory_keystore",
     "delivery-service/ds",
     "delivery-service/ds-lib",
-    "basic_credential"
+    "basic_credential",
+    "x509_credential"
 ]
 resolver = "2"
 

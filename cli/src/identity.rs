@@ -15,7 +15,7 @@ impl Identity {
         crypto: &OpenMlsRustCrypto,
         id: &[u8],
     ) -> Self {
-        let credential = Credential::new(id.to_vec(), CredentialType::Basic).unwrap();
+        let credential = Credential::new_basic(id.to_vec());
         let signature_keys = SignatureKeyPair::new(
             ciphersuite.signature_algorithm(),
             &mut *crypto.rand().borrow_rand().unwrap(),

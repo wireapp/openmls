@@ -27,13 +27,8 @@ use crate::{
 /// This tests serializing/deserializing PublicMessage
 #[apply(ciphersuites_and_backends)]
 async fn codec_plaintext(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider) {
-    let (_credential, signature_keys) = test_utils::new_credential(
-        backend,
-        b"Creator",
-        CredentialType::Basic,
-        ciphersuite.signature_algorithm(),
-    )
-    .await;
+    let (_credential, signature_keys) =
+        test_utils::new_credential(backend, b"Creator", ciphersuite.signature_algorithm()).await;
     let sender = Sender::build_member(LeafNodeIndex::new(987543210));
     let group_context = GroupContext::new(
         ciphersuite,
@@ -80,13 +75,8 @@ async fn codec_plaintext(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoP
 /// This tests serializing/deserializing PrivateMessage
 #[apply(ciphersuites_and_backends)]
 async fn codec_ciphertext(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider) {
-    let (_credential, signature_keys) = test_utils::new_credential(
-        backend,
-        b"Creator",
-        CredentialType::Basic,
-        ciphersuite.signature_algorithm(),
-    )
-    .await;
+    let (_credential, signature_keys) =
+        test_utils::new_credential(backend, b"Creator", ciphersuite.signature_algorithm()).await;
     let sender = Sender::build_member(LeafNodeIndex::new(0));
     let group_context = GroupContext::new(
         ciphersuite,
@@ -297,13 +287,8 @@ async fn create_content(
     wire_format: WireFormat,
     backend: &impl OpenMlsCryptoProvider,
 ) -> (AuthenticatedContent, CredentialWithKey, SignatureKeyPair) {
-    let (credential, signature_keys) = test_utils::new_credential(
-        backend,
-        b"Creator",
-        CredentialType::Basic,
-        ciphersuite.signature_algorithm(),
-    )
-    .await;
+    let (credential, signature_keys) =
+        test_utils::new_credential(backend, b"Creator", ciphersuite.signature_algorithm()).await;
     let sender = Sender::build_member(LeafNodeIndex::new(0));
     let group_context = GroupContext::new(
         ciphersuite,
@@ -334,13 +319,8 @@ async fn create_content(
 
 #[apply(ciphersuites_and_backends)]
 async fn membership_tag(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider) {
-    let (_credential, signature_keys) = test_utils::new_credential(
-        backend,
-        b"Creator",
-        CredentialType::Basic,
-        ciphersuite.signature_algorithm(),
-    )
-    .await;
+    let (_credential, signature_keys) =
+        test_utils::new_credential(backend, b"Creator", ciphersuite.signature_algorithm()).await;
     let group_context = GroupContext::new(
         ciphersuite,
         GroupId::random(backend),
@@ -396,27 +376,12 @@ async fn unknown_sender(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoPr
     let configuration = &SenderRatchetConfiguration::default();
 
     // Define credentials with keys
-    let (alice_credential, alice_signature_keys) = test_utils::new_credential(
-        backend,
-        b"Alice",
-        CredentialType::Basic,
-        ciphersuite.signature_algorithm(),
-    )
-    .await;
-    let (bob_credential, bob_signature_keys) = test_utils::new_credential(
-        backend,
-        b"Bob",
-        CredentialType::Basic,
-        ciphersuite.signature_algorithm(),
-    )
-    .await;
-    let (charlie_credential, charlie_signature_keys) = test_utils::new_credential(
-        backend,
-        b"Charlie",
-        CredentialType::Basic,
-        ciphersuite.signature_algorithm(),
-    )
-    .await;
+    let (alice_credential, alice_signature_keys) =
+        test_utils::new_credential(backend, b"Alice", ciphersuite.signature_algorithm()).await;
+    let (bob_credential, bob_signature_keys) =
+        test_utils::new_credential(backend, b"Bob", ciphersuite.signature_algorithm()).await;
+    let (charlie_credential, charlie_signature_keys) =
+        test_utils::new_credential(backend, b"Charlie", ciphersuite.signature_algorithm()).await;
 
     // Generate KeyPackages
     let bob_key_package_bundle =
@@ -651,20 +616,10 @@ pub(crate) async fn setup_alice_bob_group(
     let framing_parameters = FramingParameters::new(group_aad, WireFormat::PublicMessage);
 
     // Create credentials and keys
-    let (alice_credential, alice_signature_keys) = test_utils::new_credential(
-        backend,
-        b"Alice",
-        CredentialType::Basic,
-        ciphersuite.signature_algorithm(),
-    )
-    .await;
-    let (bob_credential, bob_signature_keys) = test_utils::new_credential(
-        backend,
-        b"Bob",
-        CredentialType::Basic,
-        ciphersuite.signature_algorithm(),
-    )
-    .await;
+    let (alice_credential, alice_signature_keys) =
+        test_utils::new_credential(backend, b"Alice", ciphersuite.signature_algorithm()).await;
+    let (bob_credential, bob_signature_keys) =
+        test_utils::new_credential(backend, b"Bob", ciphersuite.signature_algorithm()).await;
 
     // Generate KeyPackages
     let bob_key_package_bundle = KeyPackageBundle::new(

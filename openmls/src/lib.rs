@@ -19,11 +19,10 @@
 //! // A helper to create and store credentials.
 //! async fn generate_credential_with_key(
 //!     identity: Vec<u8>,
-//!     credential_type: CredentialType,
 //!     signature_algorithm: SignatureScheme,
 //!     backend: &impl OpenMlsCryptoProvider,
 //! ) -> (CredentialWithKey, SignatureKeyPair) {
-//!     let credential = Credential::new(identity, credential_type).unwrap();
+//!     let credential = Credential::new_basic(identity);
 //!     let signature_keys =
 //!         SignatureKeyPair::new(signature_algorithm, &mut *backend.rand().borrow_rand().unwrap())
 //!             .expect("Error generating a signature key pair.");
@@ -72,14 +71,12 @@
 //!     // First they need credentials to identify them
 //!     let (sasha_credential_with_key, sasha_signer) = generate_credential_with_key(
 //!         "Sasha".into(),
-//!         CredentialType::Basic,
 //!         ciphersuite.signature_algorithm(),
 //!         backend,
 //!     ).await;
 //!
 //!     let (maxim_credential_with_key, maxim_signer) = generate_credential_with_key(
 //!         "Maxim".into(),
-//!         CredentialType::Basic,
 //!         ciphersuite.signature_algorithm(),
 //!         backend,
 //!     ).await;

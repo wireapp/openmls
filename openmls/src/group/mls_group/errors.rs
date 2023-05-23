@@ -5,9 +5,11 @@
 
 // These errors are exposed through `crate::group::errors`.
 
+use openmls_traits::types::CryptoError;
 use thiserror::Error;
 
 use crate::{
+    credentials::errors::CredentialError,
     error::LibraryError,
     extensions::errors::{ExtensionError, InvalidExtensionError},
     group::errors::{
@@ -114,6 +116,12 @@ pub enum ProcessMessageError {
     /// The proposal is invalid for the Sender of type [External](crate::prelude::Sender::External)
     #[error("The proposal is invalid for the Sender of type External")]
     UnsupportedProposalType,
+    /// Error parsing the certificate chain
+    #[error("Error parsing the X509 certificate chain: {0}")]
+    CredentialError(#[from] CredentialError),
+    /// Error validating the certificate chain
+    #[error("Error validating certificate chain")]
+    CryptoError(#[from] CryptoError),
 }
 
 /// Create message error

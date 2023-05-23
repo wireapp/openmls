@@ -117,10 +117,7 @@ impl From<KeyPackage> for MlsMessageOut {
 impl MlsMessageOut {
     /// Create an [`MlsMessageOut`] from a [`PrivateMessage`], as well as the
     /// currently used [`ProtocolVersion`].
-    pub fn from_private_message(
-        private_message: PrivateMessage,
-        version: ProtocolVersion,
-    ) -> Self {
+    pub fn from_private_message(private_message: PrivateMessage, version: ProtocolVersion) -> Self {
         Self {
             version,
             body: MlsMessageOutBody::PrivateMessage(private_message),

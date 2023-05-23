@@ -21,12 +21,11 @@ fn create_backend_rust_crypto() {
 
 async fn generate_credential(
     identity: Vec<u8>,
-    credential_type: CredentialType,
     signature_algorithm: SignatureScheme,
     backend: &impl OpenMlsCryptoProvider,
 ) -> (CredentialWithKey, SignatureKeyPair) {
     // ANCHOR: create_basic_credential
-    let credential = Credential::new(identity, credential_type).unwrap();
+    let credential = Credential::new_basic(identity);
     // ANCHOR_END: create_basic_credential
     // ANCHOR: create_credential_keys
     let signature_keys = SignatureKeyPair::new(
@@ -85,37 +84,17 @@ async fn generate_key_package(
 #[apply(ciphersuites_and_backends)]
 async fn book_operations(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider) {
     // Generate credentials with keys
-    let (alice_credential, alice_signature_keys) = generate_credential(
-        "Alice".into(),
-        CredentialType::Basic,
-        ciphersuite.signature_algorithm(),
-        backend,
-    )
-    .await;
+    let (alice_credential, alice_signature_keys) =
+        generate_credential("Alice".into(), ciphersuite.signature_algorithm(), backend).await;
 
-    let (bob_credential, bob_signature_keys) = generate_credential(
-        "Bob".into(),
-        CredentialType::Basic,
-        ciphersuite.signature_algorithm(),
-        backend,
-    )
-    .await;
+    let (bob_credential, bob_signature_keys) =
+        generate_credential("Bob".into(), ciphersuite.signature_algorithm(), backend).await;
 
-    let (charlie_credential, charlie_signature_keys) = generate_credential(
-        "Charlie".into(),
-        CredentialType::Basic,
-        ciphersuite.signature_algorithm(),
-        backend,
-    )
-    .await;
+    let (charlie_credential, charlie_signature_keys) =
+        generate_credential("Charlie".into(), ciphersuite.signature_algorithm(), backend).await;
 
-    let (dave_credential, dave_signature_keys) = generate_credential(
-        "Dave".into(),
-        CredentialType::Basic,
-        ciphersuite.signature_algorithm(),
-        backend,
-    )
-    .await;
+    let (dave_credential, dave_signature_keys) =
+        generate_credential("Dave".into(), ciphersuite.signature_algorithm(), backend).await;
 
     // Generate KeyPackages
     let bob_key_package = generate_key_package(
@@ -131,7 +110,6 @@ async fn book_operations(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoP
     // delivery service credentials
     let (ds_credential_with_key, ds_signature_keys) = generate_credential(
         "delivery-service".into(),
-        CredentialType::Basic,
         ciphersuite.signature_algorithm(),
         backend,
     )
@@ -1337,13 +1315,8 @@ async fn test_empty_input_errors(ciphersuite: Ciphersuite, backend: &impl OpenMl
     let group_id = GroupId::from_slice(b"Test Group");
 
     // Generate credentials with keys
-    let (alice_credential, alice_signature_keys) = generate_credential(
-        "Alice".into(),
-        CredentialType::Basic,
-        ciphersuite.signature_algorithm(),
-        backend,
-    )
-    .await;
+    let (alice_credential, alice_signature_keys) =
+        generate_credential("Alice".into(), ciphersuite.signature_algorithm(), backend).await;
 
     // Define the MlsGroup configuration
     let mls_group_config = MlsGroupConfig::test_default(ciphersuite);

@@ -23,7 +23,12 @@
 //! ```
 // TODO #106/#151: Update the above diagram
 
-use openmls_traits::{crypto::OpenMlsCrypto, types::Ciphersuite, OpenMlsCryptoProvider};
+use openmls_traits::{
+    crypto::OpenMlsCrypto,
+    types::{Ciphersuite, CryptoError},
+    OpenMlsCryptoProvider,
+};
+use openmls_x509_credential::X509Ext;
 
 use crate::{
     binary_tree::LeafNodeIndex,
@@ -273,10 +278,41 @@ impl UnverifiedMessage {
         crypto: &impl OpenMlsCrypto,
         protocol_version: ProtocolVersion,
     ) -> Result<(AuthenticatedContent, Credential), ProcessMessageError> {
-        let content: AuthenticatedContentIn = self
-            .verifiable_content
-            .verify(crypto, &self.sender_pk)
-            .map_err(|_| ProcessMessageError::InvalidSignature)?;
+        let content: AuthenticatedContentIn = match self.credential.mls_credential() {
+            MlsCredentialType::Basic(_) => self
+                .verifiable_content
+                .verify(crypto, &self.sender_pk)
+                .map_err(|_| ProcessMessageError::InvalidSignature)?,
+            MlsCredentialType::X509(certificate_chain) => {
+                certificate_chain
+                    .pki_path()?
+                    .iter()
+                    .enumerate()
+                    .map(Ok)
+                    .reduce(
+                        |a, b| -> Result<(usize, &x509_cert::Certificate), CryptoError> {
+                            let (_, child_cert) = a?;
+                            let (parent_idx, parent_cert) = b?;
+                            // verify not expired
+                            child_cert.is_valid()?;
+
+                            // verify that child is signed by parent
+                            child_cert.is_signed_by(crypto, parent_cert)?;
+
+                            Ok((parent_idx, parent_cert))
+                        },
+                    )
+                    .ok_or_else(|| {
+                        ProcessMessageError::LibraryError(LibraryError::custom(
+                            "Cannot have validated an empty certificate chain",
+                        ))
+                    })??;
+                self.verifiable_content
+                    // sender pk should be the leaf certificate
+                    .verify(crypto, &self.sender_pk)
+                    .map_err(|_| ProcessMessageError::InvalidSignature)?
+            }
+        };
         let content =
             content.validate(ciphersuite, crypto, self.sender_context, protocol_version)?;
         Ok((content, self.credential))

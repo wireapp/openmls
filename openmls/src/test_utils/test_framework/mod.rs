@@ -148,7 +148,7 @@ impl MlsGroupTestSetup {
             let crypto = OpenMlsRustCrypto::default();
             let mut credentials = HashMap::new();
             for ciphersuite in crypto.crypto().supported_ciphersuites().iter() {
-                let credential = Credential::new(identity.clone(), CredentialType::Basic).unwrap();
+                let credential = Credential::new_basic(identity.clone());
                 let signature_keys = SignatureKeyPair::new(
                     ciphersuite.signature_algorithm(),
                     &mut *crypto.rand().borrow_rand().unwrap(),

@@ -29,13 +29,8 @@ pub(crate) async fn setup_alice_group(
     OpenMlsSignaturePublicKey,
 ) {
     // Create credentials and keys
-    let (alice_credential_with_key, alice_signature_keys) = test_utils::new_credential(
-        backend,
-        b"Alice",
-        CredentialType::Basic,
-        ciphersuite.signature_algorithm(),
-    )
-    .await;
+    let (alice_credential_with_key, alice_signature_keys) =
+        test_utils::new_credential(backend, b"Alice", ciphersuite.signature_algorithm()).await;
     let pk = OpenMlsSignaturePublicKey::new(
         alice_signature_keys.to_public_vec().into(),
         ciphersuite.signature_algorithm(),
@@ -100,13 +95,8 @@ async fn test_failed_groupinfo_decryption(
     });
 
     // Create credentials and keys
-    let (alice_credential_with_key, alice_signature_keys) = test_utils::new_credential(
-        backend,
-        b"Alice",
-        CredentialType::Basic,
-        ciphersuite.signature_algorithm(),
-    )
-    .await;
+    let (alice_credential_with_key, alice_signature_keys) =
+        test_utils::new_credential(backend, b"Alice", ciphersuite.signature_algorithm()).await;
 
     let key_package_bundle = KeyPackageBundle::new(
         backend,
@@ -320,20 +310,10 @@ async fn setup_alice_bob(
     SignatureKeyPair,
 ) {
     // Create credentials and keys
-    let (alice_credential_with_key, alice_signer) = test_utils::new_credential(
-        backend,
-        b"Alice",
-        CredentialType::Basic,
-        ciphersuite.signature_algorithm(),
-    )
-    .await;
-    let (bob_credential_with_key, bob_signer) = test_utils::new_credential(
-        backend,
-        b"Bob",
-        CredentialType::Basic,
-        ciphersuite.signature_algorithm(),
-    )
-    .await;
+    let (alice_credential_with_key, alice_signer) =
+        test_utils::new_credential(backend, b"Alice", ciphersuite.signature_algorithm()).await;
+    let (bob_credential_with_key, bob_signer) =
+        test_utils::new_credential(backend, b"Bob", ciphersuite.signature_algorithm()).await;
 
     // Generate Bob's KeyPackage
     let bob_key_package_bundle =
@@ -562,13 +542,8 @@ async fn test_own_commit_processing(
     let framing_parameters = FramingParameters::new(group_aad, WireFormat::PublicMessage);
 
     // Create credentials and keys
-    let (alice_credential_with_key, alice_signature_keys) = test_utils::new_credential(
-        backend,
-        b"Alice",
-        CredentialType::Basic,
-        ciphersuite.signature_algorithm(),
-    )
-    .await;
+    let (alice_credential_with_key, alice_signature_keys) =
+        test_utils::new_credential(backend, b"Alice", ciphersuite.signature_algorithm()).await;
 
     // === Alice creates a group ===
     let alice_group = CoreGroup::builder(
@@ -612,13 +587,8 @@ pub(crate) async fn setup_client_with_extensions(
     SignatureKeyPair,
     OpenMlsSignaturePublicKey,
 ) {
-    let (credential_with_key, signature_keys) = test_utils::new_credential(
-        backend,
-        id.as_bytes(),
-        CredentialType::Basic,
-        ciphersuite.signature_algorithm(),
-    )
-    .await;
+    let (credential_with_key, signature_keys) =
+        test_utils::new_credential(backend, id.as_bytes(), ciphersuite.signature_algorithm()).await;
     let pk = OpenMlsSignaturePublicKey::new(
         signature_keys.to_public_vec().into(),
         ciphersuite.signature_algorithm(),

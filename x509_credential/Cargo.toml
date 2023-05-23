@@ -1,12 +1,9 @@
 [package]
-name = "openmls_basic_credential"
+name = "openmls_x509_credential"
 version = "0.1.0"
-authors = ["OpenMLS Authors"]
 edition = "2021"
 description = "A Basic Credential implementation for OpenMLS"
 license = "MIT"
-documentation = "https://docs.rs/openmls_basic_credential"
-repository = "https://github.com/openmls/openmls/tree/main/basic_credential"
 readme = "README.md"
 
 [dependencies]
@@ -16,12 +13,13 @@ async-trait = { workspace = true }
 serde = "1.0"
 
 # Rust Crypto
-ed25519-dalek = { version = "2.0.0-rc.2", features = ["rand_core"] }
-p256 = "0.13"
-p384 = "0.13"
 secrecy = { version = "0.8", features = ["serde"] }
-rand_core = "0.6"
+x509-cert = "0.2"
+oid-registry = "0.6"
+
+[dev-dependencies]
+rcgen = "0.10"
+serde_json = "1.0"
 
 [features]
-clonable = [] # Make the keys clonable
 test-utils = [] # Only use for tests!
