@@ -87,6 +87,15 @@ impl From<PublicMessage> for MlsMessageOut {
     }
 }
 
+impl From<PrivateMessage> for MlsMessageOut {
+    fn from(priv_message: PrivateMessage) -> Self {
+        Self {
+            version: ProtocolVersion::default(),
+            body: MlsMessageOutBody::PrivateMessage(priv_message),
+        }
+    }
+}
+
 impl From<GroupInfo> for MlsMessageOut {
     fn from(group_info: GroupInfo) -> Self {
         Self {
@@ -108,7 +117,7 @@ impl From<KeyPackage> for MlsMessageOut {
 impl MlsMessageOut {
     /// Create an [`MlsMessageOut`] from a [`PrivateMessage`], as well as the
     /// currently used [`ProtocolVersion`].
-    pub(crate) fn from_private_message(
+    pub fn from_private_message(
         private_message: PrivateMessage,
         version: ProtocolVersion,
     ) -> Self {
@@ -120,7 +129,7 @@ impl MlsMessageOut {
 
     /// Create an [`MlsMessageOut`] from a [`Welcome`] message and the currently
     /// used [`ProtocolVersion`].
-    pub(crate) fn from_welcome(welcome: Welcome, version: ProtocolVersion) -> Self {
+    pub fn from_welcome(welcome: Welcome, version: ProtocolVersion) -> Self {
         MlsMessageOut {
             version,
             body: MlsMessageOutBody::Welcome(welcome),

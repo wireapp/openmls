@@ -355,7 +355,7 @@ impl InitSecret {
 }
 
 #[derive(Debug, TlsDeserialize, TlsSerialize, TlsSize)]
-pub(crate) struct JoinerSecret {
+pub struct JoinerSecret {
     secret: Secret,
 }
 
@@ -847,7 +847,7 @@ impl ConfirmationKey {
 /// The membership key is used to calculate the `MembershipTag`.
 #[derive(Debug, Serialize, Deserialize)]
 #[cfg_attr(test, derive(PartialEq, Clone))]
-pub(crate) struct MembershipKey {
+pub struct MembershipKey {
     secret: Secret,
 }
 

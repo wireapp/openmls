@@ -153,7 +153,7 @@ impl DecryptedMessage {
     ///    of ValSem246 is validated as part of ValSem010.
     ///
     /// Returns the [`Credential`] and the leaf's [`SignaturePublicKey`].
-    pub(crate) fn credential(
+    pub fn credential(
         &self,
         treesync: &TreeSync,
         old_leaves: &[Member],
@@ -231,7 +231,7 @@ impl DecryptedMessage {
 /// Context that is needed to verify the signature of a the leaf node of an
 /// UpdatePath or an update proposal.
 #[derive(Debug, Clone)]
-pub(crate) enum SenderContext {
+pub enum SenderContext {
     Member((GroupId, LeafNodeIndex)),
     ExternalCommit((GroupId, LeafNodeIndex)),
 }

@@ -19,7 +19,7 @@ use crate::{error::LibraryError, versions::ProtocolVersion};
 #[derive(
     Debug, PartialEq, Clone, Serialize, Deserialize, TlsSerialize, TlsDeserialize, TlsSize,
 )]
-pub(crate) struct MembershipTag(pub(crate) Mac);
+pub struct MembershipTag(pub(crate) Mac);
 
 /// [`PublicMessage`] is a framing structure for MLS messages. It can contain
 /// Proposals, Commits and application messages.
@@ -44,7 +44,7 @@ pub struct PublicMessage {
 
 #[cfg(test)]
 impl PublicMessage {
-    pub(crate) fn content(&self) -> &crate::framing::mls_content::FramedContentBody {
+    pub fn content(&self) -> &crate::framing::mls_content::FramedContentBody {
         &self.content.body
     }
 

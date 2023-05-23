@@ -82,7 +82,7 @@ pub enum ApplyUpdatePathError {
 #[allow(dead_code)]
 /// TreeSync error
 #[derive(Error, Debug, PartialEq, Clone)]
-pub(crate) enum TreeSyncError {
+pub enum TreeSyncError {
     /// See [`LibraryError`] for more details.
     #[error(transparent)]
     LibraryError(#[from] LibraryError),
@@ -120,7 +120,7 @@ pub(crate) enum TreeSyncError {
 
 /// Derive path error
 #[derive(Error, Debug, PartialEq, Clone)]
-pub(crate) enum DerivePathError {
+pub enum DerivePathError {
     /// See [`LibraryError`] for more details.
     #[error(transparent)]
     LibraryError(#[from] LibraryError),
@@ -131,7 +131,7 @@ pub(crate) enum DerivePathError {
 
 /// TreeSync set path error
 #[derive(Error, Debug, PartialEq, Clone)]
-pub(crate) enum TreeSyncAddLeaf {
+pub enum TreeSyncAddLeaf {
     /// See [`LibraryError`] for more details.
     #[error(transparent)]
     LibraryError(#[from] LibraryError),
@@ -156,7 +156,7 @@ pub enum TreeSyncFromNodesError {
 
 /// TreeSync parent hash error
 #[derive(Error, Debug, PartialEq, Clone)]
-pub(crate) enum TreeSyncParentHashError {
+pub enum TreeSyncParentHashError {
     /// See [`LibraryError`] for more details.
     #[error(transparent)]
     LibraryError(#[from] LibraryError),
@@ -167,7 +167,7 @@ pub(crate) enum TreeSyncParentHashError {
 
 /// TreeSync parent hash error
 #[derive(Error, Debug, PartialEq, Clone)]
-pub(crate) enum TreeSyncDiffError {
+pub enum TreeSyncDiffError {
     /// See [`LibraryError`] for more details.
     #[error(transparent)]
     LibraryError(#[from] LibraryError),
@@ -189,7 +189,7 @@ pub(crate) enum TreeSyncDiffError {
 /// TreeKem error
 #[derive(Error, Debug, PartialEq, Clone)]
 #[allow(clippy::enum_variant_names)]
-pub(crate) enum TreeKemError {
+pub enum TreeKemError {
     /// See [`LibraryError`] for more details.
     #[error(transparent)]
     LibraryError(#[from] LibraryError),

@@ -68,10 +68,6 @@ impl PublicMessageIn {
         self.content.epoch = epoch.into();
     }
 
-    pub fn confirmation_tag(&self) -> Option<&ConfirmationTag> {
-        self.auth.confirmation_tag.as_ref()
-    }
-
     /// Set the sender.
     pub(crate) fn set_sender(&mut self, sender: Sender) {
         self.content.sender = sender;
@@ -90,7 +86,7 @@ impl From<AuthenticatedContentIn> for PublicMessageIn {
 
 impl PublicMessageIn {
     /// Build an [`PublicMessageIn`].
-    pub(crate) fn new(
+    pub fn new(
         content: FramedContentIn,
         auth: FramedContentAuthData,
         membership_tag: Option<MembershipTag>,
@@ -103,17 +99,17 @@ impl PublicMessageIn {
     }
 
     /// Returns the [`ContentType`] of the message.
-    pub(crate) fn content_type(&self) -> ContentType {
+    pub fn content_type(&self) -> ContentType {
         self.content.body.content_type()
     }
 
     /// Get the sender of this message.
-    pub(crate) fn sender(&self) -> &Sender {
+    pub fn sender(&self) -> &Sender {
         &self.content.sender
     }
 
     #[cfg(test)]
-    pub(crate) fn set_membership_tag(
+    pub fn set_membership_tag(
         &mut self,
         backend: &impl OpenMlsCryptoProvider,
         membership_key: &MembershipKey,
@@ -138,7 +134,7 @@ impl PublicMessageIn {
     /// member. Returns `Ok(())` if successful or [`ValidationError`] otherwise.
     /// Note, that the context must have been set before calling this function.
     // TODO #133: Include this in the validation
-    pub(crate) fn verify_membership(
+    pub fn verify_membership(
         &self,
         backend: &impl OpenMlsCryptoProvider,
         membership_key: &MembershipKey,
@@ -171,17 +167,17 @@ impl PublicMessageIn {
     }
 
     /// Get the group epoch.
-    pub(crate) fn epoch(&self) -> GroupEpoch {
+    pub fn epoch(&self) -> GroupEpoch {
         self.content.epoch
     }
 
     /// Get the [`GroupId`].
-    pub(crate) fn group_id(&self) -> &GroupId {
+    pub fn group_id(&self) -> &GroupId {
         &self.content.group_id
     }
 
     /// Turn this [`PublicMessageIn`] into a [`VerifiableAuthenticatedContent`].
-    pub(crate) fn into_verifiable_content(
+    pub fn into_verifiable_content(
         self,
         serialized_context: impl Into<Option<Vec<u8>>>,
     ) -> VerifiableAuthenticatedContentIn {
@@ -194,8 +190,13 @@ impl PublicMessageIn {
     }
 
     /// Get the [`MembershipTag`].
-    pub(crate) fn membership_tag(&self) -> Option<&MembershipTag> {
+    pub fn membership_tag(&self) -> Option<&MembershipTag> {
         self.membership_tag.as_ref()
+    }
+
+    /// Get the [`ConfirmationTag`]
+    pub fn confirmation_tag(&self) -> Option<&ConfirmationTag> {
+        self.auth.confirmation_tag.as_ref()
     }
 }
 

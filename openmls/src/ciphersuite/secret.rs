@@ -11,7 +11,7 @@ use super::{kdf_label::KdfLabel, *};
 /// Note: This has a hand-written `Debug` implementation.
 ///       Please update as well when changing this struct.
 #[derive(Clone, Serialize, Deserialize, Eq)]
-pub(crate) struct Secret {
+pub struct Secret {
     pub(in crate::ciphersuite) ciphersuite: Ciphersuite,
     pub(in crate::ciphersuite) value: SecretVLBytes,
     pub(in crate::ciphersuite) mls_version: ProtocolVersion,

@@ -486,7 +486,7 @@ pub enum ProposalOrRefType {
 #[repr(u8)]
 #[allow(missing_docs)]
 #[allow(clippy::large_enum_variant)]
-pub(crate) enum ProposalOrRef {
+pub enum ProposalOrRef {
     #[tls_codec(discriminant = 1)]
     Proposal(Proposal),
     Reference(ProposalRef),

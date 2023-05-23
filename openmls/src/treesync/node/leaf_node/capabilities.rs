@@ -120,7 +120,7 @@ impl Capabilities {
     ///
     /// Returns a [`LeafNodeValidationError`] error if any of the required
     /// capabilities is not supported.
-    pub(crate) fn supports_required_capabilities(
+    pub fn supports_required_capabilities(
         &self,
         required_capabilities: &RequiredCapabilitiesExtension,
     ) -> Result<(), LeafNodeValidationError> {
@@ -152,7 +152,7 @@ impl Capabilities {
     }
 
     /// Check if these [`Capabilities`] contain all the extensions.
-    pub(crate) fn are_extensions_supported(&self, extension: &Extensions) -> bool {
+    pub fn are_extensions_supported(&self, extension: &Extensions) -> bool {
         extension
             .iter()
             .map(Extension::extension_type)
@@ -160,7 +160,7 @@ impl Capabilities {
     }
 
     /// Check if these [`Capabilities`] contain all the credentials.
-    pub(crate) fn contains_credential(&self, credential_type: &CredentialType) -> bool {
+    pub fn contains_credential(&self, credential_type: &CredentialType) -> bool {
         self.credentials().contains(credential_type)
     }
 }

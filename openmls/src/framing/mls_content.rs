@@ -31,7 +31,7 @@ use tls_codec::{Serialize as TlsSerializeTrait, Size, TlsSerialize, TlsSize, VLB
 /// } FramedContent;
 /// ```
 #[derive(Debug, PartialEq, Clone, Serialize, Deserialize, TlsSerialize, TlsSize)]
-pub(crate) struct FramedContent {
+pub struct FramedContent {
     pub(super) group_id: GroupId,
     pub(super) epoch: GroupEpoch,
     pub(super) sender: Sender,
@@ -64,7 +64,7 @@ impl From<AuthenticatedContent> for FramedContent {
 /// ```
 #[derive(Debug, PartialEq, Clone, Serialize, Deserialize, TlsSerialize, TlsSize)]
 #[repr(u8)]
-pub(crate) enum FramedContentBody {
+pub enum FramedContentBody {
     #[tls_codec(discriminant = 1)]
     Application(VLBytes),
     #[tls_codec(discriminant = 2)]

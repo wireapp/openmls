@@ -420,10 +420,22 @@ impl StagedCommit {
         self.staged_proposal_queue.psk_proposals()
     }
 
+    /// Returns an interator over all [`QueuedProposal`]s
+    pub fn queued_proposals(&self) -> impl Iterator<Item = &QueuedProposal> {
+        self.staged_proposal_queue.queued_proposals()
+    }
+
     /// Returns `true` if the member was removed through a proposal covered by this Commit message
     /// and `false` otherwise.
     pub fn self_removed(&self) -> bool {
         matches!(self.state, StagedCommitState::PublicState(_))
+    }
+
+    pub fn staged_context(&self) -> &GroupContext {
+        match &self.state {
+            StagedCommitState::PublicState(ps) => ps.group_context(),
+            StagedCommitState::GroupMember(gm) => gm.group_context(),
+        }
     }
 
     /// Consume this [`StagedCommit`] and return the internal [`StagedCommitState`].
@@ -457,5 +469,10 @@ impl MemberStagedCommitState {
             new_keypairs,
             new_leaf_keypair_option,
         }
+    }
+
+    /// Get the staged [`GroupContext`]
+    pub(crate) fn group_context(&self) -> &GroupContext {
+        self.staged_diff.group_context()
     }
 }

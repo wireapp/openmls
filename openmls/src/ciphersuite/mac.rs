@@ -4,7 +4,7 @@ use super::*;
 ///
 /// opaque MAC<V>;
 #[derive(Debug, Clone, Serialize, Deserialize, TlsDeserialize, TlsSerialize, TlsSize)]
-pub(crate) struct Mac {
+pub struct Mac {
     pub(crate) mac_value: VLBytes,
 }
 
@@ -41,5 +41,12 @@ impl Mac {
         let mut last_bits = self.mac_value.pop().expect("An unexpected error occurred.");
         last_bits ^= 0xff;
         self.mac_value.push(last_bits);
+    }
+}
+
+impl std::ops::Deref for Mac {
+    type Target = [u8];
+    fn deref(&self) -> &Self::Target {
+        self.mac_value.as_slice()
     }
 }

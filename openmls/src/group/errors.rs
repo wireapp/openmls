@@ -416,7 +416,7 @@ pub enum CreateAddProposalError {
 
 /// Exporter error
 #[derive(Error, Debug, PartialEq, Clone)]
-pub(crate) enum ExporterError {
+pub enum ExporterError {
     /// See [`LibraryError`] for more details.
     #[error(transparent)]
     LibraryError(#[from] LibraryError),
@@ -426,7 +426,7 @@ pub(crate) enum ExporterError {
 
 /// Proposal queue error
 #[derive(Error, Debug, PartialEq, Clone)]
-pub(crate) enum ProposalQueueError {
+pub enum ProposalQueueError {
     /// See [`LibraryError`] for more details.
     #[error(transparent)]
     LibraryError(#[from] LibraryError),
@@ -441,7 +441,7 @@ pub(crate) enum ProposalQueueError {
 /// Errors that can arise when creating a [`ProposalQueue`] from committed
 /// proposals.
 #[derive(Error, Debug, PartialEq, Clone)]
-pub(crate) enum FromCommittedProposalsError {
+pub enum FromCommittedProposalsError {
     /// See [`LibraryError`] for more details.
     #[error(transparent)]
     LibraryError(#[from] LibraryError),
@@ -455,7 +455,7 @@ pub(crate) enum FromCommittedProposalsError {
 
 /// Creation proposal queue error
 #[derive(Error, Debug, PartialEq, Clone)]
-pub(crate) enum CreationProposalQueueError {
+pub enum CreationProposalQueueError {
     /// See [`LibraryError`] for more details.
     #[error(transparent)]
     LibraryError(#[from] LibraryError),
@@ -466,7 +466,7 @@ pub(crate) enum CreationProposalQueueError {
 
 // Apply proposals error
 #[derive(Error, Debug, PartialEq, Clone)]
-pub(crate) enum ApplyProposalsError {
+pub enum ApplyProposalsError {
     /// See [`LibraryError`] for more details.
     #[error(transparent)]
     LibraryError(#[from] LibraryError),
@@ -477,7 +477,7 @@ pub(crate) enum ApplyProposalsError {
 
 // Core group build error
 #[derive(Error, Debug, PartialEq, Clone)]
-pub(crate) enum CoreGroupBuildError<KeyStoreError> {
+pub enum CoreGroupBuildError<KeyStoreError> {
     /// See [`LibraryError`] for more details.
     #[error(transparent)]
     LibraryError(#[from] LibraryError),
@@ -494,7 +494,7 @@ pub(crate) enum CoreGroupBuildError<KeyStoreError> {
 
 // CoreGroup parse message error
 #[derive(Error, Debug, PartialEq, Clone)]
-pub(crate) enum CoreGroupParseMessageError {
+pub enum CoreGroupParseMessageError {
     /// See [`LibraryError`] for more details.
     #[error(transparent)]
     LibraryError(#[from] LibraryError),

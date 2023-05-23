@@ -65,7 +65,7 @@ pub struct Welcome {
 impl Welcome {
     /// Create a new welcome message from the provided data.
     /// Note that secrets and the encrypted group info are consumed.
-    pub(crate) fn new(
+    pub fn new(
         cipher_suite: Ciphersuite,
         secrets: Vec<EncryptedGroupSecrets>,
         encrypted_group_info: Vec<u8>,
@@ -78,7 +78,7 @@ impl Welcome {
     }
 
     /// Returns a reference to the ciphersuite in this Welcome message.
-    pub(crate) fn ciphersuite(&self) -> Ciphersuite {
+    pub fn ciphersuite(&self) -> Ciphersuite {
         self.cipher_suite
     }
 
@@ -88,7 +88,7 @@ impl Welcome {
     }
 
     /// Returns a reference to the encrypted group info.
-    pub(crate) fn encrypted_group_info(&self) -> &[u8] {
+    pub fn encrypted_group_info(&self) -> &[u8] {
         self.encrypted_group_info.as_slice()
     }
 
@@ -125,7 +125,7 @@ impl EncryptedGroupSecrets {
     }
 
     /// Returns a reference to the encrypted group secrets' encrypted group secrets.
-    pub(crate) fn encrypted_group_secrets(&self) -> &HpkeCiphertext {
+    pub fn encrypted_group_secrets(&self) -> &HpkeCiphertext {
         &self.encrypted_group_secrets
     }
 }
@@ -149,9 +149,9 @@ impl EncryptedGroupSecrets {
 /// } Commit;
 /// ```
 #[derive(Debug, PartialEq, Clone, Serialize, Deserialize, TlsSerialize, TlsSize)]
-pub(crate) struct Commit {
-    pub(crate) proposals: Vec<ProposalOrRef>,
-    pub(crate) path: Option<UpdatePath>,
+pub struct Commit {
+    pub proposals: Vec<ProposalOrRef>,
+    pub path: Option<UpdatePath>,
 }
 
 impl Commit {
@@ -162,7 +162,7 @@ impl Commit {
     }
 
     /// Returns the update path of the Commit if it has one.
-    pub(crate) fn path(&self) -> &Option<UpdatePath> {
+    pub fn path(&self) -> &Option<UpdatePath> {
         &self.path
     }
 }
@@ -170,13 +170,13 @@ impl Commit {
 #[derive(
     Debug, PartialEq, Clone, Serialize, Deserialize, TlsDeserialize, TlsSerialize, TlsSize,
 )]
-pub(crate) struct CommitIn {
+pub struct CommitIn {
     proposals: Vec<ProposalOrRefIn>,
     path: Option<UpdatePathIn>,
 }
 
 impl CommitIn {
-    pub(crate) fn unverified_credential(&self) -> Option<CredentialWithKey> {
+    pub fn unverified_credential(&self) -> Option<CredentialWithKey> {
         self.path.as_ref().map(|p| {
             let credential = p.leaf_node().credential().clone();
             let pk = p.leaf_node().signature_key().clone();
@@ -188,7 +188,7 @@ impl CommitIn {
     }
 
     /// Returns a [`Commit`] after successful validation.
-    pub(crate) fn validate(
+    pub fn validate(
         self,
         ciphersuite: Ciphersuite,
         crypto: &impl OpenMlsCrypto,
@@ -266,7 +266,7 @@ impl From<Commit> for CommitIn {
 #[derive(
     Debug, PartialEq, Clone, Serialize, Deserialize, TlsDeserialize, TlsSerialize, TlsSize,
 )]
-pub struct ConfirmationTag(pub(crate) Mac);
+pub struct ConfirmationTag(pub Mac);
 
 /// PathSecret
 ///
@@ -279,8 +279,8 @@ pub struct ConfirmationTag(pub(crate) Mac);
 /// ```
 #[derive(Debug, Serialize, Deserialize, TlsSerialize, TlsDeserialize, TlsSize)]
 #[cfg_attr(any(feature = "test-utils", test), derive(PartialEq, Clone))]
-pub(crate) struct PathSecret {
-    pub(crate) path_secret: Secret,
+pub struct PathSecret {
+    pub path_secret: Secret,
 }
 
 impl From<Secret> for PathSecret {
@@ -291,7 +291,7 @@ impl From<Secret> for PathSecret {
 
 impl PathSecret {
     /// Derives a node secret which in turn is used to derive an HpkeKeyPair.
-    pub(crate) fn derive_key_pair(
+    pub fn derive_key_pair(
         &self,
         backend: &impl OpenMlsCryptoProvider,
         ciphersuite: Ciphersuite,
@@ -309,7 +309,7 @@ impl PathSecret {
     }
 
     /// Derives a path secret.
-    pub(crate) fn derive_path_secret(
+    pub fn derive_path_secret(
         &self,
         backend: &impl OpenMlsCryptoProvider,
         ciphersuite: Ciphersuite,
@@ -323,7 +323,7 @@ impl PathSecret {
 
     /// Encrypt the path secret under the given `HpkePublicKey` using the given
     /// `group_context`.
-    pub(crate) fn encrypt(
+    pub fn encrypt(
         &self,
         backend: &impl OpenMlsCryptoProvider,
         ciphersuite: Ciphersuite,
@@ -339,7 +339,7 @@ impl PathSecret {
     }
 
     /// Consume the `PathSecret`, returning the internal `Secret` value.
-    pub(crate) fn secret(self) -> Secret {
+    pub fn secret(self) -> Secret {
         self.path_secret
     }
 
@@ -349,7 +349,7 @@ impl PathSecret {
     /// was unsuccessful.
     ///
     /// ValSem203: Path secrets must decrypt correctly
-    pub(crate) fn decrypt(
+    pub fn decrypt(
         backend: &impl OpenMlsCryptoProvider,
         ciphersuite: Ciphersuite,
         version: ProtocolVersion,
@@ -367,7 +367,7 @@ impl PathSecret {
 
 /// Path secret error
 #[derive(Error, Debug, PartialEq, Clone)]
-pub(crate) enum PathSecretError {
+pub enum PathSecretError {
     /// See [`hpke::Error`] for more details.
     #[error(transparent)]
     DecryptionError(#[from] hpke::Error),
@@ -384,17 +384,17 @@ pub(crate) enum PathSecretError {
 /// } GroupSecrets;
 /// ```
 #[derive(Debug, TlsDeserialize, TlsSize)]
-pub(crate) struct GroupSecrets {
-    pub(crate) joiner_secret: JoinerSecret,
-    pub(crate) path_secret: Option<PathSecret>,
-    pub(crate) psks: Vec<PreSharedKeyId>,
+pub struct GroupSecrets {
+    pub joiner_secret: JoinerSecret,
+    pub path_secret: Option<PathSecret>,
+    pub psks: Vec<PreSharedKeyId>,
 }
 
 #[derive(TlsSerialize, TlsSize)]
 struct EncodedGroupSecrets<'a> {
-    pub(crate) joiner_secret: &'a JoinerSecret,
-    pub(crate) path_secret: Option<&'a PathSecret>,
-    pub(crate) psks: &'a [PreSharedKeyId],
+    pub joiner_secret: &'a JoinerSecret,
+    pub path_secret: Option<&'a PathSecret>,
+    pub psks: &'a [PreSharedKeyId],
 }
 
 /// Error related to group secrets.
@@ -410,7 +410,7 @@ pub enum GroupSecretsError {
 
 impl GroupSecrets {
     /// Try to decrypt (and parse) a ciphertext into group secrets.
-    pub(crate) fn try_from_ciphertext(
+    pub fn try_from_ciphertext(
         skey: &HpkePrivateKey,
         ciphertext: &HpkeCiphertext,
         context: &[u8],
@@ -431,7 +431,7 @@ impl GroupSecrets {
     }
 
     /// Create new encoded group secrets.
-    pub(crate) fn new_encoded<'a>(
+    pub fn new_encoded<'a>(
         joiner_secret: &JoinerSecret,
         path_secret: Option<&'a PathSecret>,
         psks: &'a [PreSharedKeyId],
@@ -445,7 +445,7 @@ impl GroupSecrets {
     }
 
     /// Set the config for the secrets, i.e. ciphersuite and MLS version.
-    pub(crate) fn config(
+    pub fn config(
         mut self,
         ciphersuite: Ciphersuite,
         mls_version: ProtocolVersion,

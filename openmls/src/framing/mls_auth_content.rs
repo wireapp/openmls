@@ -45,9 +45,9 @@ use crate::{
 ///} FramedContentAuthData;
 /// ```
 #[derive(PartialEq, Debug, Clone, Serialize, Deserialize)]
-pub(crate) struct FramedContentAuthData {
-    pub(super) signature: Signature,
-    pub(super) confirmation_tag: Option<ConfirmationTag>,
+pub struct FramedContentAuthData {
+    pub signature: Signature,
+    pub confirmation_tag: Option<ConfirmationTag>,
 }
 
 impl FramedContentAuthData {
@@ -80,7 +80,7 @@ impl FramedContentAuthData {
 /// } AuthenticatedContent;
 /// ```
 #[derive(PartialEq, Debug, Clone, TlsSerialize, TlsSize)]
-pub(crate) struct AuthenticatedContent {
+pub struct AuthenticatedContent {
     pub(super) wire_format: WireFormat,
     pub(super) content: FramedContent,
     pub(super) auth: FramedContentAuthData,
@@ -119,7 +119,7 @@ impl AuthenticatedContent {
 
     /// This constructor builds an `AuthenticatedContent` containing an application
     /// message. The sender type is always `SenderType::Member`.
-    pub(crate) fn new_application(
+    pub fn new_application(
         sender_leaf_index: LeafNodeIndex,
         authenticated_data: &[u8],
         application_message: &[u8],
@@ -139,7 +139,7 @@ impl AuthenticatedContent {
 
     /// This constructor builds an `PublicMessage` containing a Proposal.
     /// The sender type is always `SenderType::Member`.
-    pub(crate) fn member_proposal(
+    pub fn member_proposal(
         framing_parameters: FramingParameters,
         sender_leaf_index: LeafNodeIndex,
         proposal: Proposal,
@@ -156,7 +156,7 @@ impl AuthenticatedContent {
     }
 
     /// This constructor builds an `PublicMessage` containing an External Proposal.
-    pub(crate) fn new_join_proposal(
+    pub fn new_join_proposal(
         proposal: Proposal,
         group_id: GroupId,
         epoch: GroupEpoch,
@@ -179,7 +179,7 @@ impl AuthenticatedContent {
     }
 
     /// This constructor builds an `PublicMessage` containing an External Proposal.
-    pub(crate) fn new_external_proposal(
+    pub fn new_external_proposal(
         proposal: Proposal,
         group_id: GroupId,
         epoch: GroupEpoch,
@@ -207,7 +207,7 @@ impl AuthenticatedContent {
     /// it's an `External` commit, the `SenderType` is `NewMemberCommit`. If it is an
     /// `External` commit, the context is not signed along with the rest of the
     /// commit.
-    pub(crate) fn commit(
+    pub fn commit(
         framing_parameters: FramingParameters,
         sender: Sender,
         commit: Commit,
@@ -224,41 +224,41 @@ impl AuthenticatedContent {
     }
 
     /// Get the signature.
-    pub(crate) fn signature(&self) -> &Signature {
+    pub fn signature(&self) -> &Signature {
         &self.auth.signature
     }
 
     /// Get the signature.
-    pub(crate) fn confirmation_tag(&self) -> Option<&ConfirmationTag> {
+    pub fn confirmation_tag(&self) -> Option<&ConfirmationTag> {
         self.auth.confirmation_tag.as_ref()
     }
 
     /// Set the confirmation tag.
-    pub(crate) fn set_confirmation_tag(&mut self, tag: ConfirmationTag) {
+    pub fn set_confirmation_tag(&mut self, tag: ConfirmationTag) {
         self.auth.confirmation_tag = Some(tag)
     }
 
     /// Get the content body of the message.
-    pub(crate) fn content(&self) -> &FramedContentBody {
+    pub fn content(&self) -> &FramedContentBody {
         &self.content.body
     }
 
     /// Get the wire format.
-    pub(crate) fn wire_format(&self) -> WireFormat {
+    pub fn wire_format(&self) -> WireFormat {
         self.wire_format
     }
 
-    pub(crate) fn authenticated_data(&self) -> &[u8] {
+    pub fn authenticated_data(&self) -> &[u8] {
         self.content.authenticated_data.as_slice()
     }
 
     /// Get the group id as [`GroupId`].
-    pub(crate) fn group_id(&self) -> &GroupId {
+    pub fn group_id(&self) -> &GroupId {
         &self.content.group_id
     }
 
     /// Get the epoch.
-    pub(crate) fn epoch(&self) -> GroupEpoch {
+    pub fn epoch(&self) -> GroupEpoch {
         self.content.epoch
     }
 
@@ -270,7 +270,7 @@ impl AuthenticatedContent {
 
 #[cfg(test)]
 impl AuthenticatedContent {
-    pub(crate) fn new(
+    pub fn new(
         wire_format: WireFormat,
         content: FramedContent,
         auth: FramedContentAuthData,
