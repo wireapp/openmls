@@ -392,34 +392,21 @@ impl MlsGroup {
             MlsGroupState::Operational => Ok(()),
         }
     }
-}
-
-// Methods used in tests
-impl MlsGroup {
-    #[cfg(any(feature = "test-utils", test))]
     pub fn export_group_context(&self) -> &GroupContext {
         self.group.context()
     }
 
-    #[cfg(any(feature = "test-utils", test))]
     pub fn tree_hash(&self) -> &[u8] {
         self.group.public_group().group_context().tree_hash()
     }
 
-    #[cfg(any(feature = "test-utils", test))]
-    pub fn print_ratchet_tree(&self, message: &str) {
-        self.group.print_ratchet_tree(message)
-    }
-
     /// Returns the underlying [CoreGroup].
-    #[cfg(test)]
     pub(crate) fn group(&self) -> &CoreGroup {
         &self.group
     }
 
     /// Clear the pending proposals.
-    #[cfg(test)]
-    pub(crate) fn clear_pending_proposals(&mut self) {
+    pub fn clear_pending_proposals(&mut self) {
         self.proposal_store.empty()
     }
 
@@ -431,6 +418,10 @@ impl MlsGroup {
         self.proposal_store
             .remove(proposal_ref)
             .ok_or(MlsGroupStateError::PendingProposalNotFound)
+    }
+
+    pub fn print_ratchet_tree(&self, message: &str) {
+        self.group.print_ratchet_tree(message)
     }
 }
 

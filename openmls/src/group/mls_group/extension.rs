@@ -2,8 +2,6 @@
 //!
 //! Contains all the methods related to modifying a group's extensions.
 
-use std::iter;
-
 use openmls_traits::signatures::Signer;
 
 use crate::{

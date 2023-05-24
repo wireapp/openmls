@@ -276,7 +276,6 @@ impl From<RatchetTreeIn> for RatchetTree {
     }
 }
 
-#[cfg(any(feature = "test-utils", test))]
 impl fmt::Display for RatchetTree {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let factor = 3;

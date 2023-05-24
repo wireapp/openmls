@@ -1128,6 +1128,10 @@ impl CoreGroup {
     pub(crate) fn own_tree_position(&self) -> TreePosition {
         TreePosition::new(self.group_id().clone(), self.own_leaf_index())
     }
+
+    pub(crate) fn print_ratchet_tree(&self, message: &str) {
+        println!("{}: {}", message, self.public_group().export_ratchet_tree());
+    }
 }
 
 /// Composite key for key material of a client within an epoch
@@ -1154,10 +1158,6 @@ impl CoreGroup {
 
     pub(crate) fn message_secrets_test_mut(&mut self) -> &mut MessageSecrets {
         self.message_secrets_store.message_secrets_mut()
-    }
-
-    pub(crate) fn print_ratchet_tree(&self, message: &str) {
-        println!("{}: {}", message, self.public_group().export_ratchet_tree());
     }
 
     #[cfg(test)]
