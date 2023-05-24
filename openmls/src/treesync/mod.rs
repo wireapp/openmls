@@ -100,6 +100,13 @@ pub mod tests_and_kats;
 #[derive(PartialEq, Eq, Clone, Debug, Serialize, Deserialize, TlsSerialize, TlsSize)]
 pub struct RatchetTree(Vec<Option<Node>>);
 
+impl std::ops::Deref for RatchetTree {
+    type Target = [Option<Node>];
+    fn deref(&self) -> &Self::Target {
+        self.0.as_slice()
+    }
+}
+
 /// An error during processing of an incoming ratchet tree.
 #[derive(Error, Debug, PartialEq, Clone)]
 pub enum RatchetTreeError {
