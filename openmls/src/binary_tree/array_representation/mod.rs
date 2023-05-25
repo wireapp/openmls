@@ -19,12 +19,9 @@ pub(crate) mod sorted_iter;
 pub(crate) mod tree;
 
 pub(crate) use treemath::{
-    direct_path, is_node_in_tree, left, right, root, ParentNodeIndex, TreeNodeIndex, TreeSize,
-    MIN_TREE_SIZE,
+    direct_path, is_node_in_tree, left, level, right, root, ParentNodeIndex, TreeNodeIndex,
+    TreeSize, MIN_TREE_SIZE,
 };
-
-#[cfg(any(feature = "test-utils", test))]
-pub(crate) use treemath::level;
 
 mod treemath;
 

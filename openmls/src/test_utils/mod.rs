@@ -55,23 +55,12 @@ pub(crate) fn read<T: DeserializeOwned>(file_name: &str) -> T {
 
 /// Convert `bytes` to a hex string.
 pub fn bytes_to_hex(bytes: &[u8]) -> String {
-    let mut hex = String::new();
-    for &b in bytes {
-        write!(&mut hex, "{b:02X}").expect("Unable to write to string");
-    }
-    hex
+    hex::encode(bytes)
 }
 
 /// Convert a hex string to a byte vector.
 pub fn hex_to_bytes(hex: &str) -> Vec<u8> {
-    assert!(hex.len() % 2 == 0);
-    let mut bytes = Vec::new();
-    for i in 0..(hex.len() / 2) {
-        bytes.push(
-            u8::from_str_radix(&hex[2 * i..2 * i + 2], 16).expect("An unexpected error occurred."),
-        );
-    }
-    bytes
+    hex::decode(hex).unwrap()
 }
 
 /// Convert a hex string to a byte vector.

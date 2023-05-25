@@ -24,8 +24,6 @@ use openmls_rust_crypto::OpenMlsRustCrypto;
 use rstest::*;
 #[cfg(test)]
 use rstest_reuse::apply;
-#[cfg(any(feature = "test-utils", test))]
-use std::fmt;
 
 use openmls_traits::{
     crypto::OpenMlsCrypto,
@@ -50,11 +48,7 @@ use self::{
 };
 #[cfg(test)]
 use crate::binary_tree::array_representation::ParentNodeIndex;
-#[cfg(any(feature = "test-utils", test))]
-use crate::{
-    binary_tree::array_representation::level, group::tests::tree_printing::root,
-    test_utils::bytes_to_hex,
-};
+
 use crate::{
     binary_tree::{
         array_representation::{is_node_in_tree, tree::TreeNode, LeafNodeIndex, TreeSize},
@@ -276,11 +270,12 @@ impl From<RatchetTreeIn> for RatchetTree {
     }
 }
 
-impl fmt::Display for RatchetTree {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+impl std::fmt::Display for RatchetTree {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        use crate::binary_tree::array_representation::{level, root};
         let factor = 3;
         let nodes = &self.0;
-        let tree_size = nodes.len() as u32;
+        let tree_size = TreeSize::new(nodes.len() as u32);
 
         for (i, node) in nodes.iter().enumerate() {
             let level = level(i as u32);
@@ -290,27 +285,25 @@ impl fmt::Display for RatchetTree {
                     Node::LeafNode(leaf_node) => {
                         write!(f, "\tL      ")?;
                         let key_bytes = leaf_node.encryption_key().as_slice();
-                        let parent_hash_bytes = leaf_node
-                            .parent_hash()
-                            .map(bytes_to_hex)
-                            .unwrap_or_default();
+                        let parent_hash_bytes =
+                            leaf_node.parent_hash().map(hex::encode).unwrap_or_default();
                         (key_bytes, parent_hash_bytes)
                     }
                     Node::ParentNode(parent_node) => {
-                        if root(tree_size) == i as u32 {
+                        if root(tree_size).usize() == i {
                             write!(f, "\tP (*)  ")?;
                         } else {
                             write!(f, "\tP      ")?;
                         }
                         let key_bytes = parent_node.public_key().as_slice();
-                        let parent_hash_string = bytes_to_hex(parent_node.parent_hash());
+                        let parent_hash_string = hex::encode(parent_node.parent_hash());
                         (key_bytes, parent_hash_string)
                     }
                 };
                 write!(
                     f,
                     "PK: {}  PH: {} | ",
-                    bytes_to_hex(key_bytes),
+                    hex::encode(key_bytes),
                     if !parent_hash_bytes.is_empty() {
                         parent_hash_bytes
                     } else {
@@ -320,7 +313,7 @@ impl fmt::Display for RatchetTree {
 
                 write!(f, "{}◼︎", str::repeat(" ", level * factor))?;
             } else {
-                if root(tree_size) == i as u32 {
+                if root(tree_size).usize() == i {
                     write!(
                         f,
                         "\t_ (*)  PK: {}  PH: {} | ",
