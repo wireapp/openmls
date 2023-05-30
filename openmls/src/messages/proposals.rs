@@ -124,6 +124,20 @@ impl ProposalType {
         )
     }
 
+    /// Returns whether this proposal type is considered a spec default and thus should skip capabilities validations
+    pub fn is_spec_default(&self) -> bool {
+        matches!(
+            self,
+            ProposalType::Add
+                | ProposalType::Update
+                | ProposalType::Remove
+                | ProposalType::PreSharedKey
+                | ProposalType::Reinit
+                | ProposalType::ExternalInit
+                | ProposalType::GroupContextExtensions
+        )
+    }
+
     /// Returns a slice of all supported proposal types by OpenMls
     pub const fn supported_types() -> &'static [ProposalType] {
         &[

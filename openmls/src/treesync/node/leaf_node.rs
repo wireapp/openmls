@@ -385,10 +385,12 @@ impl LeafNode {
 
     /// Returns `true` if the [`ExtensionType`] is supported by this leaf node.
     pub(crate) fn supports_extension(&self, extension_type: &ExtensionType) -> bool {
-        self.payload
-            .capabilities
-            .extensions
-            .contains(extension_type)
+        extension_type.is_spec_default()
+            || self
+                .payload
+                .capabilities
+                .extensions
+                .contains(extension_type)
             || default_extensions().iter().any(|et| et == extension_type)
     }
 
