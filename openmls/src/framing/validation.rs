@@ -28,7 +28,6 @@ use openmls_traits::{
     types::{Ciphersuite, CryptoError},
     OpenMlsCryptoProvider,
 };
-use openmls_x509_credential::X509Ext;
 
 use crate::{
     binary_tree::LeafNodeIndex,
@@ -291,6 +290,7 @@ impl UnverifiedMessage {
                     .map(Ok)
                     .reduce(
                         |a, b| -> Result<(usize, &x509_cert::Certificate), CryptoError> {
+                            use openmls_x509_credential::X509Ext;
                             let (_, child_cert) = a?;
                             let (parent_idx, parent_cert) = b?;
                             // verify not expired

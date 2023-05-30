@@ -19,14 +19,14 @@ thiserror = "^1.0"
 backtrace = "0.3"
 hex = "0.4"
 async-trait = { workspace = true }
+openmls_basic_credential = { version = "0.1.0", path = "../basic_credential", features = ["clonable", "test-utils"] }
+openmls_x509_credential = { version = "0.1.0", path = "../x509_credential", features = ["test-utils"] }
 # Only required for tests.
 rand = { version = "0.8", optional = true }
 serde_json = { version = "1.0", optional = true }
 # Crypto backends required for KAT and testing - "test-utils" feature
 itertools = { version = "0.10", optional = true }
 openmls_rust_crypto = { version = "0.1.0", path = "../openmls_rust_crypto", optional = true }
-openmls_basic_credential = { version = "0.1.0", path = "../basic_credential", optional = true, features = ["clonable", "test-utils"] }
-openmls_x509_credential = { version = "0.1.0", path = "../x509_credential", optional = true, features = ["test-utils"] }
 rstest = { version = "^0.16", optional = true }
 rstest_reuse = { version = "0.4", optional = true }
 tokio = { version = "1.24", features = ["full"], optional = true }
@@ -43,8 +43,8 @@ test-utils = [
     "dep:tokio",
     "dep:rstest",
     "dep:rstest_reuse",
-    "dep:openmls_basic_credential",
-    "dep:openmls_x509_credential",
+    "openmls_basic_credential/test-utils",
+    "openmls_x509_credential/test-utils",
 ]
 crypto-debug = [] # ☣️ Enable logging of sensitive cryptographic information
 content-debug = [] # ☣️ Enable logging of sensitive message content

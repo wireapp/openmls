@@ -225,7 +225,7 @@ pub(super) fn default_proposals() -> Vec<ProposalType> {
 
 // TODO(#1231)
 pub(super) fn default_credentials() -> Vec<CredentialType> {
-    vec![CredentialType::Basic]
+    vec![CredentialType::Basic, CredentialType::X509]
 }
 
 #[cfg(test)]
