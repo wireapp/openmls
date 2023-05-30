@@ -289,13 +289,7 @@ impl MlsClient for MlsClientImpl {
         // Note: We just use some values here that make live testing work.
         //       There is nothing special about the used numbers and they
         //       can be increased (or decreased) depending on the available scenarios.
-        let kp_capabilities = Capabilities::new(
-            None,
-            None,
-            Some(&EXTENSION_TYPES),
-            None,
-            Some(&CREDENTIAL_TYPES),
-        );
+        let kp_capabilities = Capabilities::new(None, None, None, None, Some(&CREDENTIAL_TYPES));
         let mls_group_config = MlsGroupConfig::builder()
             .crypto_config(CryptoConfig::with_default_version(ciphersuite))
             .max_past_epochs(32)
@@ -369,9 +363,10 @@ impl MlsClient for MlsClientImpl {
                 Some(&[
                     Ciphersuite::MLS_128_DHKEMX25519_AES128GCM_SHA256_Ed25519,
                     Ciphersuite::MLS_128_DHKEMP256_AES128GCM_SHA256_P256,
+                    Ciphersuite::MLS_256_DHKEMP384_AES256GCM_SHA384_P384,
                     Ciphersuite::MLS_128_DHKEMX25519_CHACHA20POLY1305_SHA256_Ed25519,
                 ]),
-                Some(&EXTENSION_TYPES),
+                None,
                 None,
                 Some(&CREDENTIAL_TYPES),
             ))

@@ -164,6 +164,18 @@ impl ExtensionType {
                 | ExtensionType::PerDomainTrustAnchor
         )
     }
+
+    /// Returns whether this is considered a spec default and should be kept out of capabilities verifications
+    pub fn is_spec_default(&self) -> bool {
+        matches!(
+            self,
+            ExtensionType::ApplicationId
+                | ExtensionType::RatchetTree
+                | ExtensionType::RequiredCapabilities
+                | ExtensionType::ExternalPub
+                | ExtensionType::ExternalSenders
+        )
+    }
 }
 
 /// # Extension

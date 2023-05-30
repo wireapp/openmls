@@ -11,7 +11,6 @@ use crate::{
     framing::*,
     group::{errors::*, *},
     key_packages::*,
-    messages::proposals::ProposalType,
     schedule::psk::store::ResumptionPskStore,
     test_utils::*,
 };
@@ -225,13 +224,10 @@ fn required_capabilities() {
     );
 
     // Build one with some content.
-    let required_capabilities = RequiredCapabilitiesExtension::new(
-        &[ExtensionType::ApplicationId, ExtensionType::RatchetTree],
-        &[ProposalType::Reinit],
-        &[CredentialType::Basic],
-    );
+    let required_capabilities =
+        RequiredCapabilitiesExtension::new(&[], &[], &[CredentialType::Basic]);
     let ext = Extension::RequiredCapabilities(required_capabilities);
-    let extension_bytes = vec![0u8, 3, 11, 4, 0, 1, 0, 2, 2, 0, 5, 2, 0, 1];
+    let extension_bytes = vec![0u8, 3, 5, 0, 0, 2, 0, 1];
 
     // Test encoding and decoding
     let encoded = ext

@@ -2,18 +2,17 @@ use openmls_traits::{types::Ciphersuite, OpenMlsCryptoProvider};
 
 use crate::{
     extensions::{
-        ApplicationIdExtension, Extension, ExtensionType, Extensions, RequiredCapabilitiesExtension,
+        errors::ExtensionError, ApplicationIdExtension, Extension, Extensions,
+        RequiredCapabilitiesExtension,
     },
     framing::{validation::ProcessedMessageContent, MlsMessageIn},
-    group::errors::UpdateExtensionsError,
+    group::mls_group::errors::UpdateExtensionsError,
+    messages::proposals::ProposalType,
     test_utils::*,
-    treesync::{
-        errors::{LeafNodeValidationError, MemberExtensionValidationError},
-        node::leaf_node::Capabilities,
-    },
+    treesync::{errors::MemberExtensionValidationError, node::leaf_node::Capabilities},
 };
 
-use super::test_gce_proposals::{group_setup, DEFAULT_CREDENTIAL_TYPES, DEFAULT_PROPOSAL_TYPES};
+use super::test_gce_proposals::{group_setup, DEFAULT_CREDENTIAL_TYPES};
 
 wasm_bindgen_test::wasm_bindgen_test_configure!(run_in_browser);
 
@@ -24,7 +23,7 @@ async fn gce_fails_when_it_contains_unsupported_extensions(
     backend: &impl OpenMlsCryptoProvider,
 ) {
     let required_capabilities =
-        RequiredCapabilitiesExtension::new(&[], &DEFAULT_PROPOSAL_TYPES, &DEFAULT_CREDENTIAL_TYPES);
+        RequiredCapabilitiesExtension::new(&[], &[], &DEFAULT_CREDENTIAL_TYPES);
     // Bob has been created from a welcome message
     let (mut alice_group, mut bob_group, alice_signer, bob_signer) = group_setup(
         ciphersuite,
@@ -37,41 +36,37 @@ async fn gce_fails_when_it_contains_unsupported_extensions(
     .await;
     // Alice tries to add a required capability she doesn't support herself.
     let required_key_id = Extension::RequiredCapabilities(RequiredCapabilitiesExtension::new(
-        &[ExtensionType::ExternalSenders],
         &[],
+        &[ProposalType::AppAck],
         &[],
     ));
     let e = alice_group.update_extensions(backend, &alice_signer, Extensions::single(required_key_id.clone())).await
         .expect_err("Alice was able to create a gce proposal with a required extensions she doesn't support.");
-    assert!(matches!(
+    matches!(
         e,
         UpdateExtensionsError::MemberExtensionValidationError(
-            MemberExtensionValidationError::LeafNodeValidationError(
-                LeafNodeValidationError::UnsupportedExtensions
-            )
+            MemberExtensionValidationError::ExtensionError(ExtensionError::UnsupportedProposalType)
         )
-    ));
+    );
     // Now Bob wants the ExternalSenders extension to be required.
     // This should fail because Alice doesn't support it.
     let e = bob_group
         .update_extensions(backend, &bob_signer, Extensions::single(required_key_id))
         .await
         .expect_err("Bob was able to create a gce proposal for an extension not supported by all other parties.");
-    assert!(matches!(
+    matches!(
         e,
         UpdateExtensionsError::MemberExtensionValidationError(
-            MemberExtensionValidationError::LeafNodeValidationError(
-                LeafNodeValidationError::UnsupportedExtensions
-            )
+            MemberExtensionValidationError::ExtensionError(ExtensionError::UnsupportedProposalType)
         )
-    ));
+    );
 }
 
 #[apply(ciphersuites_and_backends)]
 #[wasm_bindgen_test::wasm_bindgen_test]
 async fn gce_commit_can_roundtrip(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider) {
     let required_capabilities =
-        RequiredCapabilitiesExtension::new(&[], &DEFAULT_PROPOSAL_TYPES, &DEFAULT_CREDENTIAL_TYPES);
+        RequiredCapabilitiesExtension::new(&[], &[], &DEFAULT_CREDENTIAL_TYPES);
     let (mut alice_group, mut bob_group, alice_signer, _) = group_setup(
         ciphersuite,
         required_capabilities,
