@@ -129,7 +129,6 @@ impl HashReference {
         self.value.as_slice()
     }
 
-    #[cfg(any(feature = "test-utils", test))]
     pub fn from_slice(slice: &[u8]) -> Self {
         Self {
             value: VLBytes::from(slice),
