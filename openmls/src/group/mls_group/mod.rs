@@ -323,6 +323,11 @@ impl MlsGroup {
         self.state_changed
     }
 
+    /// Meh
+    pub fn set_state(&mut self, state: InnerState) {
+        self.state_changed = state;
+    }
+
     // === Extensions ===
 
     /// Exports the Ratchet Tree.
