@@ -186,7 +186,6 @@ impl KeyPackageIn {
     }
 }
 
-#[cfg(any(feature = "test-utils", test))]
 impl From<KeyPackageTbsIn> for KeyPackageTbs {
     fn from(value: KeyPackageTbsIn) -> Self {
         KeyPackageTbs {
@@ -220,7 +219,6 @@ impl From<KeyPackage> for KeyPackageIn {
     }
 }
 
-#[cfg(any(feature = "test-utils", test))]
 impl From<KeyPackageIn> for KeyPackage {
     fn from(value: KeyPackageIn) -> Self {
         Self {

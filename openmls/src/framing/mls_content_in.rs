@@ -210,7 +210,6 @@ impl TlsSerializeTrait for FramedContentTbsIn {
 
 // The following `From` implementation( breaks abstraction layers and MUST
 // NOT be made available outside of tests or "test-utils".
-#[cfg(any(feature = "test-utils", test))]
 impl From<FramedContentBodyIn> for FramedContentBody {
     fn from(body: FramedContentBodyIn) -> Self {
         match body {
@@ -225,7 +224,6 @@ impl From<FramedContentBodyIn> for FramedContentBody {
 
 // The following `From` implementation( breaks abstraction layers and MUST
 // NOT be made available outside of tests or "test-utils".
-#[cfg(any(feature = "test-utils", test))]
 impl From<FramedContentIn> for crate::framing::mls_content::FramedContent {
     fn from(value: FramedContentIn) -> Self {
         Self {

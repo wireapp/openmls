@@ -409,7 +409,6 @@ impl UpdatePathIn {
 
 // The following `From` implementation( breaks abstraction layers and MUST
 // NOT be made available outside of tests or "test-utils".
-#[cfg(any(feature = "test-utils", test))]
 impl From<UpdatePathIn> for UpdatePath {
     fn from(update_path_in: UpdatePathIn) -> Self {
         Self {

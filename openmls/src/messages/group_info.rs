@@ -107,7 +107,6 @@ impl VerifiableGroupInfo {
     }
 }
 
-#[cfg(any(feature = "test-utils", test))]
 impl From<VerifiableGroupInfo> for GroupInfo {
     fn from(vgi: VerifiableGroupInfo) -> Self {
         GroupInfo {
@@ -156,7 +155,6 @@ impl GroupInfo {
         &self.payload.confirmation_tag
     }
 
-    #[cfg(any(feature = "test-utils", test))]
     pub(crate) fn into_verifiable_group_info(self) -> VerifiableGroupInfo {
         VerifiableGroupInfo {
             payload: GroupInfoTBS {

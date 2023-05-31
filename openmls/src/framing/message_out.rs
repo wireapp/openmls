@@ -178,7 +178,7 @@ impl MlsMessageOut {
 // The following two `From` implementations break abstraction layers and MUST
 // NOT be made available outside of tests or "test-utils".
 
-#[cfg(any(feature = "test-utils", test))]
+// #[cfg(any(feature = "test-utils", test))]
 impl From<MlsMessageIn> for MlsMessageOut {
     fn from(mls_message: MlsMessageIn) -> Self {
         let version = mls_message.version;

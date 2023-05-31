@@ -256,7 +256,6 @@ pub(crate) struct PrivateContentAad<'a> {
 
 // The following `From` implementation( breaks abstraction layers and MUST
 // NOT be made available outside of tests or "test-utils".
-#[cfg(any(feature = "test-utils", test))]
 impl From<PrivateMessageIn> for PrivateMessage {
     fn from(value: PrivateMessageIn) -> Self {
         Self {
@@ -270,7 +269,6 @@ impl From<PrivateMessageIn> for PrivateMessage {
     }
 }
 
-#[cfg(any(feature = "test-utils", test))]
 impl From<PrivateMessage> for PrivateMessageIn {
     fn from(value: PrivateMessage) -> Self {
         Self {

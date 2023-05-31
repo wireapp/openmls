@@ -715,7 +715,6 @@ impl From<LeafNode> for LeafNodeIn {
     }
 }
 
-#[cfg(any(feature = "test-utils", test))]
 impl From<LeafNodeIn> for LeafNode {
     fn from(deserialized: LeafNodeIn) -> Self {
         Self {
