@@ -198,7 +198,7 @@ impl PrivateMessageIn {
     }
 
     /// Get the `epoch` in the `PrivateMessage`.
-    pub(crate) fn epoch(&self) -> GroupEpoch {
+    pub fn epoch(&self) -> GroupEpoch {
         self.epoch
     }
 
