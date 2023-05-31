@@ -55,6 +55,22 @@ pub struct HashReference {
     value: VLBytes,
 }
 
+impl From<Vec<u8>> for HashReference {
+    fn from(value: Vec<u8>) -> Self {
+        Self {
+            value: value.into(),
+        }
+    }
+}
+
+impl From<&[u8]> for HashReference {
+    fn from(value: &[u8]) -> Self {
+        Self {
+            value: value.into(),
+        }
+    }
+}
+
 /// A reference to a key package.
 /// This value uniquely identifies a key package.
 pub type KeyPackageRef = HashReference;
