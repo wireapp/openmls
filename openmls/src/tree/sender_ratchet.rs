@@ -69,8 +69,8 @@ pub(crate) type RatchetKeyMaterial = (AeadKey, AeadNonce);
 /// `out_of_order_tolerance` and a `maximum_forward_distance` (see
 /// [`SenderRatchetConfiguration`]) while an Encryption Ratchet never keeps past
 /// secrets around.
-#[derive(Serialize, Deserialize)]
-#[cfg_attr(any(feature = "test-utils", test), derive(PartialEq, Clone))]
+#[derive(Serialize, Deserialize, Clone)]
+#[cfg_attr(any(feature = "test-utils", test), derive(PartialEq))]
 #[cfg_attr(any(feature = "crypto-debug", test), derive(Debug))]
 pub(crate) enum SenderRatchet {
     EncryptionRatchet(RatchetSecret),
@@ -91,8 +91,8 @@ impl SenderRatchet {
 /// the ratchet chain, as well as its current [`Generation`]. It can be
 /// initialized with a given secret and then ratcheted forward, outputting
 /// [`RatchetKeyMaterial`] and increasing its [`Generation`] each time.
-#[derive(Debug, Serialize, Deserialize, Default)]
-#[cfg_attr(any(feature = "test-utils", test), derive(PartialEq, Clone))]
+#[derive(Debug, Serialize, Deserialize, Default, Clone)]
+#[cfg_attr(any(feature = "test-utils", test), derive(PartialEq,))]
 pub(crate) struct RatchetSecret {
     secret: Secret,
     generation: Generation,
@@ -166,8 +166,8 @@ impl RatchetSecret {
 /// [`RatchetKeyMaterial`] of epochs around until they are retrieved. This
 /// behaviour can be configured via the `out_of_order_tolerance` and
 /// `maximum_forward_distance` of the given [`SenderRatchetConfiguration`].
-#[derive(Serialize, Deserialize)]
-#[cfg_attr(any(feature = "test-utils", test), derive(PartialEq, Clone))]
+#[derive(Serialize, Deserialize, Clone)]
+#[cfg_attr(any(feature = "test-utils", test), derive(PartialEq))]
 #[cfg_attr(any(feature = "crypto-debug", test), derive(Debug))]
 pub struct DecryptionRatchet {
     past_secrets: VecDeque<Option<RatchetKeyMaterial>>,
