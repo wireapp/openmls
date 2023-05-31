@@ -193,7 +193,6 @@ impl From<MlsMessageIn> for MlsMessageOut {
     }
 }
 
-#[cfg(any(feature = "test-utils", test))]
 impl From<MlsMessageOut> for MlsMessageIn {
     fn from(mls_message_out: MlsMessageOut) -> Self {
         let version = mls_message_out.version;
