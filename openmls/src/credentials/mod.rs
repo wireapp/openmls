@@ -144,8 +144,8 @@ impl From<CredentialType> for u16 {
     Debug, PartialEq, Eq, Clone, Serialize, Deserialize, TlsSerialize, TlsDeserialize, TlsSize,
 )]
 pub struct Certificate {
-    identity: VLBytes,
-    cert_data: Vec<VLBytes>,
+    pub identity: VLBytes,
+    pub cert_data: Vec<VLBytes>,
 }
 
 impl Certificate {
@@ -200,7 +200,7 @@ impl Credential {
         self.credential_type
     }
 
-    pub(crate) fn mls_credential(&self) -> &MlsCredentialType {
+    pub fn mls_credential(&self) -> &MlsCredentialType {
         &self.credential
     }
 
