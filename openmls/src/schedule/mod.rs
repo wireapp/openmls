@@ -745,7 +745,7 @@ impl ExporterSecret {
 }
 
 /// A secret used when joining a group with an external Commit.
-#[derive(Debug, Serialize, Deserialize, Clone)]
+#[derive(Debug, Serialize, Deserialize, Clone, Eq, PartialEq)]
 pub(crate) struct ExternalSecret {
     secret: Secret,
 }

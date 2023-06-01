@@ -256,7 +256,7 @@ impl PublicGroup {
     pub fn merge_commit(&mut self, staged_commit: StagedCommit) {
         match staged_commit.into_state() {
             StagedCommitState::PublicState(staged_diff) => self.merge_diff(*staged_diff),
-            StagedCommitState::GroupMember(_) => (),
+            StagedCommitState::GroupMember(_) | StagedCommitState::ExternalMember(_) => (),
         }
         self.proposal_store.empty()
     }

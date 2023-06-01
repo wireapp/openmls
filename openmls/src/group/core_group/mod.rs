@@ -1111,10 +1111,13 @@ impl CoreGroup {
             // proposal, so there is no extra keypair to store here.
             None,
         );
-        let staged_commit = StagedCommit::new(
-            proposal_queue,
-            StagedCommitState::GroupMember(Box::new(staged_commit_state)),
-        );
+        let staged_commit_state = match params.commit_type() {
+            CommitType::Member => StagedCommitState::GroupMember(Box::new(staged_commit_state)),
+            CommitType::External => {
+                StagedCommitState::ExternalMember(Box::new(staged_commit_state))
+            }
+        };
+        let staged_commit = StagedCommit::new(proposal_queue, staged_commit_state);
 
         Ok(CreateCommitResult {
             commit: authenticated_content,

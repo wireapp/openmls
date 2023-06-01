@@ -1,6 +1,7 @@
 //! Processing functions of an [`MlsGroup`] for incoming messages.
 
 use std::mem;
+use std::ops::Deref;
 
 use core_group::staged_commit::StagedCommit;
 use openmls_traits::signatures::Signer;
@@ -166,11 +167,24 @@ impl MlsGroup {
         backend: &impl OpenMlsCryptoProvider<KeyStoreProvider = KeyStore>,
     ) -> Result<(), MergePendingCommitError<KeyStore::Error>> {
         match &self.group_state {
-            MlsGroupState::PendingCommit(_) => {
-                let old_state = mem::replace(&mut self.group_state, MlsGroupState::Operational);
-                if let MlsGroupState::PendingCommit(pending_commit_state) = old_state {
-                    self.merge_staged_commit(backend, (*pending_commit_state).into())
-                        .await?;
+            MlsGroupState::PendingCommit(state) => {
+                match state.deref() {
+                    PendingCommitState::Member(_) => {
+                        let old_state =
+                            mem::replace(&mut self.group_state, MlsGroupState::Operational);
+                        if let MlsGroupState::PendingCommit(pending_commit_state) = old_state {
+                            self.merge_staged_commit(backend, (*pending_commit_state).into())
+                                .await?;
+                        }
+                    }
+                    PendingCommitState::External(_) => {
+                        let old_state =
+                            mem::replace(&mut self.group_state, MlsGroupState::Operational);
+                        if let MlsGroupState::PendingCommit(pending_commit_state) = old_state {
+                            self.merge_staged_commit(backend, (*pending_commit_state).into())
+                                .await?;
+                        }
+                    }
                 }
                 Ok(())
             }
