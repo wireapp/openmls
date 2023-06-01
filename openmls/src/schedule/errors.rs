@@ -53,6 +53,9 @@ pub enum PskError {
         /// First detected duplicate.
         first: PreSharedKeyId,
     },
+    /// Too many Branch or Reinit PSKs in welcome.
+    #[error("Only one Resumption PSK of usage Reinit and/or Branch is allowed in the welcome")]
+    TooManyBranchReinitResumptionPsks,
 }
 
 // === Crate ===

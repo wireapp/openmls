@@ -13,7 +13,7 @@ use crate::{
     group::errors::*,
     messages::proposals::{
         AddProposal, PreSharedKeyProposal, Proposal, ProposalOrRef, ProposalOrRefType,
-        ProposalType, RemoveProposal, UpdateProposal,
+        ProposalType, ReInitProposal, RemoveProposal, UpdateProposal,
     },
     utils::vector_converter,
 };
@@ -187,6 +187,10 @@ impl ProposalQueue {
     pub fn is_empty(&self) -> bool {
         self.proposal_references.is_empty()
     }
+    /// Returns the amount of proposals in the queue
+    pub fn count(&self) -> usize {
+        self.proposal_references.len()
+    }
     /// Returns a new `QueuedProposalQueue` from proposals that were committed and
     /// don't need filtering.
     /// This functions does the following checks:
@@ -359,6 +363,17 @@ impl ProposalQueue {
                     psk_proposal,
                     sender,
                 })
+            } else {
+                None
+            }
+        })
+    }
+
+    /// Returns the first Reinit proposal in the queue
+    pub fn reinit_proposal(&self) -> Option<&ReInitProposal> {
+        self.queued_proposals().find_map(|p| {
+            if let Proposal::ReInit(reinit) = p.proposal() {
+                Some(reinit)
             } else {
                 None
             }

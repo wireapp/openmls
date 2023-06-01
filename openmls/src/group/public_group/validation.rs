@@ -1,19 +1,26 @@
 //! This module contains validation functions for incoming messages
 //! as defined in <https://github.com/openmls/openmls/wiki/Message-validation>
 
-use std::collections::{BTreeSet, HashSet};
+use std::{
+    collections::{BTreeSet, HashSet},
+    iter,
+};
 
-use openmls_traits::types::VerifiableCiphersuite;
+use openmls_traits::types::{Ciphersuite, VerifiableCiphersuite};
 
 use super::PublicGroup;
 use crate::{
     binary_tree::array_representation::LeafNodeIndex,
+    extensions::Extensions,
     framing::{
         mls_auth_content_in::VerifiableAuthenticatedContentIn, ContentType, ProtocolMessage,
         Sender, WireFormat,
     },
     group::{
-        errors::{ExternalCommitValidationError, ProposalValidationError, ValidationError},
+        errors::{
+            ExternalCommitValidationError, ProposalValidationError, ReInitValidationError,
+            ValidationError,
+        },
         past_secrets::MessageSecretsStore,
         Member, ProposalQueue,
     },
@@ -23,6 +30,7 @@ use crate::{
     },
     schedule::errors::PskError,
     treesync::{errors::LeafNodeValidationError, node::leaf_node::LeafNode},
+    versions::ProtocolVersion,
 };
 
 impl PublicGroup {
@@ -531,6 +539,50 @@ impl PublicGroup {
         Ok(())
     }
 
+    /// Validate ReInit proposals.
+    ///
+    /// There must be at most one ReInit proposal and no other proposal in the queue.
+    pub(crate) fn validate_reinit_proposal(
+        &self,
+        proposal_queue: &ProposalQueue,
+    ) -> Result<(), ProposalValidationError> {
+        // if there are other proposals in the queue, the reinit should be ignored and reissued
+        if proposal_queue.count() > 1 {
+            return Ok(());
+        }
+
+        if let Some(reinit_proposal) = proposal_queue.reinit_proposal() {
+            self.check_reinit(
+                &reinit_proposal.extensions,
+                reinit_proposal.ciphersuite,
+                reinit_proposal.version,
+            )?;
+        }
+
+        Ok(())
+    }
+
+    pub(crate) fn check_reinit(
+        &self,
+        extensions: &Extensions,
+        ciphersuite: Ciphersuite,
+        version: ProtocolVersion,
+    ) -> Result<(), ReInitValidationError> {
+        // cannot go to older version
+        if version < self.version() {
+            return Err(ReInitValidationError::ReInitOldVersion);
+        }
+        let proposal_extension_types = extensions
+            .iter()
+            .map(|e| e.extension_type())
+            .collect::<Vec<_>>();
+        // the reinit proposal must the only one being processed, so empty can be passed to
+        // removed
+        self.check_extension_support(&proposal_extension_types, iter::empty())?;
+        self.check_ciphersuite_support(ciphersuite)?;
+        Ok(())
+    }
+
     /// Returns a [`LeafNodeValidationError`] if an [`ExtensionType`]
     /// in `extensions` is not supported by a leaf in this tree.
     /// A list of leaves proposed to be removed must be provided as they
@@ -547,5 +599,20 @@ impl PublicGroup {
             }
         }
         Ok(())
+    }
+
+    pub(crate) fn check_ciphersuite_support(
+        &self,
+        ciphersuite: Ciphersuite,
+    ) -> Result<(), LeafNodeValidationError> {
+        if self
+            .treesync()
+            .full_leaves()
+            .all(|l| l.supports_ciphersuite(ciphersuite))
+        {
+            Ok(())
+        } else {
+            Err(LeafNodeValidationError::UnsupportedCipherSuite)
+        }
     }
 }

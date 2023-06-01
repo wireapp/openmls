@@ -4,7 +4,10 @@ use openmls_traits::key_store::OpenMlsKeyStore;
 use crate::{
     ciphersuite::hash_ref::HashReference,
     group::{core_group::*, errors::WelcomeError},
-    schedule::psk::store::ResumptionPskStore,
+    schedule::{
+        errors::PskError,
+        psk::{store::ResumptionPskStore, ResumptionPsk, ResumptionPskUsage},
+    },
     treesync::{
         errors::{DerivePathError, PublicTreeError},
         node::encryption_keys::EncryptionKeyPair,
@@ -65,7 +68,7 @@ impl CoreGroup {
         )?;
 
         // Prepare the PskSecret
-        let psk_secret = {
+        let (has_reinit_branch, psk_secret) = {
             let psks = load_psks(
                 backend.key_store(),
                 &resumption_psk_store,
@@ -73,7 +76,13 @@ impl CoreGroup {
             )
             .await?;
 
-            PskSecret::new(backend, ciphersuite, psks).await?
+            (
+                check_welcome_psks(
+                    psks.iter()
+                        .filter_map(|(psk_id, _)| psk_id.psk().resumption()),
+                )?,
+                PskSecret::new(backend, ciphersuite, psks).await?,
+            )
         };
 
         // Create key schedule
@@ -98,6 +107,11 @@ impl CoreGroup {
             &[],
             backend,
         )?;
+
+        // if the welcome has reinit or branch psks the group epoch must be 1
+        if has_reinit_branch && verifiable_group_info.context().epoch() != GroupEpoch(1) {
+            return Err(WelcomeError::InvalidEpoch);
+        }
 
         // Make sure that we can support the required capabilities in the group info.
         if let Some(required_capabilities) =
@@ -261,5 +275,120 @@ impl CoreGroup {
             }
         }
         None
+    }
+}
+
+/// Checks if there are multiple ocurrences of resumption psks of type Branch or Reinit
+/// It will return true if it contains any of those types
+fn check_welcome_psks<'i>(
+    resumption_psks: impl Iterator<Item = &'i ResumptionPsk>,
+) -> Result<bool, PskError> {
+    let mut has_branch = false;
+    let mut has_reinit = false;
+    for resumption in resumption_psks {
+        match resumption.usage() {
+            ResumptionPskUsage::Branch => {
+                if has_branch {
+                    return Err(PskError::TooManyBranchReinitResumptionPsks);
+                }
+                has_branch = true;
+            }
+            ResumptionPskUsage::Reinit => {
+                if has_reinit {
+                    return Err(PskError::TooManyBranchReinitResumptionPsks);
+                } else {
+                    has_reinit = true;
+                }
+            }
+            ResumptionPskUsage::Application => continue,
+        }
+    }
+    Ok(has_reinit || has_branch)
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::{
+        group::{GroupEpoch, GroupId},
+        schedule::{
+            errors::PskError,
+            psk::{ResumptionPsk, ResumptionPskUsage},
+        },
+    };
+
+    use super::check_welcome_psks;
+
+    #[test]
+    fn psk_ids_should_be_valid() {
+        let group_id = GroupId::from_slice(b"test");
+        let epoch = GroupEpoch(1);
+        let psks = vec![
+            ResumptionPsk::new(ResumptionPskUsage::Reinit, group_id.clone(), epoch),
+            ResumptionPsk::new(ResumptionPskUsage::Branch, group_id.clone(), epoch),
+            ResumptionPsk::new(ResumptionPskUsage::Application, group_id, epoch),
+        ];
+        assert!(check_welcome_psks(psks.iter()).unwrap());
+    }
+
+    #[test]
+    fn psk_ids_should_be_valid_application() {
+        let group_id = GroupId::from_slice(b"test");
+        let epoch = GroupEpoch(1);
+        let psks = vec![
+            ResumptionPsk::new(ResumptionPskUsage::Application, group_id.clone(), epoch),
+            ResumptionPsk::new(ResumptionPskUsage::Application, group_id.clone(), epoch),
+            ResumptionPsk::new(ResumptionPskUsage::Application, group_id.clone(), epoch),
+            ResumptionPsk::new(ResumptionPskUsage::Application, group_id, epoch),
+        ];
+        assert!(!check_welcome_psks(psks.iter()).unwrap());
+    }
+
+    #[test]
+    fn psk_ids_should_be_invalid_reinit() {
+        let group_id = GroupId::from_slice(b"test");
+        let epoch = GroupEpoch(1);
+        let psks = vec![
+            ResumptionPsk::new(ResumptionPskUsage::Reinit, group_id.clone(), epoch),
+            ResumptionPsk::new(ResumptionPskUsage::Branch, group_id.clone(), epoch),
+            ResumptionPsk::new(ResumptionPskUsage::Reinit, group_id.clone(), epoch),
+            ResumptionPsk::new(ResumptionPskUsage::Application, group_id, epoch),
+        ];
+        assert_eq!(
+            check_welcome_psks(psks.iter()).unwrap_err(),
+            PskError::TooManyBranchReinitResumptionPsks
+        );
+    }
+
+    #[test]
+    fn psk_ids_should_be_invalid_branch() {
+        let group_id = GroupId::from_slice(b"test");
+        let epoch = GroupEpoch(1);
+        let psks = vec![
+            ResumptionPsk::new(ResumptionPskUsage::Reinit, group_id.clone(), epoch),
+            ResumptionPsk::new(ResumptionPskUsage::Branch, group_id.clone(), epoch),
+            ResumptionPsk::new(ResumptionPskUsage::Branch, group_id.clone(), epoch),
+            ResumptionPsk::new(ResumptionPskUsage::Application, group_id, epoch),
+        ];
+        assert_eq!(
+            check_welcome_psks(psks.iter()).unwrap_err(),
+            PskError::TooManyBranchReinitResumptionPsks
+        );
+    }
+
+    #[test]
+    fn psk_ids_should_be_invalid() {
+        let group_id = GroupId::from_slice(b"test");
+        let epoch = GroupEpoch(1);
+        let psks = vec![
+            ResumptionPsk::new(ResumptionPskUsage::Reinit, group_id.clone(), epoch),
+            ResumptionPsk::new(ResumptionPskUsage::Branch, group_id.clone(), epoch),
+            ResumptionPsk::new(ResumptionPskUsage::Reinit, group_id.clone(), epoch),
+            ResumptionPsk::new(ResumptionPskUsage::Branch, group_id.clone(), epoch),
+            ResumptionPsk::new(ResumptionPskUsage::Application, group_id, epoch),
+        ];
+        assert_eq!(
+            check_welcome_psks(psks.iter()).unwrap_err(),
+            PskError::TooManyBranchReinitResumptionPsks
+        );
     }
 }

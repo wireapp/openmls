@@ -400,6 +400,14 @@ impl LeafNode {
         }
         Ok(())
     }
+
+    /// Checks if leaf node supports the given ciphersuite.
+    pub(crate) fn supports_ciphersuite(&self, ciphersuite: Ciphersuite) -> bool {
+        self.payload
+            .capabilities
+            .ciphersuites()
+            .contains(&ciphersuite.into())
+    }
 }
 
 #[cfg(test)]

@@ -33,6 +33,7 @@ pub(crate) mod extension;
 pub(crate) mod membership;
 pub(crate) mod processing;
 pub(crate) mod proposal;
+pub(crate) mod reinit;
 pub(crate) mod ser;
 
 // Tests

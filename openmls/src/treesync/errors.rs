@@ -233,6 +233,9 @@ pub enum LeafNodeValidationError {
     /// Credentials are not acceptable.
     #[error("Credentials are not acceptable.")]
     UnsupportedCredentials,
+    /// Ciphersuite is not acceptable.
+    #[error("Ciphersuite is not acceptable.")]
+    UnsupportedCipherSuite,
     /// The leaf node's credential type is not listed in the leaf node's capabilities."
     #[error("The leaf node's credential type is not listed in the leaf node's capabilities.")]
     CredentialNotInCapabilities,

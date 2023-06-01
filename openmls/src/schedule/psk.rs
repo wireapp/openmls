@@ -169,6 +169,15 @@ pub enum Psk {
     Resumption(ResumptionPsk),
 }
 
+impl Psk {
+    pub(crate) fn resumption(&self) -> Option<&ResumptionPsk> {
+        match self {
+            Psk::Resumption(ref resumption) => Some(resumption),
+            _ => None,
+        }
+    }
+}
+
 /// ```c
 /// // draft-ietf-mls-protocol-19
 /// enum {
