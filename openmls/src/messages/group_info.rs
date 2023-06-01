@@ -93,6 +93,10 @@ impl VerifiableGroupInfo {
     pub(crate) fn group_id(&self) -> &GroupId {
         self.payload.group_context.group_id()
     }
+
+    pub(crate) fn context(&self) -> &GroupContext {
+        &self.payload.group_context
+    }
 }
 
 #[cfg(test)]

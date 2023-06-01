@@ -92,6 +92,7 @@ impl PublicGroup {
         // ValSem403
         self.validate_pre_shared_key_proposals(&proposal_queue)?;
         self.validate_group_context_extensions_proposals(&proposal_queue)?;
+        self.validate_reinit_proposal(&proposal_queue)?;
 
         match sender {
             Sender::Member(leaf_index) => {

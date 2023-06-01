@@ -89,6 +89,9 @@ pub enum WelcomeError<KeyStoreError> {
     /// This error indicates the leaf node is invalid. See [`LeafNodeValidationError`] for more details.
     #[error(transparent)]
     LeafNodeValidation(#[from] LeafNodeValidationError),
+    /// Group epoch must be 0 if the the welcome message contains reinit or branch psks
+    #[error("Group epoch must be 0 if the the welcome message contains reinit or branch psks")]
+    InvalidEpoch,
 }
 
 /// External Commit error
@@ -365,6 +368,20 @@ pub enum ProposalValidationError {
     /// There cannot be more than 1 GroupContextExtensions proposal in a commit
     #[error("Expected at most 1 GroupContextExtensions proposal, found {0}")]
     TooManyGroupContextExtensions(usize),
+    /// See [`ReInitValidationError`] for more details.
+    #[error(transparent)]
+    ReInit(#[from] ReInitValidationError),
+}
+
+/// ReInit validation error
+#[derive(Error, Debug, PartialEq, Clone)]
+pub enum ReInitValidationError {
+    /// See [`LeafNodeValidationError`] for more details.
+    #[error(transparent)]
+    LeafNode(#[from] LeafNodeValidationError),
+    /// ReInit cannot set new group to an older version of the protocol
+    #[error("ReInit cannot set new group to an older version of the protocol")]
+    ReInitOldVersion,
 }
 
 /// External Commit validaton error

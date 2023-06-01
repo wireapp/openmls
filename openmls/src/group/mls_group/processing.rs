@@ -162,6 +162,9 @@ impl MlsGroup {
 
     /// Merges the pending [`StagedCommit`] if there is one, and
     /// clears the field by setting it to `None`.
+    ///
+    /// If the commit contains a ReInit proposal it will return a welcome message, a new group and
+    /// set the current as inactive.
     pub async fn merge_pending_commit<KeyStore: OpenMlsKeyStore>(
         &mut self,
         backend: &impl OpenMlsCryptoProvider<KeyStoreProvider = KeyStore>,

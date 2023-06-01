@@ -50,6 +50,7 @@ use super::{
         ProposeGroupContextExtensionError, ValidationError,
     },
     group_context::*,
+    mls_group::errors::ProposeReInitError,
     public_group::{diff::compute_path::PathComputationResult, PublicGroup},
 };
 
@@ -485,6 +486,33 @@ impl CoreGroup {
         )
         .map_err(|e| e.into())
     }
+    /// Create a `ReInit` proposal
+    pub(crate) fn create_reinit_proposal(
+        &self,
+        framing_parameters: FramingParameters,
+        extensions: Extensions,
+        ciphersuite: Ciphersuite,
+        version: ProtocolVersion,
+        signer: &impl Signer,
+    ) -> Result<AuthenticatedContent, ProposeReInitError> {
+        self.public_group()
+            .check_reinit(&extensions, ciphersuite, version)?;
+        let reinit_proposal = ReInitProposal {
+            group_id: self.group_id().clone(),
+            version,
+            ciphersuite,
+            extensions,
+        };
+        let proposal = Proposal::ReInit(reinit_proposal);
+        AuthenticatedContent::member_proposal(
+            framing_parameters,
+            self.own_leaf_index(),
+            proposal,
+            self.context(),
+            signer,
+        )
+        .map_err(|e| e.into())
+    }
     // Create application message
     pub(crate) fn create_application_message(
         &mut self,
@@ -904,6 +932,8 @@ impl CoreGroup {
             .validate_pre_shared_key_proposals(&proposal_queue)?;
         self.public_group()
             .validate_group_context_extensions_proposals(&proposal_queue)?;
+        self.public_group()
+            .validate_reinit_proposal(&proposal_queue)?;
         // Validate update proposals for member commits
         if let Sender::Member(sender_index) = &sender {
             // ValSem110
@@ -1042,14 +1072,12 @@ impl CoreGroup {
             };
 
             // Create to-be-signed group info.
-            let group_info_tbs = {
-                GroupInfoTBS::new(
-                    diff.group_context().clone(),
-                    other_extensions,
-                    confirmation_tag,
-                    self.own_leaf_index(),
-                )
-            };
+            let group_info_tbs = GroupInfoTBS::new(
+                diff.group_context().clone(),
+                other_extensions,
+                confirmation_tag,
+                self.own_leaf_index(),
+            );
             // Sign to-be-signed group info.
             Some(group_info_tbs.sign(signer)?)
         } else {

@@ -13,8 +13,8 @@ use crate::{
     error::LibraryError,
     extensions::errors::{ExtensionError, InvalidExtensionError},
     group::errors::{
-        CreateAddProposalError, CreateCommitError, MergeCommitError, StageCommitError,
-        ValidationError,
+        CreateAddProposalError, CreateCommitError, MergeCommitError, ReInitValidationError,
+        StageCommitError, ValidationError,
     },
     prelude::KeyPackageExtensionSupportError,
     schedule::errors::PskError,
@@ -289,6 +289,33 @@ pub enum ProposeGroupContextExtensionError {
     MemberExtensionValidationError(#[from] MemberExtensionValidationError),
 }
 
+/// ReInit error
+#[derive(Error, Debug, PartialEq, Clone)]
+pub enum ReInitError<KeyStoreError> {
+    /// See [`LibraryError`] for more details.
+    #[error(transparent)]
+    LibraryError(#[from] LibraryError),
+    /// See [`CreateCommitError`] for more details.
+    #[error(transparent)]
+    CreateCommitError(#[from] CreateCommitError<KeyStoreError>),
+    /// See [`MlsGroupStateError`] for more details.
+    #[error(transparent)]
+    GroupStateError(#[from] MlsGroupStateError),
+}
+
+/// Create ReInit proposal error
+#[derive(Error, Debug, PartialEq, Clone)]
+pub enum ProposeReInitError {
+    /// See [`LibraryError`] for more details.
+    #[error(transparent)]
+    LibraryError(#[from] LibraryError),
+    /// See [`MlsGroupStateError`] for more details.
+    #[error(transparent)]
+    GroupStateError(#[from] MlsGroupStateError),
+    /// See [`ReInitValidationError`] for more details.
+    #[error(transparent)]
+    ReInitValidationError(#[from] ReInitValidationError),
+}
 /// Commit to pending proposals error
 #[derive(Error, Debug, PartialEq, Clone)]
 pub enum CommitToPendingProposalsError<KeyStoreError> {
