@@ -69,7 +69,7 @@ impl AuthenticatedContentIn {
 
 impl AuthenticatedContentIn {
     /// Get the content body of the message.
-    pub(crate) fn content(&self) -> &FramedContentBodyIn {
+    pub fn content(&self) -> &FramedContentBodyIn {
         &self.content.body
     }
 }
