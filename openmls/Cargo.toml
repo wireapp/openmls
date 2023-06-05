@@ -31,6 +31,7 @@ rstest = { version = "^0.16", optional = true }
 rstest_reuse = { version = "0.4", optional = true }
 tokio = { version = "1.24", features = ["full"], optional = true }
 x509-cert = "0.2"
+subtle = "2.5"
 
 [features]
 default = []

@@ -11,7 +11,10 @@ pub struct Mac {
 impl PartialEq for Mac {
     // Constant time comparison.
     fn eq(&self, other: &Mac) -> bool {
-        equal_ct(self.mac_value.as_slice(), other.mac_value.as_slice())
+        self.mac_value
+            .as_slice()
+            .ct_eq(other.mac_value.as_slice())
+            .into()
     }
 }
 

@@ -65,7 +65,7 @@ impl PartialEq for Secret {
             );
             return false;
         }
-        equal_ct(self.value.as_slice(), other.value.as_slice())
+        self.value.as_slice().ct_eq(other.value.as_slice()).into()
     }
 }
 
