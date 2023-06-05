@@ -4,7 +4,6 @@
 #[derive(PartialEq)]
 pub enum MlsEntityId {
     SignatureKeyPair,
-    CertificateKeyPair,
     HpkePrivateKey,
     KeyPackage,
     PskBundle,

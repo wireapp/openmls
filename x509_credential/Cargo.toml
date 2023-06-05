@@ -11,6 +11,7 @@ openmls_traits = { version = "0.1.0", path = "../traits" }
 tls_codec = { workspace = true }
 async-trait = { workspace = true }
 serde = "1.0"
+openmls_basic_credential = { version = "0.1.0", path = "../basic_credential" }
 
 # Rust Crypto
 secrecy = { version = "0.8", features = ["serde"] }
