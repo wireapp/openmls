@@ -129,21 +129,11 @@ impl Secret {
         let ikm = ikm_option.into().unwrap_or(&zero_secret);
         log_crypto!(trace, "  ikm:  {:x?}", ikm.value);
 
-        // We don't return an error here to keep the error propagation from
-        // blowing up. If this fails, something in the library is really wrong
-        // and we can't recover from it.
-        assert!(
-            self.mls_version == ikm.mls_version,
-            "{} != {}",
-            self.mls_version,
-            ikm.mls_version
-        );
-        assert!(
-            self.ciphersuite == ikm.ciphersuite,
-            "{} != {}",
-            self.ciphersuite,
-            ikm.ciphersuite
-        );
+        let different_versions = self.mls_version != ikm.mls_version;
+        let different_ciphersuites = self.ciphersuite != ikm.ciphersuite;
+        if different_versions || different_ciphersuites {
+            return Err(CryptoError::CryptoLibraryError);
+        }
 
         Ok(Self {
             value: backend.crypto().hkdf_extract(
