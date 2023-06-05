@@ -156,7 +156,6 @@ impl PublicMessageIn {
 
         // Verify the membership tag
         if let Some(membership_tag) = &self.membership_tag {
-            // TODO #133: make this a constant-time comparison
             if membership_tag != expected_membership_tag {
                 return Err(ValidationError::InvalidMembershipTag);
             }
