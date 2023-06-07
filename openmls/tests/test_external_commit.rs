@@ -76,7 +76,7 @@ async fn test_external_commit(ciphersuite: Ciphersuite, backend: &impl OpenMlsCr
         let (bob_credential, bob_signature_keys) =
             new_credential(backend, b"Bob", ciphersuite.signature_algorithm()).await;
 
-        let (_bob_group, _, _) = MlsGroup::join_by_external_commit(
+        let (mut bob_group, _, _) = MlsGroup::join_by_external_commit(
             backend,
             &bob_signature_keys,
             None,
@@ -89,6 +89,7 @@ async fn test_external_commit(ciphersuite: Ciphersuite, backend: &impl OpenMlsCr
         )
         .await
         .unwrap();
+        bob_group.merge_pending_commit(backend).await.unwrap();
     }
 
     // Now, Bob wants to join Alice' group by an external commit. (Negative case, broken signature.)
