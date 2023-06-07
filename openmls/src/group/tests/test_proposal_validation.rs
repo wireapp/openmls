@@ -32,6 +32,8 @@ use crate::{
     versions::ProtocolVersion,
 };
 
+wasm_bindgen_test::wasm_bindgen_test_configure!(run_in_browser);
+
 /// Helper function to generate and output CredentialWithKeyAndSigner and KeyPackage
 async fn generate_credential_with_key_and_key_package(
     identity: Vec<u8>,
@@ -240,6 +242,7 @@ enum KeyUniqueness {
 /// Add Proposal:
 /// Signature public key in proposals must be unique among proposals
 #[apply(ciphersuites_and_backends)]
+#[wasm_bindgen_test::wasm_bindgen_test]
 async fn test_valsem101a(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider) {
     for bob_and_charlie_share_keys in [
         KeyUniqueness::NegativeSameKey,
@@ -422,6 +425,7 @@ async fn test_valsem101a(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoP
 /// Add Proposal:
 /// HPKE init key in proposals must be unique among proposals
 #[apply(ciphersuites_and_backends)]
+#[wasm_bindgen_test::wasm_bindgen_test]
 async fn test_valsem102(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider) {
     for bob_and_charlie_share_keys in [
         KeyUniqueness::NegativeSameKey,
@@ -582,6 +586,7 @@ async fn test_valsem102(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoPr
 /// Signature public key in proposals must be unique among existing group
 /// members
 #[apply(ciphersuites_and_backends)]
+#[wasm_bindgen_test::wasm_bindgen_test]
 async fn test_valsem101b(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider) {
     for alice_and_bob_share_keys in [
         KeyUniqueness::NegativeSameKey,
@@ -847,6 +852,7 @@ async fn test_valsem101b(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoP
 /// ValSem104:
 /// Add Proposal: Init key and encryption key must be different
 #[apply(ciphersuites_and_backends)]
+#[wasm_bindgen_test::wasm_bindgen_test]
 async fn test_valsem103_valsem104(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider) {
     for alice_and_bob_share_keys in [
         KeyUniqueness::NegativeSameKey,
@@ -1031,6 +1037,7 @@ enum ProposalInclusion {
 /// Add Proposal:
 /// Ciphersuite & protocol version must match the group
 #[apply(ciphersuites_and_backends)]
+#[wasm_bindgen_test::wasm_bindgen_test]
 async fn test_valsem105(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider) {
     let _ = pretty_env_logger::try_init();
 
@@ -1381,6 +1388,7 @@ async fn test_valsem105(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoPr
 /// Remove Proposal:
 /// Removed member must be unique among proposals
 #[apply(ciphersuites_and_backends)]
+#[wasm_bindgen_test::wasm_bindgen_test]
 async fn test_valsem107(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider) {
     // Helper function to unwrap a commit with a single proposal from an mls message.
     fn unwrap_specific_commit(commit_ref_remove: MlsMessageOut) -> Commit {
@@ -1530,6 +1538,7 @@ async fn test_valsem107(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoPr
 /// Remove Proposal:
 /// Removed member must be an existing group member
 #[apply(ciphersuites_and_backends)]
+#[wasm_bindgen_test::wasm_bindgen_test]
 async fn test_valsem108(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider) {
     // Before we can test creation or reception of (invalid) proposals, we set
     // up a new group with Alice and Bob.
@@ -1659,6 +1668,7 @@ async fn test_valsem108(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoPr
 /// Update Proposal:
 /// Encryption key must be unique among existing members
 #[apply(ciphersuites_and_backends)]
+#[wasm_bindgen_test::wasm_bindgen_test]
 async fn test_valsem110(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider) {
     // Before we can test creation or reception of (invalid) proposals, we set
     // up a new group with Alice and Bob.
@@ -1805,6 +1815,7 @@ async fn test_valsem110(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoPr
 /// Update Proposal:
 /// The sender of a full Commit must not include own update proposals
 #[apply(ciphersuites_and_backends)]
+#[wasm_bindgen_test::wasm_bindgen_test]
 async fn test_valsem111(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider) {
     // Before we can test creation or reception of (invalid) proposals, we set
     // up a new group with Alice and Bob.
@@ -1976,6 +1987,7 @@ async fn test_valsem111(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoPr
 /// Update Proposal:
 /// The sender of a standalone update proposal must be of type member
 #[apply(ciphersuites_and_backends)]
+#[wasm_bindgen_test::wasm_bindgen_test]
 async fn test_valsem112(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider) {
     // Before we can test creation or reception of (invalid) proposals, we set
     // up a new group with Alice and Bob.
@@ -2042,6 +2054,7 @@ async fn test_valsem112(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoPr
 // --- PreSharedKey Proposals ---
 
 #[apply(ciphersuites_and_backends)]
+#[wasm_bindgen_test::wasm_bindgen_test]
 async fn test_valsem401_valsem402(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider) {
     let ProposalValidationTestSetup {
         mut alice_group,

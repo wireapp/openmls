@@ -21,6 +21,7 @@ p256 = "0.13"
 p384 = "0.13"
 secrecy = { version = "0.8", features = ["serde"] }
 rand_core = "0.6"
+getrandom = { version = "0.2", features = ["js"] }
 
 [features]
 clonable = [] # Make the keys clonable

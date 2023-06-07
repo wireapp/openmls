@@ -21,14 +21,15 @@ async-trait = { workspace = true }
 openmls_basic_credential = { version = "0.1.0", path = "../basic_credential", features = ["clonable", "test-utils"] }
 openmls_x509_credential = { version = "0.1.0", path = "../x509_credential", features = ["test-utils"] }
 # Only required for tests.
-rand = { version = "0.8", optional = true }
+rand = { version = "0.8", optional = true, features = ["getrandom"] }
+getrandom = { version = "0.2", optional = true, features = ["js"] }
 serde_json = { version = "1.0", optional = true }
 # Crypto backends required for KAT and testing - "test-utils" feature
 itertools = { version = "0.10", optional = true }
 openmls_rust_crypto = { version = "0.1.0", path = "../openmls_rust_crypto", optional = true }
 rstest = { version = "^0.16", optional = true }
 rstest_reuse = { version = "0.4", optional = true }
-tokio = { version = "1.24", features = ["full"], optional = true }
+tokio = { version = "1.24", optional = true, features = ["macros", "rt"] }
 x509-cert = "0.2"
 subtle = "2.5"
 
@@ -40,6 +41,7 @@ test-utils = [
     "dep:itertools",
     "dep:openmls_rust_crypto",
     "dep:rand",
+    "dep:getrandom",
     "dep:tokio",
     "dep:rstest",
     "dep:rstest_reuse",
@@ -51,7 +53,6 @@ content-debug = [] # ☣️ Enable logging of sensitive message content
 
 [dev-dependencies]
 backtrace = "0.3"
-criterion = { version = "0.4", features = ["async_futures"] }
 hex = { version = "0.4", features = ["serde"] }
 itertools = "0.10"
 lazy_static = "1.4"
@@ -61,11 +62,12 @@ pretty_env_logger = "0.4"
 rstest = "^0.16"
 rstest_reuse = "0.4"
 tempfile = "3"
+wasm-bindgen = "0.2"
+wasm-bindgen-futures = "0.4"
+wasm-bindgen-test = "0.3"
 
-# x64 targets get evercrypt compiled into dev-dependencies.
-[target.'cfg(target_arch = "x86_64")'.dev-dependencies.openmls]
-path = "."
-features = ["test-utils"]
+[target.'cfg(not(target_family = "wasm"))'.dev-dependencies]
+criterion = { version = "0.4", features = ["async_futures"] }
 
 [[bench]]
 name = "benchmark"

@@ -2,8 +2,11 @@ use crate::test_utils::*;
 
 use super::*;
 
+wasm_bindgen_test::wasm_bindgen_test_configure!(run_in_browser);
+
 // Tests that the builder for CreateCommitParams works as expected
 #[apply(backends)]
+#[wasm_bindgen_test::wasm_bindgen_test]
 async fn build_create_commit_params(backend: &impl OpenMlsCryptoProvider) {
     let _ = backend;
     let framing_parameters: FramingParameters =

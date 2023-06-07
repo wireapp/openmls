@@ -7,6 +7,7 @@ use crate::{
     binary_tree::LeafNodeIndex, framing::*, group::*, key_packages::*, messages::*,
     schedule::psk::store::ResumptionPskStore, test_utils::*, *,
 };
+wasm_bindgen_test::wasm_bindgen_test_configure!(run_in_browser);
 
 /// Creates a simple test setup for various encoding tests.
 async fn create_encoding_test_setup(backend: &impl OpenMlsCryptoProvider) -> TestSetup {
@@ -52,6 +53,7 @@ async fn create_encoding_test_setup(backend: &impl OpenMlsCryptoProvider) -> Tes
 
 /// This test tests encoding and decoding of application messages.
 #[apply(backends)]
+#[wasm_bindgen_test::wasm_bindgen_test]
 async fn test_application_message_encoding(backend: &impl OpenMlsCryptoProvider) {
     let test_setup = create_encoding_test_setup(backend).await;
     let test_clients = test_setup.clients.borrow();
@@ -94,6 +96,7 @@ async fn test_application_message_encoding(backend: &impl OpenMlsCryptoProvider)
 
 /// This test tests encoding and decoding of update proposals.
 #[apply(backends)]
+#[wasm_bindgen_test::wasm_bindgen_test]
 async fn test_update_proposal_encoding(backend: &impl OpenMlsCryptoProvider) {
     let test_setup = create_encoding_test_setup(backend).await;
     let test_clients = test_setup.clients.borrow();
@@ -148,6 +151,7 @@ async fn test_update_proposal_encoding(backend: &impl OpenMlsCryptoProvider) {
 
 /// This test tests encoding and decoding of add proposals.
 #[apply(backends)]
+#[wasm_bindgen_test::wasm_bindgen_test]
 async fn test_add_proposal_encoding(backend: &impl OpenMlsCryptoProvider) {
     let test_setup = create_encoding_test_setup(backend).await;
     let test_clients = test_setup.clients.borrow();
@@ -199,6 +203,7 @@ async fn test_add_proposal_encoding(backend: &impl OpenMlsCryptoProvider) {
 
 /// This test tests encoding and decoding of remove proposals.
 #[apply(backends)]
+#[wasm_bindgen_test::wasm_bindgen_test]
 async fn test_remove_proposal_encoding(backend: &impl OpenMlsCryptoProvider) {
     let test_setup = create_encoding_test_setup(backend).await;
     let test_clients = test_setup.clients.borrow();
@@ -242,6 +247,7 @@ async fn test_remove_proposal_encoding(backend: &impl OpenMlsCryptoProvider) {
 
 /// This test tests encoding and decoding of commit messages.
 #[apply(backends)]
+#[wasm_bindgen_test::wasm_bindgen_test]
 async fn test_commit_encoding(backend: &impl OpenMlsCryptoProvider) {
     let test_setup = create_encoding_test_setup(backend).await;
     let test_clients = test_setup.clients.borrow();
@@ -344,6 +350,7 @@ async fn test_commit_encoding(backend: &impl OpenMlsCryptoProvider) {
 }
 
 #[apply(backends)]
+#[wasm_bindgen_test::wasm_bindgen_test]
 async fn test_welcome_message_encoding(backend: &impl OpenMlsCryptoProvider) {
     let test_setup = create_encoding_test_setup(backend).await;
     let test_clients = test_setup.clients.borrow();

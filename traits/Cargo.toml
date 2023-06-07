@@ -27,4 +27,3 @@ p256 = "0.13"
 p384 = "0.13"
 zeroize = "1.6"
 signature = "2.1"
-secrecy = { version = "0.8", features = ["serde"] }

@@ -15,6 +15,8 @@ use super::utils::{
     generate_credential_with_key, generate_key_package, CredentialWithKeyAndSigner,
 };
 
+wasm_bindgen_test::wasm_bindgen_test_configure!(run_in_browser);
+
 // Creates a group with one member
 async fn create_group(
     ciphersuite: Ciphersuite,
@@ -103,6 +105,7 @@ async fn receive_message(
 
 // Test positive cases with all valid (pure & mixed) policies
 #[apply(ciphersuites_and_backends)]
+#[wasm_bindgen_test::wasm_bindgen_test]
 async fn test_wire_policy_positive(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider) {
     for wire_format_policy in WIRE_FORMAT_POLICIES.iter() {
         let (mut alice_group, alice_credential_with_key_and_signer) =
@@ -123,6 +126,7 @@ async fn test_wire_policy_positive(ciphersuite: Ciphersuite, backend: &impl Open
 
 // Test negative cases with only icompatible policies
 #[apply(ciphersuites_and_backends)]
+#[wasm_bindgen_test::wasm_bindgen_test]
 async fn test_wire_policy_negative(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider) {
     // All combinations that are not part of WIRE_FORMAT_POLICIES
     let incompatible_policies = vec![

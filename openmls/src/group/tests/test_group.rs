@@ -15,7 +15,10 @@ use crate::{
     *,
 };
 
+wasm_bindgen_test::wasm_bindgen_test_configure!(run_in_browser);
+
 #[apply(ciphersuites_and_backends)]
+#[wasm_bindgen_test::wasm_bindgen_test]
 async fn create_commit_optional_path(
     ciphersuite: Ciphersuite,
     backend: &impl OpenMlsCryptoProvider,
@@ -222,6 +225,7 @@ async fn create_commit_optional_path(
 }
 
 #[apply(ciphersuites_and_backends)]
+#[wasm_bindgen_test::wasm_bindgen_test]
 async fn basic_group_setup(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider) {
     let group_aad = b"Alice's test group";
     // Framing parameters
@@ -301,6 +305,7 @@ async fn basic_group_setup(ciphersuite: Ciphersuite, backend: &impl OpenMlsCrypt
 ///  - Charlie updates and commits
 ///  - Charlie removes Bob
 #[apply(ciphersuites_and_backends)]
+#[wasm_bindgen_test::wasm_bindgen_test]
 async fn group_operations(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider) {
     let group_aad = b"Alice's test group";
     // Framing parameters

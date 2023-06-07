@@ -32,6 +32,8 @@ use openmls_traits::{signatures::Signer, types::Ciphersuite, OpenMlsCryptoProvid
 
 use super::utils::resign_message;
 
+wasm_bindgen_test::wasm_bindgen_test_configure!(run_in_browser);
+
 pub const DEFAULT_PROPOSAL_TYPES: [ProposalType; 6] = [
     ProposalType::Add,
     ProposalType::Update,
@@ -44,6 +46,7 @@ pub const DEFAULT_PROPOSAL_TYPES: [ProposalType; 6] = [
 pub const DEFAULT_CREDENTIAL_TYPES: [CredentialType; 1] = [CredentialType::Basic];
 
 #[apply(ciphersuites_and_backends)]
+#[wasm_bindgen_test::wasm_bindgen_test]
 async fn gce_are_forwarded_in_welcome(
     ciphersuite: Ciphersuite,
     backend: &impl OpenMlsCryptoProvider,
@@ -91,6 +94,7 @@ async fn gce_are_forwarded_in_welcome(
 
 #[should_panic]
 #[apply(ciphersuites_and_backends)]
+#[wasm_bindgen_test::wasm_bindgen_test]
 async fn cannot_create_group_when_keypackage_lacks_required_capability(
     ciphersuite: Ciphersuite,
     backend: &impl OpenMlsCryptoProvider,
@@ -114,6 +118,7 @@ async fn cannot_create_group_when_keypackage_lacks_required_capability(
 }
 
 #[apply(ciphersuites_and_backends)]
+#[wasm_bindgen_test::wasm_bindgen_test]
 async fn gce_fails_when_it_contains_unsupported_extensions(
     ciphersuite: Ciphersuite,
     backend: &impl OpenMlsCryptoProvider,
@@ -162,6 +167,7 @@ async fn gce_fails_when_it_contains_unsupported_extensions(
 }
 
 #[apply(ciphersuites_and_backends)]
+#[wasm_bindgen_test::wasm_bindgen_test]
 async fn gce_proposal_should_overwrite_previous(
     ciphersuite: Ciphersuite,
     backend: &impl OpenMlsCryptoProvider,
@@ -233,6 +239,7 @@ async fn gce_proposal_should_overwrite_previous(
 }
 
 #[apply(ciphersuites_and_backends)]
+#[wasm_bindgen_test::wasm_bindgen_test]
 async fn gce_proposal_can_roundtrip(
     ciphersuite: Ciphersuite,
     backend: &impl OpenMlsCryptoProvider,
@@ -283,6 +290,7 @@ async fn gce_proposal_can_roundtrip(
 }
 
 #[apply(ciphersuites_and_backends)]
+#[wasm_bindgen_test::wasm_bindgen_test]
 async fn creating_commit_with_more_than_one_gce_proposal_should_fail(
     ciphersuite: Ciphersuite,
     backend: &impl OpenMlsCryptoProvider,
@@ -323,6 +331,7 @@ async fn creating_commit_with_more_than_one_gce_proposal_should_fail(
 }
 
 #[apply(ciphersuites_and_backends)]
+#[wasm_bindgen_test::wasm_bindgen_test]
 async fn validating_commit_with_more_than_one_gce_proposal_should_fail(
     ciphersuite: Ciphersuite,
     backend: &impl OpenMlsCryptoProvider,
@@ -386,6 +395,7 @@ async fn validating_commit_with_more_than_one_gce_proposal_should_fail(
 }
 
 #[apply(ciphersuites_and_backends)]
+#[wasm_bindgen_test::wasm_bindgen_test]
 async fn gce_proposal_must_be_applied_first_then_used_to_validate_other_add_proposals(
     ciphersuite: Ciphersuite,
     backend: &impl OpenMlsCryptoProvider,
@@ -469,6 +479,7 @@ async fn gce_proposal_must_be_applied_first_then_used_to_validate_other_add_prop
 }
 
 #[apply(ciphersuites_and_backends)]
+#[wasm_bindgen_test::wasm_bindgen_test]
 async fn gce_proposal_must_be_applied_first_then_used_to_validate_other_external_add_proposals(
     ciphersuite: Ciphersuite,
     backend: &impl OpenMlsCryptoProvider,
@@ -547,6 +558,7 @@ async fn gce_proposal_must_be_applied_first_then_used_to_validate_other_external
 }
 
 #[apply(ciphersuites_and_backends)]
+#[wasm_bindgen_test::wasm_bindgen_test]
 async fn gce_proposal_must_be_applied_first_but_ignored_for_remove_proposals(
     ciphersuite: Ciphersuite,
     backend: &impl OpenMlsCryptoProvider,
@@ -655,6 +667,7 @@ async fn gce_proposal_must_be_applied_first_but_ignored_for_remove_proposals(
 }
 
 #[apply(ciphersuites_and_backends)]
+#[wasm_bindgen_test::wasm_bindgen_test]
 async fn gce_proposal_must_be_applied_first_but_ignored_for_external_remove_proposals(
     ciphersuite: Ciphersuite,
     backend: &impl OpenMlsCryptoProvider,

@@ -19,6 +19,8 @@ use super::utils::{
     generate_credential_with_key, generate_key_package, CredentialWithKeyAndSigner,
 };
 
+wasm_bindgen_test::wasm_bindgen_test_configure!(run_in_browser);
+
 // Test setup values
 struct ValidationTestSetup {
     alice_group: MlsGroup,
@@ -116,6 +118,7 @@ async fn validation_test_setup(
 
 // ValSem002 Group id
 #[apply(ciphersuites_and_backends)]
+#[wasm_bindgen_test::wasm_bindgen_test]
 async fn test_valsem002(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider) {
     let ValidationTestSetup {
         mut alice_group,
@@ -165,6 +168,7 @@ async fn test_valsem002(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoPr
 
 // ValSem003 Epoch
 #[apply(ciphersuites_and_backends)]
+#[wasm_bindgen_test::wasm_bindgen_test]
 async fn test_valsem003(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider) {
     let ValidationTestSetup {
         mut alice_group,
@@ -268,6 +272,7 @@ async fn test_valsem003(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoPr
 
 // ValSem004 Sender: Member: check the member exists
 #[apply(ciphersuites_and_backends)]
+#[wasm_bindgen_test::wasm_bindgen_test]
 async fn test_valsem004(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider) {
     let ValidationTestSetup {
         mut alice_group,
@@ -327,6 +332,7 @@ async fn test_valsem004(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoPr
 
 // ValSem005 Application messages must use ciphertext
 #[apply(ciphersuites_and_backends)]
+#[wasm_bindgen_test::wasm_bindgen_test]
 async fn test_valsem005(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider) {
     let ValidationTestSetup {
         mut alice_group,
@@ -385,6 +391,7 @@ async fn test_valsem005(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoPr
 
 // ValSem006 Ciphertext: decryption needs to work
 #[apply(ciphersuites_and_backends)]
+#[wasm_bindgen_test::wasm_bindgen_test]
 async fn test_valsem006(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider) {
     let ValidationTestSetup {
         mut alice_group,
@@ -435,6 +442,7 @@ async fn test_valsem006(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoPr
 
 // ValSem007 Membership tag presence
 #[apply(ciphersuites_and_backends)]
+#[wasm_bindgen_test::wasm_bindgen_test]
 async fn test_valsem007(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider) {
     let ValidationTestSetup {
         mut alice_group,
@@ -484,6 +492,7 @@ async fn test_valsem007(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoPr
 
 // ValSem008 Membership tag verification
 #[apply(ciphersuites_and_backends)]
+#[wasm_bindgen_test::wasm_bindgen_test]
 async fn test_valsem008(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider) {
     let ValidationTestSetup {
         mut alice_group,
@@ -537,6 +546,7 @@ async fn test_valsem008(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoPr
 
 // ValSem009 Confirmation tag presence
 #[apply(ciphersuites_and_backends)]
+#[wasm_bindgen_test::wasm_bindgen_test]
 async fn test_valsem009(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider) {
     let ValidationTestSetup {
         mut alice_group,
@@ -595,6 +605,7 @@ async fn test_valsem009(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoPr
 
 // ValSem010 Signature verification
 #[apply(ciphersuites_and_backends)]
+#[wasm_bindgen_test::wasm_bindgen_test]
 async fn test_valsem010(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider) {
     let ValidationTestSetup {
         mut alice_group,

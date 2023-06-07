@@ -17,7 +17,10 @@ use openmls_traits::{types::Ciphersuite, OpenMlsCryptoProvider};
 
 use super::{proposals::ProposalStore, CoreGroup};
 
+wasm_bindgen_test::wasm_bindgen_test_configure!(run_in_browser);
+
 #[apply(ciphersuites_and_backends)]
+#[wasm_bindgen_test::wasm_bindgen_test]
 async fn test_external_init(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider) {
     let (
         framing_parameters,
@@ -197,6 +200,7 @@ async fn test_external_init(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryp
 }
 
 #[apply(ciphersuites_and_backends)]
+#[wasm_bindgen_test::wasm_bindgen_test]
 async fn test_external_init_single_member_group(
     ciphersuite: Ciphersuite,
     backend: &impl OpenMlsCryptoProvider,
@@ -263,6 +267,7 @@ async fn test_external_init_single_member_group(
 }
 
 #[apply(ciphersuites_and_backends)]
+#[wasm_bindgen_test::wasm_bindgen_test]
 async fn test_external_init_broken_signature(
     ciphersuite: Ciphersuite,
     backend: &impl OpenMlsCryptoProvider,

@@ -12,7 +12,10 @@ use crate::{
     group::{config::CryptoConfig, errors::*, *},
 };
 
+wasm_bindgen_test::wasm_bindgen_test_configure!(run_in_browser);
+
 #[apply(ciphersuites_and_backends)]
+#[wasm_bindgen_test::wasm_bindgen_test]
 async fn test_past_secrets_in_group(
     ciphersuite: Ciphersuite,
     backend: &impl OpenMlsCryptoProvider,

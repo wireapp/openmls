@@ -15,7 +15,10 @@ use crate::{
 
 use super::test_gce_proposals::{group_setup, DEFAULT_CREDENTIAL_TYPES, DEFAULT_PROPOSAL_TYPES};
 
+wasm_bindgen_test::wasm_bindgen_test_configure!(run_in_browser);
+
 #[apply(ciphersuites_and_backends)]
+#[wasm_bindgen_test::wasm_bindgen_test]
 async fn gce_fails_when_it_contains_unsupported_extensions(
     ciphersuite: Ciphersuite,
     backend: &impl OpenMlsCryptoProvider,
@@ -65,6 +68,7 @@ async fn gce_fails_when_it_contains_unsupported_extensions(
 }
 
 #[apply(ciphersuites_and_backends)]
+#[wasm_bindgen_test::wasm_bindgen_test]
 async fn gce_commit_can_roundtrip(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider) {
     let required_capabilities =
         RequiredCapabilitiesExtension::new(&[], &DEFAULT_PROPOSAL_TYPES, &DEFAULT_CREDENTIAL_TYPES);

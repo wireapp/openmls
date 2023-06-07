@@ -9,8 +9,11 @@ use crate::{
 };
 use openmls_rust_crypto::OpenMlsRustCrypto;
 
+wasm_bindgen_test::wasm_bindgen_test_configure!(run_in_browser);
+
 // Tests the different variants of the RemoveOperation enum.
 #[apply(ciphersuites_and_backends)]
+#[wasm_bindgen_test::wasm_bindgen_test]
 async fn test_remove_operation_variants(
     ciphersuite: Ciphersuite,
     backend: &impl OpenMlsCryptoProvider,

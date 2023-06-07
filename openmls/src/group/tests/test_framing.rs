@@ -25,6 +25,8 @@ use crate::{
     *,
 };
 
+wasm_bindgen_test::wasm_bindgen_test_configure!(run_in_browser);
+
 #[apply(backends)]
 async fn padding(backend: &impl OpenMlsCryptoProvider) {
     // Create a test config for a single client supporting all possible
@@ -99,6 +101,7 @@ async fn padding(backend: &impl OpenMlsCryptoProvider) {
 
 /// Check that PrivateMessageContent's padding field is verified to be all-zero.
 #[apply(ciphersuites_and_backends)]
+#[wasm_bindgen_test::wasm_bindgen_test]
 async fn bad_padding(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider) {
     let tests = {
         // { 2^i } ∪ { 2^i +- 1 }

@@ -23,6 +23,8 @@ use crate::{
     versions::ProtocolVersion,
 };
 
+wasm_bindgen_test::wasm_bindgen_test_configure!(run_in_browser);
+
 struct CommitValidationTestSetup {
     alice_group: MlsGroup,
     alice_credential: CredentialWithKeyAndSigner,
@@ -125,6 +127,7 @@ async fn validation_test_setup(
 
 // ValSem200: Commit must not cover inline self Remove proposal
 #[apply(ciphersuites_and_backends)]
+#[wasm_bindgen_test::wasm_bindgen_test]
 async fn test_valsem200(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider) {
     // Test with PublicMessage
     let CommitValidationTestSetup {
@@ -246,6 +249,7 @@ async fn test_valsem200(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoPr
 
 // ValSem201: Path must be present, if at least one proposal requires a path
 #[apply(ciphersuites_and_backends)]
+#[wasm_bindgen_test::wasm_bindgen_test]
 async fn test_valsem201(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider) {
     let wire_format_policy = PURE_PLAINTEXT_WIRE_FORMAT_POLICY;
     // Test with PublicMessage
@@ -432,6 +436,7 @@ fn erase_path(
 
 // ValSem202: Path must be the right length
 #[apply(ciphersuites_and_backends)]
+#[wasm_bindgen_test::wasm_bindgen_test]
 async fn test_valsem202(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider) {
     // Test with PublicMessage
     let CommitValidationTestSetup {
@@ -506,6 +511,7 @@ async fn test_valsem202(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoPr
 
 // ValSem203: Path secrets must decrypt correctly
 #[apply(ciphersuites_and_backends)]
+#[wasm_bindgen_test::wasm_bindgen_test]
 async fn test_valsem203(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider) {
     // Test with PublicMessage
     let CommitValidationTestSetup {
@@ -582,6 +588,7 @@ async fn test_valsem203(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoPr
 
 // ValSem204: Public keys from Path must be verified and match the private keys from the direct path
 #[apply(ciphersuites_and_backends)]
+#[wasm_bindgen_test::wasm_bindgen_test]
 async fn test_valsem204(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider) {
     // Test with PublicMessage
     let CommitValidationTestSetup {
@@ -706,6 +713,7 @@ async fn test_valsem204(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoPr
 
 // ValSem205: Confirmation tag must be successfully verified
 #[apply(ciphersuites_and_backends)]
+#[wasm_bindgen_test::wasm_bindgen_test]
 async fn test_valsem205(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider) {
     // Test with PublicMessage
     let CommitValidationTestSetup {
@@ -775,6 +783,7 @@ async fn test_valsem205(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoPr
 
 // this ensures that a member can process commits not containing all the stored proposals
 #[apply(ciphersuites_and_backends)]
+#[wasm_bindgen_test::wasm_bindgen_test]
 async fn test_partial_proposal_commit(
     ciphersuite: Ciphersuite,
     backend: &impl OpenMlsCryptoProvider,
