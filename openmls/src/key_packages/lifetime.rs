@@ -94,7 +94,10 @@ mod tests {
 
     use super::Lifetime;
 
+    wasm_bindgen_test::wasm_bindgen_test_configure!(run_in_browser);
+
     #[test]
+    #[wasm_bindgen_test::wasm_bindgen_test]
     fn lifetime() {
         // A freshly created extensions must be valid.
         let ext = Lifetime::default();
@@ -102,7 +105,7 @@ mod tests {
 
         // An extension without lifetime is invalid (waiting for 1 second).
         let ext = Lifetime::new(0);
-        std::thread::sleep(std::time::Duration::from_secs(1));
+        sleep(1);
         assert!(!ext.is_valid());
 
         // Test (de)serializing invalid extension
@@ -112,5 +115,20 @@ mod tests {
         let ext_deserialized = Lifetime::tls_deserialize(&mut serialized.as_slice())
             .expect("Error deserializing lifetime");
         assert!(!ext_deserialized.is_valid());
+    }
+
+    fn sleep(secs: u64) {
+        #[cfg(not(target_family = "wasm"))]
+        {
+            std::thread::sleep(core::time::Duration::from_secs(secs))
+        }
+        #[cfg(target_family = "wasm")]
+        {
+            let w: web_sys::Window = web_sys::window().unwrap();
+            let closure = js_sys::Function::default();
+            let secs = secs.try_into().unwrap();
+            w.set_timeout_with_callback_and_timeout_and_arguments_0(&closure, secs)
+                .unwrap();
+        }
     }
 }

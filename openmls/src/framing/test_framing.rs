@@ -24,8 +24,11 @@ use crate::{
     versions::ProtocolVersion,
 };
 
+wasm_bindgen_test::wasm_bindgen_test_configure!(run_in_browser);
+
 /// This tests serializing/deserializing PublicMessage
 #[apply(ciphersuites_and_backends)]
+#[wasm_bindgen_test::wasm_bindgen_test]
 async fn codec_plaintext(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider) {
     let (_credential, signature_keys) =
         test_utils::new_credential(backend, b"Creator", ciphersuite.signature_algorithm()).await;
@@ -74,6 +77,7 @@ async fn codec_plaintext(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoP
 
 /// This tests serializing/deserializing PrivateMessage
 #[apply(ciphersuites_and_backends)]
+#[wasm_bindgen_test::wasm_bindgen_test]
 async fn codec_ciphertext(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider) {
     let (_credential, signature_keys) =
         test_utils::new_credential(backend, b"Creator", ciphersuite.signature_algorithm()).await;
@@ -147,6 +151,7 @@ async fn codec_ciphertext(ciphersuite: Ciphersuite, backend: &impl OpenMlsCrypto
 
 /// This tests the correctness of wire format checks
 #[apply(ciphersuites_and_backends)]
+#[wasm_bindgen_test::wasm_bindgen_test]
 async fn wire_format_checks(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider) {
     let configuration = &SenderRatchetConfiguration::default();
     let (plaintext, _credential, _keys) =
@@ -318,6 +323,7 @@ async fn create_content(
 }
 
 #[apply(ciphersuites_and_backends)]
+#[wasm_bindgen_test::wasm_bindgen_test]
 async fn membership_tag(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider) {
     let (_credential, signature_keys) =
         test_utils::new_credential(backend, b"Creator", ciphersuite.signature_algorithm()).await;
@@ -370,6 +376,7 @@ async fn membership_tag(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoPr
 }
 
 #[apply(ciphersuites_and_backends)]
+#[wasm_bindgen_test::wasm_bindgen_test]
 async fn unknown_sender(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider) {
     let group_aad = b"Alice's test group";
     let framing_parameters = FramingParameters::new(group_aad, WireFormat::PublicMessage);
@@ -574,6 +581,7 @@ async fn unknown_sender(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoPr
 }
 
 #[apply(ciphersuites_and_backends)]
+#[wasm_bindgen_test::wasm_bindgen_test]
 async fn confirmation_tag_presence(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider) {
     let (framing_parameters, group_alice, alice_signature_keys, group_bob, _, _) =
         setup_alice_bob_group(ciphersuite, backend).await;
@@ -705,6 +713,7 @@ pub(crate) async fn setup_alice_bob_group(
 
 /// Test divergent protocol versions in KeyPackages
 #[apply(ciphersuites_and_backends)]
+#[wasm_bindgen_test::wasm_bindgen_test]
 async fn key_package_version(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider) {
     let (mut key_package, _, _) = key_package(ciphersuite, backend).await;
 

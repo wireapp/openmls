@@ -6,7 +6,10 @@ use crate::{
     versions::ProtocolVersion,
 };
 
+wasm_bindgen_test::wasm_bindgen_test_configure!(run_in_browser);
+
 #[apply(ciphersuites_and_backends)]
+#[wasm_bindgen_test::wasm_bindgen_test]
 async fn secret_init(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider) {
     // These two secrets must be incompatible
     let default_secret =
@@ -20,6 +23,7 @@ async fn secret_init(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvi
 }
 
 #[apply(ciphersuites_and_backends)]
+#[wasm_bindgen_test::wasm_bindgen_test]
 pub async fn secret_incompatible(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider) {
     // These two secrets must be incompatible
     let default_secret =

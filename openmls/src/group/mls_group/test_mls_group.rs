@@ -14,7 +14,10 @@ use crate::{
     test_utils::*,
 };
 
+wasm_bindgen_test::wasm_bindgen_test_configure!(run_in_browser);
+
 #[apply(ciphersuites_and_backends)]
+#[wasm_bindgen_test::wasm_bindgen_test]
 async fn test_mls_group_persistence(
     ciphersuite: Ciphersuite,
     backend: &impl OpenMlsCryptoProvider,
@@ -65,6 +68,7 @@ async fn test_mls_group_persistence(
 // This tests if the remover is correctly passed to the callback when one member
 // issues a RemoveProposal and another members issues the next Commit.
 #[apply(ciphersuites_and_backends)]
+#[wasm_bindgen_test::wasm_bindgen_test]
 async fn remover(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider) {
     let group_id = GroupId::from_slice(b"Test Group");
 
@@ -218,6 +222,7 @@ async fn remover(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider)
 }
 
 #[apply(ciphersuites_and_backends)]
+#[wasm_bindgen_test::wasm_bindgen_test]
 async fn export_secret(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider) {
     let group_id = GroupId::from_slice(b"Test Group");
 
@@ -257,6 +262,7 @@ async fn export_secret(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoPro
 }
 
 #[apply(ciphersuites_and_backends)]
+#[wasm_bindgen_test::wasm_bindgen_test]
 async fn test_invalid_plaintext(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider) {
     // Some basic setup functions for the MlsGroup.
     let mls_group_config = MlsGroupConfig::test_default(ciphersuite);
@@ -359,6 +365,7 @@ async fn test_invalid_plaintext(ciphersuite: Ciphersuite, backend: &impl OpenMls
 }
 
 #[apply(ciphersuites_and_backends)]
+#[wasm_bindgen_test::wasm_bindgen_test]
 async fn test_pending_commit_logic(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider) {
     let group_id = GroupId::from_slice(b"Test Group");
 
@@ -547,6 +554,7 @@ async fn test_pending_commit_logic(ciphersuite: Ciphersuite, backend: &impl Open
 // Test that the key package and the corresponding private key are deleted when
 // creating a new group for a welcome message.
 #[apply(ciphersuites_and_backends)]
+#[wasm_bindgen_test::wasm_bindgen_test]
 async fn key_package_deletion(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider) {
     let group_id = GroupId::from_slice(b"Test Group");
 
@@ -614,6 +622,7 @@ async fn key_package_deletion(ciphersuite: Ciphersuite, backend: &impl OpenMlsCr
 }
 
 #[apply(ciphersuites_and_backends)]
+#[wasm_bindgen_test::wasm_bindgen_test]
 async fn remove_prosposal_by_ref(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider) {
     let group_id = GroupId::from_slice(b"Test Group");
 

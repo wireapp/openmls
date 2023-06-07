@@ -2,7 +2,10 @@ use tls_codec::{Deserialize, Serialize};
 
 use super::*;
 
+wasm_bindgen_test::wasm_bindgen_test_configure!(run_in_browser);
+
 #[test]
+#[wasm_bindgen_test::wasm_bindgen_test]
 fn test_protocol_version() {
     use crate::versions::ProtocolVersion;
     let mls10_version = ProtocolVersion::Mls10;
@@ -26,6 +29,7 @@ fn test_protocol_version() {
 }
 
 #[test]
+#[wasm_bindgen_test::wasm_bindgen_test]
 fn that_unknown_credential_types_are_de_serialized_correctly() {
     let credential_types = [0x0000u16, 0x0A0A, 0x7A7A, 0xF000, 0xFFFF];
 

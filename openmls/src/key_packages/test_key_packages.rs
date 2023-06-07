@@ -6,6 +6,8 @@ use tls_codec::Deserialize;
 
 use crate::{extensions::*, key_packages::*};
 
+wasm_bindgen_test::wasm_bindgen_test_configure!(run_in_browser);
+
 /// Helper function to generate key packages
 pub(crate) async fn key_package(
     ciphersuite: Ciphersuite,
@@ -39,6 +41,7 @@ pub(crate) async fn key_package(
 }
 
 #[apply(ciphersuites_and_backends)]
+#[wasm_bindgen_test::wasm_bindgen_test]
 async fn generate_key_package(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider) {
     let (key_package, _credential, _signature_keys) = key_package(ciphersuite, backend).await;
 
@@ -49,6 +52,7 @@ async fn generate_key_package(ciphersuite: Ciphersuite, backend: &impl OpenMlsCr
 }
 
 #[apply(ciphersuites_and_backends)]
+#[wasm_bindgen_test::wasm_bindgen_test]
 async fn serialization(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider) {
     let (key_package, _, _) = key_package(ciphersuite, backend).await;
 
@@ -64,6 +68,7 @@ async fn serialization(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoPro
 }
 
 #[apply(ciphersuites_and_backends)]
+#[wasm_bindgen_test::wasm_bindgen_test]
 async fn application_id_extension(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider) {
     let credential = Credential::new_basic(b"Sasha".to_vec());
     let signature_keys = SignatureKeyPair::new(
@@ -113,6 +118,7 @@ async fn application_id_extension(ciphersuite: Ciphersuite, backend: &impl OpenM
 /// - The protocol version is correct
 /// - The init key is not equal to the encryption key
 #[apply(ciphersuites_and_backends)]
+#[wasm_bindgen_test::wasm_bindgen_test]
 async fn key_package_validation(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider) {
     let (key_package_orig, _, _) = key_package(ciphersuite, backend).await;
 

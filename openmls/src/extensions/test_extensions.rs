@@ -16,7 +16,10 @@ use crate::{
     test_utils::*,
 };
 
+wasm_bindgen_test::wasm_bindgen_test_configure!(run_in_browser);
+
 #[test]
+#[wasm_bindgen_test::wasm_bindgen_test]
 fn application_id() {
     // A raw application id extension
     let data = &[8u8, 1, 2, 3, 4, 5, 6, 6, 6];
@@ -35,6 +38,7 @@ fn application_id() {
 // This tests the ratchet tree extension to deliver the public ratcheting tree
 // in-band
 #[apply(ciphersuites_and_backends)]
+#[wasm_bindgen_test::wasm_bindgen_test]
 async fn ratchet_tree_extension(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider) {
     // Basic group setup.
     let group_aad = b"Alice's test group";
@@ -200,6 +204,7 @@ async fn ratchet_tree_extension(ciphersuite: Ciphersuite, backend: &impl OpenMls
 }
 
 #[test]
+#[wasm_bindgen_test::wasm_bindgen_test]
 fn required_capabilities() {
     // A raw required capabilities extension with the default values for openmls (none).
     let extension_bytes = vec![0, 3, 3, 0, 0, 0];

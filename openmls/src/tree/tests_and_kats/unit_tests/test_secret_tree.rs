@@ -10,8 +10,11 @@ use crate::{
 };
 use std::collections::HashMap;
 
+wasm_bindgen_test::wasm_bindgen_test_configure!(run_in_browser);
+
 // This tests the boundaries of the generations from a SecretTree
 #[apply(ciphersuites_and_backends)]
+#[wasm_bindgen_test::wasm_bindgen_test]
 async fn test_boundaries(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider) {
     let configuration = &SenderRatchetConfiguration::default();
     let encryption_secret = EncryptionSecret::random(ciphersuite, backend);
@@ -157,6 +160,7 @@ async fn test_boundaries(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoP
 // This tests if the generation gets incremented correctly and that the returned
 // values are unique.
 #[apply(ciphersuites_and_backends)]
+#[wasm_bindgen_test::wasm_bindgen_test]
 async fn increment_generation(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider) {
     const SIZE: usize = 100;
     const MAX_GENERATIONS: usize = 10;
@@ -224,6 +228,7 @@ async fn increment_generation(ciphersuite: Ciphersuite, backend: &impl OpenMlsCr
 }
 
 #[apply(ciphersuites_and_backends)]
+#[wasm_bindgen_test::wasm_bindgen_test]
 async fn secret_tree(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider) {
     let leaf_index = 0u32;
     let generation = 0;

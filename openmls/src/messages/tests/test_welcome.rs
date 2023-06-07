@@ -32,11 +32,14 @@ use crate::{
 
 use openmls_traits::random::OpenMlsRand;
 
+wasm_bindgen_test::wasm_bindgen_test_configure!(run_in_browser);
+
 /// This test detects if the decryption of the encrypted group secrets fails due to a change in
 /// the encrypted group info. As the group info is part of the decryption context of the encrypted
 /// group info, it is not possible to generate a matching encrypted group context with different
 /// parameters.
 #[apply(ciphersuites_and_backends)]
+#[wasm_bindgen_test::wasm_bindgen_test]
 async fn test_welcome_context_mismatch(
     ciphersuite: Ciphersuite,
     backend: &impl OpenMlsCryptoProvider,
@@ -211,6 +214,7 @@ async fn test_welcome_context_mismatch(
 }
 
 #[apply(ciphersuites_and_backends)]
+#[wasm_bindgen_test::wasm_bindgen_test]
 async fn test_welcome_msg(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider) {
     test_welcome_message(ciphersuite, backend);
 }
@@ -323,6 +327,7 @@ fn test_welcome_message(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoPr
 }
 
 #[test]
+#[wasm_bindgen_test::wasm_bindgen_test]
 fn invalid_welcomes() {
     // An almost good welcome message.
     let mut bytes = &[

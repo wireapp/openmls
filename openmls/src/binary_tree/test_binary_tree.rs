@@ -10,7 +10,10 @@ use super::{
     LeafNodeIndex,
 };
 
+wasm_bindgen_test::wasm_bindgen_test_configure!(run_in_browser);
+
 #[test]
+#[wasm_bindgen_test::wasm_bindgen_test]
 fn test_tree_basics() {
     // Test tree creation: Wrong number of nodes.
     let mut nodes = vec![TreeNode::Leaf(1), TreeNode::Parent(0)];
@@ -62,6 +65,7 @@ fn test_tree_basics() {
 }
 
 #[test]
+#[wasm_bindgen_test::wasm_bindgen_test]
 fn test_diff_merging() {
     let mut tree = MlsBinaryTree::new(vec![
         TreeNode::Leaf(2),
@@ -154,6 +158,7 @@ fn test_diff_merging() {
 }
 
 #[test]
+#[wasm_bindgen_test::wasm_bindgen_test]
 fn test_new_tree_error() {
     // Let's test what happens when the tree is getting too large.
     let mut nodes: Vec<TreeNode<u32, u32>> = Vec::new();
@@ -171,6 +176,7 @@ fn test_new_tree_error() {
 }
 
 #[test]
+#[wasm_bindgen_test::wasm_bindgen_test]
 fn test_diff_iter() {
     let nodes = (0..101)
         .map(|i| {
@@ -203,6 +209,7 @@ fn test_diff_iter() {
 }
 
 #[test]
+#[wasm_bindgen_test::wasm_bindgen_test]
 fn test_diff_mutable_access_after_manipulation() {
     let nodes = (0..101)
         .map(|i| {
@@ -235,6 +242,7 @@ fn test_diff_mutable_access_after_manipulation() {
 }
 
 #[test]
+#[wasm_bindgen_test::wasm_bindgen_test]
 fn diff_leaf_access() {
     // We want to test if leaf access works correctly in a diff. In particular,
     // we want to ensure that if we access outside of the diff (but inside of

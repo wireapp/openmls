@@ -10,8 +10,11 @@ use crate::{
     test_utils::*,
 };
 
+wasm_bindgen_test::wasm_bindgen_test_configure!(run_in_browser);
+
 /// Tests the creation of an [UnverifiedGroupInfo] and verifies it was correctly signed.
 #[apply(ciphersuites_and_backends)]
+#[wasm_bindgen_test::wasm_bindgen_test]
 async fn export_group_info(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider) {
     // Alice creates a group
     let (group_alice, _, signer, pk) = setup_alice_group(ciphersuite, backend).await;

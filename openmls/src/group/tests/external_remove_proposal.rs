@@ -12,6 +12,8 @@ use openmls_traits::types::Ciphersuite;
 
 use super::utils::*;
 
+wasm_bindgen_test::wasm_bindgen_test_configure!(run_in_browser);
+
 // Creates a standalone group
 async fn new_test_group(
     identity: &str,
@@ -92,6 +94,7 @@ async fn validation_test_setup(
 }
 
 #[apply(ciphersuites_and_backends)]
+#[wasm_bindgen_test::wasm_bindgen_test]
 async fn external_remove_proposal_should_remove_member(
     ciphersuite: Ciphersuite,
     backend: &impl OpenMlsCryptoProvider,
@@ -191,6 +194,7 @@ async fn external_remove_proposal_should_remove_member(
 }
 
 #[apply(ciphersuites_and_backends)]
+#[wasm_bindgen_test::wasm_bindgen_test]
 async fn external_remove_proposal_should_fail_when_invalid_external_senders_index(
     ciphersuite: Ciphersuite,
     backend: &impl OpenMlsCryptoProvider,
@@ -249,6 +253,7 @@ async fn external_remove_proposal_should_fail_when_invalid_external_senders_inde
 }
 
 #[apply(ciphersuites_and_backends)]
+#[wasm_bindgen_test::wasm_bindgen_test]
 async fn external_remove_proposal_should_fail_when_invalid_signature(
     ciphersuite: Ciphersuite,
     backend: &impl OpenMlsCryptoProvider,
@@ -308,6 +313,7 @@ async fn external_remove_proposal_should_fail_when_invalid_signature(
 }
 
 #[apply(ciphersuites_and_backends)]
+#[wasm_bindgen_test::wasm_bindgen_test]
 async fn external_remove_proposal_should_fail_when_no_external_senders(
     ciphersuite: Ciphersuite,
     backend: &impl OpenMlsCryptoProvider,

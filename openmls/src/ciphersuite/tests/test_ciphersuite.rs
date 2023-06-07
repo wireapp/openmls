@@ -4,8 +4,11 @@ use openmls_traits::types::HpkeCiphertext;
 
 use crate::{ciphersuite::*, test_utils::*};
 
+wasm_bindgen_test::wasm_bindgen_test_configure!(run_in_browser);
+
 // Spot test to make sure hpke seal/open work.
 #[apply(ciphersuites_and_backends)]
+#[wasm_bindgen_test::wasm_bindgen_test]
 async fn test_hpke_seal_open(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider) {
     let plaintext = &[1, 2, 3];
     let kp = backend

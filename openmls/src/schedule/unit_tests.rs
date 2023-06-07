@@ -11,7 +11,10 @@ use crate::{
     versions::ProtocolVersion,
 };
 
+wasm_bindgen_test::wasm_bindgen_test_configure!(run_in_browser);
+
 #[apply(ciphersuites_and_backends)]
+#[wasm_bindgen_test::wasm_bindgen_test]
 async fn test_psks(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider) {
     // Create a new PSK secret from multiple PSKs.
     let prng = backend.rand();
