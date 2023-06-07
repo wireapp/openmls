@@ -20,6 +20,10 @@ hex = "0.4"
 async-trait = { workspace = true }
 openmls_basic_credential = { version = "0.1.0", path = "../basic_credential", features = ["clonable", "test-utils"] }
 openmls_x509_credential = { version = "0.1.0", path = "../x509_credential", features = ["test-utils"] }
+x509-cert = "0.2"
+subtle = "2.5"
+fluvio-wasm-timer = "0.2"
+
 # Only required for tests.
 rand = { version = "0.8", optional = true, features = ["getrandom"] }
 getrandom = { version = "0.2", optional = true, features = ["js"] }
@@ -29,9 +33,7 @@ itertools = { version = "0.10", optional = true }
 openmls_rust_crypto = { version = "0.1.0", path = "../openmls_rust_crypto", optional = true }
 rstest = { version = "^0.16", optional = true }
 rstest_reuse = { version = "0.4", optional = true }
-tokio = { version = "1.24", optional = true, features = ["macros", "rt"] }
-x509-cert = "0.2"
-subtle = "2.5"
+#tokio = { version = "1.24", optional = true, features = ["macros", "rt"] }
 
 [features]
 default = []
@@ -42,7 +44,7 @@ test-utils = [
     "dep:openmls_rust_crypto",
     "dep:rand",
     "dep:getrandom",
-    "dep:tokio",
+#    "dep:tokio",
     "dep:rstest",
     "dep:rstest_reuse",
     "openmls_basic_credential/test-utils",
@@ -65,6 +67,7 @@ tempfile = "3"
 wasm-bindgen = "0.2"
 wasm-bindgen-futures = "0.4"
 wasm-bindgen-test = "0.3"
+async-std = { version = "1.12", features = ["attributes"] }
 
 [target.'cfg(not(target_family = "wasm"))'.dev-dependencies]
 criterion = { version = "0.4", features = ["async_futures"] }

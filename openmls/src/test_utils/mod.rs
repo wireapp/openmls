@@ -209,7 +209,6 @@ pub use openmls_rust_crypto::OpenMlsRustCrypto;
     case::rust_crypto(&OpenMlsRustCrypto::default()),
   )
 ]
-#[tokio::test]
 #[allow(non_snake_case)]
 pub async fn backends(backend: &impl OpenMlsCryptoProvider) {}
 
@@ -235,7 +234,6 @@ pub async fn backends(backend: &impl OpenMlsCryptoProvider) {}
     )
 )]
 #[allow(non_snake_case)]
-#[tokio::test]
 pub async fn ciphersuites(ciphersuite: Ciphersuite) {}
 
 // === Ciphersuites & backends ===
@@ -249,7 +247,6 @@ pub async fn ciphersuites(ciphersuite: Ciphersuite) {}
     case::rust_crypto_MLS_128_DHKEMX25519_CHACHA20POLY1305_SHA256_Ed25519(Ciphersuite::MLS_128_DHKEMX25519_CHACHA20POLY1305_SHA256_Ed25519, &OpenMlsRustCrypto::default()),
   )
 ]
-#[tokio::test]
 #[allow(non_snake_case)]
 pub async fn ciphersuites_and_backends(
     ciphersuite: Ciphersuite,

@@ -67,7 +67,7 @@ pub struct WelcomeTestVector {
     welcome: Vec<u8>,
 }
 
-#[tokio::test]
+#[async_std::test]
 async fn test_read_vectors() {
     let test_vectors: Vec<WelcomeTestVector> = read(TEST_VECTOR_PATH_READ);
 

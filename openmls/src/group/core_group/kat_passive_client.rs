@@ -92,7 +92,7 @@ pub struct TestEpoch {
 #[derive(Serialize, Deserialize, Debug, Clone, Default)]
 pub struct TestProposal(#[serde(with = "hex::serde")] Vec<u8>);
 
-#[tokio::test]
+#[async_std::test]
 async fn test_read_vectors() {
     for file in TEST_VECTORS_PATH_READ {
         let scenario: Vec<PassiveClientWelcomeTestVector> = read(file);

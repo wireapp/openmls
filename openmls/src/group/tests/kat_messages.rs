@@ -334,7 +334,7 @@ pub async fn run_test_vector(tv: MessagesTestVector) -> Result<(), EncodingMisma
     Ok(())
 }
 
-#[tokio::test]
+#[async_std::test]
 async fn read_test_vectors_messages() {
     let tests: Vec<MessagesTestVector> = read("test_vectors/messages.json");
 
