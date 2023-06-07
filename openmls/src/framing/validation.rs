@@ -108,11 +108,11 @@ impl DecryptedMessage {
         //       Revisit when the transition is further along.
         let (message_secrets, _old_leaves) = group
             .message_secrets_and_leaves_mut(ciphertext.epoch())
-            .map_err(|_| MessageDecryptionError::AeadError)?;
+            .map_err(MessageDecryptionError::from)?;
         let sender_data = ciphertext.sender_data(message_secrets, backend, ciphersuite)?;
         let message_secrets = group
             .message_secrets_mut(ciphertext.epoch())
-            .map_err(|_| MessageDecryptionError::AeadError)?;
+            .map_err(MessageDecryptionError::from)?;
         let verifiable_content = ciphertext.to_verifiable_content(
             ciphersuite,
             backend,
