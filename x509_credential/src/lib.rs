@@ -116,12 +116,12 @@ impl X509Ext for Certificate {
             not_before,
             not_after,
         } = self.tbs_certificate.validity;
-        let x509_cert::time::Validity {
-            not_before: now, ..
-        } = x509_cert::time::Validity::from_now(core::time::Duration::default())
-            .map_err(|_| CryptoError::CryptoLibraryError)?;
 
-        let now = now.to_unix_duration();
+        let now = fluvio_wasm_timer::SystemTime::now();
+        let now = now
+            .duration_since(fluvio_wasm_timer::UNIX_EPOCH)
+            .map_err(|_| CryptoError::TimeError)?;
+
         let is_nbf = now > not_before.to_unix_duration();
         let is_naf = now < not_after.to_unix_duration();
         Ok(is_nbf && is_naf)

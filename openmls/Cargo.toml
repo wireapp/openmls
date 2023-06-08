@@ -19,7 +19,7 @@ backtrace = "0.3"
 hex = "0.4"
 async-trait = { workspace = true }
 openmls_basic_credential = { version = "0.1.0", path = "../basic_credential", features = ["clonable", "test-utils"] }
-openmls_x509_credential = { version = "0.1.0", path = "../x509_credential", features = ["test-utils"] }
+openmls_x509_credential = { version = "0.1.0", path = "../x509_credential" }
 x509-cert = "0.2"
 subtle = "2.5"
 fluvio-wasm-timer = "0.2"
@@ -48,7 +48,6 @@ test-utils = [
     "dep:rstest",
     "dep:rstest_reuse",
     "openmls_basic_credential/test-utils",
-    "openmls_x509_credential/test-utils",
 ]
 crypto-debug = [] # ☣️ Enable logging of sensitive cryptographic information
 content-debug = [] # ☣️ Enable logging of sensitive message content

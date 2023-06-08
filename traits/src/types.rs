@@ -156,6 +156,7 @@ pub enum CryptoError {
     CertificateEncodingError,
     IncompleteCertificate(&'static str),
     InvalidCertificate,
+    TimeError,
 }
 
 impl std::fmt::Display for CryptoError {
