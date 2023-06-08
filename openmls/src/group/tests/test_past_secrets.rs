@@ -7,6 +7,7 @@ use rstest::*;
 use rstest_reuse::{self, *};
 
 use super::utils::{generate_credential_with_key, generate_key_package};
+use crate::prelude::SecretTreeError;
 use crate::{
     framing::{MessageDecryptionError, ProcessedMessageContent},
     group::{config::CryptoConfig, errors::*, *},
@@ -145,7 +146,7 @@ async fn test_past_secrets_in_group(
             assert_eq!(
                 err,
                 ProcessMessageError::ValidationError(ValidationError::UnableToDecrypt(
-                    MessageDecryptionError::AeadError
+                    MessageDecryptionError::SecretTreeError(SecretTreeError::TooDistantInThePast)
                 ),)
             );
         }
