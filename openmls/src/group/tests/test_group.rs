@@ -76,6 +76,7 @@ async fn create_commit_optional_path(
     let params = CreateCommitParams::builder()
         .framing_parameters(framing_parameters)
         .proposal_store(&proposal_store)
+        .force_self_update(true)
         .build();
     let create_commit_result = match group_alice
         .create_commit(
@@ -115,7 +116,6 @@ async fn create_commit_optional_path(
     let params = CreateCommitParams::builder()
         .framing_parameters(framing_parameters)
         .proposal_store(&proposal_store)
-        .force_self_update(false)
         .build();
     let create_commit_result = match group_alice
         .create_commit(params, backend, &alice_credential_with_keys.signer)
@@ -202,7 +202,6 @@ async fn create_commit_optional_path(
     let params = CreateCommitParams::builder()
         .framing_parameters(framing_parameters)
         .proposal_store(&proposal_store)
-        .force_self_update(false)
         .build();
     let create_commit_result = match group_alice
         .create_commit(params, backend, &alice_credential_with_keys.signer)

@@ -55,7 +55,7 @@ impl<'a> TempBuilderCCPM1<'a> {
                 framing_parameters: self.framing_parameters,
                 proposal_store,
                 inline_proposals: vec![],
-                force_self_update: true,
+                force_self_update: false,
                 commit_type: CommitType::Member,
                 credential_with_key: None,
             },
