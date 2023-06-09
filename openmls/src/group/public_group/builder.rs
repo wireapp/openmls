@@ -6,7 +6,7 @@ use crate::{
     error::LibraryError,
     extensions::{
         errors::ExtensionError, Extension, Extensions, ExternalSendersExtension,
-        RequiredCapabilitiesExtension,
+        PerDomainTrustAnchorsExtension, RequiredCapabilitiesExtension,
     },
     group::{config::CryptoConfig, GroupContext, GroupId},
     key_packages::Lifetime,
@@ -27,6 +27,7 @@ pub(crate) struct TempBuilderPG1 {
     external_senders: Option<ExternalSendersExtension>,
     leaf_extensions: Option<Extensions>,
     leaf_capabilities: Option<Capabilities>,
+    trust_certificates: Option<PerDomainTrustAnchorsExtension>,
 }
 
 impl TempBuilderPG1 {
@@ -56,6 +57,16 @@ impl TempBuilderPG1 {
     pub(crate) fn with_leaf_extensions(mut self, leaf_extensions: Extensions) -> Self {
         if !leaf_extensions.is_empty() {
             self.leaf_extensions = Some(leaf_extensions);
+        }
+        self
+    }
+
+    pub(crate) fn with_trust_certificates(
+        mut self,
+        trust_certificates: PerDomainTrustAnchorsExtension,
+    ) -> Self {
+        if !trust_certificates.is_empty() {
+            self.trust_certificates = Some(trust_certificates);
         }
         self
     }
@@ -90,12 +101,15 @@ impl TempBuilderPG1 {
             _ => LibraryError::custom("Unexpected ExtensionError").into(),
         })?;
         let required_capabilities = Extension::RequiredCapabilities(required_capabilities);
-        let extensions =
-            if let Some(ext_senders) = self.external_senders.map(Extension::ExternalSenders) {
-                vec![required_capabilities, ext_senders]
-            } else {
-                vec![required_capabilities]
-            };
+        let mut extensions = vec![required_capabilities];
+        if let Some(ext_senders) = self.external_senders.map(Extension::ExternalSenders) {
+            extensions.push(ext_senders);
+        }
+        if let Some(trust_certificates) =
+            self.trust_certificates.map(Extension::PerDomainTrustAnchor)
+        {
+            extensions.push(trust_certificates);
+        }
         let group_context = GroupContext::create_initial_group_context(
             self.crypto_config.ciphersuite,
             self.group_id,
@@ -176,6 +190,7 @@ impl PublicGroup {
             external_senders: None,
             leaf_extensions: None,
             leaf_capabilities: None,
+            trust_certificates: None,
         }
     }
 }

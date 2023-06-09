@@ -4,8 +4,8 @@ use tls_codec::{Deserialize, Serialize, Size, VLBytes};
 
 use crate::extensions::{
     ApplicationIdExtension, Extension, ExtensionType, ExternalPubExtension,
-    ExternalSendersExtension, RatchetTreeExtension, RequiredCapabilitiesExtension,
-    UnknownExtension,
+    ExternalSendersExtension, PerDomainTrustAnchorsExtension, RatchetTreeExtension,
+    RequiredCapabilitiesExtension, UnknownExtension,
 };
 
 fn vlbytes_len_len(length: usize) -> usize {
@@ -34,6 +34,7 @@ impl Size for Extension {
             Extension::RequiredCapabilities(e) => e.tls_serialized_len(),
             Extension::ExternalPub(e) => e.tls_serialized_len(),
             Extension::ExternalSenders(e) => e.tls_serialized_len(),
+            Extension::PerDomainTrustAnchor(e) => e.tls_serialized_len(),
             Extension::Unknown(_, e) => e.0.len(),
         };
 
@@ -65,6 +66,7 @@ impl Serialize for Extension {
             Extension::RequiredCapabilities(e) => e.tls_serialize(&mut extension_data),
             Extension::ExternalPub(e) => e.tls_serialize(&mut extension_data),
             Extension::ExternalSenders(e) => e.tls_serialize(&mut extension_data),
+            Extension::PerDomainTrustAnchor(e) => e.tls_serialize(&mut extension_data),
             Extension::Unknown(_, e) => extension_data
                 .write_all(e.0.as_slice())
                 .map(|_| e.0.len())
@@ -110,6 +112,9 @@ impl Deserialize for Extension {
             }
             ExtensionType::ExternalSenders => Extension::ExternalSenders(
                 ExternalSendersExtension::tls_deserialize(&mut extension_data)?,
+            ),
+            ExtensionType::PerDomainTrustAnchor => Extension::PerDomainTrustAnchor(
+                PerDomainTrustAnchorsExtension::tls_deserialize(&mut extension_data)?,
             ),
             ExtensionType::Unknown(unknown) => {
                 Extension::Unknown(unknown, UnknownExtension(extension_data.to_vec()))

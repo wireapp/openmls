@@ -206,6 +206,16 @@ impl CoreGroupBuilder {
             .with_leaf_extensions(leaf_extensions);
         self
     }
+    /// Set the [`Extensions`] of the own leaf in [`CoreGroup`].
+    pub(crate) fn with_trust_certificates(
+        mut self,
+        group_extensions: PerDomainTrustAnchorsExtension,
+    ) -> Self {
+        self.public_group_builder = self
+            .public_group_builder
+            .with_trust_certificates(group_extensions);
+        self
+    }
     /// Set the [`Capabilities`] of the own leaf in [`CoreGroup`].
     pub(crate) fn with_leaf_capabilities(mut self, leaf_capabilities: Capabilities) -> Self {
         self.public_group_builder = self

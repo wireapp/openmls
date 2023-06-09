@@ -7,9 +7,8 @@ use rstest::*;
 use rstest_reuse::{self, *};
 
 use super::utils::{generate_credential_with_key, generate_key_package};
-use crate::prelude::SecretTreeError;
 use crate::{
-    framing::{MessageDecryptionError, ProcessedMessageContent},
+    framing::{errors::SecretTreeError, MessageDecryptionError, ProcessedMessageContent},
     group::{config::CryptoConfig, errors::*, *},
 };
 
