@@ -64,6 +64,8 @@ pub struct MlsGroupConfig {
     pub(crate) leaf_extensions: Extensions,
     /// Capabilities of the own leaf node
     pub(crate) leaf_capabilities: Option<Capabilities>,
+    /// Extensions to be added to the group's context
+    pub(crate) trust_certificates: PerDomainTrustAnchorsExtension,
 }
 
 impl MlsGroupConfig {
@@ -120,6 +122,11 @@ impl MlsGroupConfig {
     /// Returns the [`MlsGroupConfig`] leaf extensions configuration.
     pub fn leaf_extensions(&self) -> &Extensions {
         &self.leaf_extensions
+    }
+
+    /// Returns the [`MlsGroupConfig`] group extensions configuration.
+    pub fn trust_certificates(&self) -> &PerDomainTrustAnchorsExtension {
+        &self.trust_certificates
     }
 
     #[cfg(any(feature = "test-utils", test))]
@@ -218,6 +225,16 @@ impl MlsGroupConfigBuilder {
     /// Sets the group creator's leaf extensions
     pub fn leaf_extensions(mut self, leaf_extensions: Extensions) -> Self {
         self.config.leaf_extensions = leaf_extensions;
+
+        self
+    }
+
+    /// Sets the group's context extensions
+    pub fn trust_certificates(
+        mut self,
+        trust_certificates: PerDomainTrustAnchorsExtension,
+    ) -> Self {
+        self.config.trust_certificates = trust_certificates;
 
         self
     }

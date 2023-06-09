@@ -61,6 +61,7 @@ impl MlsGroup {
         .with_max_past_epoch_secrets(mls_group_config.max_past_epochs)
         .with_lifetime(*mls_group_config.lifetime())
         .with_leaf_extensions(mls_group_config.leaf_extensions().clone())
+        .with_trust_certificates(mls_group_config.trust_certificates().clone())
         .with_leaf_capabilities(
             mls_group_config
                 .leaf_capabilities
