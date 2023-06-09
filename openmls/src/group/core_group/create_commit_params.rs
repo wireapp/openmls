@@ -68,19 +68,22 @@ impl<'a> CreateCommitParamsBuilder<'a> {
         self.ccp.inline_proposals = inline_proposals;
         self
     }
-    #[cfg(test)]
+
     pub(crate) fn force_self_update(mut self, force_self_update: bool) -> Self {
         self.ccp.force_self_update = force_self_update;
         self
     }
+
     pub(crate) fn commit_type(mut self, commit_type: CommitType) -> Self {
         self.ccp.commit_type = commit_type;
         self
     }
+
     pub(crate) fn credential_with_key(mut self, credential_with_key: CredentialWithKey) -> Self {
         self.ccp.credential_with_key = Some(credential_with_key);
         self
     }
+
     pub(crate) fn build(self) -> CreateCommitParams<'a> {
         self.ccp
     }
