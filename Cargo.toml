@@ -15,5 +15,18 @@ members = [
 resolver = "2"
 
 [workspace.dependencies]
-tls_codec = { version = "0.3.0-pre.3", features = ["derive", "serde", "mls"] }
 async-trait = "0.1"
+
+[workspace.dependencies.tls_codec]
+version = "0.3.0-pre.3"
+features = ["derive", "serde", "mls"]
+git = "https://github.com/RustCrypto/formats.git"
+package = "tls_codec"
+ref = "2fcc4599"
+
+[workspace.dependencies.tls_codec_derive]
+version = "0.3.0-pre.3"
+features = ["derive", "serde", "mls"]
+git = "https://github.com/RustCrypto/formats.git"
+package = "tls_codec/derive"
+ref = "2fcc4599"
