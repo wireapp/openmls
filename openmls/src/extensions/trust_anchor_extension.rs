@@ -36,13 +36,15 @@ impl PerDomainTrustAnchor {
         credential_type: CredentialType,
         certificate_chain: Vec<Vec<u8>>,
     ) -> Result<Self, CredentialError> {
-        if credential_type == CredentialType::Basic {
-            return Err(CredentialError::UnsupportedCredentialType);
+        match credential_type {
+            CredentialType::X509 => Ok(Self {
+                domain_name,
+                credential_type,
+                certificate_chain,
+            }),
+            CredentialType::Basic | CredentialType::Unknown(_) => {
+                Err(CredentialError::UnsupportedCredentialType)
+            }
         }
-        Ok(Self {
-            domain_name,
-            credential_type,
-            certificate_chain,
-        })
     }
 }
