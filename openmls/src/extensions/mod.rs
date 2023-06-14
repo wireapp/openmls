@@ -47,9 +47,7 @@ pub use external_sender_extension::{
 };
 pub use ratchet_tree_extension::RatchetTreeExtension;
 pub use required_capabilities::RequiredCapabilitiesExtension;
-pub use trust_anchor_extension::{
-    AnchorCredentialType, PerDomainTrustAnchor, PerDomainTrustAnchorsExtension,
-};
+pub use trust_anchor_extension::{PerDomainTrustAnchor, PerDomainTrustAnchorsExtension};
 
 #[cfg(test)]
 mod test_extensions;
