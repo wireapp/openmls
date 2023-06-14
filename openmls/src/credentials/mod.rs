@@ -169,10 +169,8 @@ impl Certificate {
 #[repr(u8)]
 pub enum MlsCredentialType {
     /// A [`BasicCredential`]
-    #[tls_codec(discriminant = 1)]
     Basic(BasicCredential),
     /// An X.509 [`Certificate`]
-    #[tls_codec(discriminant = 2)]
     X509(Certificate),
 }
 
