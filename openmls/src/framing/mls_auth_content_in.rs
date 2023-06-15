@@ -173,6 +173,14 @@ impl VerifiableAuthenticatedContentIn {
         }
     }
 
+    /// Returns the [`Credential`] and the [`SignaturePublicKey`] when this message is a commit with an UpdatePath
+    pub(crate) fn update_path_credential(&self) -> Option<CredentialWithKey> {
+        match (&self.tbs.content.sender, &self.tbs.content.body) {
+            (Sender::Member(_), FramedContentBodyIn::Commit(c)) => c.unverified_credential(),
+            _ => None,
+        }
+    }
+
     /// Get the wire format.
     pub(crate) fn wire_format(&self) -> WireFormat {
         self.tbs.wire_format

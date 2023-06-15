@@ -1713,13 +1713,14 @@ async fn test_valsem110(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoPr
 
     // We first go the manual route
     let update_proposal: MlsMessageIn = bob_group
-        .propose_self_update(
+        .propose_explicit_self_update(
             backend,
             &bob_credential_with_key_and_signer.signer,
-            Some(update_leaf_node.clone()),
+            update_leaf_node.clone(),
+            &bob_credential_with_key_and_signer.signer,
         )
         .await
-        .map(|(out, _)| MlsMessageIn::from(out))
+        .map(|(out, ..)| MlsMessageIn::from(out))
         .expect("error while creating remove proposal");
 
     // Have Alice process this proposal.
@@ -2005,7 +2006,7 @@ async fn test_valsem112(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoPr
     // However, we can test the receiving side by crafting such a proposal
     // manually.
     let commit = alice_group
-        .propose_self_update(backend, &alice_credential_with_key_and_signer.signer, None)
+        .propose_self_update(backend, &alice_credential_with_key_and_signer.signer)
         .await
         .expect("Error creating self-update");
 

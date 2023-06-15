@@ -354,7 +354,7 @@ async fn new_member_proposal_sender_should_be_reserved_for_join_proposals(
 
     // Update proposal cannot have a 'new_member_proposal' sender
     let update_proposal = alice_group
-        .propose_self_update(backend, &alice_signer, None)
+        .propose_self_update(backend, &alice_signer)
         .await
         .map(|(out, _)| MlsMessageIn::from(out))
         .unwrap();

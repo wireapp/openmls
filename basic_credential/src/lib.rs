@@ -147,6 +147,53 @@ impl SignatureKeyPair {
         }
     }
 
+    /// Create a new KeyPair but verify that the private key actually matches the public key
+    pub fn try_from_raw(
+        signature_scheme: SignatureScheme,
+        private: Vec<u8>,
+        public: Vec<u8>,
+    ) -> Result<Self, CryptoError> {
+        match signature_scheme {
+            SignatureScheme::ED25519 => {
+                let sk = ed25519_dalek::SigningKey::try_from(
+                    &private[..ed25519_dalek::SECRET_KEY_LENGTH],
+                )
+                .map_err(|_| CryptoError::InvalidKey)?;
+                let pk = ed25519_dalek::VerifyingKey::try_from(&public[..])
+                    .map_err(|_| CryptoError::InvalidKey)?;
+
+                if sk.verifying_key() != pk {
+                    return Err(CryptoError::MismatchKeypair);
+                }
+            }
+            SignatureScheme::ECDSA_SECP256R1_SHA256 => {
+                let sk = p256::ecdsa::SigningKey::try_from(&private[..])
+                    .map_err(|_| CryptoError::InvalidKey)?;
+                let pk = p256::ecdsa::VerifyingKey::try_from(&public[..])
+                    .map_err(|_| CryptoError::InvalidKey)?;
+                if sk.verifying_key() != &pk {
+                    return Err(CryptoError::MismatchKeypair);
+                }
+            }
+            SignatureScheme::ECDSA_SECP384R1_SHA384 => {
+                let sk = p384::ecdsa::SigningKey::try_from(&private[..])
+                    .map_err(|_| CryptoError::InvalidKey)?;
+                let pk = p384::ecdsa::VerifyingKey::try_from(&public[..])
+                    .map_err(|_| CryptoError::InvalidKey)?;
+                if sk.verifying_key() != &pk {
+                    return Err(CryptoError::MismatchKeypair);
+                }
+            }
+            _ => {}
+        };
+
+        Ok(Self {
+            private: private.into(),
+            public,
+            signature_scheme,
+        })
+    }
+
     /// Store this signature key pair in the key store.
     pub async fn store<T>(&self, key_store: &T) -> Result<(), <T as OpenMlsKeyStore>::Error>
     where
@@ -178,5 +225,25 @@ impl SignatureKeyPair {
     #[cfg(feature = "test-utils")]
     pub fn private(&self) -> &[u8] {
         self.private.expose_secret()
+    }
+}
+
+#[cfg(test)]
+pub mod tests {
+    use super::*;
+
+    #[test]
+    fn signature_keypair_try_from_raw_should_work() {
+        let schemes = [
+            SignatureScheme::ED25519,
+            SignatureScheme::ECDSA_SECP256R1_SHA256,
+            SignatureScheme::ECDSA_SECP384R1_SHA384,
+        ];
+        for scheme in schemes {
+            let kp = SignatureKeyPair::new(scheme, &mut rand::thread_rng()).unwrap();
+            let sk = kp.private.expose_secret().clone();
+            let pk = kp.public.clone();
+            SignatureKeyPair::try_from_raw(scheme, sk, pk).unwrap();
+        }
     }
 }

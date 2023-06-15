@@ -349,11 +349,7 @@ async fn book_operations(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoP
     // === Alice updates and commits ===
     // ANCHOR: propose_self_update
     let (mls_message_out, _proposal_ref) = alice_group
-        .propose_self_update(
-            backend,
-            &alice_signature_keys,
-            None, // We don't provide a leaf node, it will be created on the fly instead
-        )
+        .propose_self_update(backend, &alice_signature_keys)
         .await
         .expect("Could not create update proposal.");
     // ANCHOR_END: propose_self_update

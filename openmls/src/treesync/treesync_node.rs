@@ -61,7 +61,7 @@ impl From<TreeSyncNode> for TreeNode<TreeSyncLeafNode, TreeSyncParentNode> {
 /// hash values. Blank nodes are represented by [`TreeSyncNode`] instances where
 /// `node = None`.
 pub(crate) struct TreeSyncLeafNode {
-    node: Option<LeafNode>,
+    pub(crate) node: Option<LeafNode>,
 }
 
 impl TreeSyncLeafNode {

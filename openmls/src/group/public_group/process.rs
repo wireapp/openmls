@@ -51,6 +51,20 @@ impl PublicGroup {
             message_secrets_store_option,
         )?;
 
+        // For commit messages, we need to check if the sender is a member or a
+        // new member and set the tree position accordingly.
+        let sender_context = match decrypted_message.sender() {
+            Sender::Member(leaf_index) => Some(SenderContext::Member((
+                self.group_id().clone(),
+                *leaf_index,
+            ))),
+            Sender::NewMemberCommit => Some(SenderContext::ExternalCommit((
+                self.group_id().clone(),
+                self.treesync().free_leaf_index(),
+            ))),
+            Sender::External(_) | Sender::NewMemberProposal => None,
+        };
+
         // Extract the credential if the sender is a member or a new member.
         // Checks the following semantic validation:
         //  - ValSem112
@@ -68,24 +82,11 @@ impl PublicGroup {
                 .unwrap_or_default(),
             self.group_context().extensions().external_senders(),
         )?;
+
         let signature_public_key = OpenMlsSignaturePublicKey::from_signature_key(
             signature_key,
             self.ciphersuite().signature_algorithm(),
         );
-
-        // For commit messages, we need to check if the sender is a member or a
-        // new member and set the tree position accordingly.
-        let sender_context = match decrypted_message.sender() {
-            Sender::Member(leaf_index) => Some(SenderContext::Member((
-                self.group_id().clone(),
-                *leaf_index,
-            ))),
-            Sender::NewMemberCommit => Some(SenderContext::ExternalCommit((
-                self.group_id().clone(),
-                self.treesync().free_leaf_index(),
-            ))),
-            Sender::External(_) | Sender::NewMemberProposal => None,
-        };
 
         Ok(UnverifiedMessage::from_decrypted_message(
             decrypted_message,

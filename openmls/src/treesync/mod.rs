@@ -46,8 +46,6 @@ use self::{
     },
     treesync_node::{TreeSyncLeafNode, TreeSyncNode, TreeSyncParentNode},
 };
-#[cfg(test)]
-use crate::binary_tree::array_representation::ParentNodeIndex;
 
 use crate::{
     binary_tree::{
@@ -703,7 +701,10 @@ impl TreeSync {
 
     /// Return a reference to the parent node at the given `ParentNodeIndex` or
     /// `None` if the node is blank.
-    pub(crate) fn parent(&self, node_index: ParentNodeIndex) -> Option<&ParentNode> {
+    pub(crate) fn parent(
+        &self,
+        node_index: crate::binary_tree::array_representation::ParentNodeIndex,
+    ) -> Option<&ParentNode> {
         let tsn = self.tree.parent(node_index);
         tsn.node().as_ref()
     }

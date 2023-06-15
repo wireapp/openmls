@@ -239,7 +239,7 @@ impl<'a> PublicGroupDiff<'a> {
 /// modified. Its only use is to merge it into the original [`PublicGroup`].
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub(crate) struct StagedPublicGroupDiff {
-    pub(super) staged_diff: StagedTreeSyncDiff,
+    pub(crate) staged_diff: StagedTreeSyncDiff,
     pub(super) group_context: GroupContext,
     pub(super) interim_transcript_hash: Vec<u8>,
     pub(super) confirmation_tag: ConfirmationTag,

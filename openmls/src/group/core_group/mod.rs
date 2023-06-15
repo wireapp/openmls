@@ -969,12 +969,30 @@ impl CoreGroup {
                 || contains_own_updates
                 || params.force_self_update()
             {
+
+                // a bit chaotic for sure but too much indirection to do this cleanly
+                // Basically, inline proposals were not introspected for an explicit leaf_node
+                // this fixes exactly that
+                let leaf_node = if contains_own_updates {
+                    let local_proposals = params.proposal_store().proposals().map(QueuedProposal::proposal);
+                    let inline_proposals = params.inline_proposals().iter();
+                    let mut all_proposals = local_proposals.chain(inline_proposals);
+
+                    all_proposals.find_map(|p| {
+                        match p {
+                            Proposal::Update(UpdateProposal{leaf_node}) => Some(leaf_node.clone()),
+                            _ => None,
+                        }
+                    })
+                } else { None };
+
                 // Process the path. This includes updating the provisional
                 // group context by updating the epoch and computing the new
                 // tree hash.
                 diff.compute_path(
                     backend,
                     self.own_leaf_index(),
+                    leaf_node,
                     apply_proposals_values.exclusion_list(),
                     params.commit_type(),
                     signer,

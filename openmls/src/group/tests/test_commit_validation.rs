@@ -818,7 +818,7 @@ async fn test_partial_proposal_commit(
 
     // Create second proposal in Alice's group
     let proposal_2 = alice_group
-        .propose_self_update(backend, &alice_credential.signer, None)
+        .propose_self_update(backend, &alice_credential.signer)
         .await
         .map(|(out, _)| MlsMessageIn::from(out))
         .unwrap();
