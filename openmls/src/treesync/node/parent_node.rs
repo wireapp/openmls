@@ -7,9 +7,10 @@ use openmls_traits::{
 };
 use serde::{Deserialize, Serialize};
 use thiserror::*;
-use tls_codec::{TlsDeserialize, TlsSerialize, TlsSize, VLBytes};
+use tls_codec::{TlsDeserialize, TlsSerialize, TlsSize};
 
 use super::encryption_keys::{EncryptionKey, EncryptionKeyPair};
+use crate::treesync::node::leaf_node::ParentHash;
 use crate::{
     binary_tree::array_representation::{LeafNodeIndex, ParentNodeIndex},
     ciphersuite::HpkePublicKey,
@@ -27,7 +28,7 @@ use crate::{
 )]
 pub struct ParentNode {
     pub(super) encryption_key: EncryptionKey,
-    pub(super) parent_hash: VLBytes,
+    pub(super) parent_hash: ParentHash,
     pub(super) unmerged_leaves: UnmergedLeaves,
 }
 

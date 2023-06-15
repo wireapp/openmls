@@ -11,9 +11,6 @@
 //! To avoid duplication of code and functionality, [`CoreGroup`] internally
 //! relies on a [`PublicGroup`] as well.
 
-#[cfg(test)]
-use std::collections::HashSet;
-
 use openmls_traits::{crypto::OpenMlsCrypto, types::Ciphersuite, OpenMlsCryptoProvider};
 use serde::{Deserialize, Serialize};
 
@@ -345,7 +342,7 @@ impl PublicGroup {
         ciphersuite: Ciphersuite,
         path: &[PlainUpdatePathNode],
         group_context: &[u8],
-        exclusion_list: &HashSet<&LeafNodeIndex>,
+        exclusion_list: &std::collections::HashSet<&LeafNodeIndex>,
         own_leaf_index: LeafNodeIndex,
     ) -> Result<Vec<UpdatePathNode>, LibraryError> {
         self.treesync().empty_diff().encrypt_path(

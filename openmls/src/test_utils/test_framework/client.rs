@@ -219,14 +219,18 @@ impl Client {
             .unwrap();
         let (msg, welcome_option, group_info) = match action_type {
             ActionType::Commit => group.self_update(&self.crypto, &signer).await?,
-            ActionType::Proposal => (
-                group
-                    .propose_self_update(&self.crypto, &signer, leaf_node)
-                    .await
-                    .map(|(out, _)| out)?,
-                None,
-                None,
-            ),
+            ActionType::Proposal => {
+                let proposal = if let Some(ln) = leaf_node {
+                    // FIXME: this does not work since both signers are the same
+                    group
+                        .propose_explicit_self_update(&self.crypto, &signer, ln, &signer)
+                        .await
+                } else {
+                    group.propose_self_update(&self.crypto, &signer).await
+                }
+                .map(|(out, _)| out)?;
+                (proposal, None, None)
+            }
         };
         Ok((
             msg,

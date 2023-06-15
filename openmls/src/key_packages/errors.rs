@@ -62,3 +62,14 @@ pub enum KeyPackageNewError<KeyStoreError> {
     #[error(transparent)]
     SignatureError(#[from] SignatureError),
 }
+
+/// KeyPackage delete error
+#[derive(Error, Debug, PartialEq, Clone)]
+pub enum KeyPackageDeleteError<KeyStoreError> {
+    /// See [`LibraryError`] for more details.
+    #[error(transparent)]
+    LibraryError(#[from] LibraryError),
+    /// Accessing the key store failed.
+    #[error("Accessing the key store failed.")]
+    KeyStoreError(KeyStoreError),
+}

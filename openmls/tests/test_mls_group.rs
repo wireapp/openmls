@@ -229,7 +229,7 @@ async fn mls_group_operations(ciphersuite: Ciphersuite, backend: &impl OpenMlsCr
 
         // === Alice updates and commits ===
         let (queued_message, _) = alice_group
-            .propose_self_update(backend, &alice_signer, None)
+            .propose_self_update(backend, &alice_signer)
             .await
             .unwrap();
 

@@ -291,15 +291,18 @@ impl KeyPackage {
     pub async fn delete<KeyStore: OpenMlsKeyStore>(
         &self,
         backend: &impl OpenMlsCryptoProvider<KeyStoreProvider = KeyStore>,
-    ) -> Result<(), KeyStore::Error> {
+    ) -> Result<(), KeyPackageDeleteError<KeyStore::Error>> {
+        let kp_ref = self.hash_ref(backend.crypto())?;
         backend
             .key_store()
-            .delete::<Self>(self.hash_ref(backend.crypto()).unwrap().as_slice())
-            .await?;
+            .delete::<Self>(kp_ref.as_slice())
+            .await
+            .map_err(KeyPackageDeleteError::KeyStoreError)?;
         backend
             .key_store()
             .delete::<HpkePrivateKey>(self.hpke_init_key().as_slice())
             .await
+            .map_err(KeyPackageDeleteError::KeyStoreError)
     }
 
     /// Get a reference to the extensions of this key package.

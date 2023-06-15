@@ -32,7 +32,7 @@ impl EncryptionKey {
     }
 
     /// Return the internal [`HpkePublicKey`] as slice.
-    pub(crate) fn as_slice(&self) -> &[u8] {
+    pub fn as_slice(&self) -> &[u8] {
         self.key.as_slice()
     }
 

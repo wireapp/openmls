@@ -140,12 +140,20 @@ impl MlsGroup {
             },
 
             Propose::Update(leaf_node) => match ref_or_value {
-                ProposalOrRefType::Proposal => self
-                    .propose_self_update_by_value(backend, signer, leaf_node)
-                    .await
-                    .map_err(|e| e.into()),
+                ProposalOrRefType::Proposal => {
+                    if let Some(ln) = leaf_node {
+                        // FIXME: this does not work since both signers are the same
+                        self.propose_explicit_self_update(backend, signer, ln, signer)
+                            .await
+                            .map_err(|e| e.into())
+                    } else {
+                        self.propose_self_update_by_value(backend, signer)
+                            .await
+                            .map_err(|e| e.into())
+                    }
+                }
                 ProposalOrRefType::Reference => self
-                    .propose_self_update(backend, signer, leaf_node)
+                    .propose_self_update(backend, signer)
                     .await
                     .map_err(|e| e.into()),
             },

@@ -259,6 +259,8 @@ impl LeafNode {
         // Update credential
         if let Some(leaf_node) = leaf_node.into() {
             leaf_node_tbs.payload.credential = leaf_node.credential().clone();
+            leaf_node_tbs.payload.signature_key = leaf_node.signature_key().clone();
+
             leaf_node_tbs.payload.encryption_key = leaf_node.encryption_key().clone();
             leaf_node_tbs.payload.leaf_node_source = LeafNodeSource::Update;
         } else if let Some(new_encryption_key) = new_encryption_key.into() {
@@ -284,22 +286,25 @@ impl LeafNode {
     /// Replace the encryption key in this leaf with a random one.
     ///
     /// This signs the new leaf node as well.
-    pub(crate) fn rekey(
+    #[allow(clippy::too_many_arguments)]
+    pub fn rekey(
         &mut self,
         group_id: &GroupId,
         leaf_index: LeafNodeIndex,
+        leaf_node: Option<LeafNode>,
         ciphersuite: Ciphersuite,
         protocol_version: ProtocolVersion,
         backend: &impl OpenMlsCryptoProvider,
         signer: &impl Signer,
     ) -> Result<EncryptionKeyPair, PublicTreeError> {
-        if !self
+        let ciphersuite_capable = self
             .payload
             .capabilities
             .ciphersuites
-            .contains(&ciphersuite.into())
-            || !self.capabilities().versions.contains(&protocol_version)
-        {
+            .contains(&ciphersuite.into());
+        let version_capable = self.capabilities().versions.contains(&protocol_version);
+
+        if !ciphersuite_capable || !version_capable {
             debug_assert!(
                 false,
                 "Ciphersuite or protocol version is not supported by this leaf node.\
@@ -321,7 +326,7 @@ impl LeafNode {
 
         self.update_and_re_sign(
             key_pair.public_key().clone(),
-            None,
+            leaf_node,
             group_id.clone(),
             leaf_index,
             signer,
@@ -407,6 +412,12 @@ impl LeafNode {
             .capabilities
             .ciphersuites()
             .contains(&ciphersuite.into())
+    }
+
+    /// Replace the credential material in the LeafNode.
+    pub fn set_credential_with_key(&mut self, credential_with_key: CredentialWithKey) {
+        self.payload.credential = credential_with_key.credential;
+        self.payload.signature_key = credential_with_key.signature_key;
     }
 }
 

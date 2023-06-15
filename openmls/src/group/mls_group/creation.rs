@@ -147,11 +147,7 @@ impl MlsGroup {
 
         // Delete the [`KeyPackage`] and the corresponding private key from the
         // key store
-        key_package_bundle
-            .key_package
-            .delete(backend)
-            .await
-            .map_err(WelcomeError::KeyStoreError)?;
+        key_package_bundle.key_package.delete(backend).await?;
 
         let mut group = CoreGroup::new_from_welcome(
             welcome,

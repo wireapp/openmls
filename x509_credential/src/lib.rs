@@ -38,7 +38,7 @@ impl CertificateKeyPair {
         let signature_scheme = leaf.signature_scheme()?;
         let pk = leaf.public_key()?;
 
-        let kp = SignatureKeyPair::from_raw(signature_scheme, sk, pk.to_vec());
+        let kp = SignatureKeyPair::try_from_raw(signature_scheme, sk, pk.to_vec())?;
 
         Ok(Self(kp))
     }

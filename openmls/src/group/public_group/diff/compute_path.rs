@@ -41,6 +41,7 @@ impl<'a> PublicGroupDiff<'a> {
         &mut self,
         backend: &impl OpenMlsCryptoProvider<KeyStoreProvider = KeyStore>,
         leaf_index: LeafNodeIndex,
+        mut leaf_node: Option<LeafNode>,
         exclusion_list: HashSet<&LeafNodeIndex>,
         commit_type: CommitType,
         signer: &impl Signer,
@@ -77,14 +78,21 @@ impl<'a> PublicGroupDiff<'a> {
                 .map_err(|_| LibraryError::custom("Tree full: cannot add more members"))?;
             vec![encryption_keypair]
         } else {
+            // When we update with an explicit leaf_node consider it (instead of the old one) when computing the UpdatePath
+            if let Some(leaf_node) = leaf_node.take() {
+                self.diff.update_leaf(leaf_node, leaf_index)
+            }
+
             // If we're already in the tree, we rekey our existing leaf.
             let own_diff_leaf = self
                 .diff
                 .leaf_mut(leaf_index)
                 .ok_or_else(|| LibraryError::custom("Unable to get own leaf from diff"))?;
+
             let encryption_keypair = own_diff_leaf.rekey(
                 &group_id,
                 leaf_index,
+                None,
                 ciphersuite,
                 version,
                 backend,

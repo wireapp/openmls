@@ -163,8 +163,10 @@ impl DecryptedMessage {
         old_leaves: &[Member],
         external_senders: Option<&ExternalSendersExtension>,
     ) -> Result<CredentialWithKey, ValidationError> {
-        let sender = self.sender();
-        match sender {
+        if let Some(credential) = self.verifiable_content.update_path_credential() {
+            return Ok(credential);
+        }
+        match self.sender() {
             Sender::Member(leaf_index) => {
                 match treesync.leaf(*leaf_index) {
                     Some(sender_leaf) => {

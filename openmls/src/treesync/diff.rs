@@ -59,7 +59,7 @@ pub(crate) type UpdatePathResult = (
 /// and later merged into a [`TreeSync`] instance.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub(crate) struct StagedTreeSyncDiff {
-    diff: StagedMlsBinaryTreeDiff<TreeSyncLeafNode, TreeSyncParentNode>,
+    pub(crate) diff: StagedMlsBinaryTreeDiff<TreeSyncLeafNode, TreeSyncParentNode>,
     new_tree_hash: Vec<u8>,
 }
 

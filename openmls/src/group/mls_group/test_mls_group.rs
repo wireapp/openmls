@@ -474,7 +474,7 @@ async fn test_pending_commit_logic(ciphersuite: Ciphersuite, backend: &impl Open
         SelfUpdateError::GroupStateError(MlsGroupStateError::PendingCommit)
     ));
     let error = alice_group
-        .propose_self_update(backend, &alice_signer, None)
+        .propose_self_update(backend, &alice_signer)
         .await
         .expect_err("no error creating a proposal while a commit is pending");
     assert!(matches!(

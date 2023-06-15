@@ -43,7 +43,7 @@ use super::{
 /// lifetime is not tied to that of the original tree.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub(crate) struct StagedAbDiff<L: Clone + Debug + Default, P: Clone + Debug + Default> {
-    leaf_diff: BTreeMap<LeafNodeIndex, L>,
+    pub(crate) leaf_diff: BTreeMap<LeafNodeIndex, L>,
     parent_diff: BTreeMap<ParentNodeIndex, P>,
     size: TreeSize,
 }

@@ -6,6 +6,7 @@ use thiserror::Error;
 
 pub use super::mls_group::errors::*;
 use super::public_group::errors::{CreationFromExternalError, PublicGroupBuildError};
+use crate::prelude::KeyPackageDeleteError;
 use crate::{
     ciphersuite::signable::SignatureError,
     error::LibraryError,
@@ -92,6 +93,9 @@ pub enum WelcomeError<KeyStoreError> {
     /// Group epoch must be 0 if the the welcome message contains reinit or branch psks
     #[error("Group epoch must be 0 if the the welcome message contains reinit or branch psks")]
     InvalidEpoch,
+    /// Failed deleting the KeyPackage
+    #[error(transparent)]
+    KeyPackageDeleteError(#[from] KeyPackageDeleteError<KeyStoreError>),
 }
 
 /// External Commit error
