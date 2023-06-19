@@ -26,7 +26,7 @@ async fn decryption_key_index_computation(ciphersuite: Ciphersuite) {
         .create_random_group(10, ciphersuite)
         .await
         .expect("An unexpected error occurred.");
-    let mut groups = setup.groups.write().expect("An unexpected error occurred.");
+    let mut groups = setup.groups.write().await;
     let group = groups
         .get_mut(&group_id)
         .expect("An unexpected error occurred.");

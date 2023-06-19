@@ -31,7 +31,7 @@ async fn one_to_one_join(ciphersuite: Ciphersuite) {
         .create_group(ciphersuite)
         .await
         .expect("Error while trying to create group.");
-    let mut groups = setup.groups.write().expect("An unexpected error occurred.");
+    let mut groups = setup.groups.write().await;
     let group = groups
         .get_mut(&group_id)
         .expect("An unexpected error occurred.");
@@ -44,6 +44,7 @@ async fn one_to_one_join(ciphersuite: Ciphersuite) {
     // A vector including bob's id.
     let bob_id = setup
         .random_new_members_for_group(group, 1)
+        .await
         .expect("An unexpected error occurred.");
 
     setup
@@ -80,7 +81,7 @@ async fn three_party_join(ciphersuite: Ciphersuite) {
         .create_group(ciphersuite)
         .await
         .expect("Error while trying to create group.");
-    let mut groups = setup.groups.write().expect("An unexpected error occurred.");
+    let mut groups = setup.groups.write().await;
     let group = groups
         .get_mut(&group_id)
         .expect("An unexpected error occurred.");
@@ -93,6 +94,7 @@ async fn three_party_join(ciphersuite: Ciphersuite) {
     // A vector including Bob's id.
     let bob_id = setup
         .random_new_members_for_group(group, 1)
+        .await
         .expect("An unexpected error occurred.");
 
     // Create the add commit and deliver the welcome.
@@ -104,6 +106,7 @@ async fn three_party_join(ciphersuite: Ciphersuite) {
     // A vector including Charly's id.
     let charly_id = setup
         .random_new_members_for_group(group, 1)
+        .await
         .expect("An unexpected error occurred.");
 
     setup
@@ -139,7 +142,7 @@ async fn multiple_joins(ciphersuite: Ciphersuite) {
         .create_group(ciphersuite)
         .await
         .expect("Error while trying to create group.");
-    let mut groups = setup.groups.write().expect("An unexpected error occurred.");
+    let mut groups = setup.groups.write().await;
     let group = groups
         .get_mut(&group_id)
         .expect("An unexpected error occurred.");
@@ -152,6 +155,7 @@ async fn multiple_joins(ciphersuite: Ciphersuite) {
     // A vector including Bob's and Charly's id.
     let bob_charly_id = setup
         .random_new_members_for_group(group, 2)
+        .await
         .expect("An unexpected error occurred.");
 
     // Create the add commit and deliver the welcome.
@@ -189,7 +193,7 @@ async fn update(ciphersuite: Ciphersuite) {
         .create_random_group(2, ciphersuite)
         .await
         .expect("Error while trying to create group.");
-    let mut groups = setup.groups.write().expect("An unexpected error occurred.");
+    let mut groups = setup.groups.write().await;
     let group = groups
         .get_mut(&group_id)
         .expect("An unexpected error occurred.");
@@ -234,7 +238,7 @@ async fn remove(ciphersuite: Ciphersuite) {
         .create_random_group(2, ciphersuite)
         .await
         .expect("Error while trying to create group.");
-    let mut groups = setup.groups.write().expect("An unexpected error occurred.");
+    let mut groups = setup.groups.write().await;
     let group = groups
         .get_mut(&group_id)
         .expect("An unexpected error occurred.");
@@ -294,7 +298,7 @@ async fn large_group_lifecycle(ciphersuite: Ciphersuite) {
         .create_random_group(number_of_clients, ciphersuite)
         .await
         .expect("Error while trying to create group.");
-    let mut groups = setup.groups.write().expect("An unexpected error occurred.");
+    let mut groups = setup.groups.write().await;
     let group = groups
         .get_mut(&group_id)
         .expect("An unexpected error occurred.");

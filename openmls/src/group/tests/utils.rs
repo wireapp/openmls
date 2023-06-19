@@ -4,6 +4,8 @@
 //! Most tests require to set up groups, clients, credentials, and identities.
 //! This module implements helpers to do that.
 
+#![allow(clippy::await_holding_refcell_ref)]
+
 use std::{cell::RefCell, collections::HashMap};
 
 use config::CryptoConfig;

@@ -29,6 +29,6 @@ signature = "2.1"
 thiserror = "1.0"
 
 [dependencies.hpke]
-git = "https://github.com/rozbb/rust-hpke.git"
-rev = "2867b0ae90a36f27e2c312fe741f268ad558abbd"
-features = ["x25519", "p256", "p384", "serde_impls"]
+git = "https://github.com/otak/rust-hpke.git"
+branch = "xyber768d00"
+features = ["x25519", "p256", "p384", "xyber768d00", "serde_impls"]
