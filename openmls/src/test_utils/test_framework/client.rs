@@ -1,7 +1,8 @@
 //! This module provides the `Client` datastructure, which contains the state
 //! associated with a client in the context of MLS, along with functions to have
 //! that client perform certain MLS operations.
-use std::{collections::HashMap, sync::RwLock};
+use async_lock::RwLock;
+use std::collections::HashMap;
 
 use openmls_basic_credential::SignatureKeyPair;
 use openmls_rust_crypto::OpenMlsRustCrypto;
@@ -110,7 +111,7 @@ impl Client {
         let group_id = group_state.group_id().clone();
         self.groups
             .write()
-            .expect("An unexpected error occurred.")
+            .await
             .insert(group_state.group_id().clone(), group_state);
         Ok(group_id)
     }
@@ -130,7 +131,7 @@ impl Client {
                 .await?;
         self.groups
             .write()
-            .expect("An unexpected error occurred.")
+            .await
             .insert(new_group.group_id().to_owned(), new_group);
         Ok(())
     }
@@ -143,7 +144,7 @@ impl Client {
         message: &ProtocolMessage,
         sender_id: &[u8],
     ) -> Result<(), ClientError> {
-        let mut group_states = self.groups.write().expect("An unexpected error occurred.");
+        let mut group_states = self.groups.write().await;
         let group_id = message.group_id();
         let group_state = group_states
             .get_mut(group_id)
@@ -184,8 +185,11 @@ impl Client {
     /// Get the credential and the index of each group member of the group with
     /// the given id. Returns an error if no group exists with the given group
     /// id.
-    pub fn get_members_of_group(&self, group_id: &GroupId) -> Result<Vec<Member>, ClientError> {
-        let groups = self.groups.read().expect("An unexpected error occurred.");
+    pub async fn get_members_of_group(
+        &self,
+        group_id: &GroupId,
+    ) -> Result<Vec<Member>, ClientError> {
+        let groups = self.groups.read().await;
         let group = groups.get(group_id).ok_or(ClientError::NoMatchingGroup)?;
         let members = group.members().collect();
         Ok(members)
@@ -203,7 +207,7 @@ impl Client {
         group_id: &GroupId,
         leaf_node: Option<LeafNode>,
     ) -> Result<(MlsMessageOut, Option<Welcome>, Option<GroupInfo>), ClientError> {
-        let mut groups = self.groups.write().expect("An unexpected error occurred.");
+        let mut groups = self.groups.write().await;
         let group = groups
             .get_mut(group_id)
             .ok_or(ClientError::NoMatchingGroup)?;
@@ -243,7 +247,7 @@ impl Client {
         group_id: &GroupId,
         key_packages: &[KeyPackage],
     ) -> Result<(Vec<MlsMessageOut>, Option<Welcome>, Option<GroupInfo>), ClientError> {
-        let mut groups = self.groups.write().expect("An unexpected error occurred.");
+        let mut groups = self.groups.write().await;
         let group = groups
             .get_mut(group_id)
             .ok_or(ClientError::NoMatchingGroup)?;
@@ -294,7 +298,7 @@ impl Client {
         group_id: &GroupId,
         targets: &[LeafNodeIndex],
     ) -> Result<(Vec<MlsMessageOut>, Option<Welcome>, Option<GroupInfo>), ClientError> {
-        let mut groups = self.groups.write().expect("An unexpected error occurred.");
+        let mut groups = self.groups.write().await;
         let group = groups
             .get_mut(group_id)
             .ok_or(ClientError::NoMatchingGroup)?;
@@ -329,8 +333,8 @@ impl Client {
     }
 
     /// Get the identity of this client in the given group.
-    pub fn identity(&self, group_id: &GroupId) -> Option<Vec<u8>> {
-        let groups = self.groups.read().unwrap();
+    pub async fn identity(&self, group_id: &GroupId) -> Option<Vec<u8>> {
+        let groups = self.groups.read().await;
         let group = groups.get(group_id).unwrap();
         group.own_identity().map(|s| s.to_vec())
     }

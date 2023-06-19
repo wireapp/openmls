@@ -21,7 +21,7 @@ async fn test_mls_group_api(ciphersuite: Ciphersuite) {
         .create_random_group(3, ciphersuite)
         .await
         .expect("An unexpected error occurred.");
-    let mut groups = setup.groups.write().expect("An unexpected error occurred.");
+    let mut groups = setup.groups.write().await;
     let group = groups
         .get_mut(&group_id)
         .expect("An unexpected error occurred.");
@@ -30,6 +30,7 @@ async fn test_mls_group_api(ciphersuite: Ciphersuite) {
     let (_, adder_id) = group.members().next().unwrap();
     let new_members = setup
         .random_new_members_for_group(group, 2)
+        .await
         .expect("An unexpected error occurred.");
     setup
         .add_clients(ActionType::Commit, group, &adder_id, new_members)

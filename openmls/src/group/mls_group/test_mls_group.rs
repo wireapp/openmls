@@ -279,7 +279,7 @@ async fn test_invalid_plaintext(ciphersuite: Ciphersuite, backend: &impl OpenMls
         .create_random_group(10, ciphersuite)
         .await
         .expect("An unexpected error occurred.");
-    let mut groups = setup.groups.write().expect("An unexpected error occurred.");
+    let mut groups = setup.groups.write().await;
     let group = groups
         .get_mut(&group_id)
         .expect("An unexpected error occurred.");
@@ -289,12 +289,12 @@ async fn test_invalid_plaintext(ciphersuite: Ciphersuite, backend: &impl OpenMls
         .find(|(index, _)| index == &0)
         .expect("An unexpected error occurred.");
 
-    let clients = setup.clients.read().expect("An unexpected error occurred.");
+    let clients = setup.clients.read().await;
     let client = clients
         .get(client_id)
         .expect("An unexpected error occurred.")
         .read()
-        .expect("An unexpected error occurred.");
+        .await;
 
     let (mls_message, _welcome_option, _group_info) = client
         .self_update(Commit, &group_id, None)
@@ -302,7 +302,7 @@ async fn test_invalid_plaintext(ciphersuite: Ciphersuite, backend: &impl OpenMls
         .expect("error creating self update");
 
     // Store the context and membership key so that we can re-compute the membership tag later.
-    let client_groups = client.groups.read().unwrap();
+    let client_groups = client.groups.read().await;
     let client_group = client_groups.get(&group_id).unwrap();
     let membership_key = client_group.group().message_secrets().membership_key();
 
