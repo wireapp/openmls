@@ -23,7 +23,7 @@ use crate::credentials::{errors::CredentialError, CredentialType};
 pub struct PerDomainTrustAnchor {
     domain_name: Vec<u8>,
     credential_type: CredentialType,
-    certificate_chain: Vec<Vec<u8>>,
+    certificate: Vec<u8>,
 }
 
 /// Extension data for the anchors
@@ -34,13 +34,13 @@ impl PerDomainTrustAnchor {
     pub fn new(
         domain_name: Vec<u8>,
         credential_type: CredentialType,
-        certificate_chain: Vec<Vec<u8>>,
+        certificate: Vec<u8>,
     ) -> Result<Self, CredentialError> {
         match credential_type {
             CredentialType::X509 => Ok(Self {
                 domain_name,
                 credential_type,
-                certificate_chain,
+                certificate,
             }),
             CredentialType::Basic | CredentialType::Unknown(_) => {
                 Err(CredentialError::UnsupportedCredentialType)
