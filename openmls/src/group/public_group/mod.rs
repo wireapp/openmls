@@ -18,7 +18,7 @@ use self::{
     diff::{PublicGroupDiff, StagedPublicGroupDiff},
     errors::CreationFromExternalError,
 };
-use super::{GroupContext, GroupId, Member, ProposalStore, QueuedProposal};
+use super::{group_context::GroupContext, GroupId, Member, ProposalStore, QueuedProposal};
 #[cfg(test)]
 use crate::treesync::{node::parent_node::PlainUpdatePathNode, treekem::UpdatePathNode};
 use crate::{

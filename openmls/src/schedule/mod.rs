@@ -130,7 +130,7 @@ use crate::{
     ciphersuite::{AeadKey, AeadNonce, HpkePrivateKey, Mac, Secret},
     error::LibraryError,
     framing::{mls_content::AuthenticatedContentTbm, MembershipTag},
-    group::GroupContext,
+    group::group_context::GroupContext,
     messages::{ConfirmationTag, PathSecret},
     tree::secret_tree::SecretTree,
     versions::ProtocolVersion,

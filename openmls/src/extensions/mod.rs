@@ -378,6 +378,15 @@ impl Extensions {
                 _ => None,
             })
     }
+
+    /// Get a reference to the [`PerDomainTrustAnchorsExtension`] if there is any.
+    pub fn per_domain_trust_anchors(&self) -> Option<&PerDomainTrustAnchorsExtension> {
+        self.find_by_type(ExtensionType::PerDomainTrustAnchor)
+            .and_then(|e| match e {
+                Extension::PerDomainTrustAnchor(e) => Some(e),
+                _ => None,
+            })
+    }
 }
 
 impl Extension {

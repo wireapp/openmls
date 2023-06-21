@@ -8,7 +8,7 @@ use crate::{
         errors::ExtensionError, Extension, Extensions, ExternalSendersExtension,
         PerDomainTrustAnchorsExtension, RequiredCapabilitiesExtension,
     },
-    group::{config::CryptoConfig, GroupContext, GroupId},
+    group::{config::CryptoConfig, group_context::GroupContext, GroupId},
     key_packages::Lifetime,
     messages::ConfirmationTag,
     schedule::CommitSecret,

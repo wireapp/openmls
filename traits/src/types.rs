@@ -156,6 +156,7 @@ pub enum CryptoError {
     CertificateEncodingError,
     IncompleteCertificate(&'static str),
     InvalidCertificate,
+    ExpiredCertificate,
     TimeError,
     InvalidKey,
     MismatchKeypair,

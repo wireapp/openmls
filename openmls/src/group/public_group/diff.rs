@@ -14,7 +14,7 @@ use crate::{
     error::LibraryError,
     extensions::Extensions,
     framing::{mls_auth_content::AuthenticatedContent, public_message::InterimTranscriptHashInput},
-    group::GroupContext,
+    group::group_context::GroupContext,
     messages::{proposals::AddProposal, ConfirmationTag, EncryptedGroupSecrets},
     schedule::{psk::PreSharedKeyId, CommitSecret, JoinerSecret},
     treesync::{

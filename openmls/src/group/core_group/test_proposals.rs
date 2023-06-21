@@ -13,10 +13,11 @@ use crate::{
     group::{
         config::CryptoConfig,
         errors::*,
+        group_context::GroupContext,
         proposals::{ProposalQueue, ProposalStore, QueuedProposal},
         public_group::errors::PublicGroupBuildError,
         test_core_group::{setup_client, setup_client_with_extensions},
-        CreateCommitParams, GroupContext, GroupId,
+        CreateCommitParams, GroupId,
     },
     key_packages::{KeyPackageBundle, KeyPackageIn},
     messages::proposals::{AddProposal, Proposal, ProposalOrRef, ProposalType},
