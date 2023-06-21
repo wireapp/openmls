@@ -89,7 +89,7 @@ pub enum TreeSyncError {
     /// A requested leaf is not in the tree.
     #[error("The leaf does not exist in the tree.")]
     LeafNotInTree,
-    /// See [`TreeSyncSetPathError`] for more details.
+    /// See [`DerivePathError`] for more details.
     #[error(transparent)]
     SetPathError(#[from] DerivePathError),
     /// See [`MlsBinaryTreeError`] for more details.

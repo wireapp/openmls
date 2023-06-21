@@ -175,7 +175,7 @@ impl PublicMessageIn {
         &self.content.group_id
     }
 
-    /// Turn this [`PublicMessageIn`] into a [`VerifiableAuthenticatedContent`].
+    /// Turn this [`PublicMessageIn`] into a [`VerifiableAuthenticatedContentIn`].
     pub fn into_verifiable_content(
         self,
         serialized_context: impl Into<Option<Vec<u8>>>,

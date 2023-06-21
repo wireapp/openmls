@@ -186,7 +186,7 @@ pub mod treesync;
 pub mod versions;
 
 // Private
-mod binary_tree;
+pub mod binary_tree;
 mod tree;
 
 /// Single place, re-exporting the most used public functions.

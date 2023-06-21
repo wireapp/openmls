@@ -576,7 +576,7 @@ pub struct LeafNodeTbs {
 }
 
 impl LeafNodeTbs {
-    /// Build a [`LeafNodeTbs`] from a [`LeafNode`] and a [`TreeInfo`]
+    /// Build a [`LeafNodeTbs`] from a [`LeafNode`] and a [`TreeInfoTbs`]
     /// to update a leaf node.
     pub(crate) fn from(leaf_node: LeafNode, tree_info_tbs: TreeInfoTbs) -> Self {
         Self {

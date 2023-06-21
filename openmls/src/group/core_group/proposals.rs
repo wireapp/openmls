@@ -172,7 +172,7 @@ impl QueuedProposal {
 /// accessed efficiently. To enable iteration over the queue in order, the
 /// `ProposalQueue` also contains a vector of `ProposalRef`s.
 #[derive(Default, Clone, Debug, Serialize, Deserialize)]
-pub(crate) struct ProposalQueue {
+pub struct ProposalQueue {
     /// `proposal_references` holds references to the proposals in the queue and
     /// determines the order of the queue.
     proposal_references: Vec<ProposalRef>,

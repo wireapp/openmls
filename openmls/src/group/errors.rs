@@ -455,7 +455,7 @@ pub enum ProposalQueueError {
     SenderError(#[from] SenderError),
 }
 
-/// Errors that can arise when creating a [`ProposalQueue`] from committed
+/// Errors that can arise when creating a [`crate::group::core_group::proposals::ProposalQueue`] from committed
 /// proposals.
 #[derive(Error, Debug, PartialEq, Clone)]
 pub enum FromCommittedProposalsError {

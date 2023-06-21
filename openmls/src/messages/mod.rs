@@ -367,7 +367,7 @@ impl PathSecret {
 /// Path secret error
 #[derive(Error, Debug, PartialEq, Clone)]
 pub enum PathSecretError {
-    /// See [`hpke::Error`] for more details.
+    /// See [`crate::ciphersuite::hpke::Error`] for more details.
     #[error(transparent)]
     DecryptionError(#[from] hpke::Error),
 }
