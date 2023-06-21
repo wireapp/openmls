@@ -398,7 +398,7 @@ impl MlsGroup {
             MlsGroupState::Operational => Ok(()),
         }
     }
-    pub fn export_group_context(&self) -> &GroupContext {
+    pub fn export_group_context(&self) -> &group_context::GroupContext {
         self.group.context()
     }
 

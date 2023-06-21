@@ -111,7 +111,7 @@ async fn test_failed_groupinfo_decryption(
     .await;
 
     let group_info_tbs = {
-        let group_context = GroupContext::new(
+        let group_context = group_context::GroupContext::new(
             ciphersuite,
             group_id,
             epoch,

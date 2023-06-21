@@ -129,7 +129,7 @@ async fn bad_padding(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvi
 
         let sender = Sender::build_member(LeafNodeIndex::new(654));
 
-        let group_context = GroupContext::new(
+        let group_context = group_context::GroupContext::new(
             ciphersuite,
             GroupId::random(backend),
             1,

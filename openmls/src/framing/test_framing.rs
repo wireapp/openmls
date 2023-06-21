@@ -16,6 +16,7 @@ use crate::{
     group::{
         core_group::proposals::{ProposalStore, QueuedProposal},
         errors::*,
+        group_context::GroupContext,
         CreateCommitParams,
     },
     key_packages::{test_key_packages::key_package, KeyPackageBundle},

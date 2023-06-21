@@ -14,7 +14,7 @@ use crate::{
     },
     extensions::Extensions,
     group::{
-        config::CryptoConfig, errors::WelcomeError, GroupContext, GroupId, MlsGroup,
+        config::CryptoConfig, errors::WelcomeError, group_context::GroupContext, GroupId, MlsGroup,
         MlsGroupConfigBuilder,
     },
     messages::{

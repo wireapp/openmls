@@ -2,7 +2,7 @@
 //!
 //! This module contains the API to interact with groups.
 
-mod group_context;
+pub mod group_context;
 
 use std::fmt::Display;
 
@@ -19,8 +19,6 @@ pub(crate) mod core_group;
 pub(crate) mod public_group;
 pub(crate) use core_group::*;
 pub(crate) mod mls_group;
-#[cfg(not(any(feature = "test-utils", test)))]
-pub(crate) use group_context::*;
 
 // Public
 pub mod config;
@@ -39,8 +37,6 @@ pub use public_group::*;
 pub(crate) use core_group::create_commit_params::*;
 #[cfg(any(feature = "test-utils", test))]
 pub(crate) mod tests;
-#[cfg(any(feature = "test-utils", test))]
-pub use group_context::GroupContext;
 use openmls_traits::random::OpenMlsRand;
 #[cfg(any(feature = "test-utils", test))]
 pub use proposals::*;

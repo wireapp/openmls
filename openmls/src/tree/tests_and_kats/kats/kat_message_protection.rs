@@ -188,7 +188,7 @@ pub async fn run_test_vector(
     use crate::{
         binary_tree::array_representation::TreeSize,
         extensions::Extensions,
-        group::config::CryptoConfig,
+        group::{config::CryptoConfig, group_context::GroupContext},
         messages::{proposals_in::ProposalIn, CommitIn, ConfirmationTag},
         prelude::KeyPackageBundle,
         prelude_test::{Mac, Secret},

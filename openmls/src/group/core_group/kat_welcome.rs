@@ -28,7 +28,7 @@ use crate::{
     binary_tree::{array_representation::TreeSize, LeafNodeIndex},
     ciphersuite::signable::Verifiable,
     framing::{MlsMessageIn, MlsMessageInBody},
-    group::*,
+    group::{group_context::GroupContext, *},
     key_packages::*,
     messages::*,
     prelude::group_info::{GroupInfo, VerifiableGroupInfo},

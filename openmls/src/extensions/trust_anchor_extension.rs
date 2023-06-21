@@ -47,4 +47,16 @@ impl PerDomainTrustAnchor {
             }
         }
     }
+
+    pub fn domain_name(&self) -> &[u8] {
+        self.domain_name.as_ref()
+    }
+
+    pub fn credential_type(&self) -> CredentialType {
+        self.credential_type
+    }
+
+    pub fn certificate_chain(&self) -> &[Vec<u8>] {
+        self.certificate_chain.as_ref()
+    }
 }

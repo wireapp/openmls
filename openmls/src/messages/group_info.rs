@@ -11,7 +11,7 @@ use crate::{
         AeadKey, AeadNonce, Signature,
     },
     extensions::Extensions,
-    group::{GroupContext, GroupId},
+    group::{group_context::GroupContext, GroupId},
     messages::ConfirmationTag,
 };
 

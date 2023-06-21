@@ -12,9 +12,10 @@ use tls_codec::{
 };
 
 use super::{
+    group_context::GroupContext,
     mls_content::{FramedContent, FramedContentBody, FramedContentTbs},
-    Commit, ConfirmationTag, ContentType, FramingParameters, GroupContext, GroupEpoch, GroupId,
-    Proposal, Sender, Signature, WireFormat,
+    Commit, ConfirmationTag, ContentType, FramingParameters, GroupEpoch, GroupId, Proposal, Sender,
+    Signature, WireFormat,
 };
 use crate::{
     binary_tree::LeafNodeIndex,

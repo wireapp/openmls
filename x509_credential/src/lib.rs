@@ -105,7 +105,7 @@ pub trait X509Ext {
 impl X509Ext for Certificate {
     fn is_valid(&self) -> Result<(), CryptoError> {
         if !self.is_time_valid()? {
-            return Err(CryptoError::InvalidCertificate);
+            return Err(CryptoError::ExpiredCertificate);
         }
         Ok(())
     }
