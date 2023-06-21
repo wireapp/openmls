@@ -55,8 +55,8 @@ pub(crate) mod codec;
 
 pub(crate) mod message_in;
 pub(crate) mod message_out;
-pub(crate) mod mls_auth_content;
-pub(crate) mod mls_auth_content_in;
+pub mod mls_auth_content;
+pub mod mls_auth_content_in;
 pub(crate) mod mls_content;
 pub(crate) mod mls_content_in;
 pub(crate) mod private_message;

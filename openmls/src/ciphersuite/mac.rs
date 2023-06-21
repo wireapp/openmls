@@ -2,7 +2,9 @@ use super::*;
 
 /// 7.1 Content Authentication
 ///
+/// ```ignore
 /// opaque MAC<V>;
+/// ```
 #[derive(Debug, Clone, Serialize, Deserialize, TlsDeserialize, TlsSerialize, TlsSize)]
 pub struct Mac {
     pub(crate) mac_value: VLBytes,
