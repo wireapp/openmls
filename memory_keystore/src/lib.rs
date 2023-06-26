@@ -7,7 +7,8 @@ pub struct MemoryKeyStore {
     values: RwLock<HashMap<Vec<u8>, Vec<u8>>>,
 }
 
-#[async_trait::async_trait(?Send)]
+#[cfg_attr(target_family = "wasm", async_trait::async_trait(?Send))]
+#[cfg_attr(not(target_family = "wasm"), async_trait::async_trait)]
 impl OpenMlsKeyStore for MemoryKeyStore {
     /// The error type returned by the [`OpenMlsKeyStore`].
     type Error = MemoryKeyStoreError;
@@ -16,7 +17,7 @@ impl OpenMlsKeyStore for MemoryKeyStore {
     /// serialization for ID `k`.
     ///
     /// Returns an error if storing fails.
-    async fn store<V: MlsEntity>(&self, k: &[u8], v: &V) -> Result<(), Self::Error> {
+    async fn store<V: MlsEntity + Sync>(&self, k: &[u8], v: &V) -> Result<(), Self::Error> {
         let value = serde_json::to_vec(v).map_err(|_| MemoryKeyStoreError::SerializationError)?;
         // We unwrap here, because this is the only function claiming a write
         // lock on `credential_bundles`. It only holds the lock very briefly and
@@ -63,5 +64,3 @@ pub enum MemoryKeyStoreError {
     #[error("Error serializing value.")]
     SerializationError,
 }
-
-unsafe impl Send for MemoryKeyStoreError {}
