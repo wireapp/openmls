@@ -111,6 +111,12 @@ impl MlsMessageIn {
         self.body
     }
 
+    /// Extract the content of an [`MlsMessageIn`] after deserialization for use
+    /// with the [`MlsGroup`] API.
+    pub fn body_as_ref(&self) -> &MlsMessageInBody {
+        &self.body
+    }
+
     #[cfg(any(test, feature = "test-utils"))]
     pub fn into_keypackage(self) -> Option<crate::key_packages::KeyPackage> {
         match self.body {

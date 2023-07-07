@@ -23,8 +23,10 @@ mod creation;
 mod exporting;
 mod updates;
 
+use crate::prelude::ConfirmationTag;
 use config::*;
 use errors::*;
+use openmls_traits::types::CryptoError;
 
 // Crate
 pub(crate) mod config;
@@ -334,6 +336,18 @@ impl MlsGroup {
     /// Exports the Ratchet Tree.
     pub fn export_ratchet_tree(&self) -> RatchetTree {
         self.group.public_group().export_ratchet_tree()
+    }
+
+    /// Calculates the confirmation tag of the current group
+    pub fn compute_confirmation_tag(
+        &self,
+        backend: &impl OpenMlsCryptoProvider,
+    ) -> Result<ConfirmationTag, CryptoError> {
+        let cth = self.export_group_context().confirmed_transcript_hash();
+        self.group
+            .message_secrets()
+            .confirmation_key()
+            .tag(backend, cth)
     }
 }
 
