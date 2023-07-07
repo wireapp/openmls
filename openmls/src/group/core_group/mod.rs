@@ -646,13 +646,15 @@ impl CoreGroup {
         };
 
         // Create to-be-signed group info.
+        let confirmation_tag = self
+            .message_secrets()
+            .confirmation_key()
+            .tag(backend, self.context().confirmed_transcript_hash())
+            .map_err(LibraryError::unexpected_crypto_error)?;
         let group_info_tbs = GroupInfoTBS::new(
             self.context().clone(),
             extensions,
-            self.message_secrets()
-                .confirmation_key()
-                .tag(backend, self.context().confirmed_transcript_hash())
-                .map_err(LibraryError::unexpected_crypto_error)?,
+            confirmation_tag,
             self.own_leaf_index(),
         );
 

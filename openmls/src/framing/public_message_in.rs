@@ -13,6 +13,7 @@ use super::{
     *,
 };
 
+use crate::prelude::mls_content_in::FramedContentBodyIn;
 use openmls_traits::OpenMlsCryptoProvider;
 use std::{
     convert::TryFrom,
@@ -196,6 +197,11 @@ impl PublicMessageIn {
     /// Get the [`ConfirmationTag`]
     pub fn confirmation_tag(&self) -> Option<&ConfirmationTag> {
         self.auth.confirmation_tag.as_ref()
+    }
+
+    /// Message body getter
+    pub fn body(&self) -> &FramedContentBodyIn {
+        &self.content.body
     }
 }
 
