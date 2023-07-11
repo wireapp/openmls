@@ -21,7 +21,7 @@ use crate::messages::group_info::VerifiableGroupInfo;
 #[derive(Debug, Clone, PartialEq, TlsSerialize, TlsSize)]
 pub struct MlsMessageOut {
     pub(crate) version: ProtocolVersion,
-    pub(crate) body: MlsMessageOutBody,
+    pub body: MlsMessageOutBody,
 }
 
 /// MLSMessage (Body)
@@ -53,7 +53,7 @@ pub struct MlsMessageOut {
 /// ```
 #[derive(Debug, PartialEq, Clone, TlsSerialize, TlsSize)]
 #[repr(u16)]
-pub(crate) enum MlsMessageOutBody {
+pub enum MlsMessageOutBody {
     /// Plaintext message
     #[tls_codec(discriminant = 1)]
     PublicMessage(PublicMessage),

@@ -40,7 +40,7 @@ use tls_codec::{
 #[derive(Debug, PartialEq, Clone, Serialize, Deserialize)]
 pub struct PublicMessageIn {
     pub(crate) content: FramedContentIn,
-    pub(crate) auth: FramedContentAuthData,
+    pub auth: FramedContentAuthData,
     pub(crate) membership_tag: Option<MembershipTag>,
 }
 
