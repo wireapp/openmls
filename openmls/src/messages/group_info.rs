@@ -90,7 +90,7 @@ impl VerifiableGroupInfo {
     ///
     /// Note: This method should only be used when necessary to verify the group
     /// info signature.
-    pub(crate) fn group_id(&self) -> &GroupId {
+    pub fn group_id(&self) -> &GroupId {
         self.payload.group_context.group_id()
     }
 
