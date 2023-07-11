@@ -25,7 +25,8 @@ pub use crate::extensions::{errors::*, *};
 
 // Framing
 pub use crate::framing::{
-    message_in::*, message_out::*, mls_content_in::FramedContentBodyIn, sender::*, validation::*, *,
+    message_in::*, message_out::MlsMessageOutBody, message_out::*,
+    mls_content_in::FramedContentBodyIn, sender::*, validation::*, *,
 };
 
 // Key packages

@@ -462,6 +462,14 @@ impl StagedCommit {
     pub(crate) fn into_state(self) -> StagedCommitState {
         self.state
     }
+
+    pub fn get_confirmation_tag(&self) -> &ConfirmationTag {
+        match &self.state {
+            StagedCommitState::PublicState(diff) => &diff.confirmation_tag,
+            StagedCommitState::GroupMember(diff) => &diff.staged_diff.confirmation_tag,
+            StagedCommitState::ExternalMember(diff) => &diff.staged_diff.confirmation_tag,
+        }
+    }
 }
 
 /// This struct is used internally by [StagedCommit] to encapsulate all the modified group state.

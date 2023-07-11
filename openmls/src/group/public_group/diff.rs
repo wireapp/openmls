@@ -242,7 +242,7 @@ pub(crate) struct StagedPublicGroupDiff {
     pub(crate) staged_diff: StagedTreeSyncDiff,
     pub(super) group_context: GroupContext,
     pub(super) interim_transcript_hash: Vec<u8>,
-    pub(super) confirmation_tag: ConfirmationTag,
+    pub(crate) confirmation_tag: ConfirmationTag,
 }
 
 impl StagedPublicGroupDiff {
