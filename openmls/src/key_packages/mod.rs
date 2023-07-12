@@ -302,7 +302,8 @@ impl KeyPackage {
             .key_store()
             .delete::<HpkePrivateKey>(self.hpke_init_key().as_slice())
             .await
-            .map_err(KeyPackageDeleteError::KeyStoreError)
+            .map_err(KeyPackageDeleteError::KeyStoreError)?;
+        Ok(())
     }
 
     /// Get a reference to the extensions of this key package.

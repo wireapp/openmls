@@ -282,7 +282,6 @@ impl PassiveClient {
     }
 
     async fn process_message(&mut self, message: MlsMessageIn) {
-        println!("{:#?}", message);
         let processed_message = self
             .group
             .as_mut()

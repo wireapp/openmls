@@ -78,7 +78,7 @@ macro_rules! impl_propose_fun {
                 proposal.clone(),
                 $ref_or_value,
             )?;
-            let proposal_ref = queued_proposal.proposal_reference();
+            let proposal_ref = queued_proposal.proposal_reference().clone();
             log::trace!("Storing proposal in queue {:?}", queued_proposal);
             self.proposal_store.add(queued_proposal);
 
@@ -233,7 +233,7 @@ impl MlsGroup {
             backend,
             add_proposal.clone(),
         )?;
-        let proposal_ref = proposal.proposal_reference();
+        let proposal_ref = proposal.proposal_reference().clone();
         self.proposal_store.add(proposal);
 
         let mls_message = self.content_to_mls_message(add_proposal, backend)?;
@@ -266,7 +266,7 @@ impl MlsGroup {
             backend,
             remove_proposal.clone(),
         )?;
-        let proposal_ref = proposal.proposal_reference();
+        let proposal_ref = proposal.proposal_reference().clone();
         self.proposal_store.add(proposal);
 
         let mls_message = self.content_to_mls_message(remove_proposal, backend)?;

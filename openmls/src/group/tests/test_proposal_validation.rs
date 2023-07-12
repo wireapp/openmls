@@ -1703,7 +1703,7 @@ async fn test_valsem110(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoPr
     let mut update_leaf_node = bob_leaf_node;
     update_leaf_node
         .update_and_re_sign(
-            alice_encryption_key.clone(),
+            Some(alice_encryption_key.clone()),
             None,
             bob_group.group_id().clone(),
             LeafNodeIndex::new(1),
@@ -1791,11 +1791,9 @@ async fn test_valsem110(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoPr
 
     // We have to store the keypair with the proper label s.t. Bob can actually
     // process the commit.
-    let leaf_keypair = alice_group
-        .group()
-        .read_epoch_keypairs(backend)
-        .await
-        .into_iter()
+    let alice_epoch_keypairs = alice_group.group().read_epoch_keypairs(backend).await;
+    let leaf_keypair = alice_epoch_keypairs
+        .iter()
         .find(|keypair| keypair.public_key() == &alice_encryption_key)
         .unwrap();
     leaf_keypair.write_to_key_store(backend).await.unwrap();
