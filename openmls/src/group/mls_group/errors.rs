@@ -76,6 +76,9 @@ pub enum MlsGroupStateError {
     /// Requested pending proposal hasn't been found in local pending proposals
     #[error("Requested pending proposal hasn't been found in local pending proposals.")]
     PendingProposalNotFound,
+    /// When trying to delete an Update proposal, it's associated encryption key was not found. This is an implementor's error
+    #[error("When trying to delete an Update proposal, it's associated encryption key was not found. This is an implementor's error")]
+    EncryptionKeyNotFound,
 }
 
 /// Error merging pending commit

@@ -56,22 +56,17 @@ impl MlsGroup {
                 .ok_or_else(|| LibraryError::custom("The tree is broken. Couldn't find own leaf."))?
                 .clone();
 
-            let keypair = own_leaf
-                .rekey(
-                    self.group_id(),
-                    self.own_leaf_index(),
+            own_leaf
+                .update_and_re_sign(
+                    None,
                     Some(leaf_node),
-                    self.ciphersuite(),
-                    ProtocolVersion::default(),
-                    backend,
+                    self.group_id().clone(),
+                    self.own_leaf_index(),
                     signer,
                 )
-                .unwrap();
-            keypair
-                .write_to_key_store(backend)
-                .await
-                .map_err(ProposeSelfUpdateError::KeyStoreError)
-                .unwrap();
+                .map_err(|_| {
+                    SelfUpdateError::LibraryError(LibraryError::custom("Could not resign the leaf"))
+                })?;
 
             let update_proposal = Proposal::Update(UpdateProposal {
                 leaf_node: own_leaf,
@@ -121,7 +116,7 @@ impl MlsGroup {
             backend,
             update_proposal.clone(),
         )?;
-        let proposal_ref = proposal.proposal_reference();
+        let proposal_ref = proposal.proposal_reference().clone();
         self.proposal_store.add(proposal);
 
         let mls_message = self.content_to_mls_message(update_proposal, backend)?;
@@ -144,7 +139,7 @@ impl MlsGroup {
             backend,
             update_proposal.clone(),
         )?;
-        let proposal_ref = proposal.proposal_reference();
+        let proposal_ref = proposal.proposal_reference().clone();
         self.proposal_store.add(proposal);
 
         let mls_message = self.content_to_mls_message(update_proposal, backend)?;
@@ -215,7 +210,7 @@ impl MlsGroup {
             backend,
             update_proposal.clone(),
         )?;
-        let proposal_ref = proposal.proposal_reference();
+        let proposal_ref = proposal.proposal_reference().clone();
         self.proposal_store.add(proposal);
 
         let mls_message = self.content_to_mls_message(update_proposal, backend)?;
@@ -231,35 +226,25 @@ impl MlsGroup {
     /// private key must be manually added to the key store.
     pub(crate) async fn _propose_explicit_self_update<KeyStore: OpenMlsKeyStore>(
         &mut self,
-        backend: &impl OpenMlsCryptoProvider<KeyStoreProvider = KeyStore>,
+        _backend: &impl OpenMlsCryptoProvider<KeyStoreProvider = KeyStore>,
         signer: &impl Signer,
         leaf_node: LeafNode,
         leaf_node_signer: &impl Signer,
     ) -> Result<AuthenticatedContent, ProposeSelfUpdateError<KeyStore::Error>> {
         self.is_operational()?;
 
-        // Here we clone our own leaf to rekey it such that we don't change the
-        // tree.
-        // The new leaf node will be applied later when the proposal is
-        // committed.
         let mut own_leaf = self
             .own_leaf()
             .ok_or_else(|| LibraryError::custom("The tree is broken. Couldn't find own leaf."))?
             .clone();
 
-        let keypair = own_leaf.rekey(
-            self.group_id(),
-            self.own_leaf_index(),
+        own_leaf.update_and_re_sign(
+            None,
             Some(leaf_node),
-            self.ciphersuite(),
-            ProtocolVersion::default(), // XXX: openmls/openmls#1065
-            backend,
+            self.group_id().clone(),
+            self.own_leaf_index(),
             leaf_node_signer,
         )?;
-        keypair
-            .write_to_key_store(backend)
-            .await
-            .map_err(ProposeSelfUpdateError::KeyStoreError)?;
 
         let update_proposal = self.group.create_update_proposal(
             self.framing_parameters(),

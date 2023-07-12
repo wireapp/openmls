@@ -117,7 +117,7 @@ impl CoreGroup {
         &self,
         mls_content: &AuthenticatedContent,
         proposal_store: &ProposalStore,
-        old_epoch_keypairs: Vec<EncryptionKeyPair>,
+        old_epoch_keypairs: EpochEncryptionKeyPair,
         leaf_node_keypairs: Vec<EncryptionKeyPair>,
         backend: &impl OpenMlsCryptoProvider,
     ) -> Result<StagedCommit, StageCommitError> {
@@ -301,8 +301,8 @@ impl CoreGroup {
     async fn merge_member_commit<KeyStore: OpenMlsKeyStore>(
         &mut self,
         backend: &impl OpenMlsCryptoProvider<KeyStoreProvider = KeyStore>,
-        old_epoch_keypairs: Vec<EncryptionKeyPair>,
-        state: Box<MemberStagedCommitState>,
+        mut old_epoch_keypairs: EpochEncryptionKeyPair,
+        mut state: Box<MemberStagedCommitState>,
         is_member: bool,
     ) -> Result<Option<MessageSecrets>, MergeCommitError<<KeyStore as OpenMlsKeyStore>::Error>>
     {
@@ -317,14 +317,11 @@ impl CoreGroup {
 
         self.public_group.merge_diff(state.staged_diff);
 
-        // TODO #1194: Group storage and key storage should be
-        // correlated s.t. there is no divergence between key material
-        // and group state.
-
-        let leaf_keypair = if let Some(keypair) = &state.new_leaf_keypair_option {
-            vec![keypair.clone()]
-        } else {
-            vec![]
+        // TODO #1194: Group storage and key storage should be correlated s.t. there is no divergence between key material and group state.
+        let mut maybe_new_leaf_encryption_public_key = None;
+        if let Some(keypair) = state.maybe_new_leaf_keypair.take() {
+            maybe_new_leaf_encryption_public_key = Some(keypair.public_key().as_slice().to_vec());
+            old_epoch_keypairs.push(keypair);
         };
 
         // Figure out which keys we need in the new epoch.
@@ -333,12 +330,13 @@ impl CoreGroup {
             .owned_encryption_keys(self.own_leaf_index());
 
         // From the old and new keys, keep the ones that are still relevant in the new epoch.
-        let epoch_keypairs: Vec<EncryptionKeyPair> = old_epoch_keypairs
+        let epoch_keypairs: EpochEncryptionKeyPair = old_epoch_keypairs
+            .0
             .into_iter()
             .chain(state.new_keypairs.into_iter())
-            .chain(leaf_keypair.into_iter())
             .filter(|keypair| new_owned_encryption_keys.contains(keypair.public_key()))
-            .collect();
+            .collect::<Vec<_>>()
+            .into();
         // We should have private keys for all owned encryption keys.
         debug_assert_eq!(new_owned_encryption_keys.len(), epoch_keypairs.len());
         if new_owned_encryption_keys.len() != epoch_keypairs.len() {
@@ -349,7 +347,7 @@ impl CoreGroup {
         }
 
         // Store the relevant keys under the new epoch
-        self.store_epoch_keypairs(backend, epoch_keypairs.as_slice())
+        self.store_epoch_keypairs(backend, epoch_keypairs)
             .await
             .map_err(MergeCommitError::KeyStoreError)?;
 
@@ -360,9 +358,10 @@ impl CoreGroup {
                 .map_err(MergeCommitError::KeyStoreError)?;
         }
 
-        if let Some(keypair) = state.new_leaf_keypair_option {
-            keypair
-                .delete_from_key_store(backend)
+        if let Some(new_leaf_encryption_public_key) = maybe_new_leaf_encryption_public_key {
+            backend
+                .key_store()
+                .delete::<EncryptionKeyPair>(&new_leaf_encryption_public_key)
                 .await
                 .map_err(MergeCommitError::KeyStoreError)?;
         }
@@ -479,7 +478,7 @@ pub(crate) struct MemberStagedCommitState {
     message_secrets: MessageSecrets,
     staged_diff: StagedPublicGroupDiff,
     new_keypairs: Vec<EncryptionKeyPair>,
-    new_leaf_keypair_option: Option<EncryptionKeyPair>,
+    maybe_new_leaf_keypair: Option<EncryptionKeyPair>,
 }
 
 impl MemberStagedCommitState {
@@ -488,14 +487,14 @@ impl MemberStagedCommitState {
         message_secrets: MessageSecrets,
         staged_diff: StagedPublicGroupDiff,
         new_keypairs: Vec<EncryptionKeyPair>,
-        new_leaf_keypair_option: Option<EncryptionKeyPair>,
+        maybe_new_leaf_keypair: Option<EncryptionKeyPair>,
     ) -> Self {
         Self {
             group_epoch_secrets,
             message_secrets,
             staged_diff,
             new_keypairs,
-            new_leaf_keypair_option,
+            maybe_new_leaf_keypair,
         }
     }
 

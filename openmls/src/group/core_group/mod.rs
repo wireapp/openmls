@@ -54,6 +54,7 @@ use super::{
     public_group::{diff::compute_path::PathComputationResult, PublicGroup},
 };
 
+use crate::treesync::node::encryption_keys::{EpochEncryptionKeyPair, EpochKeypairId};
 use crate::{
     binary_tree::array_representation::{LeafNodeIndex, TreeSize},
     ciphersuite::{signable::Signable, HpkePublicKey},
@@ -319,7 +320,7 @@ impl CoreGroupBuilder {
 
         // Store the private key of the own leaf in the key store as an epoch keypair.
         group
-            .store_epoch_keypairs(backend, &[leaf_keypair])
+            .store_epoch_keypairs(backend, vec![leaf_keypair].into())
             .await
             .map_err(CoreGroupBuildError::KeyStoreError)?;
 
@@ -830,16 +831,16 @@ impl CoreGroup {
     pub(super) async fn store_epoch_keypairs<KeyStore: OpenMlsKeyStore>(
         &self,
         backend: &impl OpenMlsCryptoProvider<KeyStoreProvider = KeyStore>,
-        keypair_references: &[EncryptionKeyPair],
+        epoch_encryption_keypair: EpochEncryptionKeyPair,
     ) -> Result<(), KeyStore::Error> {
         let k = EpochKeypairId::new(
             self.group_id(),
-            self.context().epoch().as_u64(),
+            self.context().epoch(),
             self.own_leaf_index(),
         );
         backend
             .key_store()
-            .store(&k.0, &keypair_references.to_vec())
+            .store(&k, &epoch_encryption_keypair)
             .await
     }
 
@@ -850,15 +851,15 @@ impl CoreGroup {
     pub(super) async fn read_epoch_keypairs<KeyStore: OpenMlsKeyStore>(
         &self,
         backend: &impl OpenMlsCryptoProvider<KeyStoreProvider = KeyStore>,
-    ) -> Vec<EncryptionKeyPair> {
+    ) -> EpochEncryptionKeyPair {
         let k = EpochKeypairId::new(
             self.group_id(),
-            self.context().epoch().as_u64(),
+            self.context().epoch(),
             self.own_leaf_index(),
         );
         backend
             .key_store()
-            .read::<Vec<EncryptionKeyPair>>(&k.0)
+            .read::<EpochEncryptionKeyPair>(&k)
             .await
             .unwrap_or_default()
     }
@@ -873,12 +874,12 @@ impl CoreGroup {
     ) -> Result<(), KeyStore::Error> {
         let k = EpochKeypairId::new(
             self.group_id(),
-            self.context().epoch().as_u64() - 1,
+            self.context().epoch().as_u64().saturating_sub(1).into(),
             self.own_leaf_index(),
         );
         backend
             .key_store()
-            .delete::<Vec<EncryptionKeyPair>>(&k.0)
+            .delete::<EpochEncryptionKeyPair>(&k)
             .await
     }
 
@@ -1195,19 +1196,13 @@ impl CoreGroup {
     }
 }
 
-/// Composite key for key material of a client within an epoch
-pub struct EpochKeypairId(Vec<u8>);
-
-impl EpochKeypairId {
-    fn new(group_id: &GroupId, epoch: u64, leaf_index: LeafNodeIndex) -> Self {
-        Self(
-            [
-                group_id.as_slice(),
-                &leaf_index.u32().to_be_bytes(),
-                &epoch.to_be_bytes(),
-            ]
-            .concat(),
-        )
+impl MlsGroup {
+    /// re-export
+    pub async fn delete_previous_epoch_keypairs<KeyStore: OpenMlsKeyStore>(
+        &self,
+        backend: &impl OpenMlsCryptoProvider<KeyStoreProvider = KeyStore>,
+    ) -> Result<(), KeyStore::Error> {
+        self.group.delete_previous_epoch_keypairs(backend).await
     }
 }
 

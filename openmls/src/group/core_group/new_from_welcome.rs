@@ -1,4 +1,3 @@
-use log::debug;
 use openmls_traits::key_store::OpenMlsKeyStore;
 
 use crate::{
@@ -24,13 +23,14 @@ impl CoreGroup {
         mut resumption_psk_store: ResumptionPskStore,
     ) -> Result<Self, WelcomeError<KeyStore::Error>> {
         log::debug!("CoreGroup::new_from_welcome_internal");
+        let key_package = key_package_bundle.key_package();
 
         // Read the encryption key pair from the key store and delete it there.
         // TODO #1207: Key store access happens as early as possible so it can
         // be pulled up later more easily.
         let leaf_keypair = EncryptionKeyPair::read_from_key_store(
             backend,
-            key_package_bundle.key_package.leaf_node().encryption_key(),
+            key_package.leaf_node().encryption_key(),
         )
         .await
         .ok_or(WelcomeError::NoMatchingEncryptionKey)?;
@@ -40,23 +40,19 @@ impl CoreGroup {
             .await
             .map_err(|_| WelcomeError::NoMatchingEncryptionKey)?;
 
-        let ciphersuite = welcome.ciphersuite();
-
         // Find key_package in welcome secrets
         let egs = if let Some(egs) = Self::find_key_package_from_welcome_secrets(
-            key_package_bundle
-                .key_package()
-                .hash_ref(backend.crypto())?,
+            key_package.hash_ref(backend.crypto())?,
             welcome.secrets(),
         ) {
             egs
         } else {
             return Err(WelcomeError::JoinerSecretNotFound);
         };
-        if ciphersuite != key_package_bundle.key_package().ciphersuite() {
-            let e = WelcomeError::CiphersuiteMismatch;
-            debug!("new_from_welcome {:?}", e);
-            return Err(e);
+
+        let ciphersuite = welcome.ciphersuite();
+        if ciphersuite != key_package.ciphersuite() {
+            return Err(WelcomeError::CiphersuiteMismatch);
         }
 
         let group_secrets = GroupSecrets::try_from_ciphertext(
@@ -122,8 +118,7 @@ impl CoreGroup {
                 .map_err(|_| WelcomeError::UnsupportedCapability)?;
             // Also check that our key package actually supports the extensions.
             // Per spec the sender must have checked this. But you never know.
-            key_package_bundle
-                .key_package()
+            key_package
                 .leaf_node()
                 .capabilities()
                 .supports_required_capabilities(required_capabilities)?;
@@ -161,13 +156,7 @@ impl CoreGroup {
         let own_leaf_index = public_group
             .members()
             .find_map(|m| {
-                if m.signature_key
-                    == key_package_bundle
-                        .key_package()
-                        .leaf_node()
-                        .signature_key()
-                        .as_slice()
-                {
+                if m.signature_key == key_package.leaf_node().signature_key().as_slice() {
                     Some(m.index)
                 } else {
                     None
@@ -180,7 +169,7 @@ impl CoreGroup {
         // If we got a path secret, derive the path (which also checks if the
         // public keys match) and store the derived keys in the key store.
         let group_keypairs = if let Some(path_secret) = path_secret_option {
-            let (path_keypairs, _commit_secret) = public_group
+            let (mut path_keypairs, _commit_secret) = public_group
                 .derive_path_secrets(
                     backend,
                     ciphersuite,
@@ -194,10 +183,8 @@ impl CoreGroup {
                         WelcomeError::PublicTreeError(PublicTreeError::PublicKeyMismatch)
                     }
                 })?;
-            vec![leaf_keypair]
-                .into_iter()
-                .chain(path_keypairs.into_iter())
-                .collect()
+            path_keypairs.push(leaf_keypair);
+            path_keypairs
         } else {
             vec![leaf_keypair]
         };
@@ -256,7 +243,7 @@ impl CoreGroup {
             resumption_psk_store,
         };
         group
-            .store_epoch_keypairs(backend, group_keypairs.as_slice())
+            .store_epoch_keypairs(backend, group_keypairs.into())
             .await
             .map_err(WelcomeError::KeyStoreError)?;
 

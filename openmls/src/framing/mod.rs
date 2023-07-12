@@ -57,7 +57,7 @@ pub(crate) mod message_in;
 pub(crate) mod message_out;
 pub mod mls_auth_content;
 pub mod mls_auth_content_in;
-pub(crate) mod mls_content;
+pub mod mls_content;
 pub(crate) mod mls_content_in;
 pub(crate) mod private_message;
 pub(crate) mod private_message_in;

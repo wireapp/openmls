@@ -54,7 +54,7 @@ impl ProposalStore {
 
     /// Removes a proposal from the store using its reference. It will return None if it wasn't
     /// found in the store.
-    pub fn remove(&mut self, proposal_ref: ProposalRef) -> Option<()> {
+    pub fn remove(&mut self, proposal_ref: &ProposalRef) -> Option<()> {
         let index = self
             .queued_proposals
             .iter()
@@ -152,9 +152,10 @@ impl QueuedProposal {
     pub fn proposal(&self) -> &Proposal {
         &self.proposal
     }
+
     /// Returns the `ProposalRef`.
-    pub fn proposal_reference(&self) -> ProposalRef {
-        self.proposal_reference.clone()
+    pub fn proposal_reference(&self) -> &ProposalRef {
+        &self.proposal_reference
     }
     /// Returns the `ProposalOrRefType`.
     pub fn proposal_or_ref_type(&self) -> ProposalOrRefType {
@@ -208,7 +209,7 @@ impl ProposalQueue {
         let mut proposals_by_reference_queue: HashMap<ProposalRef, QueuedProposal> = HashMap::new();
         for queued_proposal in proposal_store.proposals() {
             proposals_by_reference_queue.insert(
-                queued_proposal.proposal_reference(),
+                queued_proposal.proposal_reference().clone(),
                 queued_proposal.clone(),
             );
         }
@@ -274,7 +275,7 @@ impl ProposalQueue {
         // Only add the proposal if it's not already there
         if let Entry::Vacant(entry) = self.queued_proposals.entry(proposal_reference.clone()) {
             // Add the proposal reference to ensure the correct order
-            self.proposal_references.push(proposal_reference);
+            self.proposal_references.push(proposal_reference.clone());
             // Add the proposal to the queue
             entry.insert(queued_proposal);
         }
@@ -445,8 +446,11 @@ impl ProposalQueue {
         for queued_proposal in queued_proposal_list {
             match queued_proposal.proposal {
                 Proposal::Add(_) => {
-                    adds.insert(queued_proposal.proposal_reference());
-                    proposal_pool.insert(queued_proposal.proposal_reference(), queued_proposal);
+                    adds.insert(queued_proposal.proposal_reference().clone());
+                    proposal_pool.insert(
+                        queued_proposal.proposal_reference().clone(),
+                        queued_proposal,
+                    );
                 }
                 Proposal::Update(_) => {
                     // Only members can send update proposals
@@ -465,7 +469,7 @@ impl ProposalQueue {
                         contains_own_updates = true;
                     }
                     let proposal_reference = queued_proposal.proposal_reference();
-                    proposal_pool.insert(proposal_reference, queued_proposal);
+                    proposal_pool.insert(proposal_reference.clone(), queued_proposal);
                 }
                 Proposal::Remove(ref remove_proposal) => {
                     let removed = remove_proposal.removed();
@@ -475,27 +479,39 @@ impl ProposalQueue {
                         .updates
                         .push(queued_proposal.clone());
                     let proposal_reference = queued_proposal.proposal_reference();
-                    proposal_pool.insert(proposal_reference, queued_proposal);
+                    proposal_pool.insert(proposal_reference.clone(), queued_proposal);
                 }
                 Proposal::PreSharedKey(_) => {
-                    valid_proposals.insert(queued_proposal.proposal_reference());
-                    proposal_pool.insert(queued_proposal.proposal_reference(), queued_proposal);
+                    valid_proposals.insert(queued_proposal.proposal_reference().clone());
+                    proposal_pool.insert(
+                        queued_proposal.proposal_reference().clone(),
+                        queued_proposal,
+                    );
                 }
                 Proposal::ReInit(_) => {
                     // TODO #751: Only keep one ReInit
-                    proposal_pool.insert(queued_proposal.proposal_reference(), queued_proposal);
+                    proposal_pool.insert(
+                        queued_proposal.proposal_reference().clone(),
+                        queued_proposal,
+                    );
                 }
                 Proposal::ExternalInit(_) => {
                     // Only use the first external init proposal we find.
                     if !contains_external_init {
-                        valid_proposals.insert(queued_proposal.proposal_reference());
-                        proposal_pool.insert(queued_proposal.proposal_reference(), queued_proposal);
+                        valid_proposals.insert(queued_proposal.proposal_reference().clone());
+                        proposal_pool.insert(
+                            queued_proposal.proposal_reference().clone(),
+                            queued_proposal,
+                        );
                         contains_external_init = true;
                     }
                 }
                 Proposal::GroupContextExtensions(_) => {
-                    valid_proposals.insert(queued_proposal.proposal_reference());
-                    proposal_pool.insert(queued_proposal.proposal_reference(), queued_proposal);
+                    valid_proposals.insert(queued_proposal.proposal_reference().clone());
+                    proposal_pool.insert(
+                        queued_proposal.proposal_reference().clone(),
+                        queued_proposal,
+                    );
                 }
                 Proposal::AppAck(_) => unimplemented!("See #291"),
             }
@@ -507,11 +523,11 @@ impl ProposalQueue {
                 // Delete all Updates when a Remove is found
                 member.updates = Vec::new();
                 // Only keep the last Remove
-                valid_proposals.insert(last_remove.proposal_reference());
+                valid_proposals.insert(last_remove.proposal_reference().clone());
             }
             if let Some(last_update) = member.updates.last() {
                 // Only keep the last Update
-                valid_proposals.insert(last_update.proposal_reference());
+                valid_proposals.insert(last_update.proposal_reference().clone());
             }
         }
         // Only retain `adds` and `valid_proposals`

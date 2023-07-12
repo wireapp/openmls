@@ -172,15 +172,7 @@ impl MlsGroup {
         match &self.group_state {
             MlsGroupState::PendingCommit(state) => {
                 match state.deref() {
-                    PendingCommitState::Member(_) => {
-                        let old_state =
-                            mem::replace(&mut self.group_state, MlsGroupState::Operational);
-                        if let MlsGroupState::PendingCommit(pending_commit_state) = old_state {
-                            self.merge_staged_commit(backend, (*pending_commit_state).into())
-                                .await?;
-                        }
-                    }
-                    PendingCommitState::External(_) => {
+                    PendingCommitState::Member(_) | PendingCommitState::External(_) => {
                         let old_state =
                             mem::replace(&mut self.group_state, MlsGroupState::Operational);
                         if let MlsGroupState::PendingCommit(pending_commit_state) = old_state {

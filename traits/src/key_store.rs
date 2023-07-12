@@ -8,6 +8,7 @@ pub enum MlsEntityId {
     KeyPackage,
     PskBundle,
     EncryptionKeyPair,
+    EpochEncryptionKeyPair,
     GroupState,
 }
 
@@ -24,14 +25,6 @@ pub trait MlsEntity: serde::Serialize + serde::de::DeserializeOwned {
             None
         }
     }
-}
-
-/// Blanket impl for when you have to lookup a list of entities from the keystore
-impl<T> MlsEntity for Vec<T>
-where
-    T: MlsEntity + std::fmt::Debug,
-{
-    const ID: MlsEntityId = T::ID;
 }
 
 #[cfg_attr(target_family = "wasm", async_trait::async_trait(?Send))]

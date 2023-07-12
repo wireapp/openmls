@@ -39,7 +39,7 @@ impl MlsGroup {
             gce_proposal.clone(),
             ProposalOrRefType::Proposal,
         )?;
-        let reference = proposal.proposal_reference();
+        let reference = proposal.proposal_reference().clone();
 
         self.proposal_store.add(proposal);
 

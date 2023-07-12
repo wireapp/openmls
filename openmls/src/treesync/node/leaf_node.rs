@@ -246,8 +246,8 @@ impl LeafNode {
     /// the credential.
     pub(crate) fn update_and_re_sign(
         &mut self,
-        new_encryption_key: impl Into<Option<EncryptionKey>>,
-        leaf_node: impl Into<Option<LeafNode>>,
+        new_encryption_key: Option<EncryptionKey>,
+        leaf_node: Option<LeafNode>,
         group_id: GroupId,
         leaf_index: LeafNodeIndex,
         signer: &impl Signer,
@@ -257,22 +257,18 @@ impl LeafNode {
         let mut leaf_node_tbs = LeafNodeTbs::from(self.clone(), tree_info);
 
         // Update credential
-        if let Some(leaf_node) = leaf_node.into() {
+        leaf_node_tbs.payload.leaf_node_source = LeafNodeSource::Update;
+        if let Some(leaf_node) = leaf_node {
             leaf_node_tbs.payload.credential = leaf_node.credential().clone();
             leaf_node_tbs.payload.signature_key = leaf_node.signature_key().clone();
-
             leaf_node_tbs.payload.encryption_key = leaf_node.encryption_key().clone();
-            leaf_node_tbs.payload.leaf_node_source = LeafNodeSource::Update;
-        } else if let Some(new_encryption_key) = new_encryption_key.into() {
-            leaf_node_tbs.payload.leaf_node_source = LeafNodeSource::Update;
-
-            // If there's no new leaf, the encryption key must be provided
-            // explicitly.
+        } else if let Some(new_encryption_key) = new_encryption_key {
             leaf_node_tbs.payload.encryption_key = new_encryption_key;
         } else {
-            debug_assert!(false, "update_and_re_sign needs to be called with a new leaf node or a new encryption key. Neither was the case.");
             return Err(LibraryError::custom(
-                "update_and_re_sign needs to be called with a new leaf node or a new encryption key. Neither was the case.").into());
+                "Has to be called with either a new leaf node or a new encryption key",
+            )
+            .into());
         }
 
         // Set the new signed leaf node with the new encryption key
@@ -316,7 +312,7 @@ impl LeafNode {
             )
             .into());
         }
-        let key_pair = EncryptionKeyPair::random(
+        let keypair = EncryptionKeyPair::random(
             backend,
             CryptoConfig {
                 ciphersuite,
@@ -324,15 +320,20 @@ impl LeafNode {
             },
         )?;
 
-        self.update_and_re_sign(
-            key_pair.public_key().clone(),
-            leaf_node,
-            group_id.clone(),
-            leaf_index,
-            signer,
-        )?;
+        if let Some(mut leaf_node) = leaf_node {
+            leaf_node.payload.encryption_key = keypair.public_key().clone();
+            self.update_and_re_sign(None, Some(leaf_node), group_id.clone(), leaf_index, signer)?;
+        } else {
+            self.update_and_re_sign(
+                Some(keypair.public_key().clone()),
+                None,
+                group_id.clone(),
+                leaf_index,
+                signer,
+            )?;
+        }
 
-        Ok(key_pair)
+        Ok(keypair)
     }
 
     /// Returns the `encryption_key`.
