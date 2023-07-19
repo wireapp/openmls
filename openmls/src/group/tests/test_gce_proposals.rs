@@ -320,6 +320,7 @@ async fn validating_commit_with_more_than_one_gce_proposal_should_fail(
 
 // #[apply(ciphersuites_and_backends)]
 // #[wasm_bindgen_test::wasm_bindgen_test]
+#[allow(dead_code)]
 async fn gce_proposal_must_be_applied_first_then_used_to_validate_other_add_proposals(
     ciphersuite: Ciphersuite,
     backend: &impl OpenMlsCryptoProvider,
@@ -396,6 +397,7 @@ async fn gce_proposal_must_be_applied_first_then_used_to_validate_other_add_prop
 
 // #[apply(ciphersuites_and_backends)]
 // #[wasm_bindgen_test::wasm_bindgen_test]
+#[allow(dead_code)]
 async fn gce_proposal_must_be_applied_first_then_used_to_validate_other_external_add_proposals(
     ciphersuite: Ciphersuite,
     backend: &impl OpenMlsCryptoProvider,
@@ -472,6 +474,7 @@ async fn gce_proposal_must_be_applied_first_then_used_to_validate_other_external
 
 // #[apply(ciphersuites_and_backends)]
 // #[wasm_bindgen_test::wasm_bindgen_test]
+#[allow(dead_code)]
 async fn gce_proposal_must_be_applied_first_but_ignored_for_remove_proposals(
     ciphersuite: Ciphersuite,
     backend: &impl OpenMlsCryptoProvider,
