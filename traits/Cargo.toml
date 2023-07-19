@@ -1,6 +1,6 @@
 [package]
 name = "openmls_traits"
-version = "0.1.0"
+version = "0.2.0"
 authors = ["OpenMLS Authors"]
 edition = "2021"
 description = "Traits used by OpenMLS"
@@ -22,7 +22,7 @@ rand_core = "0.6"
 tls_codec = { workspace = true }
 async-trait = { workspace = true }
 # for the default signer
-ed25519-dalek = { version = "2.0.0-rc.2", features = ["rand_core"] }
+ed25519-dalek = { version = "2.0.0-rc.3", features = ["rand_core"] }
 p256 = "0.13"
 p384 = "0.13"
 zeroize = "1.6"
