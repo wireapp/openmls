@@ -11,7 +11,7 @@ use crate::{
         AeadKey, AeadNonce, Signature,
     },
     extensions::Extensions,
-    group::{GroupContext, GroupId},
+    group::{group_context::GroupContext, GroupId},
     messages::ConfirmationTag,
 };
 
@@ -90,8 +90,12 @@ impl VerifiableGroupInfo {
     ///
     /// Note: This method should only be used when necessary to verify the group
     /// info signature.
-    pub(crate) fn group_id(&self) -> &GroupId {
+    pub fn group_id(&self) -> &GroupId {
         self.payload.group_context.group_id()
+    }
+
+    pub(crate) fn context(&self) -> &GroupContext {
+        &self.payload.group_context
     }
 }
 
@@ -107,7 +111,6 @@ impl VerifiableGroupInfo {
     }
 }
 
-#[cfg(any(feature = "test-utils", test))]
 impl From<VerifiableGroupInfo> for GroupInfo {
     fn from(vgi: VerifiableGroupInfo) -> Self {
         GroupInfo {
@@ -156,7 +159,6 @@ impl GroupInfo {
         &self.payload.confirmation_tag
     }
 
-    #[cfg(any(feature = "test-utils", test))]
     pub(crate) fn into_verifiable_group_info(self) -> VerifiableGroupInfo {
         VerifiableGroupInfo {
             payload: GroupInfoTBS {

@@ -113,17 +113,17 @@ pub fn generate_test_vector(n_leaves: u32) -> TreeMathTestVector {
     test_vector
 }
 
-#[test]
-fn write_test_vectors() {
-    let mut tests = Vec::new();
+// #[test]
+// fn write_test_vectors() {
+//     let mut tests = Vec::new();
 
-    for n_leaves in 0..10 {
-        let test_vector = generate_test_vector(1 << n_leaves);
-        tests.push(test_vector);
-    }
+//     for n_leaves in 0..10 {
+//         let test_vector = generate_test_vector(1 << n_leaves);
+//         tests.push(test_vector);
+//     }
 
-    write("test_vectors/tree-math-new.json", &tests);
-}
+//     write("test_vectors/tree-math-new.json", &tests);
+// }
 
 #[cfg(any(feature = "test-utils", test))]
 pub fn run_test_vector(test_vector: TreeMathTestVector) -> Result<(), TmTestVectorError> {

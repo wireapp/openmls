@@ -25,8 +25,8 @@ const HELP: &str = "
 
 ";
 
-fn update(client: &mut user::User, group_id: Option<String>, stdout: &mut StdoutLock) {
-    let messages = client.update(group_id).unwrap();
+async fn update(client: &mut user::User, group_id: Option<String>, stdout: &mut StdoutLock<'_>) {
+    let messages = client.update(group_id).await.unwrap();
     stdout.write_all(b" >>> Updated client :)\n").unwrap();
     if !messages.is_empty() {
         stdout.write_all(b"     New messages:\n\n").unwrap();
@@ -39,7 +39,8 @@ fn update(client: &mut user::User, group_id: Option<String>, stdout: &mut Stdout
     stdout.write_all(b"\n").unwrap();
 }
 
-fn main() {
+#[tokio::main]
+async fn main() {
     pretty_env_logger::init();
 
     let stdout = stdout();
@@ -60,7 +61,7 @@ fn main() {
         // There's no persistence. So once the client app stops you have to
         // register a new client.
         if let Some(client_name) = op.strip_prefix("register ") {
-            client = Some(user::User::new(client_name.to_string()));
+            client = Some(user::User::new(client_name.to_string()).await);
             stdout
                 .write_all(format!("registered new client {client_name}\n\n").as_bytes())
                 .unwrap();
@@ -70,7 +71,7 @@ fn main() {
         // Create a new group.
         if let Some(group_name) = op.strip_prefix("create group ") {
             if let Some(client) = &mut client {
-                client.create_group(group_name.to_string());
+                client.create_group(group_name.to_string()).await;
                 stdout
                     .write_all(format!(" >>> Created group {group_name} :)\n\n").as_bytes())
                     .unwrap();
@@ -92,7 +93,7 @@ fn main() {
 
                     // Send a message to the group.
                     if let Some(msg) = op2.strip_prefix("send ") {
-                        client.send_msg(msg, group_name.to_string()).unwrap();
+                        client.send_msg(msg, group_name.to_string()).await.unwrap();
                         stdout
                             .write_all(format!("sent message to {group_name}\n\n").as_bytes())
                             .unwrap();
@@ -103,6 +104,7 @@ fn main() {
                     if let Some(new_client) = op2.strip_prefix("invite ") {
                         client
                             .invite(new_client.to_string(), group_name.to_string())
+                            .await
                             .unwrap();
                         stdout
                             .write_all(
@@ -114,7 +116,7 @@ fn main() {
 
                     // Read messages sent to the group.
                     if op2 == "read" {
-                        let messages = client.read_msgs(group_name.to_string()).unwrap();
+                        let messages = client.read_msgs(group_name.to_string()).await.unwrap();
                         if let Some(messages) = messages {
                             stdout
                                 .write_all(
@@ -136,7 +138,7 @@ fn main() {
 
                     // Update the client state.
                     if op2 == "update" {
-                        update(client, Some(group_name.to_string()), &mut stdout);
+                        update(client, Some(group_name.to_string()), &mut stdout).await;
                         continue;
                     }
 
@@ -159,7 +161,7 @@ fn main() {
         // Update the client state.
         if op == "update" {
             if let Some(client) = &mut client {
-                update(client, None, &mut stdout);
+                update(client, None, &mut stdout).await;
             } else {
                 stdout
                     .write_all(b" >>> No client to update :(\n\n")
@@ -170,7 +172,7 @@ fn main() {
 
         // Reset the server and client.
         if op == "reset" {
-            backend::Backend::default().reset_server();
+            backend::Backend::default().reset_server().await;
             client = None;
             stdout.write_all(b" >>> Reset server :)\n\n").unwrap();
             continue;
@@ -188,102 +190,122 @@ fn main() {
     }
 }
 
-#[test]
+#[tokio::test]
 #[ignore]
-fn basic_test() {
+async fn basic_test() {
     // Reset the server before doing anything for testing.
-    backend::Backend::default().reset_server();
+    backend::Backend::default().reset_server().await;
 
     const MESSAGE_1: &str = "Thanks for adding me Client1.";
     const MESSAGE_2: &str = "Welcome Client3.";
     const MESSAGE_3: &str = "Thanks so much for the warm welcome! 😊";
 
     // Create one client
-    let mut client_1 = user::User::new("Client1".to_string());
+    let mut client_1 = user::User::new("Client1".to_string()).await;
 
     // Create another client
-    let mut client_2 = user::User::new("Client2".to_string());
+    let mut client_2 = user::User::new("Client2".to_string()).await;
 
     // Create another client
-    let mut client_3 = user::User::new("Client3".to_string());
+    let mut client_3 = user::User::new("Client3".to_string()).await;
 
     // Update the clients to know about the other clients.
-    client_1.update(None).unwrap();
-    client_2.update(None).unwrap();
-    client_3.update(None).unwrap();
+    client_1.update(None).await.unwrap();
+    client_2.update(None).await.unwrap();
+    client_3.update(None).await.unwrap();
 
     // Client 1 creates a group.
-    client_1.create_group("MLS Discussions".to_string());
+    client_1.create_group("MLS Discussions".to_string()).await;
 
     // Client 1 adds Client 2 to the group.
     client_1
         .invite("Client2".to_string(), "MLS Discussions".to_string())
+        .await
         .unwrap();
 
     // Client 2 retrieves messages.
-    client_2.update(None).unwrap();
+    client_2.update(None).await.unwrap();
 
     // Client 2 sends a message.
     client_2
         .send_msg(MESSAGE_1, "MLS Discussions".to_string())
+        .await
         .unwrap();
 
     // Client 1 retrieves messages.
-    client_1.update(None).unwrap();
+    client_1.update(None).await.unwrap();
 
     // Check that Client 1 received the message
     assert_eq!(
-        client_1.read_msgs("MLS Discussions".to_string()).unwrap(),
+        client_1
+            .read_msgs("MLS Discussions".to_string())
+            .await
+            .unwrap(),
         Some(vec![MESSAGE_1.into()])
     );
 
     // Client 2 adds Client 3 to the group.
     client_2
         .invite("Client3".to_string(), "MLS Discussions".to_string())
+        .await
         .unwrap();
 
     // Everyone updates.
-    client_1.update(None).unwrap();
-    client_2.update(None).unwrap();
-    client_3.update(None).unwrap();
+    client_1.update(None).await.unwrap();
+    client_2.update(None).await.unwrap();
+    client_3.update(None).await.unwrap();
 
     // Client 1 sends a message.
     client_1
         .send_msg(MESSAGE_2, "MLS Discussions".to_string())
+        .await
         .unwrap();
 
     // Everyone updates.
-    client_1.update(None).unwrap();
-    client_2.update(None).unwrap();
-    client_3.update(None).unwrap();
+    client_1.update(None).await.unwrap();
+    client_2.update(None).await.unwrap();
+    client_3.update(None).await.unwrap();
 
     // Check that Client 2 and Client 3 received the message
     assert_eq!(
-        client_2.read_msgs("MLS Discussions".to_string()).unwrap(),
+        client_2
+            .read_msgs("MLS Discussions".to_string())
+            .await
+            .unwrap(),
         Some(vec![MESSAGE_2.into()])
     );
     assert_eq!(
-        client_3.read_msgs("MLS Discussions".to_string()).unwrap(),
+        client_3
+            .read_msgs("MLS Discussions".to_string())
+            .await
+            .unwrap(),
         Some(vec![MESSAGE_2.into()])
     );
 
     // Client 3 sends a message.
     client_3
         .send_msg(MESSAGE_3, "MLS Discussions".to_string())
+        .await
         .unwrap();
 
     // Everyone updates.
-    client_1.update(None).unwrap();
-    client_2.update(None).unwrap();
-    client_3.update(None).unwrap();
+    client_1.update(None).await.unwrap();
+    client_2.update(None).await.unwrap();
+    client_3.update(None).await.unwrap();
 
     // Check that Client 1 and Client 2 received the message
     assert_eq!(
-        client_1.read_msgs("MLS Discussions".to_string()).unwrap(),
+        client_1
+            .read_msgs("MLS Discussions".to_string())
+            .await
+            .unwrap(),
         Some(vec![MESSAGE_1.into(), MESSAGE_3.into()])
     );
     assert_eq!(
-        client_2.read_msgs("MLS Discussions".to_string()).unwrap(),
+        client_2
+            .read_msgs("MLS Discussions".to_string())
+            .await
+            .unwrap(),
         Some(vec![MESSAGE_2.into(), MESSAGE_3.into()])
     );
 }

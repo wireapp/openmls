@@ -1,17 +1,24 @@
 use crate::test_utils::*;
 use openmls_basic_credential::SignatureKeyPair;
 use openmls_rust_crypto::OpenMlsRustCrypto;
+use openmls_traits::random::OpenMlsRand;
 use tls_codec::Deserialize;
 
 use crate::{extensions::*, key_packages::*};
 
+wasm_bindgen_test::wasm_bindgen_test_configure!(run_in_browser);
+
 /// Helper function to generate key packages
-pub(crate) fn key_package(
+pub(crate) async fn key_package(
     ciphersuite: Ciphersuite,
     backend: &impl OpenMlsCryptoProvider,
 ) -> (KeyPackage, Credential, SignatureKeyPair) {
-    let credential = Credential::new(b"Sasha".to_vec(), CredentialType::Basic).unwrap();
-    let signer = SignatureKeyPair::new(ciphersuite.signature_algorithm()).unwrap();
+    let credential = Credential::new_basic(b"Sasha".to_vec());
+    let signer = SignatureKeyPair::new(
+        ciphersuite.signature_algorithm(),
+        &mut *backend.rand().borrow_rand().unwrap(),
+    )
+    .unwrap();
 
     // Generate a valid KeyPackage.
     let key_package = KeyPackage::builder()
@@ -27,14 +34,16 @@ pub(crate) fn key_package(
                 signature_key: signer.to_public_vec().into(),
             },
         )
+        .await
         .expect("An unexpected error occurred.");
 
     (key_package, credential, signer)
 }
 
 #[apply(ciphersuites_and_backends)]
-fn generate_key_package(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider) {
-    let (key_package, _credential, _signature_keys) = key_package(ciphersuite, backend);
+#[wasm_bindgen_test::wasm_bindgen_test]
+async fn generate_key_package(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider) {
+    let (key_package, _credential, _signature_keys) = key_package(ciphersuite, backend).await;
 
     let kpi = KeyPackageIn::from(key_package);
     assert!(kpi
@@ -43,8 +52,9 @@ fn generate_key_package(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoPr
 }
 
 #[apply(ciphersuites_and_backends)]
-fn serialization(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider) {
-    let (key_package, _, _) = key_package(ciphersuite, backend);
+#[wasm_bindgen_test::wasm_bindgen_test]
+async fn serialization(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider) {
+    let (key_package, _, _) = key_package(ciphersuite, backend).await;
 
     let encoded = key_package
         .tls_serialize_detached()
@@ -58,10 +68,14 @@ fn serialization(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider)
 }
 
 #[apply(ciphersuites_and_backends)]
-fn application_id_extension(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider) {
-    let credential = Credential::new(b"Sasha".to_vec(), CredentialType::Basic)
-        .expect("An unexpected error occurred.");
-    let signature_keys = SignatureKeyPair::new(ciphersuite.signature_algorithm()).unwrap();
+#[wasm_bindgen_test::wasm_bindgen_test]
+async fn application_id_extension(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider) {
+    let credential = Credential::new_basic(b"Sasha".to_vec());
+    let signature_keys = SignatureKeyPair::new(
+        ciphersuite.signature_algorithm(),
+        &mut *backend.rand().borrow_rand().unwrap(),
+    )
+    .unwrap();
 
     // Generate a valid KeyPackage.
     let id = b"application id" as &[u8];
@@ -81,6 +95,7 @@ fn application_id_extension(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryp
                 credential,
             },
         )
+        .await
         .expect("An unexpected error occurred.");
 
     let kpi = KeyPackageIn::from(key_package.clone());
@@ -103,8 +118,9 @@ fn application_id_extension(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryp
 /// - The protocol version is correct
 /// - The init key is not equal to the encryption key
 #[apply(ciphersuites_and_backends)]
-fn key_package_validation(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider) {
-    let (key_package_orig, _, _) = key_package(ciphersuite, backend);
+#[wasm_bindgen_test::wasm_bindgen_test]
+async fn key_package_validation(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider) {
+    let (key_package_orig, _, _) = key_package(ciphersuite, backend).await;
 
     // === Protocol version ===
 

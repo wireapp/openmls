@@ -2,10 +2,10 @@ use log::{debug, info, warn};
 use openmls_rust_crypto::OpenMlsRustCrypto;
 use openmls_traits::{crypto::OpenMlsCrypto, key_store::OpenMlsKeyStore, OpenMlsCryptoProvider};
 use serde::{self, Deserialize, Serialize};
-use tls_codec::{Deserialize as TlsDeserialize, Serialize as TlsSerialize};
+use tls_codec::Deserialize as TlsDeserialize;
 
 use crate::{
-    framing::{MlsMessageIn, MlsMessageInBody, MlsMessageOut, ProcessedMessageContent},
+    framing::{MlsMessageIn, MlsMessageInBody, ProcessedMessageContent},
     group::{config::CryptoConfig, *},
     key_packages::*,
     schedule::psk::PreSharedKeyId,
@@ -21,8 +21,6 @@ const TEST_VECTORS_PATH_READ: &[&str] = &[
     "test_vectors/passive-client-random.json",
     "test_vectors/passive-client-handling-commit.json",
 ];
-const TEST_VECTOR_PATH_WRITE: &[&str] = &["test_vectors/passive-client-welcome-new.json"];
-const NUM_TESTS: usize = 25;
 
 /// ```json
 /// {
@@ -94,21 +92,21 @@ pub struct TestEpoch {
 #[derive(Serialize, Deserialize, Debug, Clone, Default)]
 pub struct TestProposal(#[serde(with = "hex::serde")] Vec<u8>);
 
-#[test]
-fn test_read_vectors() {
+#[async_std::test]
+async fn test_read_vectors() {
     for file in TEST_VECTORS_PATH_READ {
         let scenario: Vec<PassiveClientWelcomeTestVector> = read(file);
 
         info!("# {file}");
         for (i, test_vector) in scenario.into_iter().enumerate() {
             info!("## {i:04} START");
-            run_test_vector(test_vector);
+            run_test_vector(test_vector).await;
             info!("## {i:04} END");
         }
     }
 }
 
-pub fn run_test_vector(test_vector: PassiveClientWelcomeTestVector) {
+pub async fn run_test_vector(test_vector: PassiveClientWelcomeTestVector) {
     let _ = pretty_env_logger::try_init();
 
     let backend = OpenMlsRustCrypto::default();
@@ -128,24 +126,29 @@ pub fn run_test_vector(test_vector: PassiveClientWelcomeTestVector) {
         .number_of_resumption_psks(16)
         .build();
 
-    let mut passive_client = PassiveClient::new(group_config, test_vector.external_psks.clone());
+    let mut passive_client =
+        PassiveClient::new(group_config, test_vector.external_psks.clone()).await;
 
-    passive_client.inject_key_package(
-        test_vector.key_package,
-        test_vector.signature_priv,
-        test_vector.encryption_priv,
-        test_vector.init_priv,
-    );
+    passive_client
+        .inject_key_package(
+            test_vector.key_package,
+            test_vector.signature_priv,
+            test_vector.encryption_priv,
+            test_vector.init_priv,
+        )
+        .await;
 
     let ratchet_tree: Option<RatchetTreeIn> = test_vector
         .ratchet_tree
         .as_ref()
         .map(|bytes| RatchetTreeIn::tls_deserialize_exact(bytes.0.as_slice()).unwrap());
 
-    passive_client.join_by_welcome(
-        MlsMessageIn::tls_deserialize_exact(&test_vector.welcome).unwrap(),
-        ratchet_tree,
-    );
+    passive_client
+        .join_by_welcome(
+            MlsMessageIn::tls_deserialize_exact(&test_vector.welcome).unwrap(),
+            ratchet_tree,
+        )
+        .await;
 
     debug!(
         "Group ID {}",
@@ -163,37 +166,18 @@ pub fn run_test_vector(test_vector: PassiveClientWelcomeTestVector) {
         for proposal in epoch.proposals {
             let message = MlsMessageIn::tls_deserialize_exact(&proposal.0).unwrap();
             debug!("Proposal: {message:?}");
-            passive_client.process_message(message);
+            passive_client.process_message(message).await;
         }
 
         let message = MlsMessageIn::tls_deserialize_exact(&epoch.commit).unwrap();
         debug!("Commit: {message:#?}");
-        passive_client.process_message(message);
+        passive_client.process_message(message).await;
 
         assert_eq!(
             epoch.epoch_authenticator,
             passive_client.epoch_authenticator()
         );
     }
-}
-
-#[test]
-fn test_write_vectors() {
-    let mut tests = Vec::new();
-
-    for _ in 0..NUM_TESTS {
-        for &ciphersuite in OpenMlsRustCrypto::default()
-            .crypto()
-            .supported_ciphersuites()
-            .iter()
-        {
-            let test = generate_test_vector(ciphersuite);
-            tests.push(test);
-        }
-    }
-
-    // TODO(#1279)
-    write(TEST_VECTOR_PATH_WRITE[0], &tests);
 }
 
 struct PassiveClient {
@@ -203,7 +187,7 @@ struct PassiveClient {
 }
 
 impl PassiveClient {
-    fn new(group_config: MlsGroupConfig, psks: Vec<ExternalPskTest>) -> Self {
+    async fn new(group_config: MlsGroupConfig, psks: Vec<ExternalPskTest>) -> Self {
         let backend = OpenMlsRustCrypto::default();
 
         // Load all PSKs into key store.
@@ -214,6 +198,7 @@ impl PassiveClient {
             let psk_id = PreSharedKeyId::external(psk.psk_id, vec![]);
             psk_id
                 .write_to_key_store(&backend, group_config.crypto_config.ciphersuite, &psk.psk)
+                .await
                 .unwrap();
         }
 
@@ -224,7 +209,7 @@ impl PassiveClient {
         }
     }
 
-    fn inject_key_package(
+    async fn inject_key_package(
         &self,
         key_package: Vec<u8>,
         _signature_priv: Vec<u8>,
@@ -257,6 +242,7 @@ impl PassiveClient {
                     .as_slice(),
                 &key_package,
             )
+            .await
             .unwrap();
 
         // Store init key.
@@ -266,6 +252,7 @@ impl PassiveClient {
                 key_package.hpke_init_key().as_slice(),
                 key_package_bundle.private_key(),
             )
+            .await
             .unwrap();
 
         // Store encryption key
@@ -274,10 +261,10 @@ impl PassiveClient {
             EncryptionPrivateKey::from(encryption_priv),
         ));
 
-        key_pair.write_to_key_store(&self.backend).unwrap();
+        key_pair.write_to_key_store(&self.backend).await.unwrap();
     }
 
-    fn join_by_welcome(
+    async fn join_by_welcome(
         &mut self,
         mls_message_welcome: MlsMessageIn,
         ratchet_tree: Option<RatchetTreeIn>,
@@ -288,18 +275,20 @@ impl PassiveClient {
             mls_message_welcome.into_welcome().unwrap(),
             ratchet_tree,
         )
+        .await
         .unwrap();
 
         self.group = Some(group);
     }
 
-    fn process_message(&mut self, message: MlsMessageIn) {
+    async fn process_message(&mut self, message: MlsMessageIn) {
         println!("{:#?}", message);
         let processed_message = self
             .group
             .as_mut()
             .unwrap()
             .process_message(&self.backend, message.into_protocol_message().unwrap())
+            .await
             .unwrap();
 
         match processed_message.into_content() {
@@ -314,6 +303,7 @@ impl PassiveClient {
                     .as_mut()
                     .unwrap()
                     .merge_staged_commit(&self.backend, *staged_commit)
+                    .await
                     .unwrap();
             }
             _ => unimplemented!(),
@@ -327,259 +317,5 @@ impl PassiveClient {
             .epoch_authenticator()
             .as_slice()
             .to_vec()
-    }
-}
-
-pub fn generate_test_vector(cipher_suite: Ciphersuite) -> PassiveClientWelcomeTestVector {
-    let group_config = MlsGroupConfig::builder()
-        .crypto_config(CryptoConfig::with_default_version(cipher_suite))
-        .use_ratchet_tree_extension(true)
-        .build();
-
-    let creator_backend = OpenMlsRustCrypto::default();
-
-    let creator =
-        generate_group_candidate(b"Alice (Creator)", cipher_suite, &creator_backend, true);
-
-    let mut creator_group = MlsGroup::new(
-        &creator_backend,
-        &creator.signature_keypair,
-        &group_config,
-        creator
-            .credential_with_key_and_signer
-            .credential_with_key
-            .clone(),
-    )
-    .unwrap();
-
-    let passive = generate_group_candidate(
-        b"Bob (Passive Client)",
-        cipher_suite,
-        &OpenMlsRustCrypto::default(),
-        false,
-    );
-
-    let (_, mls_message_welcome, _) = creator_group
-        .add_members(
-            &creator_backend,
-            &creator.signature_keypair,
-            &[passive.key_package.clone()],
-        )
-        .unwrap();
-
-    creator_group
-        .merge_pending_commit(&creator_backend)
-        .unwrap();
-
-    let initial_epoch_authenticator = creator_group.epoch_authenticator().as_slice().to_vec();
-
-    let epoch1 = update_inline(&creator_backend, &creator, &mut creator_group);
-
-    let epoch2 = {
-        let proposals = vec![propose_add(
-            cipher_suite,
-            &creator_backend,
-            &creator,
-            &mut creator_group,
-            b"Charlie",
-        )];
-
-        let commit = commit(&creator_backend, &creator, &mut creator_group);
-
-        let epoch_authenticator = creator_group.epoch_authenticator().as_slice().to_vec();
-
-        TestEpoch {
-            proposals,
-            commit,
-            epoch_authenticator,
-        }
-    };
-
-    let epoch3 = {
-        let proposals = vec![propose_remove(
-            &creator_backend,
-            &creator,
-            &mut creator_group,
-            b"Charlie",
-        )];
-
-        let commit = commit(&creator_backend, &creator, &mut creator_group);
-
-        let epoch_authenticator = creator_group.epoch_authenticator().as_slice().to_vec();
-
-        TestEpoch {
-            proposals,
-            commit,
-            epoch_authenticator,
-        }
-    };
-
-    let epoch4 = {
-        let proposals = vec![
-            propose_add(
-                cipher_suite,
-                &creator_backend,
-                &creator,
-                &mut creator_group,
-                b"Daniel",
-            ),
-            propose_add(
-                cipher_suite,
-                &creator_backend,
-                &creator,
-                &mut creator_group,
-                b"Evelin",
-            ),
-        ];
-
-        let commit = commit(&creator_backend, &creator, &mut creator_group);
-
-        let epoch_authenticator = creator_group.epoch_authenticator().as_slice().to_vec();
-
-        TestEpoch {
-            proposals,
-            commit,
-            epoch_authenticator,
-        }
-    };
-
-    let epoch5 = {
-        let proposals = vec![
-            propose_remove(&creator_backend, &creator, &mut creator_group, b"Daniel"),
-            propose_add(
-                cipher_suite,
-                &creator_backend,
-                &creator,
-                &mut creator_group,
-                b"Fardi",
-            ),
-        ];
-
-        let commit = commit(&creator_backend, &creator, &mut creator_group);
-
-        let epoch_authenticator = creator_group.epoch_authenticator().as_slice().to_vec();
-
-        TestEpoch {
-            proposals,
-            commit,
-            epoch_authenticator,
-        }
-    };
-
-    let epoch6 = {
-        let proposals = vec![
-            propose_remove(&creator_backend, &creator, &mut creator_group, b"Fardi"),
-            propose_remove(&creator_backend, &creator, &mut creator_group, b"Evelin"),
-        ];
-
-        let commit = commit(&creator_backend, &creator, &mut creator_group);
-
-        let epoch_authenticator = creator_group.epoch_authenticator().as_slice().to_vec();
-
-        TestEpoch {
-            proposals,
-            commit,
-            epoch_authenticator,
-        }
-    };
-
-    let epochs = vec![epoch1, epoch2, epoch3, epoch4, epoch5, epoch6];
-
-    PassiveClientWelcomeTestVector {
-        cipher_suite: cipher_suite.into(),
-        external_psks: vec![],
-
-        key_package: MlsMessageOut::from(passive.key_package)
-            .tls_serialize_detached()
-            .unwrap(),
-
-        signature_priv: passive.signature_keypair.private().to_vec(),
-        encryption_priv: passive.encryption_keypair.private_key().key().to_vec(),
-        init_priv: passive.init_keypair.private.to_vec(),
-
-        welcome: mls_message_welcome.tls_serialize_detached().unwrap(),
-        ratchet_tree: None,
-        initial_epoch_authenticator,
-
-        epochs,
-    }
-}
-
-// -------------------------------------------------------------------------------------------------
-
-fn propose_add(
-    cipher_suite: Ciphersuite,
-    backend: &OpenMlsRustCrypto,
-    candidate: &GroupCandidate,
-    group: &mut MlsGroup,
-    add_identity: &[u8],
-) -> TestProposal {
-    let add_candidate = generate_group_candidate(
-        add_identity,
-        cipher_suite,
-        &OpenMlsRustCrypto::default(),
-        false,
-    );
-
-    let mls_message_out_proposal = group
-        .propose_add_member(
-            backend,
-            &candidate.signature_keypair,
-            &add_candidate.key_package,
-        )
-        .unwrap();
-    group.merge_pending_commit(backend).unwrap();
-
-    TestProposal(mls_message_out_proposal.tls_serialize_detached().unwrap())
-}
-
-fn propose_remove(
-    backend: &OpenMlsRustCrypto,
-    candidate: &GroupCandidate,
-    group: &mut MlsGroup,
-    remove_identity: &[u8],
-) -> TestProposal {
-    let remove = group
-        .members()
-        .find(|Member { credential, .. }| credential.identity() == remove_identity)
-        .unwrap()
-        .index;
-
-    let mls_message_out_proposal = group
-        .propose_remove_member(backend, &candidate.signature_keypair, remove)
-        .unwrap();
-
-    TestProposal(mls_message_out_proposal.tls_serialize_detached().unwrap())
-}
-
-fn commit(backend: &OpenMlsRustCrypto, creator: &GroupCandidate, group: &mut MlsGroup) -> Vec<u8> {
-    let (mls_message_out_commit, _, _) = group
-        .commit_to_pending_proposals(backend, &creator.signature_keypair)
-        .unwrap();
-    group.merge_pending_commit(backend).unwrap();
-
-    mls_message_out_commit.tls_serialize_detached().unwrap()
-}
-
-fn update_inline(
-    backend: &OpenMlsRustCrypto,
-    candidate: &GroupCandidate,
-    group: &mut MlsGroup,
-) -> TestEpoch {
-    let (mls_message_out_commit, _, _) = group
-        .self_update(backend, &candidate.signature_keypair)
-        .unwrap();
-    group.merge_pending_commit(backend).unwrap();
-
-    let proposals = vec![];
-
-    let commit = mls_message_out_commit.tls_serialize_detached().unwrap();
-
-    let epoch_authenticator = group.epoch_authenticator().as_slice().to_vec();
-
-    TestEpoch {
-        proposals,
-        commit,
-        epoch_authenticator,
     }
 }

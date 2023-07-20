@@ -3,8 +3,7 @@
 use super::*;
 
 /// Combined message secrets that need to be stored for later decryption/verification
-#[derive(Serialize, Deserialize)]
-#[cfg_attr(test, derive(Clone))]
+#[derive(Serialize, Clone, Deserialize)]
 #[cfg_attr(feature = "crypto-debug", derive(Debug))]
 pub(crate) struct MessageSecrets {
     sender_data_secret: SenderDataSecret,

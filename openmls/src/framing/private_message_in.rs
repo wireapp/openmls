@@ -198,12 +198,12 @@ impl PrivateMessageIn {
     }
 
     /// Get the `epoch` in the `PrivateMessage`.
-    pub(crate) fn epoch(&self) -> GroupEpoch {
+    pub fn epoch(&self) -> GroupEpoch {
         self.epoch
     }
 
     /// Get the `content_type` in the `PrivateMessage`.
-    pub(crate) fn content_type(&self) -> ContentType {
+    pub fn content_type(&self) -> ContentType {
         self.content_type
     }
 
@@ -256,7 +256,6 @@ pub(crate) struct PrivateContentAad<'a> {
 
 // The following `From` implementation( breaks abstraction layers and MUST
 // NOT be made available outside of tests or "test-utils".
-#[cfg(any(feature = "test-utils", test))]
 impl From<PrivateMessageIn> for PrivateMessage {
     fn from(value: PrivateMessageIn) -> Self {
         Self {
@@ -270,7 +269,6 @@ impl From<PrivateMessageIn> for PrivateMessage {
     }
 }
 
-#[cfg(any(feature = "test-utils", test))]
 impl From<PrivateMessage> for PrivateMessageIn {
     fn from(value: PrivateMessage) -> Self {
         Self {

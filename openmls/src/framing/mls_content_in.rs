@@ -39,7 +39,7 @@ use tls_codec::{
 #[derive(
     Debug, PartialEq, Clone, Serialize, Deserialize, TlsSerialize, TlsDeserialize, TlsSize,
 )]
-pub(crate) struct FramedContentIn {
+pub struct FramedContentIn {
     pub(super) group_id: GroupId,
     pub(super) epoch: GroupEpoch,
     pub(super) sender: Sender,
@@ -49,7 +49,7 @@ pub(crate) struct FramedContentIn {
 
 impl FramedContentIn {
     /// Returns a [`FramedContent`] after successful validation.
-    pub(crate) fn validate(
+    pub fn validate(
         self,
         ciphersuite: Ciphersuite,
         crypto: &impl OpenMlsCrypto,
@@ -94,7 +94,7 @@ impl From<AuthenticatedContentIn> for FramedContentIn {
     Debug, PartialEq, Clone, Serialize, Deserialize, TlsSerialize, TlsDeserialize, TlsSize,
 )]
 #[repr(u8)]
-pub(crate) enum FramedContentBodyIn {
+pub enum FramedContentBodyIn {
     #[tls_codec(discriminant = 1)]
     Application(VLBytes),
     #[tls_codec(discriminant = 2)]
@@ -105,7 +105,7 @@ pub(crate) enum FramedContentBodyIn {
 
 impl FramedContentBodyIn {
     /// Returns the [`ContentType`].
-    pub(crate) fn content_type(&self) -> ContentType {
+    pub fn content_type(&self) -> ContentType {
         match self {
             FramedContentBodyIn::Application(_) => ContentType::Application,
             FramedContentBodyIn::Proposal(_) => ContentType::Proposal,
@@ -113,7 +113,7 @@ impl FramedContentBodyIn {
         }
     }
 
-    pub(super) fn deserialize_without_type<R: Read>(
+    pub fn deserialize_without_type<R: Read>(
         bytes: &mut R,
         content_type: ContentType,
     ) -> Result<Self, tls_codec::Error> {
@@ -129,7 +129,7 @@ impl FramedContentBodyIn {
     }
 
     /// Returns a [`FramedContentBody`] after successful validation.
-    pub(crate) fn validate(
+    pub fn validate(
         self,
         ciphersuite: Ciphersuite,
         crypto: &impl OpenMlsCrypto,
@@ -210,7 +210,6 @@ impl TlsSerializeTrait for FramedContentTbsIn {
 
 // The following `From` implementation( breaks abstraction layers and MUST
 // NOT be made available outside of tests or "test-utils".
-#[cfg(any(feature = "test-utils", test))]
 impl From<FramedContentBodyIn> for FramedContentBody {
     fn from(body: FramedContentBodyIn) -> Self {
         match body {
@@ -225,7 +224,6 @@ impl From<FramedContentBodyIn> for FramedContentBody {
 
 // The following `From` implementation( breaks abstraction layers and MUST
 // NOT be made available outside of tests or "test-utils".
-#[cfg(any(feature = "test-utils", test))]
 impl From<FramedContentIn> for crate::framing::mls_content::FramedContent {
     fn from(value: FramedContentIn) -> Self {
         Self {

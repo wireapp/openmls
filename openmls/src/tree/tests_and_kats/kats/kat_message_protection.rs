@@ -63,12 +63,13 @@
 
 use openmls_basic_credential::SignatureKeyPair;
 use openmls_rust_crypto::OpenMlsRustCrypto;
+use openmls_traits::random::OpenMlsRand;
 use openmls_traits::{types::SignatureScheme, OpenMlsCryptoProvider};
 use serde::{self, Deserialize, Serialize};
 
 use crate::{
     binary_tree::array_representation::LeafNodeIndex,
-    credentials::{Credential, CredentialType, CredentialWithKey},
+    credentials::{Credential, CredentialWithKey},
     framing::{mls_auth_content::AuthenticatedContent, mls_content::FramedContentBody, *},
     group::*,
     schedule::{EncryptionSecret, SenderDataSecret},
@@ -105,15 +106,18 @@ pub struct MessageProtectionTest {
     application_priv: String,
 }
 
-fn generate_credential(
+async fn generate_credential(
     identity: Vec<u8>,
-    credential_type: CredentialType,
     signature_algorithm: SignatureScheme,
     backend: &impl OpenMlsCryptoProvider,
 ) -> (CredentialWithKey, SignatureKeyPair) {
-    let credential = Credential::new(identity, credential_type).unwrap();
-    let signature_keys = SignatureKeyPair::new(signature_algorithm).unwrap();
-    signature_keys.store(backend.key_store()).unwrap();
+    let credential = Credential::new_basic(identity);
+    let signature_keys = SignatureKeyPair::new(
+        signature_algorithm,
+        &mut *backend.rand().borrow_rand().unwrap(),
+    )
+    .unwrap();
+    signature_keys.store(backend.key_store()).await.unwrap();
 
     (
         CredentialWithKey {
@@ -125,18 +129,14 @@ fn generate_credential(
 }
 
 #[cfg(any(feature = "test-utils", test))]
-fn group(
+async fn group(
     ciphersuite: Ciphersuite,
     backend: &impl OpenMlsCryptoProvider,
 ) -> (CoreGroup, CredentialWithKey, SignatureKeyPair) {
     use crate::group::config::CryptoConfig;
 
-    let (credential_with_key, signer) = generate_credential(
-        "Kreator".into(),
-        CredentialType::Basic,
-        ciphersuite.signature_algorithm(),
-        backend,
-    );
+    let (credential_with_key, signer) =
+        generate_credential("Kreator".into(), ciphersuite.signature_algorithm(), backend).await;
 
     let group = CoreGroup::builder(
         GroupId::random(backend),
@@ -144,13 +144,14 @@ fn group(
         credential_with_key.clone(),
     )
     .build(backend, &signer)
+    .await
     .unwrap();
 
     (group, credential_with_key, signer)
 }
 
 #[cfg(any(feature = "test-utils", test))]
-fn receiver_group(
+async fn receiver_group(
     ciphersuite: Ciphersuite,
     backend: &impl OpenMlsCryptoProvider,
     group_id: GroupId,
@@ -159,10 +160,10 @@ fn receiver_group(
 
     let (credential_with_key, signer) = generate_credential(
         "Receiver".into(),
-        CredentialType::Basic,
         ciphersuite.signature_algorithm(),
         backend,
-    );
+    )
+    .await;
 
     let group = CoreGroup::builder(
         group_id,
@@ -170,13 +171,14 @@ fn receiver_group(
         credential_with_key.clone(),
     )
     .build(backend, &signer)
+    .await
     .unwrap();
 
     (group, credential_with_key, signer)
 }
 
 #[cfg(test)]
-pub fn run_test_vector(
+pub async fn run_test_vector(
     test: MessageProtectionTest,
     backend: &impl OpenMlsCryptoProvider,
 ) -> Result<(), String> {
@@ -186,7 +188,7 @@ pub fn run_test_vector(
     use crate::{
         binary_tree::array_representation::TreeSize,
         extensions::Extensions,
-        group::config::CryptoConfig,
+        group::{config::CryptoConfig, group_context::GroupContext},
         messages::{proposals_in::ProposalIn, CommitIn, ConfirmationTag},
         prelude::KeyPackageBundle,
         prelude_test::{Mac, Secret},
@@ -222,11 +224,17 @@ pub fn run_test_vector(
             private.append(&mut hex_to_bytes(&test.signature_pub));
             private
         }
-        Ciphersuite::MLS_128_DHKEMP256_AES128GCM_SHA256_P256 => hex_to_bytes(&test.signature_priv),
+        Ciphersuite::MLS_128_DHKEMP256_AES128GCM_SHA256_P256
+        | Ciphersuite::MLS_256_DHKEMP384_AES256GCM_SHA384_P384 => {
+            hex_to_bytes(&test.signature_priv)
+        }
         _ => unimplemented!(),
     };
-    let random_own_signature_key =
-        SignatureKeyPair::new(ciphersuite.signature_algorithm()).unwrap();
+    let random_own_signature_key = SignatureKeyPair::new(
+        ciphersuite.signature_algorithm(),
+        &mut *backend.rand().borrow_rand().unwrap(),
+    )
+    .unwrap();
     let random_own_signature_key = random_own_signature_key.public();
     let signer = SignatureKeyPair::from_raw(
         ciphersuite.signature_algorithm(),
@@ -235,7 +243,7 @@ pub fn run_test_vector(
     );
 
     // Make the group think it has two members.
-    fn setup_group(
+    async fn setup_group(
         backend: &impl OpenMlsCryptoProvider,
         ciphersuite: Ciphersuite,
         test: &MessageProtectionTest,
@@ -251,8 +259,7 @@ pub fn run_test_vector(
         );
 
         // Set up the group, unfortunately we can't do without.
-        let credential =
-            Credential::new(b"This is not needed".to_vec(), CredentialType::Basic).unwrap();
+        let credential = Credential::new_basic(b"This is not needed".to_vec());
         let signature_private_key = match ciphersuite {
             Ciphersuite::MLS_128_DHKEMX25519_AES128GCM_SHA256_Ed25519
             | Ciphersuite::MLS_128_DHKEMX25519_CHACHA20POLY1305_SHA256_Ed25519 => {
@@ -260,13 +267,17 @@ pub fn run_test_vector(
                 private.append(&mut hex_to_bytes(&test.signature_pub));
                 private
             }
-            Ciphersuite::MLS_128_DHKEMP256_AES128GCM_SHA256_P256 => {
+            Ciphersuite::MLS_128_DHKEMP256_AES128GCM_SHA256_P256
+            | Ciphersuite::MLS_256_DHKEMP384_AES256GCM_SHA384_P384 => {
                 hex_to_bytes(&test.signature_priv)
             }
             _ => unimplemented!(),
         };
-        let random_own_signature_key =
-            SignatureKeyPair::new(ciphersuite.signature_algorithm()).unwrap();
+        let random_own_signature_key = SignatureKeyPair::new(
+            ciphersuite.signature_algorithm(),
+            &mut *backend.rand().borrow_rand().unwrap(),
+        )
+        .unwrap();
         let random_own_signature_key = random_own_signature_key.public();
         let signer = SignatureKeyPair::from_raw(
             ciphersuite.signature_algorithm(),
@@ -283,10 +294,15 @@ pub fn run_test_vector(
             },
         )
         .build(backend, &signer)
+        .await
         .unwrap();
 
-        let credential = Credential::new("Fake user".into(), CredentialType::Basic).unwrap();
-        let signature_keys = SignatureKeyPair::new(ciphersuite.signature_algorithm()).unwrap();
+        let credential = Credential::new_basic("Fake user".into());
+        let signature_keys = SignatureKeyPair::new(
+            ciphersuite.signature_algorithm(),
+            &mut *backend.rand().borrow_rand().unwrap(),
+        )
+        .unwrap();
         let bob_key_package_bundle = KeyPackageBundle::new(
             backend,
             &signature_keys,
@@ -295,7 +311,8 @@ pub fn run_test_vector(
                 credential,
                 signature_key: hex_to_bytes(&test.signature_pub).into(),
             },
-        );
+        )
+        .await;
         let bob_key_package = bob_key_package_bundle.key_package();
         let framing_parameters = FramingParameters::new(&[], WireFormat::PublicMessage);
         let bob_add_proposal = group
@@ -319,10 +336,12 @@ pub fn run_test_vector(
 
         let create_commit_result = group
             .create_commit(params, backend, &signer)
+            .await
             .expect("Error creating Commit");
 
         group
             .merge_commit(backend, create_commit_result.staged_commit)
+            .await
             .expect("error merging pending commit");
 
         // Inject the test values into the group
@@ -374,7 +393,7 @@ pub fn run_test_vector(
         let proposal_priv =
             MlsMessageIn::tls_deserialize_exact(hex_to_bytes(&test.proposal_priv)).unwrap();
 
-        fn test_proposal_pub(
+        async fn test_proposal_pub(
             mut group: CoreGroup,
             backend: &impl OpenMlsCryptoProvider,
             ciphersuite: Ciphersuite,
@@ -408,14 +427,15 @@ pub fn run_test_vector(
         }
 
         test_proposal_pub(
-            setup_group(backend, ciphersuite, &test, false),
+            setup_group(backend, ciphersuite, &test, false).await,
             backend,
             ciphersuite,
             proposal.clone(),
             proposal_pub,
-        );
+        )
+        .await;
 
-        fn test_proposal_priv(
+        async fn test_proposal_priv(
             mut group: CoreGroup,
             backend: &impl OpenMlsCryptoProvider,
             proposal: ProposalIn,
@@ -434,6 +454,7 @@ pub fn run_test_vector(
                     &proposal_store,
                     &[],
                 )
+                .await
                 .unwrap();
 
             // check that proposal == processed_message
@@ -445,12 +466,12 @@ pub fn run_test_vector(
             }
         }
 
-        let group = setup_group(backend, ciphersuite, &test, false);
-        test_proposal_priv(group, backend, proposal.clone(), proposal_priv);
+        let group = setup_group(backend, ciphersuite, &test, false).await;
+        test_proposal_priv(group, backend, proposal.clone(), proposal_priv).await;
 
         // Wrap `proposal` into a `PrivateMessage`.
-        let group = setup_group(backend, ciphersuite, &test, false);
-        let mut sender_group = setup_group(backend, ciphersuite, &test, true);
+        let group = setup_group(backend, ciphersuite, &test, false).await;
+        let mut sender_group = setup_group(backend, ciphersuite, &test, true).await;
         let proposal_authenticated_content = AuthenticatedContent::member_proposal(
             FramingParameters::new(&[], WireFormat::PrivateMessage),
             sender_index,
@@ -470,11 +491,12 @@ pub fn run_test_vector(
             backend,
             proposal.clone(),
             my_proposal_priv_out.into(),
-        );
+        )
+        .await;
 
         // Wrap `proposal` into a `PublicMessage`.
-        let group = setup_group(backend, ciphersuite, &test, false);
-        let sender_group = setup_group(backend, ciphersuite, &test, true);
+        let group = setup_group(backend, ciphersuite, &test, false).await;
+        let sender_group = setup_group(backend, ciphersuite, &test, true).await;
         let proposal_authenticated_content = AuthenticatedContent::member_proposal(
             FramingParameters::new(&[], WireFormat::PublicMessage),
             sender_index,
@@ -499,7 +521,8 @@ pub fn run_test_vector(
             ciphersuite,
             proposal,
             my_proposal_pub_out.into(),
-        );
+        )
+        .await;
     }
 
     // Commit
@@ -546,7 +569,7 @@ pub fn run_test_vector(
         }
 
         test_commit_pub(
-            setup_group(backend, ciphersuite, &test, false),
+            setup_group(backend, ciphersuite, &test, false).await,
             backend,
             ciphersuite,
             commit.clone(),
@@ -589,7 +612,7 @@ pub fn run_test_vector(
         }
 
         test_commit_priv(
-            setup_group(backend, ciphersuite, &test, false),
+            setup_group(backend, ciphersuite, &test, false).await,
             backend,
             ciphersuite,
             commit.clone(),
@@ -597,8 +620,8 @@ pub fn run_test_vector(
         );
 
         // Wrap `commit` into a `PrivateMessage`.
-        let group = setup_group(backend, ciphersuite, &test, false);
-        let mut sender_group = setup_group(backend, ciphersuite, &test, true);
+        let group = setup_group(backend, ciphersuite, &test, false).await;
+        let mut sender_group = setup_group(backend, ciphersuite, &test, true).await;
         let mut commit_authenticated_content = AuthenticatedContent::commit(
             FramingParameters::new(&[], WireFormat::PrivateMessage),
             Sender::Member(sender_index),
@@ -625,8 +648,8 @@ pub fn run_test_vector(
         );
 
         // Wrap `commit` into a `PublicMessage`.
-        let group = setup_group(backend, ciphersuite, &test, false);
-        let sender_group = setup_group(backend, ciphersuite, &test, true);
+        let group = setup_group(backend, ciphersuite, &test, false).await;
+        let sender_group = setup_group(backend, ciphersuite, &test, true).await;
         let mut commit_authenticated_content = AuthenticatedContent::commit(
             FramingParameters::new(&[], WireFormat::PublicMessage),
             Sender::Member(sender_index),
@@ -663,7 +686,7 @@ pub fn run_test_vector(
         let application_priv =
             MlsMessageIn::tls_deserialize_exact(hex_to_bytes(&test.application_priv)).unwrap();
 
-        fn test_application_priv(
+        async fn test_application_priv(
             mut group: CoreGroup,
             backend: &impl OpenMlsCryptoProvider,
             application: Vec<u8>,
@@ -682,6 +705,7 @@ pub fn run_test_vector(
                     &proposal_store,
                     &[],
                 )
+                .await
                 .unwrap();
             match processed_message.into_content() {
                 ProcessedMessageContent::ApplicationMessage(a) => {
@@ -692,14 +716,15 @@ pub fn run_test_vector(
         }
 
         test_application_priv(
-            setup_group(backend, ciphersuite, &test, false),
+            setup_group(backend, ciphersuite, &test, false).await,
             backend,
             application.clone(),
             application_priv,
-        );
+        )
+        .await;
 
         // Wrap `application` into a `PrivateMessage`.
-        let mut sender_group = setup_group(backend, ciphersuite, &test, true);
+        let mut sender_group = setup_group(backend, ciphersuite, &test, true).await;
         let private_message = sender_group
             .create_application_message(&[], &application, 0, backend, &signer)
             .unwrap();
@@ -707,11 +732,12 @@ pub fn run_test_vector(
             MlsMessageOut::from_private_message(private_message, sender_group.version());
 
         test_application_priv(
-            setup_group(backend, ciphersuite, &test, false),
+            setup_group(backend, ciphersuite, &test, false).await,
             backend,
             application.clone(),
             my_application_priv_out.into(),
-        );
+        )
+        .await;
     }
 
     log::trace!("Finished test verification");
@@ -720,14 +746,14 @@ pub fn run_test_vector(
 }
 
 #[apply(backends)]
-fn read_test_vectors_mp(backend: &impl OpenMlsCryptoProvider) {
+async fn read_test_vectors_mp(backend: &impl OpenMlsCryptoProvider) {
     let _ = pretty_env_logger::try_init();
     log::debug!("Reading test vectors ...");
 
     let tests: Vec<MessageProtectionTest> = read("test_vectors/message-protection.json");
 
     for test_vector in tests {
-        match run_test_vector(test_vector, backend) {
+        match run_test_vector(test_vector, backend).await {
             Ok(_) => {}
             Err(e) => panic!("Error while checking message protection test vector.\n{e:?}"),
         }

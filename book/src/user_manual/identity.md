@@ -15,11 +15,10 @@ Note that the implementation of the Authentication Service and, thus, the detail
 ## Creating and using credentials
 
 OpenMLS allows clients to create `Credentials`.
-A `BasicCredential`, currently the only credential type supported by OpenMLS, consists only of the `identity`.
-Thus, to create a fresh `Credential`, the following inputs are required:
+A `BasicCredential`, consists only of the `identity`.
+Thus, to create a fresh `Credential`, the following input is required:
 
 - `identity: Vec<u8>`: An octet string that uniquely identifies the client.
-- `credential_type: CredentialType`: The type of the credential, in this case `CredentialType::Basic`.
 
 ```rust,no_run,noplayground
 {{#include ../../../openmls/tests/book_code.rs:create_basic_credential}}

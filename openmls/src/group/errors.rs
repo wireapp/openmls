@@ -6,13 +6,15 @@ use thiserror::Error;
 
 pub use super::mls_group::errors::*;
 use super::public_group::errors::{CreationFromExternalError, PublicGroupBuildError};
+use crate::prelude::KeyPackageDeleteError;
 use crate::{
     ciphersuite::signable::SignatureError,
     error::LibraryError,
-    extensions::errors::{ExtensionError, InvalidExtensionError},
+    extensions::errors::InvalidExtensionError,
     framing::errors::{MessageDecryptionError, SenderError},
-    key_packages::errors::KeyPackageVerifyError,
-    key_packages::errors::{KeyPackageExtensionSupportError, KeyPackageNewError},
+    key_packages::errors::{
+        KeyPackageExtensionSupportError, KeyPackageNewError, KeyPackageVerifyError,
+    },
     messages::{group_info::GroupInfoError, GroupSecretsError},
     schedule::errors::PskError,
     treesync::errors::*,
@@ -88,6 +90,12 @@ pub enum WelcomeError<KeyStoreError> {
     /// This error indicates the leaf node is invalid. See [`LeafNodeValidationError`] for more details.
     #[error(transparent)]
     LeafNodeValidation(#[from] LeafNodeValidationError),
+    /// Group epoch must be 0 if the the welcome message contains reinit or branch psks
+    #[error("Group epoch must be 0 if the the welcome message contains reinit or branch psks")]
+    InvalidEpoch,
+    /// Failed deleting the KeyPackage
+    #[error(transparent)]
+    KeyPackageDeleteError(#[from] KeyPackageDeleteError<KeyStoreError>),
 }
 
 /// External Commit error
@@ -361,6 +369,23 @@ pub enum ProposalValidationError {
     /// See [`PskError`] for more details.
     #[error(transparent)]
     Psk(#[from] PskError),
+    /// There cannot be more than 1 GroupContextExtensions proposal in a commit
+    #[error("Expected at most 1 GroupContextExtensions proposal, found {0}")]
+    TooManyGroupContextExtensions(usize),
+    /// See [`ReInitValidationError`] for more details.
+    #[error(transparent)]
+    ReInit(#[from] ReInitValidationError),
+}
+
+/// ReInit validation error
+#[derive(Error, Debug, PartialEq, Clone)]
+pub enum ReInitValidationError {
+    /// See [`LeafNodeValidationError`] for more details.
+    #[error(transparent)]
+    LeafNode(#[from] LeafNodeValidationError),
+    /// ReInit cannot set new group to an older version of the protocol
+    #[error("ReInit cannot set new group to an older version of the protocol")]
+    ReInitOldVersion,
 }
 
 /// External Commit validaton error
@@ -412,7 +437,7 @@ pub enum CreateAddProposalError {
 
 /// Exporter error
 #[derive(Error, Debug, PartialEq, Clone)]
-pub(crate) enum ExporterError {
+pub enum ExporterError {
     /// See [`LibraryError`] for more details.
     #[error(transparent)]
     LibraryError(#[from] LibraryError),
@@ -422,7 +447,7 @@ pub(crate) enum ExporterError {
 
 /// Proposal queue error
 #[derive(Error, Debug, PartialEq, Clone)]
-pub(crate) enum ProposalQueueError {
+pub enum ProposalQueueError {
     /// See [`LibraryError`] for more details.
     #[error(transparent)]
     LibraryError(#[from] LibraryError),
@@ -434,10 +459,10 @@ pub(crate) enum ProposalQueueError {
     SenderError(#[from] SenderError),
 }
 
-/// Errors that can arise when creating a [`ProposalQueue`] from committed
+/// Errors that can arise when creating a [`crate::group::core_group::proposals::ProposalQueue`] from committed
 /// proposals.
 #[derive(Error, Debug, PartialEq, Clone)]
-pub(crate) enum FromCommittedProposalsError {
+pub enum FromCommittedProposalsError {
     /// See [`LibraryError`] for more details.
     #[error(transparent)]
     LibraryError(#[from] LibraryError),
@@ -451,7 +476,7 @@ pub(crate) enum FromCommittedProposalsError {
 
 /// Creation proposal queue error
 #[derive(Error, Debug, PartialEq, Clone)]
-pub(crate) enum CreationProposalQueueError {
+pub enum CreationProposalQueueError {
     /// See [`LibraryError`] for more details.
     #[error(transparent)]
     LibraryError(#[from] LibraryError),
@@ -462,15 +487,18 @@ pub(crate) enum CreationProposalQueueError {
 
 // Apply proposals error
 #[derive(Error, Debug, PartialEq, Clone)]
-pub(crate) enum ApplyProposalsError {
+pub enum ApplyProposalsError {
     /// See [`LibraryError`] for more details.
     #[error(transparent)]
     LibraryError(#[from] LibraryError),
+    /// See [`KeyPackageExtensionSupportError`] for more details.
+    #[error(transparent)]
+    KeyPackageExtensionSupportError(#[from] KeyPackageExtensionSupportError),
 }
 
 // Core group build error
 #[derive(Error, Debug, PartialEq, Clone)]
-pub(crate) enum CoreGroupBuildError<KeyStoreError> {
+pub enum CoreGroupBuildError<KeyStoreError> {
     /// See [`LibraryError`] for more details.
     #[error(transparent)]
     LibraryError(#[from] LibraryError),
@@ -487,7 +515,7 @@ pub(crate) enum CoreGroupBuildError<KeyStoreError> {
 
 // CoreGroup parse message error
 #[derive(Error, Debug, PartialEq, Clone)]
-pub(crate) enum CoreGroupParseMessageError {
+pub enum CoreGroupParseMessageError {
     /// See [`LibraryError`] for more details.
     #[error(transparent)]
     LibraryError(#[from] LibraryError),
@@ -496,26 +524,6 @@ pub(crate) enum CoreGroupParseMessageError {
     /// See [`ValidationError`] for more details.
     #[error(transparent)]
     ValidationError(#[from] ValidationError),
-}
-
-/// Create group context ext proposal error
-#[derive(Error, Debug, PartialEq, Clone)]
-pub(crate) enum CreateGroupContextExtProposalError {
-    /// See [`LibraryError`] for more details.
-    #[error(transparent)]
-    LibraryError(#[from] LibraryError),
-    /// See [`KeyPackageExtensionSupportError`] for more details.
-    #[error(transparent)]
-    KeyPackageExtensionSupport(#[from] KeyPackageExtensionSupportError),
-    /// See [`TreeSyncError`] for more details.
-    #[error(transparent)]
-    TreeSyncError(#[from] TreeSyncError),
-    /// See [`ExtensionError`] for more details.
-    #[error(transparent)]
-    Extension(#[from] ExtensionError),
-    /// See [`LeafNodeValidationError`] for more details.
-    #[error(transparent)]
-    LeafNodeValidation(#[from] LeafNodeValidationError),
 }
 
 /// Error merging a commit.

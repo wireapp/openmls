@@ -35,6 +35,7 @@ mod codec;
 #[cfg(test)]
 mod tests;
 use errors::*;
+use x509_cert::{der::Decode, PkiPath};
 
 use crate::ciphersuite::SignaturePublicKey;
 
@@ -139,15 +140,33 @@ impl From<CredentialType> for u16 {
 ///     opaque cert_data<V>;
 /// } Certificate;
 /// ```
-#[derive(Debug, PartialEq, Eq, Clone, Serialize, Deserialize)]
+#[derive(
+    Debug, PartialEq, Eq, Clone, Serialize, Deserialize, TlsSerialize, TlsDeserialize, TlsSize,
+)]
 pub struct Certificate {
-    cert_data: Vec<u8>,
+    pub identity: VLBytes,
+    pub cert_data: Vec<VLBytes>,
+}
+
+impl Certificate {
+    pub(crate) fn pki_path(&self) -> Result<PkiPath, CredentialError> {
+        self.cert_data.iter().try_fold(
+            PkiPath::new(),
+            |mut acc, cert_data| -> Result<PkiPath, CredentialError> {
+                acc.push(x509_cert::Certificate::from_der(cert_data.as_slice())?);
+                Ok(acc)
+            },
+        )
+    }
 }
 
 /// MlsCredentialType.
 ///
 /// This enum contains variants containing the different available credentials.
-#[derive(Debug, PartialEq, Eq, Clone, Serialize, Deserialize)]
+#[derive(
+    Debug, PartialEq, Eq, Clone, Serialize, Deserialize, TlsSerialize, TlsDeserialize, TlsSize,
+)]
+#[repr(u8)]
 pub enum MlsCredentialType {
     /// A [`BasicCredential`]
     Basic(BasicCredential),
@@ -184,27 +203,36 @@ impl Credential {
         self.credential_type
     }
 
-    /// Creates and returns a new [`Credential`] of the given
-    /// [`CredentialType`] for the given identity.
+    pub fn mls_credential(&self) -> &MlsCredentialType {
+        &self.credential
+    }
+
+    /// Creates and returns a new basic [`Credential`] for the given identity.
     /// If the credential holds key material, this is generated and stored in
     /// the key store.
-    ///
-    /// Returns an error if the given [`CredentialType`] is not supported.
-    pub fn new(
-        identity: Vec<u8>,
-        credential_type: CredentialType,
-    ) -> Result<Self, CredentialError> {
-        let mls_credential = match credential_type {
-            CredentialType::Basic => BasicCredential {
+    pub fn new_basic(identity: Vec<u8>) -> Self {
+        Self {
+            credential_type: CredentialType::Basic,
+            credential: MlsCredentialType::Basic(BasicCredential {
                 identity: identity.into(),
-            },
-            _ => return Err(CredentialError::UnsupportedCredentialType),
-        };
-        let credential = Credential {
-            credential_type,
-            credential: MlsCredentialType::Basic(mls_credential),
-        };
-        Ok(credential)
+            }),
+        }
+    }
+
+    /// Creates and returns a new X509 [`Credential`] for the given identity.
+    /// If the credential holds key material, this is generated and stored in
+    /// the key store.
+    pub fn new_x509(identity: Vec<u8>, cert_data: Vec<Vec<u8>>) -> Result<Self, CredentialError> {
+        if cert_data.len() < 2 {
+            return Err(CredentialError::IncompleteCertificateChain);
+        }
+        Ok(Self {
+            credential_type: CredentialType::X509,
+            credential: MlsCredentialType::X509(Certificate {
+                identity: identity.into(),
+                cert_data: cert_data.into_iter().map(|c| c.into()).collect(),
+            }),
+        })
     }
 
     /// Returns the identity of a given credential.
@@ -212,7 +240,7 @@ impl Credential {
         match &self.credential {
             MlsCredentialType::Basic(basic_credential) => basic_credential.identity.as_slice(),
             // TODO: implement getter for identity for X509 certificates. See issue #134.
-            MlsCredentialType::X509(_) => panic!("X509 certificates are not yet implemented."),
+            MlsCredentialType::X509(cred) => cred.identity.as_slice(),
         }
     }
 }
@@ -268,24 +296,71 @@ impl CredentialWithKey {
 #[cfg(any(test, feature = "test-utils"))]
 pub mod test_utils {
     use openmls_basic_credential::SignatureKeyPair;
-    use openmls_traits::{types::SignatureScheme, OpenMlsCryptoProvider};
+    use openmls_traits::{random::OpenMlsRand, types::SignatureScheme, OpenMlsCryptoProvider};
 
     use super::{Credential, CredentialType, CredentialWithKey};
+
+    /// Convenience function that generates a new credential and a key pair for
+    /// it (using the x509 credential crate).
+    /// The signature keys are stored in the key store.
+    ///
+    /// Returns the [`Credential`] and the [`SignatureKeyPair`].
+    pub async fn new_x509_credential(
+        backend: &impl OpenMlsCryptoProvider,
+        identity: &[u8],
+        signature_scheme: SignatureScheme,
+        cert_data: Vec<Vec<u8>>,
+    ) -> (CredentialWithKey, SignatureKeyPair) {
+        build_credential(
+            backend,
+            identity,
+            CredentialType::X509,
+            signature_scheme,
+            Some(cert_data),
+        )
+        .await
+    }
 
     /// Convenience function that generates a new credential and a key pair for
     /// it (using the basic credential crate).
     /// The signature keys are stored in the key store.
     ///
     /// Returns the [`Credential`] and the [`SignatureKeyPair`].
-    pub fn new_credential(
+    pub async fn new_credential(
+        backend: &impl OpenMlsCryptoProvider,
+        identity: &[u8],
+        signature_scheme: SignatureScheme,
+    ) -> (CredentialWithKey, SignatureKeyPair) {
+        build_credential(
+            backend,
+            identity,
+            CredentialType::Basic,
+            signature_scheme,
+            None,
+        )
+        .await
+    }
+
+    async fn build_credential(
         backend: &impl OpenMlsCryptoProvider,
         identity: &[u8],
         credential_type: CredentialType,
         signature_scheme: SignatureScheme,
+        cert_data: Option<Vec<Vec<u8>>>,
     ) -> (CredentialWithKey, SignatureKeyPair) {
-        let credential = Credential::new(identity.into(), credential_type).unwrap();
-        let signature_keys = SignatureKeyPair::new(signature_scheme).unwrap();
-        signature_keys.store(backend.key_store()).unwrap();
+        let credential = match credential_type {
+            CredentialType::Basic => Credential::new_basic(identity.into()),
+            CredentialType::X509 => {
+                Credential::new_x509(identity.into(), cert_data.unwrap()).unwrap()
+            }
+            CredentialType::Unknown(_) => unimplemented!(),
+        };
+        let signature_keys = SignatureKeyPair::new(
+            signature_scheme,
+            &mut *backend.rand().borrow_rand().unwrap(),
+        )
+        .unwrap();
+        signature_keys.store(backend.key_store()).await.unwrap();
 
         (
             CredentialWithKey {

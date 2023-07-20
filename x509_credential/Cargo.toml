@@ -1,0 +1,20 @@
+[package]
+name = "openmls_x509_credential"
+version = "0.1.0"
+edition = "2021"
+description = "A Basic Credential implementation for OpenMLS"
+license = "MIT"
+readme = "README.md"
+
+[dependencies]
+openmls_traits = { version = "0.1.0", path = "../traits" }
+tls_codec = { workspace = true }
+async-trait = { workspace = true }
+serde = "1.0"
+openmls_basic_credential = { version = "0.1.0", path = "../basic_credential" }
+fluvio-wasm-timer = "0.2"
+
+# Rust Crypto
+secrecy = { version = "0.8", features = ["serde"] }
+x509-cert = "0.2"
+oid-registry = "0.6"

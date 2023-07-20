@@ -4,6 +4,8 @@
 //! Most tests require to set up groups, clients, credentials, and identities.
 //! This module implements helpers to do that.
 
+#![allow(clippy::await_holding_refcell_ref)]
+
 use std::{cell::RefCell, collections::HashMap};
 
 use config::CryptoConfig;
@@ -80,7 +82,10 @@ pub(crate) struct TestSetup {
 const KEY_PACKAGE_COUNT: usize = 10;
 
 /// The setup function creates a set of groups and clients.
-pub(crate) fn setup(config: TestSetupConfig, backend: &impl OpenMlsCryptoProvider) -> TestSetup {
+pub(crate) async fn setup(
+    config: TestSetupConfig,
+    backend: &impl OpenMlsCryptoProvider,
+) -> TestSetup {
     let mut test_clients: HashMap<&'static str, RefCell<TestClient>> = HashMap::new();
     let mut key_store: HashMap<(&'static str, Ciphersuite), Vec<KeyPackage>> = HashMap::new();
     // Initialize the clients for which we have configurations.
@@ -96,7 +101,8 @@ pub(crate) fn setup(config: TestSetupConfig, backend: &impl OpenMlsCryptoProvide
                 client.name.as_bytes().to_vec(),
                 ciphersuite.signature_algorithm(),
                 backend,
-            );
+            )
+            .await;
             // Create a number of key packages.
             let mut key_packages = Vec::new();
             for _ in 0..KEY_PACKAGE_COUNT {
@@ -105,7 +111,8 @@ pub(crate) fn setup(config: TestSetupConfig, backend: &impl OpenMlsCryptoProvide
                     &credentia_with_key_and_signer.signer,
                     ciphersuite,
                     credentia_with_key_and_signer.credential_with_key.clone(),
-                );
+                )
+                .await;
                 key_packages.push(key_package_bundle.key_package().clone());
                 key_package_bundles.push(key_package_bundle);
             }
@@ -146,6 +153,7 @@ pub(crate) fn setup(config: TestSetupConfig, backend: &impl OpenMlsCryptoProvide
         )
         .with_config(group_config.config)
         .build(backend, &credential_with_key_and_signer.signer)
+        .await
         .expect("Error creating new CoreGroup");
         let mut proposal_list = Vec::new();
         let group_aad = b"";
@@ -203,6 +211,7 @@ pub(crate) fn setup(config: TestSetupConfig, backend: &impl OpenMlsCryptoProvide
                 .build();
             let create_commit_result = core_group
                 .create_commit(params, backend, &credential_with_key_and_signer.signer)
+                .await
                 .expect("An unexpected error occurred.");
             let welcome = create_commit_result
                 .welcome_option
@@ -214,6 +223,7 @@ pub(crate) fn setup(config: TestSetupConfig, backend: &impl OpenMlsCryptoProvide
                     create_commit_result.staged_commit,
                     &mut proposal_store,
                 )
+                .await
                 .expect("Error merging commit.");
 
             // Distribute the Welcome message to the other members.
@@ -263,7 +273,9 @@ pub(crate) fn setup(config: TestSetupConfig, backend: &impl OpenMlsCryptoProvide
                     key_package_bundle,
                     backend,
                     ResumptionPskStore::new(1024),
-                ) {
+                )
+                .await
+                {
                     Ok(group) => group,
                     Err(err) => panic!("Error creating new group from Welcome: {err:?}"),
                 };
@@ -299,7 +311,7 @@ fn test_random() {
 }
 
 #[apply(backends)]
-fn test_setup(backend: &impl OpenMlsCryptoProvider) {
+async fn test_setup(backend: &impl OpenMlsCryptoProvider) {
     let test_client_config_a = TestClientConfig {
         name: "TestClientConfigA",
         ciphersuites: vec![Ciphersuite::MLS_128_DHKEMX25519_AES128GCM_SHA256_Ed25519],
@@ -328,15 +340,19 @@ pub(crate) struct CredentialWithKeyAndSigner {
 }
 
 // Helper function to generate a CredentialWithKeyAndSigner
-pub(crate) fn generate_credential_with_key(
+pub(crate) async fn generate_credential_with_key(
     identity: Vec<u8>,
     signature_scheme: SignatureScheme,
     backend: &impl OpenMlsCryptoProvider,
 ) -> CredentialWithKeyAndSigner {
     let (credential, signer) = {
-        let credential = Credential::new(identity, CredentialType::Basic).unwrap();
-        let signature_keys = SignatureKeyPair::new(signature_scheme).unwrap();
-        signature_keys.store(backend.key_store()).unwrap();
+        let credential = Credential::new_basic(identity);
+        let signature_keys = SignatureKeyPair::new(
+            signature_scheme,
+            &mut *backend.rand().borrow_rand().unwrap(),
+        )
+        .unwrap();
+        signature_keys.store(backend.key_store()).await.unwrap();
 
         (credential, signature_keys)
     };
@@ -353,7 +369,7 @@ pub(crate) fn generate_credential_with_key(
 }
 
 // Helper function to generate a KeyPackageBundle
-pub(crate) fn generate_key_package<KeyStore: OpenMlsKeyStore>(
+pub(crate) async fn generate_key_package<KeyStore: OpenMlsKeyStore>(
     ciphersuite: Ciphersuite,
     extensions: Extensions,
     backend: &impl OpenMlsCryptoProvider<KeyStoreProvider = KeyStore>,
@@ -370,6 +386,7 @@ pub(crate) fn generate_key_package<KeyStore: OpenMlsKeyStore>(
             &credential_with_keys.signer,
             credential_with_keys.credential_with_key,
         )
+        .await
         .unwrap()
 }
 

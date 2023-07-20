@@ -9,10 +9,13 @@ use crate::{
     test_utils::*,
 };
 
+wasm_bindgen_test::wasm_bindgen_test_configure!(run_in_browser);
+
 /// Test the encoding for PreSharedKeyProposal, that also covers some of the
 /// other PSK-related structs
 #[apply(backends)]
-fn test_pre_shared_key_proposal_codec(backend: &impl OpenMlsCryptoProvider) {
+#[wasm_bindgen_test::wasm_bindgen_test]
+async fn test_pre_shared_key_proposal_codec(backend: &impl OpenMlsCryptoProvider) {
     // External
     let psk = PreSharedKeyId {
         psk: Psk::External(ExternalPsk::new(vec![1, 2, 3])),
@@ -80,7 +83,11 @@ fn test_pre_shared_key_proposal_codec(backend: &impl OpenMlsCryptoProvider) {
 /// Test the encoding for ReInitProposal, that also covers some of the
 /// other PSK-related structs
 #[apply(ciphersuites_and_backends)]
-fn test_reinit_proposal_codec(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider) {
+#[wasm_bindgen_test::wasm_bindgen_test]
+async fn test_reinit_proposal_codec(
+    ciphersuite: Ciphersuite,
+    backend: &impl OpenMlsCryptoProvider,
+) {
     let orig = ReInitProposal {
         group_id: GroupId::random(backend),
         version: ProtocolVersion::default(),

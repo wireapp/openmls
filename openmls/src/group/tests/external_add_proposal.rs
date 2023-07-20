@@ -17,13 +17,15 @@ use openmls_traits::types::Ciphersuite;
 
 use super::utils::*;
 
+wasm_bindgen_test::wasm_bindgen_test_configure!(run_in_browser);
+
 struct ProposalValidationTestSetup {
     alice_group: (MlsGroup, SignatureKeyPair),
     bob_group: (MlsGroup, SignatureKeyPair),
 }
 
 // Creates a standalone group
-fn new_test_group(
+async fn new_test_group(
     identity: &str,
     wire_format_policy: WireFormatPolicy,
     ciphersuite: Ciphersuite,
@@ -33,7 +35,8 @@ fn new_test_group(
 
     // Generate credentials with keys
     let credential_with_keys =
-        generate_credential_with_key(identity.into(), ciphersuite.signature_algorithm(), backend);
+        generate_credential_with_key(identity.into(), ciphersuite.signature_algorithm(), backend)
+            .await;
 
     // Define the MlsGroup configuration
     let mls_group_config = MlsGroupConfig::builder()
@@ -49,37 +52,42 @@ fn new_test_group(
             group_id,
             credential_with_keys.credential_with_key.clone(),
         )
+        .await
         .unwrap(),
         credential_with_keys,
     )
 }
 
 // Validation test setup
-fn validation_test_setup(
+async fn validation_test_setup(
     wire_format_policy: WireFormatPolicy,
     ciphersuite: Ciphersuite,
     backend: &impl OpenMlsCryptoProvider,
 ) -> ProposalValidationTestSetup {
     // === Alice creates a group ===
     let (mut alice_group, alice_signer_with_keys) =
-        new_test_group("Alice", wire_format_policy, ciphersuite, backend);
+        new_test_group("Alice", wire_format_policy, ciphersuite, backend).await;
 
     let bob_credential_with_key =
-        generate_credential_with_key("Bob".into(), ciphersuite.signature_algorithm(), backend);
+        generate_credential_with_key("Bob".into(), ciphersuite.signature_algorithm(), backend)
+            .await;
 
     let bob_key_package = generate_key_package(
         ciphersuite,
         Extensions::empty(),
         backend,
         bob_credential_with_key.clone(),
-    );
+    )
+    .await;
 
     let (_message, welcome, _group_info) = alice_group
         .add_members(backend, &alice_signer_with_keys.signer, &[bob_key_package])
+        .await
         .expect("error adding Bob to group");
 
     alice_group
         .merge_pending_commit(backend)
+        .await
         .expect("error merging pending commit");
 
     // Define the MlsGroup configuration
@@ -94,6 +102,7 @@ fn validation_test_setup(
         welcome.into_welcome().expect("Unexpected message type."),
         Some(alice_group.export_ratchet_tree().into()),
     )
+    .await
     .expect("error creating group from welcome");
 
     ProposalValidationTestSetup {
@@ -103,7 +112,8 @@ fn validation_test_setup(
 }
 
 #[apply(ciphersuites_and_backends)]
-fn external_add_proposal_should_succeed(
+#[wasm_bindgen_test::wasm_bindgen_test]
+async fn external_add_proposal_should_succeed(
     ciphersuite: Ciphersuite,
     backend: &impl OpenMlsCryptoProvider,
 ) {
@@ -111,7 +121,7 @@ fn external_add_proposal_should_succeed(
         let ProposalValidationTestSetup {
             alice_group,
             bob_group,
-        } = validation_test_setup(policy, ciphersuite, backend);
+        } = validation_test_setup(policy, ciphersuite, backend).await;
         let (mut alice_group, alice_signer) = alice_group;
         let (mut bob_group, _bob_signer) = bob_group;
 
@@ -123,14 +133,16 @@ fn external_add_proposal_should_succeed(
             "Charlie".into(),
             ciphersuite.signature_algorithm(),
             backend,
-        );
+        )
+        .await;
 
         let charlie_kp = generate_key_package(
             ciphersuite,
             Extensions::empty(),
             backend,
             charlie_credential.clone(),
-        );
+        )
+        .await;
 
         let proposal = JoinProposal::new(
             charlie_kp.clone(),
@@ -152,6 +164,7 @@ fn external_add_proposal_should_succeed(
 
         let msg = alice_group
             .process_message(backend, proposal.clone().into_protocol_message().unwrap())
+            .await
             .unwrap();
 
         match msg.into_content() {
@@ -168,6 +181,7 @@ fn external_add_proposal_should_succeed(
 
         let msg = bob_group
             .process_message(backend, proposal.into_protocol_message().unwrap())
+            .await
             .unwrap();
 
         match msg.into_content() {
@@ -180,18 +194,21 @@ fn external_add_proposal_should_succeed(
         // and Alice will commit it
         let (commit, welcome, _group_info) = alice_group
             .commit_to_pending_proposals(backend, &alice_signer)
+            .await
             .unwrap();
-        alice_group.merge_pending_commit(backend).unwrap();
+        alice_group.merge_pending_commit(backend).await.unwrap();
         assert_eq!(alice_group.members().count(), 3);
 
         // Bob will also process the commit
         let msg = bob_group
             .process_message(backend, commit.into_protocol_message().unwrap())
+            .await
             .unwrap();
         match msg.into_content() {
-            ProcessedMessageContent::StagedCommitMessage(commit) => {
-                bob_group.merge_staged_commit(backend, *commit).unwrap()
-            }
+            ProcessedMessageContent::StagedCommitMessage(commit) => bob_group
+                .merge_staged_commit(backend, *commit)
+                .await
+                .unwrap(),
             _ => unreachable!(),
         }
         assert_eq!(bob_group.members().count(), 3);
@@ -207,36 +224,41 @@ fn external_add_proposal_should_succeed(
             welcome.unwrap().into_welcome().unwrap(),
             Some(alice_group.export_ratchet_tree().into()),
         )
+        .await
         .unwrap();
         assert_eq!(charlie_group.members().count(), 3);
     }
 }
 
 #[apply(ciphersuites_and_backends)]
-fn external_add_proposal_should_be_signed_by_key_package_it_references(
+#[wasm_bindgen_test::wasm_bindgen_test]
+async fn external_add_proposal_should_be_signed_by_key_package_it_references(
     ciphersuite: Ciphersuite,
     backend: &impl OpenMlsCryptoProvider,
 ) {
     let ProposalValidationTestSetup { alice_group, .. } =
-        validation_test_setup(PURE_PLAINTEXT_WIRE_FORMAT_POLICY, ciphersuite, backend);
+        validation_test_setup(PURE_PLAINTEXT_WIRE_FORMAT_POLICY, ciphersuite, backend).await;
     let (mut alice_group, _alice_signer) = alice_group;
 
     let attacker_credential = generate_credential_with_key(
         "Attacker".into(),
         ciphersuite.signature_algorithm(),
         backend,
-    );
+    )
+    .await;
 
     // A new client, Charlie, will now ask joining with an external Add proposal
     let charlie_credential =
-        generate_credential_with_key("Charlie".into(), ciphersuite.signature_algorithm(), backend);
+        generate_credential_with_key("Charlie".into(), ciphersuite.signature_algorithm(), backend)
+            .await;
 
     let charlie_kp = generate_key_package(
         ciphersuite,
         Extensions::empty(),
         backend,
         attacker_credential,
-    );
+    )
+    .await;
 
     let invalid_proposal = JoinProposal::new(
         charlie_kp,
@@ -250,6 +272,7 @@ fn external_add_proposal_should_be_signed_by_key_package_it_references(
     assert!(matches!(
         alice_group
             .process_message(backend, invalid_proposal.into_protocol_message().unwrap())
+            .await
             .unwrap_err(),
         ProcessMessageError::InvalidSignature
     ));
@@ -257,27 +280,30 @@ fn external_add_proposal_should_be_signed_by_key_package_it_references(
 
 // TODO #1093: move this test to a dedicated external proposal ValSem test module once all external proposals implemented
 #[apply(ciphersuites_and_backends)]
-fn new_member_proposal_sender_should_be_reserved_for_join_proposals(
+#[wasm_bindgen_test::wasm_bindgen_test]
+async fn new_member_proposal_sender_should_be_reserved_for_join_proposals(
     ciphersuite: Ciphersuite,
     backend: &impl OpenMlsCryptoProvider,
 ) {
     let ProposalValidationTestSetup {
         alice_group,
         bob_group,
-    } = validation_test_setup(PURE_PLAINTEXT_WIRE_FORMAT_POLICY, ciphersuite, backend);
+    } = validation_test_setup(PURE_PLAINTEXT_WIRE_FORMAT_POLICY, ciphersuite, backend).await;
     let (mut alice_group, alice_signer) = alice_group;
     let (mut bob_group, _bob_signer) = bob_group;
 
     // Add proposal can have a 'new_member_proposal' sender
     let any_credential =
-        generate_credential_with_key("Any".into(), ciphersuite.signature_algorithm(), backend);
+        generate_credential_with_key("Any".into(), ciphersuite.signature_algorithm(), backend)
+            .await;
 
     let any_kp = generate_key_package(
         ciphersuite,
         Extensions::empty(),
         backend,
         any_credential.clone(),
-    );
+    )
+    .await;
 
     let join_proposal = JoinProposal::new(
         any_kp,
@@ -300,6 +326,7 @@ fn new_member_proposal_sender_should_be_reserved_for_join_proposals(
         // Finally check that the message can be processed without errors
         assert!(bob_group
             .process_message(backend, join_proposal.into_protocol_message().unwrap())
+            .await
             .is_ok());
     } else {
         panic!()
@@ -314,7 +341,10 @@ fn new_member_proposal_sender_should_be_reserved_for_join_proposals(
     if let MlsMessageInBody::PublicMessage(mut plaintext) = remove_proposal.body {
         plaintext.set_sender(Sender::NewMemberProposal);
         assert!(matches!(
-            bob_group.process_message(backend, plaintext).unwrap_err(),
+            bob_group
+                .process_message(backend, plaintext)
+                .await
+                .unwrap_err(),
             ProcessMessageError::ValidationError(ValidationError::NotAnExternalAddProposal)
         ));
     } else {
@@ -324,13 +354,17 @@ fn new_member_proposal_sender_should_be_reserved_for_join_proposals(
 
     // Update proposal cannot have a 'new_member_proposal' sender
     let update_proposal = alice_group
-        .propose_self_update(backend, &alice_signer, None)
+        .propose_self_update(backend, &alice_signer)
+        .await
         .map(|(out, _)| MlsMessageIn::from(out))
         .unwrap();
     if let MlsMessageInBody::PublicMessage(mut plaintext) = update_proposal.body {
         plaintext.set_sender(Sender::NewMemberProposal);
         assert!(matches!(
-            bob_group.process_message(backend, plaintext).unwrap_err(),
+            bob_group
+                .process_message(backend, plaintext)
+                .await
+                .unwrap_err(),
             ProcessMessageError::ValidationError(ValidationError::NotAnExternalAddProposal)
         ));
     } else {

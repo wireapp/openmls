@@ -29,7 +29,7 @@ impl MlsGroup {
     /// Returns an error if there is a pending commit.
     // FIXME: #1217
     #[allow(clippy::type_complexity)]
-    pub fn add_members<KeyStore: OpenMlsKeyStore>(
+    pub async fn add_members<KeyStore: OpenMlsKeyStore>(
         &mut self,
         backend: &impl OpenMlsCryptoProvider<KeyStoreProvider = KeyStore>,
         signer: &impl Signer,
@@ -59,7 +59,7 @@ impl MlsGroup {
             .proposal_store(&self.proposal_store)
             .inline_proposals(inline_proposals)
             .build();
-        let create_commit_result = self.group.create_commit(params, backend, signer)?;
+        let create_commit_result = self.group.create_commit(params, backend, signer).await?;
 
         let welcome = match create_commit_result.welcome_option {
             Some(welcome) => welcome,
@@ -108,7 +108,7 @@ impl MlsGroup {
     /// Returns an error if there is a pending commit.
     // FIXME: #1217
     #[allow(clippy::type_complexity)]
-    pub fn remove_members<KeyStore: OpenMlsKeyStore>(
+    pub async fn remove_members<KeyStore: OpenMlsKeyStore>(
         &mut self,
         backend: &impl OpenMlsCryptoProvider<KeyStoreProvider = KeyStore>,
         signer: &impl Signer,
@@ -138,7 +138,8 @@ impl MlsGroup {
             .proposal_store(&self.proposal_store)
             .inline_proposals(inline_proposals)
             .build();
-        let create_commit_result = self.group.create_commit(params, backend, signer)?;
+
+        let create_commit_result = self.group.create_commit(params, backend, signer).await?;
 
         // Convert PublicMessage messages to MLSMessage and encrypt them if required by
         // the configuration

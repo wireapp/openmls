@@ -30,7 +30,7 @@
 use super::*;
 use crate::{
     group::config::CryptoConfig, key_packages::Lifetime,
-    tree::sender_ratchet::SenderRatchetConfiguration,
+    tree::sender_ratchet::SenderRatchetConfiguration, treesync::node::leaf_node::Capabilities,
 };
 use serde::{Deserialize, Serialize};
 
@@ -60,6 +60,12 @@ pub struct MlsGroupConfig {
     pub(crate) lifetime: Lifetime,
     /// Ciphersuite and protocol version
     pub(crate) crypto_config: CryptoConfig,
+    /// Extensions to be added to the own leaf node
+    pub(crate) leaf_extensions: Extensions,
+    /// Capabilities of the own leaf node
+    pub(crate) leaf_capabilities: Option<Capabilities>,
+    /// Extensions to be added to the group's context
+    pub(crate) trust_certificates: PerDomainTrustAnchorsExtension,
 }
 
 impl MlsGroupConfig {
@@ -111,6 +117,16 @@ impl MlsGroupConfig {
     /// Returns the [`CryptoConfig`].
     pub fn crypto_config(&self) -> &CryptoConfig {
         &self.crypto_config
+    }
+
+    /// Returns the [`MlsGroupConfig`] leaf extensions configuration.
+    pub fn leaf_extensions(&self) -> &Extensions {
+        &self.leaf_extensions
+    }
+
+    /// Returns the [`MlsGroupConfig`] group extensions configuration.
+    pub fn trust_certificates(&self) -> &PerDomainTrustAnchorsExtension {
+        &self.trust_certificates
     }
 
     #[cfg(any(feature = "test-utils", test))]
@@ -203,6 +219,29 @@ impl MlsGroupConfigBuilder {
     /// Sets the `external_senders` property of the MlsGroupConfig.
     pub fn external_senders(mut self, external_senders: ExternalSendersExtension) -> Self {
         self.config.external_senders = external_senders;
+        self
+    }
+
+    /// Sets the group creator's leaf extensions
+    pub fn leaf_extensions(mut self, leaf_extensions: Extensions) -> Self {
+        self.config.leaf_extensions = leaf_extensions;
+
+        self
+    }
+
+    /// Sets the group's context extensions
+    pub fn trust_certificates(
+        mut self,
+        trust_certificates: PerDomainTrustAnchorsExtension,
+    ) -> Self {
+        self.config.trust_certificates = trust_certificates;
+
+        self
+    }
+
+    /// Sets the group creator's leaf capabilities
+    pub fn leaf_capabilities(mut self, leaf_capabilities: Capabilities) -> Self {
+        self.config.leaf_capabilities = Some(leaf_capabilities);
         self
     }
 

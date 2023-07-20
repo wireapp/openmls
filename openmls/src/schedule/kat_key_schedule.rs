@@ -13,7 +13,7 @@ use tls_codec::Serialize as TlsSerializeTrait;
 
 use super::{errors::KsTestVectorError, CommitSecret};
 #[cfg(test)]
-use crate::test_utils::{read, write};
+use crate::test_utils::read;
 use crate::{ciphersuite::*, extensions::Extensions, group::*, schedule::*, test_utils::*};
 
 #[derive(Serialize, Deserialize, Debug, Clone, Default)]
@@ -133,7 +133,8 @@ fn generate(
     // Calculate external HPKE key pair
     let external_key_pair = epoch_secrets
         .external_secret()
-        .derive_external_keypair(crypto.crypto(), ciphersuite);
+        .derive_external_keypair(crypto.crypto(), ciphersuite)
+        .expect("Cannot generate ext HPKE KeyPair");
 
     (
         confirmed_transcript_hash,
@@ -238,19 +239,19 @@ pub fn generate_test_vector(
     }
 }
 
-#[test]
-fn write_test_vectors() {
-    const NUM_EPOCHS: u64 = 2;
-    let mut tests = Vec::new();
-    let backend = OpenMlsRustCrypto::default();
-    for &ciphersuite in backend.crypto().supported_ciphersuites().iter() {
-        tests.push(generate_test_vector(NUM_EPOCHS, ciphersuite, &backend));
-    }
-    write("test_vectors/key-schedule-new.json", &tests);
-}
+// #[test]
+// fn write_test_vectors() {
+//     const NUM_EPOCHS: u64 = 2;
+//     let mut tests = Vec::new();
+//     let backend = OpenMlsRustCrypto::default();
+//     for &ciphersuite in backend.crypto().supported_ciphersuites().iter() {
+//         tests.push(generate_test_vector(NUM_EPOCHS, ciphersuite, &backend));
+//     }
+//     write("test_vectors/key-schedule-new.json", &tests);
+// }
 
 #[apply(backends)]
-fn read_test_vectors_key_schedule(backend: &impl OpenMlsCryptoProvider) {
+async fn read_test_vectors_key_schedule(backend: &impl OpenMlsCryptoProvider) {
     let _ = pretty_env_logger::try_init();
 
     let tests: Vec<KeyScheduleTestVector> = read("test_vectors/key-schedule.json");
@@ -437,7 +438,8 @@ pub fn run_test_vector(
         // Calculate external HPKE key pair
         let external_key_pair = epoch_secrets
             .external_secret()
-            .derive_external_keypair(backend.crypto(), ciphersuite);
+            .derive_external_keypair(backend.crypto(), ciphersuite)
+            .expect("Cannot derive HPKE Keypair");
         if hex_to_bytes(&epoch.external_pub) != external_key_pair.public {
             log::error!("  External public key mismatch");
             log::debug!(

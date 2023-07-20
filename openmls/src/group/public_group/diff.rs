@@ -12,8 +12,9 @@ use super::PublicGroup;
 use crate::{
     binary_tree::{array_representation::TreeSize, LeafNodeIndex},
     error::LibraryError,
+    extensions::Extensions,
     framing::{mls_auth_content::AuthenticatedContent, public_message::InterimTranscriptHashInput},
-    group::GroupContext,
+    group::group_context::GroupContext,
     messages::{proposals::AddProposal, ConfirmationTag, EncryptedGroupSecrets},
     schedule::{psk::PreSharedKeyId, CommitSecret, JoinerSecret},
     treesync::{
@@ -200,6 +201,7 @@ impl<'a> PublicGroupDiff<'a> {
     pub(crate) fn update_group_context(
         &mut self,
         backend: &impl OpenMlsCryptoProvider,
+        extensions: Option<Extensions>,
     ) -> Result<(), LibraryError> {
         // Calculate tree hash
         let new_tree_hash = self
@@ -207,6 +209,9 @@ impl<'a> PublicGroupDiff<'a> {
             .compute_tree_hashes(backend, self.group_context().ciphersuite())?;
         self.group_context.update_tree_hash(new_tree_hash);
         self.group_context.increment_epoch();
+        if let Some(extensions) = extensions {
+            self.group_context.set_extensions(extensions);
+        }
         Ok(())
     }
 
@@ -232,10 +237,17 @@ impl<'a> PublicGroupDiff<'a> {
 
 /// The staged version of a [`PublicGroupDiff`], which means it can no longer be
 /// modified. Its only use is to merge it into the original [`PublicGroup`].
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub(crate) struct StagedPublicGroupDiff {
-    pub(super) staged_diff: StagedTreeSyncDiff,
+    pub(crate) staged_diff: StagedTreeSyncDiff,
     pub(super) group_context: GroupContext,
     pub(super) interim_transcript_hash: Vec<u8>,
-    pub(super) confirmation_tag: ConfirmationTag,
+    pub(crate) confirmation_tag: ConfirmationTag,
+}
+
+impl StagedPublicGroupDiff {
+    /// Get the staged [`GroupContext`].
+    pub(crate) fn group_context(&self) -> &GroupContext {
+        &self.group_context
+    }
 }

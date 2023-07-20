@@ -11,10 +11,10 @@ use crate::{
 };
 
 impl CoreGroup {
-    fn derive_epoch_secrets(
+    async fn derive_epoch_secrets(
         &self,
         backend: &impl OpenMlsCryptoProvider,
-        apply_proposals_values: ApplyProposalsValues,
+        apply_proposals_values: ApplyProposalsValues<'_>,
         epoch_secrets: &GroupEpochSecrets,
         commit_secret: CommitSecret,
         serialized_provisional_group_context: &[u8],
@@ -28,6 +28,7 @@ impl CoreGroup {
             let external_priv = epoch_secrets
                 .external_secret()
                 .derive_external_keypair(backend.crypto(), self.ciphersuite())
+                .map_err(LibraryError::unexpected_crypto_error)?
                 .private;
             let init_secret = InitSecret::from_kem_output(
                 backend,
@@ -59,9 +60,10 @@ impl CoreGroup {
                 backend.key_store(),
                 &self.resumption_psk_store,
                 &apply_proposals_values.presharedkeys,
-            )?;
+            )
+            .await?;
 
-            PskSecret::new(backend, self.ciphersuite(), psks)?
+            PskSecret::new(backend, self.ciphersuite(), psks).await?
         };
 
         // Create key schedule
@@ -111,7 +113,7 @@ impl CoreGroup {
     ///  - ValSem244
     /// Returns an error if the given commit was sent by the owner of this
     /// group.
-    pub(crate) fn stage_commit(
+    pub(crate) async fn stage_commit(
         &self,
         mls_content: &AuthenticatedContent,
         proposal_store: &ProposalStore,
@@ -156,7 +158,7 @@ impl CoreGroup {
                 diff.apply_received_update_path(backend, ciphersuite, sender_index, &path)?;
 
                 // Update group context
-                diff.update_group_context(backend)?;
+                diff.update_group_context(backend, apply_proposals_values.extensions.cloned())?;
 
                 let decryption_keypairs: Vec<&EncryptionKeyPair> = old_epoch_keypairs
                     .iter()
@@ -200,7 +202,7 @@ impl CoreGroup {
                 }
 
                 // Even if there is no path, we have to update the group context.
-                diff.update_group_context(backend)?;
+                diff.update_group_context(backend, apply_proposals_values.extensions.cloned())?;
 
                 (
                     CommitSecret::zero_secret(ciphersuite, self.version()),
@@ -228,7 +230,8 @@ impl CoreGroup {
                 self.group_epoch_secrets(),
                 commit_secret,
                 &serialized_provisional_group_context,
-            )?
+            )
+            .await?
             .split_secrets(
                 serialized_provisional_group_context,
                 diff.tree_size(),
@@ -271,90 +274,115 @@ impl CoreGroup {
     ///
     /// This function should not fail and only returns a [`Result`], because it
     /// might throw a `LibraryError`.
-    pub(crate) fn merge_commit<KeyStore: OpenMlsKeyStore>(
+    pub(crate) async fn merge_commit<KeyStore: OpenMlsKeyStore>(
         &mut self,
         backend: &impl OpenMlsCryptoProvider<KeyStoreProvider = KeyStore>,
         staged_commit: StagedCommit,
     ) -> Result<Option<MessageSecrets>, MergeCommitError<KeyStore::Error>> {
         // Get all keypairs from the old epoch, so we can later store the ones
         // that are still relevant in the new epoch.
-        let old_epoch_keypairs = self.read_epoch_keypairs(backend);
+        let old_epoch_keypairs = self.read_epoch_keypairs(backend).await;
         match staged_commit.state {
             StagedCommitState::PublicState(staged_diff) => {
                 self.public_group.merge_diff(*staged_diff);
                 Ok(None)
             }
             StagedCommitState::GroupMember(state) => {
-                self.group_epoch_secrets = state.group_epoch_secrets;
-
-                // Replace the previous message secrets with the new ones and return the previous message secrets
-                let mut message_secrets = state.message_secrets;
-                mem::swap(
-                    &mut message_secrets,
-                    self.message_secrets_store.message_secrets_mut(),
-                );
-
-                self.public_group.merge_diff(state.staged_diff);
-
-                // TODO #1194: Group storage and key storage should be
-                // correlated s.t. there is no divergence between key material
-                // and group state.
-
-                let leaf_keypair = if let Some(keypair) = &state.new_leaf_keypair_option {
-                    vec![keypair.clone()]
-                } else {
-                    vec![]
-                };
-
-                // Figure out which keys we need in the new epoch.
-                let new_owned_encryption_keys = self
-                    .public_group()
-                    .owned_encryption_keys(self.own_leaf_index());
-                // From the old and new keys, keep the ones that are still relevant in the new epoch.
-                let epoch_keypairs: Vec<EncryptionKeyPair> = old_epoch_keypairs
-                    .into_iter()
-                    .chain(state.new_keypairs.into_iter())
-                    .chain(leaf_keypair.into_iter())
-                    .filter(|keypair| new_owned_encryption_keys.contains(keypair.public_key()))
-                    .collect();
-                // We should have private keys for all owned encryption keys.
-
-                debug_assert_eq!(new_owned_encryption_keys.len(), epoch_keypairs.len());
-                if new_owned_encryption_keys.len() != epoch_keypairs.len() {
-                    return Err(LibraryError::custom(
-                        "We should have all the private key material we need.",
-                    )
-                    .into());
-                }
-                // Store the relevant keys under the new epoch
-                self.store_epoch_keypairs(backend, epoch_keypairs.as_slice())
-                    .map_err(MergeCommitError::KeyStoreError)?;
-                // Delete the old keys.
-                self.delete_previous_epoch_keypairs(backend)
-                    .map_err(MergeCommitError::KeyStoreError)?;
-                if let Some(keypair) = state.new_leaf_keypair_option {
-                    keypair
-                        .delete_from_key_store(backend)
-                        .map_err(MergeCommitError::KeyStoreError)?;
-                }
-
-                Ok(Some(message_secrets))
+                self.merge_member_commit(backend, old_epoch_keypairs, state, true)
+                    .await
+            }
+            StagedCommitState::ExternalMember(state) => {
+                self.merge_member_commit(backend, old_epoch_keypairs, state, false)
+                    .await
             }
         }
+    }
+
+    async fn merge_member_commit<KeyStore: OpenMlsKeyStore>(
+        &mut self,
+        backend: &impl OpenMlsCryptoProvider<KeyStoreProvider = KeyStore>,
+        old_epoch_keypairs: Vec<EncryptionKeyPair>,
+        state: Box<MemberStagedCommitState>,
+        is_member: bool,
+    ) -> Result<Option<MessageSecrets>, MergeCommitError<<KeyStore as OpenMlsKeyStore>::Error>>
+    {
+        self.group_epoch_secrets = state.group_epoch_secrets;
+
+        // Replace the previous message secrets with the new ones and return the previous message secrets
+        let mut message_secrets = state.message_secrets;
+        mem::swap(
+            &mut message_secrets,
+            self.message_secrets_store.message_secrets_mut(),
+        );
+
+        self.public_group.merge_diff(state.staged_diff);
+
+        // TODO #1194: Group storage and key storage should be
+        // correlated s.t. there is no divergence between key material
+        // and group state.
+
+        let leaf_keypair = if let Some(keypair) = &state.new_leaf_keypair_option {
+            vec![keypair.clone()]
+        } else {
+            vec![]
+        };
+
+        // Figure out which keys we need in the new epoch.
+        let new_owned_encryption_keys = self
+            .public_group()
+            .owned_encryption_keys(self.own_leaf_index());
+
+        // From the old and new keys, keep the ones that are still relevant in the new epoch.
+        let epoch_keypairs: Vec<EncryptionKeyPair> = old_epoch_keypairs
+            .into_iter()
+            .chain(state.new_keypairs.into_iter())
+            .chain(leaf_keypair.into_iter())
+            .filter(|keypair| new_owned_encryption_keys.contains(keypair.public_key()))
+            .collect();
+        // We should have private keys for all owned encryption keys.
+        debug_assert_eq!(new_owned_encryption_keys.len(), epoch_keypairs.len());
+        if new_owned_encryption_keys.len() != epoch_keypairs.len() {
+            return Err(LibraryError::custom(
+                "We should have all the private key material we need.",
+            )
+            .into());
+        }
+
+        // Store the relevant keys under the new epoch
+        self.store_epoch_keypairs(backend, epoch_keypairs.as_slice())
+            .await
+            .map_err(MergeCommitError::KeyStoreError)?;
+
+        // Delete the old keys.
+        if is_member {
+            self.delete_previous_epoch_keypairs(backend)
+                .await
+                .map_err(MergeCommitError::KeyStoreError)?;
+        }
+
+        if let Some(keypair) = state.new_leaf_keypair_option {
+            keypair
+                .delete_from_key_store(backend)
+                .await
+                .map_err(MergeCommitError::KeyStoreError)?;
+        }
+
+        Ok(Some(message_secrets))
     }
 
     #[cfg(test)]
     /// Helper function that reads the decryption keys from the key store
     /// (unwrapping the result) and stages the given commit.
-    pub(crate) fn read_keys_and_stage_commit(
+    pub(crate) async fn read_keys_and_stage_commit(
         &self,
         mls_content: &AuthenticatedContent,
         proposal_store: &ProposalStore,
         own_leaf_nodes: &[LeafNode],
         backend: &impl OpenMlsCryptoProvider,
     ) -> Result<StagedCommit, StageCommitError> {
-        let (old_epoch_keypairs, leaf_node_keypairs) =
-            self.read_decryption_keypairs(backend, own_leaf_nodes)?;
+        let (old_epoch_keypairs, leaf_node_keypairs) = self
+            .read_decryption_keypairs(backend, own_leaf_nodes)
+            .await?;
 
         self.stage_commit(
             mls_content,
@@ -363,17 +391,19 @@ impl CoreGroup {
             leaf_node_keypairs,
             backend,
         )
+        .await
     }
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub(crate) enum StagedCommitState {
     PublicState(Box<StagedPublicGroupDiff>),
     GroupMember(Box<MemberStagedCommitState>),
+    ExternalMember(Box<MemberStagedCommitState>),
 }
 
 /// Contains the changes from a commit to the group state.
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct StagedCommit {
     staged_proposal_queue: ProposalQueue,
     state: StagedCommitState,
@@ -409,20 +439,41 @@ impl StagedCommit {
         self.staged_proposal_queue.psk_proposals()
     }
 
+    /// Returns an interator over all [`QueuedProposal`]s
+    pub fn queued_proposals(&self) -> impl Iterator<Item = &QueuedProposal> {
+        self.staged_proposal_queue.queued_proposals()
+    }
+
     /// Returns `true` if the member was removed through a proposal covered by this Commit message
     /// and `false` otherwise.
     pub fn self_removed(&self) -> bool {
         matches!(self.state, StagedCommitState::PublicState(_))
     }
 
+    pub fn staged_context(&self) -> &GroupContext {
+        match &self.state {
+            StagedCommitState::PublicState(ps) => ps.group_context(),
+            StagedCommitState::GroupMember(gm) => gm.group_context(),
+            StagedCommitState::ExternalMember(gm) => gm.group_context(),
+        }
+    }
+
     /// Consume this [`StagedCommit`] and return the internal [`StagedCommitState`].
     pub(crate) fn into_state(self) -> StagedCommitState {
         self.state
     }
+
+    pub fn get_confirmation_tag(&self) -> &ConfirmationTag {
+        match &self.state {
+            StagedCommitState::PublicState(diff) => &diff.confirmation_tag,
+            StagedCommitState::GroupMember(diff) => &diff.staged_diff.confirmation_tag,
+            StagedCommitState::ExternalMember(diff) => &diff.staged_diff.confirmation_tag,
+        }
+    }
 }
 
 /// This struct is used internally by [StagedCommit] to encapsulate all the modified group state.
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub(crate) struct MemberStagedCommitState {
     group_epoch_secrets: GroupEpochSecrets,
     message_secrets: MessageSecrets,
@@ -446,5 +497,10 @@ impl MemberStagedCommitState {
             new_keypairs,
             new_leaf_keypair_option,
         }
+    }
+
+    /// Get the staged [`GroupContext`]
+    pub(crate) fn group_context(&self) -> &GroupContext {
+        self.staged_diff.group_context()
     }
 }

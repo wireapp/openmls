@@ -6,9 +6,9 @@ use crate::{
     error::LibraryError,
     extensions::{
         errors::ExtensionError, Extension, Extensions, ExternalSendersExtension,
-        RequiredCapabilitiesExtension,
+        PerDomainTrustAnchorsExtension, RequiredCapabilitiesExtension,
     },
-    group::{config::CryptoConfig, GroupContext, GroupId},
+    group::{config::CryptoConfig, group_context::GroupContext, GroupId},
     key_packages::Lifetime,
     messages::ConfirmationTag,
     schedule::CommitSecret,
@@ -26,6 +26,8 @@ pub(crate) struct TempBuilderPG1 {
     required_capabilities: Option<RequiredCapabilitiesExtension>,
     external_senders: Option<ExternalSendersExtension>,
     leaf_extensions: Option<Extensions>,
+    leaf_capabilities: Option<Capabilities>,
+    trust_certificates: Option<PerDomainTrustAnchorsExtension>,
 }
 
 impl TempBuilderPG1 {
@@ -52,29 +54,41 @@ impl TempBuilderPG1 {
         self
     }
 
+    pub(crate) fn with_leaf_extensions(mut self, leaf_extensions: Extensions) -> Self {
+        if !leaf_extensions.is_empty() {
+            self.leaf_extensions = Some(leaf_extensions);
+        }
+        self
+    }
+
+    pub(crate) fn with_trust_certificates(
+        mut self,
+        trust_certificates: PerDomainTrustAnchorsExtension,
+    ) -> Self {
+        if !trust_certificates.is_empty() {
+            self.trust_certificates = Some(trust_certificates);
+        }
+        self
+    }
+
+    pub(crate) fn with_leaf_capabilities(mut self, leaf_capabilities: Capabilities) -> Self {
+        self.leaf_capabilities = Some(leaf_capabilities);
+        self
+    }
+
     pub(crate) fn get_secrets(
         self,
         backend: &impl OpenMlsCryptoProvider,
         signer: &impl Signer,
     ) -> Result<(TempBuilderPG2, CommitSecret, EncryptionKeyPair), PublicGroupBuildError> {
-        let capabilities = self
-            .required_capabilities
-            .as_ref()
-            .map(|re| re.extension_types());
         let (treesync, commit_secret, leaf_keypair) = TreeSync::new(
             backend,
             signer,
             self.crypto_config,
             self.credential_with_key,
             self.lifetime.unwrap_or_default(),
-            Capabilities::new(
-                Some(&[self.crypto_config.version]), // TODO: Allow more versions
-                Some(&[self.crypto_config.ciphersuite]), // TODO: allow more ciphersuites
-                capabilities,
-                None,
-                None,
-            ),
-            self.leaf_extensions.unwrap_or(Extensions::empty()),
+            self.leaf_capabilities.unwrap_or_default(),
+            self.leaf_extensions.unwrap_or_default(),
         )?;
         let required_capabilities = self.required_capabilities.unwrap_or_default();
         required_capabilities.check_support().map_err(|e| match e {
@@ -87,12 +101,15 @@ impl TempBuilderPG1 {
             _ => LibraryError::custom("Unexpected ExtensionError").into(),
         })?;
         let required_capabilities = Extension::RequiredCapabilities(required_capabilities);
-        let extensions =
-            if let Some(ext_senders) = self.external_senders.map(Extension::ExternalSenders) {
-                vec![required_capabilities, ext_senders]
-            } else {
-                vec![required_capabilities]
-            };
+        let mut extensions = vec![required_capabilities];
+        if let Some(ext_senders) = self.external_senders.map(Extension::ExternalSenders) {
+            extensions.push(ext_senders);
+        }
+        if let Some(trust_certificates) =
+            self.trust_certificates.map(Extension::PerDomainTrustAnchor)
+        {
+            extensions.push(trust_certificates);
+        }
         let group_context = GroupContext::create_initial_group_context(
             self.crypto_config.ciphersuite,
             self.group_id,
@@ -172,6 +189,8 @@ impl PublicGroup {
             required_capabilities: None,
             external_senders: None,
             leaf_extensions: None,
+            leaf_capabilities: None,
+            trust_certificates: None,
         }
     }
 }

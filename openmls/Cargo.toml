@@ -1,9 +1,9 @@
 [package]
 name = "openmls"
-version = "0.4.1"
+version = "0.20.2"
 authors = ["OpenMLS Authors"]
 edition = "2021"
-description = "This is a WIP Rust implementation of the Messaging Layer Security (MLS) protocol based on draft 12+."
+description = "This is a WIP Rust implementation of the Messaging Layer Security (MLS) protocol based on draft 20-ish."
 license = "MIT"
 documentation = "https://openmls.github.io/openmls/"
 repository = "https://github.com/openmls/openmls/"
@@ -14,19 +14,27 @@ openmls_traits = { version = "0.1.0", path = "../traits" }
 serde = { version = "^1.0", features = ["derive"] }
 log = { version = "0.4", features = ["std"] }
 tls_codec = { workspace = true }
-rayon = "^1.5.0"
 thiserror = "^1.0"
 backtrace = "0.3"
+hex = "0.4"
+async-trait = { workspace = true }
+openmls_basic_credential = { version = "0.1.0", path = "../basic_credential", features = ["clonable", "test-utils"] }
+openmls_x509_credential = { version = "0.1.0", path = "../x509_credential" }
+x509-cert = "0.2"
+subtle = "2.5"
+fluvio-wasm-timer = "0.2"
+
 # Only required for tests.
-rand = { version = "0.8", optional = true }
+rand = { version = "0.8", optional = true, features = ["getrandom"] }
+getrandom = { version = "0.2", optional = true, features = ["js"] }
 serde_json = { version = "1.0", optional = true }
 # Crypto backends required for KAT and testing - "test-utils" feature
 itertools = { version = "0.10", optional = true }
 openmls_rust_crypto = { version = "0.1.0", path = "../openmls_rust_crypto", optional = true }
-openmls_evercrypt = { version = "0.1.0", path = "../evercrypt_backend", optional = true }
-openmls_basic_credential = { version = "0.1.0", path = "../basic_credential", optional = true, features = ["clonable", "test-utils"] }
+async-lock = { version = "2.7", optional = true }
 rstest = { version = "^0.16", optional = true }
 rstest_reuse = { version = "0.4", optional = true }
+tokio = { version = "1.24", optional = true, features = ["macros", "rt", "rt-multi-thread"] }
 
 [features]
 default = []
@@ -36,18 +44,18 @@ test-utils = [
     "dep:itertools",
     "dep:openmls_rust_crypto",
     "dep:rand",
+    "dep:getrandom",
+    "dep:tokio",
     "dep:rstest",
     "dep:rstest_reuse",
-    "dep:openmls_basic_credential",
+    "dep:async-lock",
+    "openmls_basic_credential/test-utils",
 ]
-evercrypt = ["dep:openmls_evercrypt"] # Evercrypt needs to be enabled individually
 crypto-debug = [] # ☣️ Enable logging of sensitive cryptographic information
 content-debug = [] # ☣️ Enable logging of sensitive message content
 
 [dev-dependencies]
 backtrace = "0.3"
-
-criterion = "^0.4"
 hex = { version = "0.4", features = ["serde"] }
 itertools = "0.10"
 lazy_static = "1.4"
@@ -57,11 +65,15 @@ pretty_env_logger = "0.4"
 rstest = "^0.16"
 rstest_reuse = "0.4"
 tempfile = "3"
+wasm-bindgen = "0.2"
+wasm-bindgen-futures = "0.4"
+wasm-bindgen-test = "0.3"
+async-std = { version = "1.12", features = ["attributes"] }
+web-sys = { version = "0.3", features = ["Window"] }
+js-sys = "0.3"
 
-# x64 targets get evercrypt compiled into dev-dependencies.
-[target.'cfg(target_arch = "x86_64")'.dev-dependencies.openmls]
-path = "."
-features = ["test-utils", "evercrypt"]
+[target.'cfg(not(target_family = "wasm"))'.dev-dependencies]
+criterion = { version = "0.4", features = ["async_futures"] }
 
 [[bench]]
 name = "benchmark"

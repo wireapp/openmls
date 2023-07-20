@@ -98,14 +98,14 @@ pub(crate) struct TreeContext {
     pub(crate) generation: u32,
 }
 
-#[derive(Debug, Serialize, Deserialize, TlsSerialize, TlsSize)]
-#[cfg_attr(any(feature = "test-utils", test), derive(PartialEq, Clone))]
+#[derive(Debug, Serialize, Deserialize, TlsSerialize, TlsSize, Clone)]
+#[cfg_attr(any(feature = "test-utils", test), derive(PartialEq))]
 pub(crate) struct SecretTreeNode {
     pub(crate) secret: Secret,
 }
 
-#[derive(Serialize, Deserialize)]
-#[cfg_attr(any(feature = "test-utils", test), derive(PartialEq, Clone))]
+#[derive(Serialize, Deserialize, Clone)]
+#[cfg_attr(any(feature = "test-utils", test), derive(PartialEq))]
 #[cfg_attr(any(feature = "crypto-debug", test), derive(Debug))]
 pub(crate) struct SecretTree {
     own_index: LeafNodeIndex,

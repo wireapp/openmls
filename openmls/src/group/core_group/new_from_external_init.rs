@@ -24,10 +24,10 @@ impl CoreGroup {
     ///
     /// Note: If there is a group member in the group with the same identity as us,
     /// this will create a remove proposal.
-    pub(crate) fn join_by_external_commit(
+    pub(crate) async fn join_by_external_commit(
         backend: &impl OpenMlsCryptoProvider,
         signer: &impl Signer,
-        mut params: CreateCommitParams,
+        mut params: CreateCommitParams<'_>,
         ratchet_tree: Option<RatchetTreeIn>,
         verifiable_group_info: VerifiableGroupInfo,
     ) -> Result<ExternalCommitResult, ExternalCommitError> {
@@ -121,7 +121,7 @@ impl CoreGroup {
             .build();
 
         // Immediately create the commit to add ourselves to the group.
-        let create_commit_result = group.create_commit(params, backend, signer);
+        let create_commit_result = group.create_commit(params, backend, signer).await;
         debug_assert!(
             create_commit_result.is_ok(),
             "Error creating commit {create_commit_result:?}"

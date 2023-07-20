@@ -3,7 +3,7 @@
 //!
 //! It is based on the Mock client in that repository.
 
-use std::{collections::HashMap, convert::TryFrom, fmt::Display, fs::File, io::Write, sync::Mutex};
+use std::{collections::HashMap, convert::TryFrom, fmt::Display, fs::File, io::Write};
 
 use clap::Parser;
 use clap_derive::*;
@@ -15,6 +15,11 @@ use mls_interop_proto::mls_client;
 use openmls::{
     ciphersuite::HpkePrivateKey,
     credentials::{Credential, CredentialType, CredentialWithKey},
+    extensions::{
+        ApplicationIdExtension, Extension, ExtensionType, Extensions, ExternalPubExtension,
+        ExternalSendersExtension, RatchetTreeExtension, RequiredCapabilitiesExtension,
+        UnknownExtension,
+    },
     framing::{MlsMessageIn, MlsMessageInBody, MlsMessageOut, ProcessedMessageContent},
     group::{
         GroupEpoch, GroupId, MlsGroup, MlsGroupConfig, WireFormatPolicy,
@@ -24,11 +29,13 @@ use openmls::{
     prelude::{config::CryptoConfig, Capabilities, ExtensionType, SenderRatchetConfiguration},
     schedule::{psk::ResumptionPskUsage, ExternalPsk, PreSharedKeyId, Psk},
     treesync::{
+        node::leaf_node::Capabilities,
         test_utils::{read_keys_from_key_store, write_keys_from_key_store},
         RatchetTreeIn,
     },
     versions::ProtocolVersion,
 };
+
 use openmls_basic_credential::SignatureKeyPair;
 use openmls_rust_crypto::OpenMlsRustCrypto;
 use openmls_traits::{
@@ -37,7 +44,9 @@ use openmls_traits::{
     types::{Ciphersuite, HpkeKeyPair},
     OpenMlsCryptoProvider,
 };
+use serde::{self, Serialize};
 use tls_codec::{Deserialize, Serialize};
+use tokio::sync::Mutex;
 use tonic::{async_trait, transport::Server, Code, Request, Response, Status};
 use tracing::{debug, error, info, instrument, trace, Span};
 use tracing_subscriber::EnvFilter;
@@ -94,7 +103,7 @@ impl MlsClientImpl {
 }
 
 fn into_status<E: Display>(e: E) -> Status {
-    let message = "mls group error ".to_string() + &e.to_string();
+    let message = format!("mls group error {e}");
     error!("{message}");
     Status::new(Code::Aborted, message)
 }
@@ -112,6 +121,7 @@ fn to_ciphersuite(cs: u32) -> Result<&'static Ciphersuite, Status> {
     let ciphersuites = &[
         Ciphersuite::MLS_128_DHKEMX25519_AES128GCM_SHA256_Ed25519,
         Ciphersuite::MLS_128_DHKEMP256_AES128GCM_SHA256_P256,
+        Ciphersuite::MLS_256_DHKEMP384_AES256GCM_SHA384_P384,
         Ciphersuite::MLS_128_DHKEMX25519_CHACHA20POLY1305_SHA256_Ed25519,
     ];
     match ciphersuites.iter().find(|&&cs| cs == cs_name) {
@@ -160,6 +170,49 @@ fn ratchet_tree_from_config(bytes: Vec<u8>) -> Option<RatchetTreeIn> {
     }
 }
 
+fn convert_to_extensions(
+    rpc_extensions: &[mls_interop_proto::mls_client::Extension],
+) -> Extensions {
+    let mut extensions = Vec::new();
+
+    for ext in rpc_extensions.iter() {
+        let kind = ExtensionType::try_from(u16::try_from(ext.extension_type).unwrap()).unwrap();
+
+        let extension = match kind {
+            ExtensionType::ApplicationId => Extension::ApplicationId(
+                ApplicationIdExtension::tls_deserialize_exact(&ext.extension_data).unwrap(),
+            ),
+            ExtensionType::RatchetTree => Extension::RatchetTree(
+                RatchetTreeExtension::tls_deserialize_exact(&ext.extension_data)
+                    .unwrap()
+                    .into(),
+            ),
+            ExtensionType::RequiredCapabilities => Extension::RequiredCapabilities(
+                RequiredCapabilitiesExtension::tls_deserialize_exact(&ext.extension_data)
+                    .unwrap()
+                    .into(),
+            ),
+            ExtensionType::ExternalPub => Extension::ExternalPub(
+                ExternalPubExtension::tls_deserialize_exact(&ext.extension_data)
+                    .unwrap()
+                    .into(),
+            ),
+            ExtensionType::ExternalSenders => Extension::ExternalSenders(
+                ExternalSendersExtension::tls_deserialize_exact(&ext.extension_data)
+                    .unwrap()
+                    .into(),
+            ),
+            ExtensionType::Unknown(unknown) => {
+                Extension::Unknown(unknown, UnknownExtension(vec![0, 1, 2, 3, 255]))
+            }
+        };
+
+        extensions.push(extension);
+    }
+
+    Extensions::try_from(extensions).unwrap()
+}
+
 fn bytes_to_string<B>(bytes: B) -> String
 where
     B: AsRef<[u8]>,
@@ -175,7 +228,7 @@ where
     }
 }
 
-#[async_trait]
+#[async_trait(?Send)]
 impl MlsClient for MlsClientImpl {
     #[instrument(skip_all)]
     async fn name(&self, request: Request<NameRequest>) -> Result<Response<NameResponse>, Status> {
@@ -199,6 +252,7 @@ impl MlsClient for MlsClientImpl {
         let ciphersuites = &[
             Ciphersuite::MLS_128_DHKEMX25519_AES128GCM_SHA256_Ed25519,
             Ciphersuite::MLS_128_DHKEMP256_AES128GCM_SHA256_P256,
+            Ciphersuite::MLS_256_DHKEMP384_AES256GCM_SHA384_P384,
             Ciphersuite::MLS_128_DHKEMX25519_CHACHA20POLY1305_SHA256_Ed25519,
         ];
         let response = SupportedCiphersuitesResponse {
@@ -223,13 +277,25 @@ impl MlsClient for MlsClientImpl {
 
         let ciphersuite = Ciphersuite::try_from(request.cipher_suite as u16).unwrap();
         let credential = Credential::new(request.identity.clone(), CredentialType::Basic).unwrap();
-        let signature_keys = SignatureKeyPair::new(ciphersuite.signature_algorithm()).unwrap();
-        signature_keys.store(backend.key_store()).unwrap();
+
+        let signature_keys = SignatureKeyPair::new(
+            ciphersuite.signature_algorithm(),
+            &mut *backend.rand().borrow_rand().unwrap(),
+        )
+        .unwrap();
+        signature_keys.store(backend.key_store()).await.unwrap();
 
         let wire_format_policy = wire_format_policy(request.encrypt_handshake);
         // Note: We just use some values here that make live testing work.
         //       There is nothing special about the used numbers and they
         //       can be increased (or decreased) depending on the available scenarios.
+        let kp_capabilities = Capabilities::new(
+            None,
+            None,
+            Some(&EXTENSION_TYPES),
+            None,
+            Some(&CREDENTIAL_TYPES),
+        );
         let mls_group_config = MlsGroupConfig::builder()
             .crypto_config(CryptoConfig::with_default_version(ciphersuite))
             .max_past_epochs(32)
@@ -237,6 +303,7 @@ impl MlsClient for MlsClientImpl {
             .sender_ratchet_configuration(SenderRatchetConfiguration::default())
             .use_ratchet_tree_extension(true)
             .wire_format_policy(wire_format_policy)
+            .leaf_capabilities(kp_capabilities)
             .build();
         let group = MlsGroup::new_with_group_id(
             &backend,
@@ -248,6 +315,7 @@ impl MlsClient for MlsClientImpl {
                 signature_key: signature_keys.public().into(),
             },
         )
+        .await
         .map_err(into_status)?;
 
         Span::current().record("actor", bytes_to_string(group.own_identity().unwrap()));
@@ -261,7 +329,7 @@ impl MlsClient for MlsClientImpl {
             crypto_provider: backend,
         };
 
-        let mut groups = self.groups.lock().unwrap();
+        let mut groups = self.groups.lock().await;
         let state_id = groups.len() as u32;
         groups.push(interop_group);
 
@@ -289,7 +357,11 @@ impl MlsClient for MlsClientImpl {
         );
 
         let credential = Credential::new(identity, CredentialType::Basic).unwrap();
-        let signature_keys = SignatureKeyPair::new(ciphersuite.signature_algorithm()).unwrap();
+        let signature_keys = SignatureKeyPair::new(
+            ciphersuite.signature_algorithm(),
+            &mut *crypto_provider.rand().borrow_rand().unwrap(),
+        )
+        .unwrap();
 
         let key_package = KeyPackage::builder()
             .leaf_node_capabilities(Capabilities::new(
@@ -315,14 +387,17 @@ impl MlsClient for MlsClientImpl {
                     signature_key: signature_keys.public().into(),
                 },
             )
+            .await
             .unwrap();
         let private_key = crypto_provider
             .key_store()
             .read::<HpkePrivateKey>(key_package.hpke_init_key().as_slice())
+            .await
             .unwrap();
 
         let encryption_key_pair =
-            read_keys_from_key_store(&crypto_provider, key_package.leaf_node().encryption_key());
+            read_keys_from_key_store(&crypto_provider, key_package.leaf_node().encryption_key())
+                .await;
 
         let transaction_id: [u8; 4] = crypto_provider.rand().random_array().unwrap();
         let transaction_id = u32::from_be_bytes(transaction_id);
@@ -343,9 +418,9 @@ impl MlsClient for MlsClientImpl {
 
         self.transaction_id_map
             .lock()
-            .unwrap()
+            .await
             .insert(transaction_id, request.identity.clone());
-        self.pending_state.lock().unwrap().insert(
+        self.pending_state.lock().await.insert(
             request.identity.clone(),
             (
                 key_package,
@@ -383,7 +458,7 @@ impl MlsClient for MlsClientImpl {
             .wire_format_policy(wire_format_policy)
             .build();
 
-        let mut pending_key_packages = self.pending_state.lock().unwrap();
+        let mut pending_key_packages = self.pending_state.lock().await;
         let (
             my_key_package,
             private_key,
@@ -402,6 +477,7 @@ impl MlsClient for MlsClientImpl {
         crypto_provider
             .key_store()
             .store(my_key_package.hpke_init_key().as_slice(), &private_key)
+            .await
             .map_err(|_| Status::aborted("failed to interact with the key store"))?;
 
         // Store the key package in the key store with the hash reference as id
@@ -415,6 +491,7 @@ impl MlsClient for MlsClientImpl {
                     .as_slice(),
                 &my_key_package,
             )
+            .await
             .map_err(into_status)?;
 
         // Store the encryption key pair in the key store.
@@ -425,6 +502,7 @@ impl MlsClient for MlsClientImpl {
         crypto_provider
             .key_store()
             .store::<HpkePrivateKey>(my_key_package.hpke_init_key().as_slice(), &private_key)
+            .await
             .map_err(into_status)?;
 
         let welcome_msg = MlsMessageIn::tls_deserialize(&mut request.welcome.as_slice())
@@ -438,6 +516,7 @@ impl MlsClient for MlsClientImpl {
 
         let group =
             MlsGroup::new_from_welcome(&crypto_provider, &mls_group_config, welcome, ratchet_tree)
+                .await
                 .map_err(into_status)?;
 
         let interop_group = InteropGroup {
@@ -459,7 +538,7 @@ impl MlsClient for MlsClientImpl {
             .as_slice()
             .to_vec();
 
-        let mut groups = self.groups.lock().unwrap();
+        let mut groups = self.groups.lock().await;
         let state_id = groups.len() as u32;
         groups.push(interop_group);
 
@@ -585,7 +664,7 @@ impl MlsClient for MlsClientImpl {
         let request = request.get_ref();
         info!(?request, "Request");
 
-        let groups = self.groups.lock().unwrap();
+        let groups = self.groups.lock().await;
         let interop_group = groups
             .get(request.state_id as usize)
             .ok_or_else(|| Status::new(Code::InvalidArgument, "unknown state_id"))?;
@@ -613,7 +692,7 @@ impl MlsClient for MlsClientImpl {
         let request = request.get_ref();
         info!(?request, "Request");
 
-        let groups = self.groups.lock().unwrap();
+        let groups = self.groups.lock().await;
         let interop_group = groups
             .get(request.state_id as usize)
             .ok_or_else(|| Status::new(Code::InvalidArgument, "unknown state_id"))?;
@@ -647,7 +726,7 @@ impl MlsClient for MlsClientImpl {
         let request = request.get_ref();
         info!(?request, "Request");
 
-        let mut groups = self.groups.lock().unwrap();
+        let mut groups = self.groups.lock().await;
         let interop_group = groups
             .get_mut(request.state_id as usize)
             .ok_or_else(|| Status::new(Code::InvalidArgument, "unknown state_id"))?;
@@ -680,7 +759,7 @@ impl MlsClient for MlsClientImpl {
         let request = request.get_ref();
         info!(?request, "Request");
 
-        let mut groups = self.groups.lock().unwrap();
+        let mut groups = self.groups.lock().await;
         let interop_group = groups
             .get_mut(request.state_id as usize)
             .ok_or_else(|| Status::new(Code::InvalidArgument, "unknown state_id"))?;
@@ -696,6 +775,7 @@ impl MlsClient for MlsClientImpl {
         let processed_message = interop_group
             .group
             .process_message(&interop_group.crypto_provider, message)
+            .await
             .map_err(into_status)?;
         debug!("Processed.");
         trace!(?processed_message);
@@ -731,7 +811,7 @@ impl MlsClient for MlsClientImpl {
         trace!("   psk_id {:x?}", raw_psk_id);
         let external_psk = Psk::External(ExternalPsk::new(raw_psk_id));
 
-        fn store(
+        async fn store(
             ciphersuite: Ciphersuite,
             crypto_provider: &OpenMlsRustCrypto,
             external_psk: Psk,
@@ -741,16 +821,17 @@ impl MlsClient for MlsClientImpl {
                 .map_err(|_| Status::internal("unable to create PreSharedKeyId from raw psk_id"))?;
             psk_id
                 .write_to_key_store(crypto_provider, ciphersuite, secret)
+                .await
                 .map_err(|_| Status::new(Code::Internal, "unable to store PSK"))?;
             Ok(())
         }
 
         // This might be for a transaction ID or a state ID, so either a group, or not.
         // Transaction IDs are random. We assume that if it exists, it is what we want.
-        let transaction_id_map = self.transaction_id_map.lock().unwrap();
+        let transaction_id_map = self.transaction_id_map.lock().await;
         let pending_state_id = transaction_id_map.get(&request.state_or_transaction_id);
         if let Some(pending_state_id) = pending_state_id {
-            let mut pending_state = self.pending_state.lock().unwrap();
+            let mut pending_state = self.pending_state.lock().await;
             let pending_state = pending_state
                 .get_mut(pending_state_id)
                 .ok_or(Status::internal("Unable to retrieve pending state"))?;
@@ -760,10 +841,11 @@ impl MlsClient for MlsClientImpl {
                 &pending_state.5,
                 external_psk,
                 &request.psk_secret,
-            )?;
+            )
+            .await?;
         } else {
             // So we have a group
-            let mut groups = self.groups.lock().unwrap();
+            let mut groups = self.groups.lock().await;
             let interop_group = groups
                 .get_mut(request.state_or_transaction_id as usize)
                 .ok_or_else(|| Status::new(Code::InvalidArgument, "unknown state_id"))?;
@@ -778,7 +860,8 @@ impl MlsClient for MlsClientImpl {
                 &interop_group.crypto_provider,
                 external_psk,
                 &request.psk_secret,
-            )?;
+            )
+            .await?;
         }
 
         let response = StorePskResponse::default();
@@ -795,7 +878,7 @@ impl MlsClient for MlsClientImpl {
         let request = request.get_ref();
         info!(?request, "Request");
 
-        let mut groups = self.groups.lock().unwrap();
+        let mut groups = self.groups.lock().await;
         let interop_group = groups
             .get_mut(request.state_id as usize)
             .ok_or_else(|| Status::new(Code::InvalidArgument, "unknown state_id"))?;
@@ -853,7 +936,7 @@ impl MlsClient for MlsClientImpl {
         let request = request.get_ref();
         info!(?request, "Request");
 
-        let mut groups = self.groups.lock().unwrap();
+        let mut groups = self.groups.lock().await;
         let interop_group = groups
             .get_mut(request.state_id as usize)
             .ok_or_else(|| Status::new(Code::InvalidArgument, "unknown state_id"))?;
@@ -880,6 +963,7 @@ impl MlsClient for MlsClientImpl {
                 &interop_group.signature_keys,
                 None,
             )
+            .await
             .map_err(into_status)?;
 
         // Store the proposal for potential future use.
@@ -907,7 +991,7 @@ impl MlsClient for MlsClientImpl {
             Credential::new(request.removed_id.clone(), CredentialType::Basic).unwrap();
         trace!("   for credential: {removed_credential:x?}");
 
-        let mut groups = self.groups.lock().unwrap();
+        let mut groups = self.groups.lock().await;
         let interop_group = groups
             .get_mut(request.state_id as usize)
             .ok_or_else(|| Status::new(Code::InvalidArgument, "unknown state_id"))?;
@@ -972,7 +1056,7 @@ impl MlsClient for MlsClientImpl {
         let request = request.get_ref();
         info!(?request, "Request");
 
-        let mut groups = self.groups.lock().unwrap();
+        let mut groups = self.groups.lock().await;
         let interop_group = groups
             .get_mut(request.state_id as usize)
             .ok_or_else(|| Status::new(Code::InvalidArgument, "unknown state_id"))?;
@@ -995,6 +1079,7 @@ impl MlsClient for MlsClientImpl {
             trace!("Processing proposal ...");
             let processed_message = group
                 .process_message(&interop_group.crypto_provider, message)
+                .await
                 .map_err(into_status)?;
             trace!("... done");
 
@@ -1084,9 +1169,19 @@ impl MlsClient for MlsClientImpl {
                     (msg_out, proposal_ref)
                 }
                 "groupContextExtensions" => {
-                    return Err(Status::internal(
-                        "Unsupported proposal type (group context extension)",
-                    ))
+                    let (msg_out, proposal_ref) = group
+                        .propose_extensions(
+                            &interop_group.crypto_provider,
+                            &interop_group.signature_keys,
+                            convert_to_extensions(&proposal.extensions),
+                        )
+                        .map_err(|_| Status::internal("Unable to generate proposal by value"))?;
+
+                    debug!("GroupContextExtensions proposal created.");
+                    trace!(proposal = ?msg_out);
+                    trace!(proposal_ref = ?proposal_ref);
+
+                    (msg_out, proposal_ref)
                 }
                 _ => return Err(Status::invalid_argument("Invalid proposal type")),
             };
@@ -1105,6 +1200,7 @@ impl MlsClient for MlsClientImpl {
                 &interop_group.crypto_provider,
                 &interop_group.signature_keys,
             )
+            .await
             .map_err(into_status)?;
 
         let commit = commit.to_bytes().unwrap();
@@ -1121,6 +1217,7 @@ impl MlsClient for MlsClientImpl {
 
         group
             .merge_pending_commit(&interop_group.crypto_provider)
+            .await
             .map_err(into_status)?;
 
         debug!("Merged pending commit.");
@@ -1152,7 +1249,7 @@ impl MlsClient for MlsClientImpl {
         let request = request.get_ref();
         info!(?request, "Request");
 
-        let mut groups = self.groups.lock().unwrap();
+        let mut groups = self.groups.lock().await;
         let interop_group = groups
             .get_mut(request.state_id as usize)
             .ok_or_else(|| Status::new(Code::InvalidArgument, "unknown state_id"))?;
@@ -1174,6 +1271,7 @@ impl MlsClient for MlsClientImpl {
             trace!("   processing proposal ...");
             let processed_message = group
                 .process_message(&interop_group.crypto_provider, message)
+                .await
                 .map_err(into_status)?;
             trace!("       done");
             match processed_message.into_content() {
@@ -1198,6 +1296,7 @@ impl MlsClient for MlsClientImpl {
         debug!("Processing message.");
         let processed_message = group
             .process_message(&interop_group.crypto_provider, message)
+            .await
             .map_err(into_status)?;
         debug!("Processed.");
         trace!(?processed_message);
@@ -1210,6 +1309,7 @@ impl MlsClient for MlsClientImpl {
                 debug!(commit=?staged_commit, "Merging staged commit.");
                 group
                     .merge_staged_commit(&interop_group.crypto_provider, *staged_commit)
+                    .await
                     .map_err(into_status)?;
             }
         }
@@ -1235,7 +1335,7 @@ impl MlsClient for MlsClientImpl {
         let request = request.get_ref();
         info!(?request, "Request");
 
-        let mut groups = self.groups.lock().unwrap();
+        let mut groups = self.groups.lock().await;
         let interop_group = groups
             .get_mut(request.state_id as usize)
             .ok_or_else(|| Status::new(Code::InvalidArgument, "unknown state_id"))?;
@@ -1247,6 +1347,7 @@ impl MlsClient for MlsClientImpl {
         trace!(commit=?group.pending_commit(), "Merging pending commit.");
         group
             .merge_pending_commit(&interop_group.crypto_provider)
+            .await
             .map_err(|e| {
                 trace!("Error merging pending commit: `{e:?}`");
                 Status::aborted("failed to apply pending commits")
@@ -1271,7 +1372,7 @@ impl MlsClient for MlsClientImpl {
         let request = request.get_ref();
         info!(?request, "Request");
 
-        let mut groups = self.groups.lock().unwrap();
+        let mut groups = self.groups.lock().await;
         let interop_group = groups
             .get_mut(request.state_id as usize)
             .ok_or_else(|| Status::new(Code::InvalidArgument, "unknown state_id"))?;
@@ -1315,7 +1416,7 @@ impl MlsClient for MlsClientImpl {
         let request = request.get_ref();
         info!(?request, "Request");
 
-        let mut groups = self.groups.lock().unwrap();
+        let mut groups = self.groups.lock().await;
         let interop_group = groups
             .get_mut(request.state_id as usize)
             .ok_or_else(|| Status::new(Code::InvalidArgument, "unknown state_id"))?;
@@ -1407,6 +1508,44 @@ impl MlsClient for MlsClientImpl {
         Err(Status::unimplemented(
             "Group context extension is not implemented yet",
         ))
+    }
+
+    #[instrument(skip_all)]
+    async fn group_context_extensions_proposal(
+        &self,
+        request: Request<GroupContextExtensionsProposalRequest>,
+    ) -> Result<Response<ProposalResponse>, Status> {
+        let request = request.get_ref();
+        info!(?request, "Request");
+
+        let mut groups = self.groups.lock().unwrap();
+        let interop_group = groups
+            .get_mut(request.state_id as usize)
+            .ok_or_else(|| Status::new(Code::InvalidArgument, "unknown state_id"))?;
+        let group = &mut interop_group.group;
+
+        let extensions = convert_to_extensions(&request.extensions);
+
+        debug!("Created extensions.");
+        trace!(?extensions);
+
+        let (msg_out, _) = group
+            .propose_extensions(
+                &interop_group.crypto_provider,
+                &interop_group.signature_keys,
+                extensions,
+            )
+            .unwrap();
+
+        // Store the proposal for potential future use.
+        interop_group.messages_out.push(msg_out.clone().into());
+
+        let response = ProposalResponse {
+            proposal: msg_out.tls_serialize_detached().unwrap(),
+        };
+
+        info!(?response, "Response");
+        Ok(Response::new(response))
     }
 
     async fn re_init_commit(

@@ -1,6 +1,8 @@
 //! Prelude for OpenMLS.
 //! Include this to get access to all the public functions of OpenMLS.
 
+#![allow(ambiguous_glob_reexports)]
+
 // MlsGroup
 pub use crate::group::{config::CryptoConfig, core_group::Member, errors::*, ser::*, *};
 
@@ -22,7 +24,10 @@ pub use crate::versions::*;
 pub use crate::extensions::{errors::*, *};
 
 // Framing
-pub use crate::framing::{message_in::*, message_out::*, sender::*, validation::*, *};
+pub use crate::framing::{
+    message_in::*, message_out::MlsMessageOutBody, message_out::*,
+    mls_content_in::FramedContentBodyIn, sender::*, validation::*, *,
+};
 
 // Key packages
 pub use crate::key_packages::{errors::*, *};

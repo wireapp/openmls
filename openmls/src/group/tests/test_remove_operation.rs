@@ -9,9 +9,15 @@ use crate::{
 };
 use openmls_rust_crypto::OpenMlsRustCrypto;
 
+wasm_bindgen_test::wasm_bindgen_test_configure!(run_in_browser);
+
 // Tests the different variants of the RemoveOperation enum.
 #[apply(ciphersuites_and_backends)]
-fn test_remove_operation_variants(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider) {
+#[wasm_bindgen_test::wasm_bindgen_test]
+async fn test_remove_operation_variants(
+    ciphersuite: Ciphersuite,
+    backend: &impl OpenMlsCryptoProvider,
+) {
     let _ = backend;
     let alice_backend = OpenMlsRustCrypto::default();
     let bob_backend = OpenMlsRustCrypto::default();
@@ -32,19 +38,22 @@ fn test_remove_operation_variants(ciphersuite: Ciphersuite, backend: &impl OpenM
             "Alice".into(),
             ciphersuite.signature_algorithm(),
             &alice_backend,
-        );
+        )
+        .await;
 
         let bob_credential_with_key_and_signer = generate_credential_with_key(
             "Bob".into(),
             ciphersuite.signature_algorithm(),
             &bob_backend,
-        );
+        )
+        .await;
 
         let charlie_credential_with_key_and_signer = generate_credential_with_key(
             "Charlie".into(),
             ciphersuite.signature_algorithm(),
             &charlie_backend,
-        );
+        )
+        .await;
 
         // Generate KeyPackages
         let bob_key_package = generate_key_package(
@@ -52,13 +61,15 @@ fn test_remove_operation_variants(ciphersuite: Ciphersuite, backend: &impl OpenM
             Extensions::empty(),
             &bob_backend,
             bob_credential_with_key_and_signer.clone(),
-        );
+        )
+        .await;
         let charlie_key_package = generate_key_package(
             ciphersuite,
             Extensions::empty(),
             &charlie_backend,
             charlie_credential_with_key_and_signer,
-        );
+        )
+        .await;
 
         // Define the MlsGroup configuration
         let mls_group_config = MlsGroupConfigBuilder::new()
@@ -73,6 +84,7 @@ fn test_remove_operation_variants(ciphersuite: Ciphersuite, backend: &impl OpenM
             group_id,
             alice_credential_with_key_and_signer.credential_with_key,
         )
+        .await
         .expect("An unexpected error occurred.");
 
         // === Alice adds Bob & Charlie ===
@@ -83,9 +95,11 @@ fn test_remove_operation_variants(ciphersuite: Ciphersuite, backend: &impl OpenM
                 &alice_credential_with_key_and_signer.signer,
                 &[bob_key_package, charlie_key_package],
             )
+            .await
             .expect("An unexpected error occurred.");
         alice_group
             .merge_pending_commit(&alice_backend)
+            .await
             .expect("error merging pending commit");
 
         let welcome = welcome.into_welcome().expect("Unexpected message type.");
@@ -96,6 +110,7 @@ fn test_remove_operation_variants(ciphersuite: Ciphersuite, backend: &impl OpenM
             welcome.clone(),
             Some(alice_group.export_ratchet_tree().into()),
         )
+        .await
         .expect("Error creating group from Welcome");
 
         let mut charlie_group = MlsGroup::new_from_welcome(
@@ -104,6 +119,7 @@ fn test_remove_operation_variants(ciphersuite: Ciphersuite, backend: &impl OpenM
             welcome,
             Some(alice_group.export_ratchet_tree().into()),
         )
+        .await
         .expect("Error creating group from Welcome");
 
         // === Remove operation ===
@@ -120,6 +136,7 @@ fn test_remove_operation_variants(ciphersuite: Ciphersuite, backend: &impl OpenM
                     &alice_credential_with_key_and_signer.signer,
                     &[bob_index],
                 )
+                .await
                 .expect("Could not remove members."),
             // Bob leaves
             TestCase::Leave => {
@@ -135,6 +152,7 @@ fn test_remove_operation_variants(ciphersuite: Ciphersuite, backend: &impl OpenM
                             &charlie_backend,
                             message.clone().into_protocol_message().unwrap(),
                         )
+                        .await
                         .expect("Could not process message.");
 
                     match processed_message.into_content() {
@@ -151,6 +169,7 @@ fn test_remove_operation_variants(ciphersuite: Ciphersuite, backend: &impl OpenM
                         &alice_backend,
                         &alice_credential_with_key_and_signer.signer,
                     )
+                    .await
                     .expect("An unexpected error occurred.")
             }
         };
@@ -197,6 +216,7 @@ fn test_remove_operation_variants(ciphersuite: Ciphersuite, backend: &impl OpenM
                 &bob_backend,
                 message.clone().into_protocol_message().unwrap(),
             )
+            .await
             .expect("Could not process message.");
 
         match bob_processed_message.into_content() {
@@ -248,6 +268,7 @@ fn test_remove_operation_variants(ciphersuite: Ciphersuite, backend: &impl OpenM
 
         let charlie_processed_message = charlie_group
             .process_message(&charlie_backend, message.into_protocol_message().unwrap())
+            .await
             .expect("Could not process message.");
 
         match charlie_processed_message.into_content() {

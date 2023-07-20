@@ -6,7 +6,8 @@ use thiserror::Error;
 
 use super::*;
 use crate::{
-    binary_tree::MlsBinaryTreeDiffError, ciphersuite::signable::SignatureError, error::LibraryError,
+    binary_tree::MlsBinaryTreeDiffError, ciphersuite::signable::SignatureError,
+    error::LibraryError, extensions::errors::ExtensionError,
 };
 
 // === Public errors ===
@@ -81,14 +82,14 @@ pub enum ApplyUpdatePathError {
 #[allow(dead_code)]
 /// TreeSync error
 #[derive(Error, Debug, PartialEq, Clone)]
-pub(crate) enum TreeSyncError {
+pub enum TreeSyncError {
     /// See [`LibraryError`] for more details.
     #[error(transparent)]
     LibraryError(#[from] LibraryError),
     /// A requested leaf is not in the tree.
     #[error("The leaf does not exist in the tree.")]
     LeafNotInTree,
-    /// See [`TreeSyncSetPathError`] for more details.
+    /// See [`DerivePathError`] for more details.
     #[error(transparent)]
     SetPathError(#[from] DerivePathError),
     /// See [`MlsBinaryTreeError`] for more details.
@@ -119,7 +120,7 @@ pub(crate) enum TreeSyncError {
 
 /// Derive path error
 #[derive(Error, Debug, PartialEq, Clone)]
-pub(crate) enum DerivePathError {
+pub enum DerivePathError {
     /// See [`LibraryError`] for more details.
     #[error(transparent)]
     LibraryError(#[from] LibraryError),
@@ -130,7 +131,7 @@ pub(crate) enum DerivePathError {
 
 /// TreeSync set path error
 #[derive(Error, Debug, PartialEq, Clone)]
-pub(crate) enum TreeSyncAddLeaf {
+pub enum TreeSyncAddLeaf {
     /// See [`LibraryError`] for more details.
     #[error(transparent)]
     LibraryError(#[from] LibraryError),
@@ -155,7 +156,7 @@ pub enum TreeSyncFromNodesError {
 
 /// TreeSync parent hash error
 #[derive(Error, Debug, PartialEq, Clone)]
-pub(crate) enum TreeSyncParentHashError {
+pub enum TreeSyncParentHashError {
     /// See [`LibraryError`] for more details.
     #[error(transparent)]
     LibraryError(#[from] LibraryError),
@@ -166,7 +167,7 @@ pub(crate) enum TreeSyncParentHashError {
 
 /// TreeSync parent hash error
 #[derive(Error, Debug, PartialEq, Clone)]
-pub(crate) enum TreeSyncDiffError {
+pub enum TreeSyncDiffError {
     /// See [`LibraryError`] for more details.
     #[error(transparent)]
     LibraryError(#[from] LibraryError),
@@ -188,7 +189,7 @@ pub(crate) enum TreeSyncDiffError {
 /// TreeKem error
 #[derive(Error, Debug, PartialEq, Clone)]
 #[allow(clippy::enum_variant_names)]
-pub(crate) enum TreeKemError {
+pub enum TreeKemError {
     /// See [`LibraryError`] for more details.
     #[error(transparent)]
     LibraryError(#[from] LibraryError),
@@ -201,6 +202,20 @@ pub(crate) enum TreeKemError {
     /// See [`PathSecretError`] for more details.
     #[error(transparent)]
     PathSecretError(#[from] PathSecretError),
+}
+
+/// Errors that can happen during leaf node extension support validation.
+#[derive(Clone, Debug, Error, PartialEq)]
+pub enum MemberExtensionValidationError {
+    /// See [`LibraryError`] for more details.
+    #[error(transparent)]
+    LibraryError(#[from] LibraryError),
+    /// See [`LeafNodeValidationError`] for more details.
+    #[error(transparent)]
+    LeafNodeValidationError(#[from] LeafNodeValidationError),
+    /// See [`ExtensionError`] for more details.
+    #[error(transparent)]
+    ExtensionError(#[from] ExtensionError),
 }
 
 /// Errors that can happen during leaf node validation.
@@ -218,6 +233,9 @@ pub enum LeafNodeValidationError {
     /// Credentials are not acceptable.
     #[error("Credentials are not acceptable.")]
     UnsupportedCredentials,
+    /// Ciphersuite is not acceptable.
+    #[error("Ciphersuite is not acceptable.")]
+    UnsupportedCipherSuite,
     /// The leaf node's credential type is not listed in the leaf node's capabilities."
     #[error("The leaf node's credential type is not listed in the leaf node's capabilities.")]
     CredentialNotInCapabilities,

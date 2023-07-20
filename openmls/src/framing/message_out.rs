@@ -21,7 +21,7 @@ use crate::messages::group_info::VerifiableGroupInfo;
 #[derive(Debug, Clone, PartialEq, TlsSerialize, TlsSize)]
 pub struct MlsMessageOut {
     pub(crate) version: ProtocolVersion,
-    pub(crate) body: MlsMessageOutBody,
+    pub body: MlsMessageOutBody,
 }
 
 /// MLSMessage (Body)
@@ -53,7 +53,7 @@ pub struct MlsMessageOut {
 /// ```
 #[derive(Debug, PartialEq, Clone, TlsSerialize, TlsSize)]
 #[repr(u16)]
-pub(crate) enum MlsMessageOutBody {
+pub enum MlsMessageOutBody {
     /// Plaintext message
     #[tls_codec(discriminant = 1)]
     PublicMessage(PublicMessage),
@@ -87,6 +87,15 @@ impl From<PublicMessage> for MlsMessageOut {
     }
 }
 
+impl From<PrivateMessage> for MlsMessageOut {
+    fn from(priv_message: PrivateMessage) -> Self {
+        Self {
+            version: ProtocolVersion::default(),
+            body: MlsMessageOutBody::PrivateMessage(priv_message),
+        }
+    }
+}
+
 impl From<GroupInfo> for MlsMessageOut {
     fn from(group_info: GroupInfo) -> Self {
         Self {
@@ -108,10 +117,7 @@ impl From<KeyPackage> for MlsMessageOut {
 impl MlsMessageOut {
     /// Create an [`MlsMessageOut`] from a [`PrivateMessage`], as well as the
     /// currently used [`ProtocolVersion`].
-    pub(crate) fn from_private_message(
-        private_message: PrivateMessage,
-        version: ProtocolVersion,
-    ) -> Self {
+    pub fn from_private_message(private_message: PrivateMessage, version: ProtocolVersion) -> Self {
         Self {
             version,
             body: MlsMessageOutBody::PrivateMessage(private_message),
@@ -120,7 +126,7 @@ impl MlsMessageOut {
 
     /// Create an [`MlsMessageOut`] from a [`Welcome`] message and the currently
     /// used [`ProtocolVersion`].
-    pub(crate) fn from_welcome(welcome: Welcome, version: ProtocolVersion) -> Self {
+    pub fn from_welcome(welcome: Welcome, version: ProtocolVersion) -> Self {
         MlsMessageOut {
             version,
             body: MlsMessageOutBody::Welcome(welcome),
@@ -172,7 +178,7 @@ impl MlsMessageOut {
 // The following two `From` implementations break abstraction layers and MUST
 // NOT be made available outside of tests or "test-utils".
 
-#[cfg(any(feature = "test-utils", test))]
+// #[cfg(any(feature = "test-utils", test))]
 impl From<MlsMessageIn> for MlsMessageOut {
     fn from(mls_message: MlsMessageIn) -> Self {
         let version = mls_message.version;
@@ -187,7 +193,6 @@ impl From<MlsMessageIn> for MlsMessageOut {
     }
 }
 
-#[cfg(any(feature = "test-utils", test))]
 impl From<MlsMessageOut> for MlsMessageIn {
     fn from(mls_message_out: MlsMessageOut) -> Self {
         let version = mls_message_out.version;

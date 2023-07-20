@@ -130,7 +130,7 @@ use crate::{
     ciphersuite::{AeadKey, AeadNonce, HpkePrivateKey, Mac, Secret},
     error::LibraryError,
     framing::{mls_content::AuthenticatedContentTbm, MembershipTag},
-    group::GroupContext,
+    group::group_context::GroupContext,
     messages::{ConfirmationTag, PathSecret},
     tree::secret_tree::SecretTree,
     versions::ProtocolVersion,
@@ -185,8 +185,8 @@ impl ResumptionPskSecret {
 
 /// A secret that can be used among members to make sure everyone has the same
 /// group state.
-#[derive(Debug, Serialize, Deserialize)]
-#[cfg_attr(test, derive(Eq, PartialEq, Clone))]
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[cfg_attr(test, derive(Eq, PartialEq))]
 pub struct EpochAuthenticator {
     secret: Secret,
 }
@@ -250,8 +250,8 @@ impl CommitSecret {
 }
 
 /// The `InitSecret` is used to connect the next epoch to the current one.
-#[derive(Debug, Serialize, Deserialize)]
-#[cfg_attr(test, derive(PartialEq, Clone))]
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[cfg_attr(test, derive(PartialEq))]
 pub(crate) struct InitSecret {
     secret: Secret,
 }
@@ -355,7 +355,7 @@ impl InitSecret {
 }
 
 #[derive(Debug, TlsDeserialize, TlsSerialize, TlsSize)]
-pub(crate) struct JoinerSecret {
+pub struct JoinerSecret {
     secret: Secret,
 }
 
@@ -700,8 +700,8 @@ impl EncryptionSecret {
 }
 
 /// A secret that we can derive secrets from, that are used outside of OpenMLS.
-#[derive(Debug, Serialize, Deserialize)]
-#[cfg_attr(test, derive(PartialEq, Clone))]
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[cfg_attr(test, derive(PartialEq))]
 pub(crate) struct ExporterSecret {
     secret: Secret,
 }
@@ -745,8 +745,7 @@ impl ExporterSecret {
 }
 
 /// A secret used when joining a group with an external Commit.
-#[derive(Debug, Serialize, Deserialize)]
-#[cfg_attr(test, derive(PartialEq, Clone))]
+#[derive(Debug, Serialize, Deserialize, Clone, Eq, PartialEq)]
 pub(crate) struct ExternalSecret {
     secret: Secret,
 }
@@ -766,7 +765,7 @@ impl ExternalSecret {
         &self,
         crypto: &impl OpenMlsCrypto,
         ciphersuite: Ciphersuite,
-    ) -> HpkeKeyPair {
+    ) -> Result<HpkeKeyPair, CryptoError> {
         crypto.derive_hpke_keypair(ciphersuite.hpke_config(), self.secret.as_slice())
     }
 
@@ -777,8 +776,8 @@ impl ExternalSecret {
 }
 
 /// The confirmation key is used to calculate the `ConfirmationTag`.
-#[derive(Debug, Serialize, Deserialize)]
-#[cfg_attr(test, derive(PartialEq, Clone))]
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[cfg_attr(test, derive(PartialEq))]
 pub(crate) struct ConfirmationKey {
     secret: Secret,
 }
@@ -845,9 +844,9 @@ impl ConfirmationKey {
 }
 
 /// The membership key is used to calculate the `MembershipTag`.
-#[derive(Debug, Serialize, Deserialize)]
-#[cfg_attr(test, derive(PartialEq, Clone))]
-pub(crate) struct MembershipKey {
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[cfg_attr(test, derive(PartialEq))]
+pub struct MembershipKey {
     secret: Secret,
 }
 
@@ -916,9 +915,9 @@ fn ciphertext_sample(ciphersuite: Ciphersuite, ciphertext: &[u8]) -> &[u8] {
 }
 
 /// A key that can be used to derive an `AeadKey` and an `AeadNonce`.
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Clone)]
 #[cfg_attr(test, derive(PartialEq))]
-#[cfg_attr(any(feature = "test-utils", test), derive(Debug, Clone))]
+#[cfg_attr(any(feature = "test-utils", test), derive(Debug))]
 pub(crate) struct SenderDataSecret {
     secret: Secret,
 }
@@ -1199,8 +1198,7 @@ impl EpochSecrets {
     }
 }
 
-#[derive(Serialize, Deserialize)]
-#[cfg_attr(test, derive(Clone))]
+#[derive(Serialize, Clone, Deserialize)]
 pub(crate) struct GroupEpochSecrets {
     init_secret: InitSecret,
     exporter_secret: ExporterSecret,

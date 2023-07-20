@@ -12,12 +12,18 @@ readme = "README.md"
 [dependencies]
 openmls_traits = { version = "0.1.0", path = "../traits" }
 tls_codec = { workspace = true }
+async-trait = { workspace = true }
 serde = "1.0"
 
 # Rust Crypto
-ed25519-dalek = { version = "1.0" }
-p256 = { version = "0.11" }
-rand-07 = {version = "0.7", package = "rand" } # only needed because of ed25519-dalek
+ed25519-dalek = { version = "2.0.0-rc.2", features = ["rand_core"] }
+p256 = "0.13"
+p384 = "0.13"
+secrecy = { version = "0.8", features = ["serde"] }
+rand_core = "0.6"
+getrandom = { version = "0.2", features = ["js"] }
+
+[dev-dependencies]
 rand = "0.8"
 
 [features]

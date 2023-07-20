@@ -5,12 +5,12 @@ use openmls_traits::{
     types::{Ciphersuite, HpkeCiphertext},
     OpenMlsCryptoProvider,
 };
-use rayon::prelude::*;
 use serde::{Deserialize, Serialize};
 use thiserror::*;
-use tls_codec::{TlsDeserialize, TlsSerialize, TlsSize, VLBytes};
+use tls_codec::{TlsDeserialize, TlsSerialize, TlsSize};
 
 use super::encryption_keys::{EncryptionKey, EncryptionKeyPair};
+use crate::treesync::node::leaf_node::ParentHash;
 use crate::{
     binary_tree::array_representation::{LeafNodeIndex, ParentNodeIndex},
     ciphersuite::HpkePublicKey,
@@ -28,7 +28,7 @@ use crate::{
 )]
 pub struct ParentNode {
     pub(super) encryption_key: EncryptionKey,
-    pub(super) parent_hash: VLBytes,
+    pub(super) parent_hash: ParentHash,
     pub(super) unmerged_leaves: UnmergedLeaves,
 }
 
@@ -60,7 +60,7 @@ impl PlainUpdatePathNode {
         group_context: &[u8],
     ) -> Result<UpdatePathNode, LibraryError> {
         public_keys
-            .par_iter()
+            .iter()
             .map(|pk| {
                 self.path_secret
                     .encrypt(backend, ciphersuite, pk, group_context)
@@ -125,7 +125,7 @@ impl ParentNode {
 
         // Iterate over the path secrets and derive a key pair
         let (path_with_keypairs, update_path_nodes): PathDerivationResults = path_secrets
-            .into_par_iter()
+            .into_iter()
             .zip(path_indices)
             .map(|(path_secret, index)| {
                 // Derive a key pair from the path secret. This includes the

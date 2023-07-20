@@ -213,10 +213,8 @@ impl<L: Clone + Debug + Default, P: Clone + Debug + Default> ABinaryTree<L, P> {
     ) -> Vec<ParentNodeIndex> {
         common_direct_path(leaf_index_1, leaf_index_2, self.tree_size())
     }
-}
 
-#[cfg(test)]
-impl<L: Clone + Debug + Default, P: Clone + Debug + Default> ABinaryTree<L, P> {
+    #[cfg(test)]
     pub(crate) fn parent(&self, parent_index: ParentNodeIndex) -> &P {
         self.parent_nodes
             .get(parent_index.usize())
@@ -226,7 +224,7 @@ impl<L: Clone + Debug + Default, P: Clone + Debug + Default> ABinaryTree<L, P> {
 
 /// Binary Tree error
 #[derive(Error, Debug, PartialEq, Clone)]
-pub(crate) enum ABinaryTreeError {
+pub enum ABinaryTreeError {
     /// Adding nodes exceeds the maximum possible size of the tree.
     #[error("Adding nodes exceeds the maximum possible size of the tree.")]
     OutOfRange,

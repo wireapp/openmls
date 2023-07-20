@@ -13,35 +13,39 @@ use crate::{
     group::{
         config::CryptoConfig,
         errors::*,
+        group_context::GroupContext,
         proposals::{ProposalQueue, ProposalStore, QueuedProposal},
         public_group::errors::PublicGroupBuildError,
-        test_core_group::setup_client,
-        CreateCommitParams, GroupContext, GroupId,
+        test_core_group::{setup_client, setup_client_with_extensions},
+        CreateCommitParams, GroupId,
     },
     key_packages::{KeyPackageBundle, KeyPackageIn},
     messages::proposals::{AddProposal, Proposal, ProposalOrRef, ProposalType},
     schedule::psk::store::ResumptionPskStore,
     test_utils::*,
-    treesync::errors::LeafNodeValidationError,
+    treesync::{errors::LeafNodeValidationError, node::leaf_node::Capabilities},
     versions::ProtocolVersion,
 };
+
+wasm_bindgen_test::wasm_bindgen_test_configure!(run_in_browser);
 
 /// This test makes sure ProposalQueue works as intended. This functionality is
 /// used in `create_commit` to filter the epoch proposals. Expected result:
 /// `filtered_queued_proposals` returns only proposals of a certain type
 #[apply(ciphersuites_and_backends)]
-fn proposal_queue_functions(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider) {
+#[wasm_bindgen_test::wasm_bindgen_test]
+async fn proposal_queue_functions(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider) {
     // Framing parameters
     let framing_parameters = FramingParameters::new(&[], WireFormat::PublicMessage);
     // Define identities
     let (alice_credential, alice_key_package_bundle, alice_signer, _alice_pk) =
-        setup_client("Alice", ciphersuite, backend);
+        setup_client("Alice", ciphersuite, backend).await;
     let (_bob_credential_with_key, bob_key_package_bundle, _bob_signer, _bob_pk) =
-        setup_client("Bob", ciphersuite, backend);
+        setup_client("Bob", ciphersuite, backend).await;
 
     let bob_key_package = bob_key_package_bundle.key_package();
     let alice_update_key_package_bundle =
-        KeyPackageBundle::new(backend, &alice_signer, ciphersuite, alice_credential);
+        KeyPackageBundle::new(backend, &alice_signer, ciphersuite, alice_credential).await;
     let alice_update_key_package = alice_update_key_package_bundle.key_package();
     let kpi = KeyPackageIn::from(alice_update_key_package.clone());
     assert!(kpi
@@ -174,18 +178,19 @@ fn proposal_queue_functions(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryp
 
 /// Test, that we QueuedProposalQueue is iterated in the right order.
 #[apply(ciphersuites_and_backends)]
-fn proposal_queue_order(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider) {
+#[wasm_bindgen_test::wasm_bindgen_test]
+async fn proposal_queue_order(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider) {
     // Framing parameters
     let framing_parameters = FramingParameters::new(&[], WireFormat::PublicMessage);
     // Define identities
     let (alice_credential, alice_key_package_bundle, alice_signer, _alice_pk) =
-        setup_client("Alice", ciphersuite, backend);
+        setup_client("Alice", ciphersuite, backend).await;
     let (_bob_credential_with_key, bob_key_package_bundle, _bob_signer, _bob_pk) =
-        setup_client("Bob", ciphersuite, backend);
+        setup_client("Bob", ciphersuite, backend).await;
 
     let bob_key_package = bob_key_package_bundle.key_package();
     let alice_update_key_package_bundle =
-        KeyPackageBundle::new(backend, &alice_signer, ciphersuite, alice_credential);
+        KeyPackageBundle::new(backend, &alice_signer, ciphersuite, alice_credential).await;
     let alice_update_key_package = alice_update_key_package_bundle.key_package();
     let kpi = KeyPackageIn::from(alice_update_key_package.clone());
     assert!(kpi
@@ -282,12 +287,13 @@ fn proposal_queue_order(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoPr
 }
 
 #[apply(ciphersuites_and_backends)]
-fn test_required_unsupported_proposals(
+#[wasm_bindgen_test::wasm_bindgen_test]
+async fn test_required_unsupported_proposals(
     ciphersuite: Ciphersuite,
     backend: &impl OpenMlsCryptoProvider,
 ) {
     let (alice_credential, _, alice_signer, _alice_pk) =
-        setup_client("Alice", ciphersuite, backend);
+        setup_client("Alice", ciphersuite, backend).await;
 
     // Set required capabilities
     let extensions = &[];
@@ -304,17 +310,19 @@ fn test_required_unsupported_proposals(
     )
     .with_required_capabilities(required_capabilities)
     .build(backend, &alice_signer)
+    .await
     .expect_err(
         "CoreGroup creation must fail because AppAck proposals aren't supported in OpenMLS yet.",
     );
-    assert_eq!(
+    assert!(matches!(
         e,
         CoreGroupBuildError::PublicGroupBuildError(PublicGroupBuildError::UnsupportedProposalType)
-    )
+    ))
 }
 
 #[apply(ciphersuites_and_backends)]
-fn test_required_extension_key_package_mismatch(
+#[wasm_bindgen_test::wasm_bindgen_test]
+async fn test_required_extension_key_package_mismatch(
     ciphersuite: Ciphersuite,
     backend: &impl OpenMlsCryptoProvider,
 ) {
@@ -323,9 +331,9 @@ fn test_required_extension_key_package_mismatch(
     let framing_parameters = FramingParameters::new(group_aad, WireFormat::PublicMessage);
 
     let (alice_credential, _, alice_signer, _alice_pk) =
-        setup_client("Alice", ciphersuite, backend);
+        setup_client("Alice", ciphersuite, backend).await;
     let (_bob_credential_with_key, bob_key_package_bundle, _, _) =
-        setup_client("Bob", ciphersuite, backend);
+        setup_client("Bob", ciphersuite, backend).await;
     let bob_key_package = bob_key_package_bundle.key_package();
 
     // Set required capabilities
@@ -350,6 +358,7 @@ fn test_required_extension_key_package_mismatch(
     )
     .with_required_capabilities(required_capabilities)
     .build(backend, &alice_signer)
+    .await
     .expect("Error creating CoreGroup.");
 
     let e = alice_group
@@ -366,17 +375,14 @@ fn test_required_extension_key_package_mismatch(
 }
 
 #[apply(ciphersuites_and_backends)]
-fn test_group_context_extensions(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider) {
+#[wasm_bindgen_test::wasm_bindgen_test]
+async fn test_group_context_extensions(
+    ciphersuite: Ciphersuite,
+    backend: &impl OpenMlsCryptoProvider,
+) {
     // Basic group setup.
     let group_aad = b"Alice's test group";
     let framing_parameters = FramingParameters::new(group_aad, WireFormat::PublicMessage);
-
-    let (alice_credential, _, alice_signer, _alice_pk) =
-        setup_client("Alice", ciphersuite, backend);
-    let (_bob_credential_with_key, bob_key_package_bundle, _, _) =
-        setup_client("Bob", ciphersuite, backend);
-
-    let bob_key_package = bob_key_package_bundle.key_package();
 
     // Set required capabilities
     let extensions = &[ExtensionType::ApplicationId];
@@ -387,16 +393,41 @@ fn test_group_context_extensions(ciphersuite: Ciphersuite, backend: &impl OpenMl
         ProposalType::Update,
     ];
     let credentials = &[CredentialType::Basic];
-    let required_capabilities =
-        RequiredCapabilitiesExtension::new(extensions, proposals, credentials);
+    let leaf_capabilities = Capabilities::new(
+        None,
+        None,
+        Some(extensions),
+        Some(proposals),
+        Some(credentials),
+    );
+    // create clients
+    let (alice_credential, _, alice_signer, _alice_pk) = setup_client_with_extensions(
+        "Alice",
+        ciphersuite,
+        backend,
+        Extensions::empty(),
+        leaf_capabilities.clone(),
+    )
+    .await;
+    let (_bob_credential_bundle, bob_key_package_bundle, _, _) = setup_client_with_extensions(
+        "Bob",
+        ciphersuite,
+        backend,
+        Extensions::empty(),
+        leaf_capabilities.clone(),
+    )
+    .await;
+
+    let bob_key_package = bob_key_package_bundle.key_package();
 
     let mut alice_group = CoreGroup::builder(
         GroupId::random(backend),
         CryptoConfig::with_default_version(ciphersuite),
         alice_credential,
     )
-    .with_required_capabilities(required_capabilities)
+    .with_leaf_capabilities(leaf_capabilities)
     .build(backend, &alice_signer)
+    .await
     .expect("Error creating CoreGroup.");
 
     let bob_add_proposal = alice_group
@@ -415,12 +446,14 @@ fn test_group_context_extensions(ciphersuite: Ciphersuite, backend: &impl OpenMl
         .build();
     let create_commit_result = alice_group
         .create_commit(params, backend, &alice_signer)
+        .await
         .expect("Error creating commit");
 
     log::info!(" >>> Staging & merging commit ...");
 
     alice_group
         .merge_commit(backend, create_commit_result.staged_commit)
+        .await
         .expect("error merging own staged commit");
     let ratchet_tree = alice_group.public_group().export_ratchet_tree();
 
@@ -435,11 +468,13 @@ fn test_group_context_extensions(ciphersuite: Ciphersuite, backend: &impl OpenMl
         backend,
         ResumptionPskStore::new(1024),
     )
+    .await
     .expect("Error joining group.");
 }
 
 #[apply(ciphersuites_and_backends)]
-fn test_group_context_extension_proposal_fails(
+#[wasm_bindgen_test::wasm_bindgen_test]
+async fn test_group_context_extension_proposal_fails(
     ciphersuite: Ciphersuite,
     backend: &impl OpenMlsCryptoProvider,
 ) {
@@ -448,9 +483,9 @@ fn test_group_context_extension_proposal_fails(
     let framing_parameters = FramingParameters::new(group_aad, WireFormat::PublicMessage);
 
     let (alice_credential, _, alice_signer, _alice_pk) =
-        setup_client("Alice", ciphersuite, backend);
+        setup_client("Alice", ciphersuite, backend).await;
     let (_bob_credential_with_key, bob_key_package_bundle, _, _) =
-        setup_client("Bob", ciphersuite, backend);
+        setup_client("Bob", ciphersuite, backend).await;
 
     let bob_key_package = bob_key_package_bundle.key_package();
 
@@ -471,6 +506,7 @@ fn test_group_context_extension_proposal_fails(
     )
     .with_required_capabilities(required_capabilities)
     .build(backend, &alice_signer)
+    .await
     .expect("Error creating CoreGroup.");
 
     // TODO: openmls/openmls#1130 add a test for unsupported required capabilities.
@@ -512,12 +548,14 @@ fn test_group_context_extension_proposal_fails(
         .build();
     let create_commit_result = alice_group
         .create_commit(params, backend, &alice_signer)
+        .await
         .expect("Error creating commit");
 
     log::info!(" >>> Staging & merging commit ...");
 
     alice_group
         .merge_commit(backend, create_commit_result.staged_commit)
+        .await
         .expect("error merging pending commit");
     let ratchet_tree = alice_group.public_group().export_ratchet_tree();
 
@@ -530,6 +568,7 @@ fn test_group_context_extension_proposal_fails(
         backend,
         ResumptionPskStore::new(1024),
     )
+    .await
     .expect("Error joining group.");
 
     // TODO: openmls/openmls#1130 re-enable
@@ -552,7 +591,8 @@ fn test_group_context_extension_proposal_fails(
 }
 
 #[apply(ciphersuites_and_backends)]
-fn test_group_context_extension_proposal(
+#[wasm_bindgen_test::wasm_bindgen_test]
+async fn test_group_context_extension_proposal(
     ciphersuite: Ciphersuite,
     backend: &impl OpenMlsCryptoProvider,
 ) {
@@ -561,9 +601,9 @@ fn test_group_context_extension_proposal(
     let framing_parameters = FramingParameters::new(group_aad, WireFormat::PublicMessage);
 
     let (alice_credential, _, alice_signer, _alice_pk) =
-        setup_client("Alice", ciphersuite, backend);
+        setup_client("Alice", ciphersuite, backend).await;
     let (_bob_credential_with_key, bob_key_package_bundle, _, _) =
-        setup_client("Bob", ciphersuite, backend);
+        setup_client("Bob", ciphersuite, backend).await;
 
     let bob_key_package = bob_key_package_bundle.key_package();
 
@@ -573,6 +613,7 @@ fn test_group_context_extension_proposal(
         alice_credential,
     )
     .build(backend, &alice_signer)
+    .await
     .expect("Error creating CoreGroup.");
 
     // Adding Bob
@@ -592,12 +633,14 @@ fn test_group_context_extension_proposal(
         .build();
     let create_commit_results = alice_group
         .create_commit(params, backend, &alice_signer)
+        .await
         .expect("Error creating commit");
 
     log::info!(" >>> Staging & merging commit ...");
 
     alice_group
         .merge_commit(backend, create_commit_results.staged_commit)
+        .await
         .expect("error merging pending commit");
 
     let ratchet_tree = alice_group.public_group().export_ratchet_tree();
@@ -611,6 +654,7 @@ fn test_group_context_extension_proposal(
         backend,
         ResumptionPskStore::new(1024),
     )
+    .await
     .expect("Error joining group.");
 
     // Alice adds a required capability.
@@ -624,6 +668,7 @@ fn test_group_context_extension_proposal(
         .create_group_context_ext_proposal(
             framing_parameters,
             Extensions::single(required_application_id),
+            proposal_store.proposals(),
             &alice_signer,
         )
         .expect("Error creating gce proposal.");
@@ -640,19 +685,23 @@ fn test_group_context_extension_proposal(
         .build();
     let create_commit_result = alice_group
         .create_commit(params, backend, &alice_signer)
+        .await
         .expect("Error creating commit");
 
     log::info!(" >>> Staging & merging commit ...");
 
     let staged_commit = bob_group
         .read_keys_and_stage_commit(&create_commit_result.commit, &proposal_store, &[], backend)
+        .await
         .expect("error staging commit");
     bob_group
         .merge_commit(backend, staged_commit)
+        .await
         .expect("error merging commit");
 
     alice_group
         .merge_commit(backend, create_commit_result.staged_commit)
+        .await
         .expect("error merging pending commit");
 
     assert_eq!(

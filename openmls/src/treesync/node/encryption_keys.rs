@@ -32,18 +32,8 @@ impl EncryptionKey {
     }
 
     /// Return the internal [`HpkePublicKey`] as slice.
-    pub(crate) fn as_slice(&self) -> &[u8] {
+    pub fn as_slice(&self) -> &[u8] {
         self.key.as_slice()
-    }
-
-    /// Helper function to prefix the given (serialized) [`EncryptionKey`] with
-    /// the `ENCRYPTION_KEY_LABEL`.
-    ///
-    /// Returns the resulting bytes.
-    fn to_bytes_with_prefix(&self) -> Vec<u8> {
-        let mut key_store_index = ENCRYPTION_KEY_LABEL.to_vec();
-        key_store_index.extend_from_slice(self.as_slice());
-        key_store_index
     }
 
     /// Encrypt to this HPKE public key.
@@ -68,7 +58,7 @@ impl EncryptionKey {
 
 #[derive(Clone, Serialize, Deserialize, TlsDeserialize, TlsSerialize, TlsSize)]
 #[cfg_attr(test, derive(PartialEq, Eq))]
-pub(crate) struct EncryptionPrivateKey {
+pub struct EncryptionPrivateKey {
     key: HpkePrivateKey,
 }
 
@@ -126,6 +116,7 @@ impl EncryptionPrivateKey {
 
 #[cfg(test)]
 impl EncryptionPrivateKey {
+    #[allow(dead_code)]
     pub(crate) fn key(&self) -> &HpkePrivateKey {
         &self.key
     }
@@ -139,12 +130,10 @@ impl From<HpkePublicKey> for EncryptionKey {
 
 #[derive(Debug, Clone, Serialize, Deserialize, TlsDeserialize, TlsSerialize, TlsSize)]
 #[cfg_attr(test, derive(PartialEq, Eq))]
-pub(crate) struct EncryptionKeyPair {
+pub struct EncryptionKeyPair {
     public_key: EncryptionKey,
     private_key: EncryptionPrivateKey,
 }
-
-const ENCRYPTION_KEY_LABEL: &[u8; 19] = b"leaf_encryption_key";
 
 impl EncryptionKeyPair {
     /// Write the [`EncryptionKeyPair`] to the key store of the `backend`. This
@@ -152,13 +141,14 @@ impl EncryptionKeyPair {
     /// already in use with an MLS group.
     ///
     /// Returns a key store error if access to the key store fails.
-    pub(crate) fn write_to_key_store<KeyStore: OpenMlsKeyStore>(
+    pub(crate) async fn write_to_key_store<KeyStore: OpenMlsKeyStore>(
         &self,
         backend: &impl OpenMlsCryptoProvider<KeyStoreProvider = KeyStore>,
     ) -> Result<(), KeyStore::Error> {
         backend
             .key_store()
-            .store(&self.public_key().to_bytes_with_prefix(), self)
+            .store(self.public_key().as_slice(), self)
+            .await
     }
 
     /// Read the [`EncryptionKeyPair`] from the key store of the `backend`. This
@@ -166,13 +156,11 @@ impl EncryptionKeyPair {
     /// already in use with an MLS group.
     ///
     /// Returns `None` if the keypair cannot be read from the store.
-    pub(crate) fn read_from_key_store(
+    pub(crate) async fn read_from_key_store(
         backend: &impl OpenMlsCryptoProvider,
         encryption_key: &EncryptionKey,
     ) -> Option<EncryptionKeyPair> {
-        backend
-            .key_store()
-            .read(&encryption_key.to_bytes_with_prefix())
+        backend.key_store().read(encryption_key.as_slice()).await
     }
 
     /// Delete the [`EncryptionKeyPair`] from the key store of the `backend`.
@@ -180,13 +168,14 @@ impl EncryptionKeyPair {
     /// already in use with an MLS group.
     ///
     /// Returns a key store error if access to the key store fails.
-    pub(crate) fn delete_from_key_store<KeyStore: OpenMlsKeyStore>(
+    pub(crate) async fn delete_from_key_store<KeyStore: OpenMlsKeyStore>(
         &self,
         backend: &impl OpenMlsCryptoProvider<KeyStoreProvider = KeyStore>,
     ) -> Result<(), KeyStore::Error> {
         backend
             .key_store()
-            .delete::<Self>(&self.public_key().to_bytes_with_prefix())
+            .delete::<Self>(self.public_key().as_slice())
+            .await
     }
 
     pub(crate) fn public_key(&self) -> &EncryptionKey {
@@ -206,6 +195,7 @@ impl EncryptionKeyPair {
         Ok(backend
             .crypto()
             .derive_hpke_keypair(config.ciphersuite.hpke_config(), ikm.as_slice())
+            .map_err(LibraryError::unexpected_crypto_error)?
             .into())
     }
 }
@@ -214,11 +204,13 @@ impl EncryptionKeyPair {
 pub mod test_utils {
     use super::*;
 
-    pub fn read_keys_from_key_store(
+    pub async fn read_keys_from_key_store(
         backend: &impl OpenMlsCryptoProvider,
         encryption_key: &EncryptionKey,
     ) -> HpkeKeyPair {
-        let keys = EncryptionKeyPair::read_from_key_store(backend, encryption_key).unwrap();
+        let keys = EncryptionKeyPair::read_from_key_store(backend, encryption_key)
+            .await
+            .unwrap();
 
         HpkeKeyPair {
             private: keys.private_key.key,
@@ -226,13 +218,13 @@ pub mod test_utils {
         }
     }
 
-    pub fn write_keys_from_key_store(
+    pub async fn write_keys_from_key_store(
         backend: &impl OpenMlsCryptoProvider,
         encryption_key: HpkeKeyPair,
     ) {
         let keypair = EncryptionKeyPair::from(encryption_key);
 
-        keypair.write_to_key_store(backend).unwrap();
+        keypair.write_to_key_store(backend).await.unwrap();
     }
 }
 

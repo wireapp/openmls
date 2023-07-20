@@ -55,8 +55,8 @@ pub(crate) mod codec;
 
 pub(crate) mod message_in;
 pub(crate) mod message_out;
-pub(crate) mod mls_auth_content;
-pub(crate) mod mls_auth_content_in;
+pub mod mls_auth_content;
+pub mod mls_auth_content_in;
 pub(crate) mod mls_content;
 pub(crate) mod mls_content_in;
 pub(crate) mod private_message;
@@ -128,7 +128,7 @@ pub enum WireFormat {
 /// This struct is used to group common framing parameters
 /// in order to reduce the number of arguments in function calls.
 #[derive(Clone, Copy, PartialEq, Debug)]
-pub(crate) struct FramingParameters<'a> {
+pub struct FramingParameters<'a> {
     aad: &'a [u8],
     wire_format: WireFormat,
 }
@@ -141,10 +141,10 @@ impl<'a> FramingParameters<'a> {
         }
     }
 
-    pub(crate) fn aad(&self) -> &'a [u8] {
+    pub fn aad(&self) -> &'a [u8] {
         self.aad
     }
-    pub(crate) fn wire_format(&self) -> WireFormat {
+    pub fn wire_format(&self) -> WireFormat {
         self.wire_format
     }
 }

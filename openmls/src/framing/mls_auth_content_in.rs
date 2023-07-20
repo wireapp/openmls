@@ -24,11 +24,8 @@ use crate::{
 #[cfg(doc)]
 use super::{PrivateMessageIn, PublicMessageIn};
 
-/// Private module to ensure protection of [`AuthenticatedContent`].
-mod private_mod {
-    #[derive(Default)]
-    pub(crate) struct Seal;
-}
+#[derive(Default)]
+pub struct Seal;
 
 /// 6 Message Framing
 ///
@@ -42,15 +39,15 @@ mod private_mod {
 /// } AuthenticatedContent;
 /// ```
 #[derive(PartialEq, Debug, Clone, TlsSize)]
-pub(crate) struct AuthenticatedContentIn {
-    pub(super) wire_format: WireFormat,
-    pub(super) content: FramedContentIn,
-    pub(super) auth: FramedContentAuthData,
+pub struct AuthenticatedContentIn {
+    pub wire_format: WireFormat,
+    pub content: FramedContentIn,
+    pub auth: FramedContentAuthData,
 }
 
 impl AuthenticatedContentIn {
     /// Returns a [`AuthenticatedContent`] after successful validation.
-    pub(crate) fn validate(
+    pub fn validate(
         self,
         ciphersuite: Ciphersuite,
         crypto: &impl OpenMlsCrypto,
@@ -70,10 +67,9 @@ impl AuthenticatedContentIn {
     }
 }
 
-#[cfg(any(feature = "test-utils", test))]
 impl AuthenticatedContentIn {
     /// Get the content body of the message.
-    pub(crate) fn content(&self) -> &FramedContentBodyIn {
+    pub fn content(&self) -> &FramedContentBodyIn {
         &self.content.body
     }
 }
@@ -112,7 +108,7 @@ impl From<VerifiableAuthenticatedContentIn> for AuthenticatedContentIn {
 /// Wrapper struct around [`AuthenticatedContent`] to enforce signature verification
 /// before content can be accessed.
 #[derive(PartialEq, Debug, Clone)]
-pub(crate) struct VerifiableAuthenticatedContentIn {
+pub struct VerifiableAuthenticatedContentIn {
     tbs: FramedContentTbsIn,
     auth: FramedContentAuthData,
 }
@@ -177,6 +173,14 @@ impl VerifiableAuthenticatedContentIn {
         }
     }
 
+    /// Returns the [`Credential`] and the [`SignaturePublicKey`] when this message is a commit with an UpdatePath
+    pub(crate) fn update_path_credential(&self) -> Option<CredentialWithKey> {
+        match (&self.tbs.content.sender, &self.tbs.content.body) {
+            (Sender::Member(_), FramedContentBodyIn::Commit(c)) => c.unverified_credential(),
+            _ => None,
+        }
+    }
+
     /// Get the wire format.
     pub(crate) fn wire_format(&self) -> WireFormat {
         self.tbs.wire_format
@@ -216,7 +220,7 @@ impl VerifiedStruct<VerifiableAuthenticatedContentIn> for AuthenticatedContentIn
         }
     }
 
-    type SealingType = private_mod::Seal;
+    type SealingType = Seal;
 }
 
 impl SignedStruct<FramedContentTbsIn> for AuthenticatedContentIn {

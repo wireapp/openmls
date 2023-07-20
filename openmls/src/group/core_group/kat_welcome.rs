@@ -28,7 +28,7 @@ use crate::{
     binary_tree::{array_representation::TreeSize, LeafNodeIndex},
     ciphersuite::signable::Verifiable,
     framing::{MlsMessageIn, MlsMessageInBody},
-    group::*,
+    group::{group_context::GroupContext, *},
     key_packages::*,
     messages::*,
     prelude::group_info::{GroupInfo, VerifiableGroupInfo},
@@ -67,13 +67,13 @@ pub struct WelcomeTestVector {
     welcome: Vec<u8>,
 }
 
-#[test]
-fn test_read_vectors() {
+#[async_std::test]
+async fn test_read_vectors() {
     let test_vectors: Vec<WelcomeTestVector> = read(TEST_VECTOR_PATH_READ);
 
     for (i, test_vector) in test_vectors.into_iter().enumerate() {
         println!("# {i:04}");
-        match run_test_vector(test_vector) {
+        match run_test_vector(test_vector).await {
             Ok(_) => {}
             Err(e) => panic!("Error while checking messages test vector.\n{e:?}"),
         }
@@ -104,7 +104,7 @@ fn test_read_vectors() {
 //     unimplemented!()
 // }
 
-pub fn run_test_vector(test_vector: WelcomeTestVector) -> Result<(), &'static str> {
+pub async fn run_test_vector(test_vector: WelcomeTestVector) -> Result<(), &'static str> {
     let _ = pretty_env_logger::formatted_builder()
         .is_test(true)
         .try_init();
@@ -172,6 +172,7 @@ pub fn run_test_vector(test_vector: WelcomeTestVector) -> Result<(), &'static st
             key_package.hash_ref(backend.crypto()).unwrap().as_slice(),
             &key_package,
         )
+        .await
         .unwrap();
 
     backend
@@ -180,6 +181,7 @@ pub fn run_test_vector(test_vector: WelcomeTestVector) -> Result<(), &'static st
             key_package.hpke_init_key().as_slice(),
             key_package_bundle.private_key(),
         )
+        .await
         .unwrap();
 
     // Verification:
@@ -210,9 +212,11 @@ pub fn run_test_vector(test_vector: WelcomeTestVector) -> Result<(), &'static st
     let psk_secret = {
         let resumption_psk_store = ResumptionPskStore::new(1024);
 
-        let psks = load_psks(backend.key_store(), &resumption_psk_store, &[]).unwrap();
+        let psks = load_psks(backend.key_store(), &resumption_psk_store, &[])
+            .await
+            .unwrap();
 
-        PskSecret::new(&backend, cipher_suite, psks).unwrap()
+        PskSecret::new(&backend, cipher_suite, psks).await.unwrap()
     };
 
     let mut key_schedule = KeySchedule::init(

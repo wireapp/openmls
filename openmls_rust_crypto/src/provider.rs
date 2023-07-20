@@ -1,3 +1,4 @@
+use rand_core::{RngCore, SeedableRng};
 use std::sync::RwLock;
 
 use aes_gcm::{
@@ -5,28 +6,60 @@ use aes_gcm::{
     Aes128Gcm, Aes256Gcm, NewAead,
 };
 use chacha20poly1305::ChaCha20Poly1305;
-// See https://github.com/rust-analyzer/rust-analyzer/issues/7243
-// for the rust-analyzer issue with the following line.
-use ed25519_dalek::Signer as DalekSigner;
 use hkdf::Hkdf;
-use hpke::Hpke;
-use hpke_rs_crypto::types as hpke_types;
-use hpke_rs_rust_crypto::HpkeRustCrypto;
 use openmls_traits::{
     crypto::OpenMlsCrypto,
     random::OpenMlsRand,
     types::{
         self, AeadType, Ciphersuite, CryptoError, ExporterSecret, HashType, HpkeAeadType,
-        HpkeCiphertext, HpkeConfig, HpkeKdfType, HpkeKemType, HpkeKeyPair, SignatureScheme,
+        HpkeConfig, HpkeKdfType, HpkeKemType, SignatureScheme,
     },
 };
-use p256::{
-    ecdsa::{signature::Verifier, Signature, SigningKey, VerifyingKey},
-    EncodedPoint,
-};
-use rand::{RngCore, SeedableRng};
 use sha2::{Digest, Sha256, Sha384, Sha512};
 use tls_codec::SecretVLBytes;
+
+/// 32-byte raw entropy seed
+pub type RawEntropySeed = <rand_chacha::ChaCha20Rng as rand_core::SeedableRng>::Seed;
+
+#[derive(Debug, Clone, Default, PartialEq, Eq, zeroize::ZeroizeOnDrop)]
+#[repr(transparent)]
+/// Wrapped 32-byte entropy seed with bounds check
+pub struct EntropySeed(RawEntropySeed);
+
+impl EntropySeed {
+    pub const EXPECTED_LEN: usize = std::mem::size_of::<EntropySeed>() / std::mem::size_of::<u8>();
+
+    pub fn try_from_slice(data: &[u8]) -> Result<Self, RandError> {
+        if data.len() < Self::EXPECTED_LEN {
+            return Err(RandError::EntropySeedLengthError {
+                actual: data.len(),
+                expected: Self::EXPECTED_LEN,
+            });
+        }
+
+        let mut inner = RawEntropySeed::default();
+        inner.copy_from_slice(&data[..Self::EXPECTED_LEN]);
+
+        Ok(Self(inner))
+    }
+
+    pub fn from_raw(raw: RawEntropySeed) -> Self {
+        Self(raw)
+    }
+}
+
+impl std::ops::Deref for EntropySeed {
+    type Target = [u8];
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl std::ops::DerefMut for EntropySeed {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
+    }
+}
 
 #[derive(Debug)]
 pub struct RustCrypto {
@@ -41,33 +74,11 @@ impl Default for RustCrypto {
     }
 }
 
-#[inline(always)]
-fn kem_mode(kem: HpkeKemType) -> hpke_types::KemAlgorithm {
-    match kem {
-        HpkeKemType::DhKemP256 => hpke_types::KemAlgorithm::DhKemP256,
-        HpkeKemType::DhKemP384 => hpke_types::KemAlgorithm::DhKemP384,
-        HpkeKemType::DhKemP521 => hpke_types::KemAlgorithm::DhKemP521,
-        HpkeKemType::DhKem25519 => hpke_types::KemAlgorithm::DhKem25519,
-        HpkeKemType::DhKem448 => hpke_types::KemAlgorithm::DhKem448,
-    }
-}
-
-#[inline(always)]
-fn kdf_mode(kdf: HpkeKdfType) -> hpke_types::KdfAlgorithm {
-    match kdf {
-        HpkeKdfType::HkdfSha256 => hpke_types::KdfAlgorithm::HkdfSha256,
-        HpkeKdfType::HkdfSha384 => hpke_types::KdfAlgorithm::HkdfSha384,
-        HpkeKdfType::HkdfSha512 => hpke_types::KdfAlgorithm::HkdfSha512,
-    }
-}
-
-#[inline(always)]
-fn aead_mode(aead: HpkeAeadType) -> hpke_types::AeadAlgorithm {
-    match aead {
-        HpkeAeadType::AesGcm128 => hpke_types::AeadAlgorithm::Aes128Gcm,
-        HpkeAeadType::AesGcm256 => hpke_types::AeadAlgorithm::Aes256Gcm,
-        HpkeAeadType::ChaCha20Poly1305 => hpke_types::AeadAlgorithm::ChaCha20Poly1305,
-        HpkeAeadType::Export => hpke_types::AeadAlgorithm::HpkeExport,
+impl RustCrypto {
+    pub fn new_with_seed(seed: EntropySeed) -> Self {
+        Self {
+            rng: rand_chacha::ChaCha20Rng::from_seed(seed.0).into(),
+        }
     }
 }
 
@@ -76,7 +87,9 @@ impl OpenMlsCrypto for RustCrypto {
         match ciphersuite {
             Ciphersuite::MLS_128_DHKEMX25519_AES128GCM_SHA256_Ed25519
             | Ciphersuite::MLS_128_DHKEMX25519_CHACHA20POLY1305_SHA256_Ed25519
-            | Ciphersuite::MLS_128_DHKEMP256_AES128GCM_SHA256_P256 => Ok(()),
+            | Ciphersuite::MLS_128_DHKEMP256_AES128GCM_SHA256_P256
+            | Ciphersuite::MLS_256_DHKEMP384_AES256GCM_SHA384_P384
+            | Ciphersuite::MLS_128_X25519KYBER768DRAFT00_AES128GCM_SHA256_Ed25519 => Ok(()),
             _ => Err(CryptoError::UnsupportedCiphersuite),
         }
     }
@@ -86,6 +99,8 @@ impl OpenMlsCrypto for RustCrypto {
             Ciphersuite::MLS_128_DHKEMX25519_AES128GCM_SHA256_Ed25519,
             Ciphersuite::MLS_128_DHKEMX25519_CHACHA20POLY1305_SHA256_Ed25519,
             Ciphersuite::MLS_128_DHKEMP256_AES128GCM_SHA256_P256,
+            Ciphersuite::MLS_256_DHKEMP384_AES256GCM_SHA384_P384,
+            Ciphersuite::MLS_128_X25519KYBER768DRAFT00_AES128GCM_SHA256_Ed25519,
         ]
     }
 
@@ -113,25 +128,31 @@ impl OpenMlsCrypto for RustCrypto {
             HashType::Sha2_256 => {
                 let hkdf = Hkdf::<Sha256>::from_prk(prk)
                     .map_err(|_| CryptoError::HkdfOutputLengthInvalid)?;
+
                 let mut okm = vec![0u8; okm_len];
                 hkdf.expand(info, &mut okm)
                     .map_err(|_| CryptoError::HkdfOutputLengthInvalid)?;
+
                 Ok(okm.into())
             }
             HashType::Sha2_512 => {
                 let hkdf = Hkdf::<Sha512>::from_prk(prk)
                     .map_err(|_| CryptoError::HkdfOutputLengthInvalid)?;
+
                 let mut okm = vec![0u8; okm_len];
                 hkdf.expand(info, &mut okm)
                     .map_err(|_| CryptoError::HkdfOutputLengthInvalid)?;
+
                 Ok(okm.into())
             }
             HashType::Sha2_384 => {
                 let hkdf = Hkdf::<Sha384>::from_prk(prk)
                     .map_err(|_| CryptoError::HkdfOutputLengthInvalid)?;
+
                 let mut okm = vec![0u8; okm_len];
                 hkdf.expand(info, &mut okm)
                     .map_err(|_| CryptoError::HkdfOutputLengthInvalid)?;
+
                 Ok(okm.into())
             }
         }
@@ -161,24 +182,27 @@ impl OpenMlsCrypto for RustCrypto {
             AeadType::Aes128Gcm => {
                 let aes =
                     Aes128Gcm::new_from_slice(key).map_err(|_| CryptoError::CryptoLibraryError)?;
+
                 aes.encrypt(nonce.into(), Payload { msg: data, aad })
                     .map(|r| r.as_slice().into())
-                    .map_err(|_| CryptoError::CryptoLibraryError)
+                    .map_err(|_| CryptoError::AeadEncryptionError)
             }
             AeadType::Aes256Gcm => {
                 let aes =
-                    Aes256Gcm::new_from_slice(key).map_err(|_| CryptoError::CryptoLibraryError)?;
+                    Aes256Gcm::new_from_slice(key).map_err(|_| CryptoError::AeadEncryptionError)?;
+
                 aes.encrypt(nonce.into(), Payload { msg: data, aad })
                     .map(|r| r.as_slice().into())
-                    .map_err(|_| CryptoError::CryptoLibraryError)
+                    .map_err(|_| CryptoError::AeadEncryptionError)
             }
             AeadType::ChaCha20Poly1305 => {
                 let chacha_poly = ChaCha20Poly1305::new_from_slice(key)
-                    .map_err(|_| CryptoError::CryptoLibraryError)?;
+                    .map_err(|_| CryptoError::AeadEncryptionError)?;
+
                 chacha_poly
                     .encrypt(nonce.into(), Payload { msg: data, aad })
                     .map(|r| r.as_slice().into())
-                    .map_err(|_| CryptoError::CryptoLibraryError)
+                    .map_err(|_| CryptoError::AeadEncryptionError)
             }
         }
     }
@@ -221,23 +245,30 @@ impl OpenMlsCrypto for RustCrypto {
         &self,
         alg: openmls_traits::types::SignatureScheme,
     ) -> Result<(Vec<u8>, Vec<u8>), openmls_traits::types::CryptoError> {
+        let mut rng = self
+            .rng
+            .write()
+            .map_err(|_| CryptoError::InsufficientRandomness)?;
+
         match alg {
             SignatureScheme::ECDSA_SECP256R1_SHA256 => {
+                let sk = p256::ecdsa::SigningKey::random(&mut *rng);
+                let pk = sk.verifying_key().to_encoded_point(false).to_bytes().into();
+                Ok((sk.to_bytes().to_vec(), pk))
+            }
+            SignatureScheme::ECDSA_SECP384R1_SHA384 => {
+                let sk = p384::ecdsa::SigningKey::random(&mut *rng);
+                let pk = sk.verifying_key().to_encoded_point(false).to_bytes().into();
+                Ok((sk.to_bytes().to_vec(), pk))
+            }
+            SignatureScheme::ED25519 => {
                 let mut rng = self
                     .rng
                     .write()
                     .map_err(|_| CryptoError::InsufficientRandomness)?;
-                let k = SigningKey::random(&mut *rng);
-                let pk = k.verifying_key().to_encoded_point(false).as_bytes().into();
-                Ok((k.to_bytes().as_slice().into(), pk))
-            }
-            SignatureScheme::ED25519 => {
-                // XXX: We can't use our RNG here
-                let k = ed25519_dalek::Keypair::generate(&mut rand_07::rngs::OsRng).to_bytes();
-                let pk = k[ed25519_dalek::SECRET_KEY_LENGTH..].to_vec();
-                // full key here because we need it to sign...
-                let sk_pk = k.into();
-                Ok((sk_pk, pk))
+                let k = ed25519_dalek::SigningKey::generate(&mut *rng);
+                let pk = k.verifying_key();
+                Ok((k.to_bytes().into(), pk.to_bytes().into()))
             }
             _ => Err(CryptoError::UnsupportedSignatureScheme),
         }
@@ -250,24 +281,36 @@ impl OpenMlsCrypto for RustCrypto {
         pk: &[u8],
         signature: &[u8],
     ) -> Result<(), openmls_traits::types::CryptoError> {
+        use signature::Verifier as _;
         match alg {
             SignatureScheme::ECDSA_SECP256R1_SHA256 => {
-                let k = VerifyingKey::from_encoded_point(
-                    &EncodedPoint::from_bytes(pk).map_err(|_| CryptoError::CryptoLibraryError)?,
-                )
-                .map_err(|_| CryptoError::CryptoLibraryError)?;
-                k.verify(
-                    data,
-                    &Signature::from_der(signature).map_err(|_| CryptoError::InvalidSignature)?,
-                )
-                .map_err(|_| CryptoError::InvalidSignature)
+                let k = p256::ecdsa::VerifyingKey::from_sec1_bytes(pk)
+                    .map_err(|_| CryptoError::CryptoLibraryError)?;
+
+                let signature = p256::ecdsa::DerSignature::from_bytes(signature)
+                    .map_err(|_| CryptoError::InvalidSignature)?;
+
+                k.verify(data, &signature)
+                    .map_err(|_| CryptoError::InvalidSignature)
+            }
+            SignatureScheme::ECDSA_SECP384R1_SHA384 => {
+                let k = p384::ecdsa::VerifyingKey::from_sec1_bytes(pk)
+                    .map_err(|_| CryptoError::CryptoLibraryError)?;
+
+                let signature = p384::ecdsa::DerSignature::from_bytes(signature)
+                    .map_err(|_| CryptoError::InvalidSignature)?;
+
+                k.verify(data, &signature)
+                    .map_err(|_| CryptoError::InvalidSignature)
             }
             SignatureScheme::ED25519 => {
-                let k = ed25519_dalek::PublicKey::from_bytes(pk)
+                let k = ed25519_dalek::VerifyingKey::try_from(pk)
                     .map_err(|_| CryptoError::CryptoLibraryError)?;
+
                 if signature.len() != ed25519_dalek::SIGNATURE_LENGTH {
-                    return Err(CryptoError::CryptoLibraryError);
+                    return Err(CryptoError::InvalidSignature);
                 }
+
                 let mut sig = [0u8; ed25519_dalek::SIGNATURE_LENGTH];
                 sig.clone_from_slice(signature);
                 k.verify_strict(data, &ed25519_dalek::Signature::from(sig))
@@ -283,16 +326,45 @@ impl OpenMlsCrypto for RustCrypto {
         data: &[u8],
         key: &[u8],
     ) -> Result<Vec<u8>, openmls_traits::types::CryptoError> {
+        use signature::Signer as _;
+
         match alg {
             SignatureScheme::ECDSA_SECP256R1_SHA256 => {
-                let k = SigningKey::from_bytes(key).map_err(|_| CryptoError::CryptoLibraryError)?;
-                let signature = k.sign(data);
-                Ok(signature.to_der().to_bytes().into())
+                let k = p256::ecdsa::SigningKey::from_bytes(key.into())
+                    .map_err(|_| CryptoError::CryptoLibraryError)?;
+                let signature: p256::ecdsa::DerSignature = k
+                    .try_sign(data)
+                    .map_err(|_| CryptoError::CryptoLibraryError)?;
+                Ok(signature.to_bytes().into())
+            }
+            SignatureScheme::ECDSA_SECP384R1_SHA384 => {
+                let k = p384::ecdsa::SigningKey::from_bytes(key.into())
+                    .map_err(|_| CryptoError::CryptoLibraryError)?;
+                let signature: p384::ecdsa::DerSignature = k
+                    .try_sign(data)
+                    .map_err(|_| CryptoError::CryptoLibraryError)?;
+                Ok(signature.to_bytes().into())
             }
             SignatureScheme::ED25519 => {
-                let k = ed25519_dalek::Keypair::from_bytes(key)
+                let k = match key.len() {
+                    // Compat layer for legacy keypairs [seed, pk]
+                    ed25519_dalek::KEYPAIR_LENGTH => {
+                        let mut sk = zeroize::Zeroizing::new([0u8; ed25519_dalek::KEYPAIR_LENGTH]);
+                        sk.copy_from_slice(key);
+                        ed25519_dalek::SigningKey::from_keypair_bytes(&sk)
+                            .map_err(|_| CryptoError::CryptoLibraryError)?
+                    }
+                    ed25519_dalek::SECRET_KEY_LENGTH => {
+                        let mut sk =
+                            zeroize::Zeroizing::new([0u8; ed25519_dalek::SECRET_KEY_LENGTH]);
+                        sk.copy_from_slice(key);
+                        ed25519_dalek::SigningKey::from_bytes(&sk)
+                    }
+                    _ => return Err(CryptoError::CryptoLibraryError),
+                };
+                let signature = k
+                    .try_sign(data)
                     .map_err(|_| CryptoError::CryptoLibraryError)?;
-                let signature = k.sign(data);
                 Ok(signature.to_bytes().into())
             }
             _ => Err(CryptoError::UnsupportedSignatureScheme),
@@ -306,13 +378,59 @@ impl OpenMlsCrypto for RustCrypto {
         info: &[u8],
         aad: &[u8],
         ptxt: &[u8],
-    ) -> types::HpkeCiphertext {
-        let (kem_output, ciphertext) = hpke_from_config(config)
-            .seal(&pk_r.into(), info, aad, ptxt, None, None, None)
-            .unwrap();
-        HpkeCiphertext {
-            kem_output: kem_output.into(),
-            ciphertext: ciphertext.into(),
+    ) -> Result<types::HpkeCiphertext, CryptoError> {
+        let mut rng = self
+            .rng
+            .write()
+            .map_err(|_| CryptoError::InsufficientRandomness)?;
+
+        match config {
+            HpkeConfig(
+                HpkeKemType::DhKem25519,
+                HpkeKdfType::HkdfSha256,
+                HpkeAeadType::AesGcm128,
+            ) => hpke_core::hpke_seal::<
+                hpke::aead::AesGcm128,
+                hpke::kdf::HkdfSha256,
+                hpke::kem::X25519HkdfSha256,
+            >(pk_r, info, aad, ptxt, &mut *rng),
+            HpkeConfig(
+                HpkeKemType::DhKem25519,
+                HpkeKdfType::HkdfSha256,
+                HpkeAeadType::ChaCha20Poly1305,
+            ) => hpke_core::hpke_seal::<
+                hpke::aead::ChaCha20Poly1305,
+                hpke::kdf::HkdfSha256,
+                hpke::kem::X25519HkdfSha256,
+            >(pk_r, info, aad, ptxt, &mut *rng),
+            HpkeConfig(
+                HpkeKemType::DhKemP256,
+                HpkeKdfType::HkdfSha256,
+                HpkeAeadType::AesGcm128,
+            ) => hpke_core::hpke_seal::<
+                hpke::aead::AesGcm128,
+                hpke::kdf::HkdfSha256,
+                hpke::kem::DhP256HkdfSha256,
+            >(pk_r, info, aad, ptxt, &mut *rng),
+            HpkeConfig(
+                HpkeKemType::DhKemP384,
+                HpkeKdfType::HkdfSha384,
+                HpkeAeadType::AesGcm256,
+            ) => hpke_core::hpke_seal::<
+                hpke::aead::AesGcm256,
+                hpke::kdf::HkdfSha384,
+                hpke::kem::DhP384HkdfSha384,
+            >(pk_r, info, aad, ptxt, &mut *rng),
+            HpkeConfig(
+                HpkeKemType::X25519Kyber768Draft00,
+                HpkeKdfType::HkdfSha256,
+                HpkeAeadType::AesGcm128,
+            ) => hpke_core::hpke_seal::<
+                hpke::aead::AesGcm128,
+                hpke::kdf::HkdfSha256,
+                hpke::kem::X25519Kyber768Draft00,
+            >(pk_r, info, aad, ptxt, &mut *rng),
+            _ => Err(CryptoError::UnsupportedKem),
         }
     }
 
@@ -324,18 +442,86 @@ impl OpenMlsCrypto for RustCrypto {
         info: &[u8],
         aad: &[u8],
     ) -> Result<Vec<u8>, CryptoError> {
-        hpke_from_config(config)
-            .open(
+        let plaintext = match config {
+            HpkeConfig(
+                HpkeKemType::DhKem25519,
+                HpkeKdfType::HkdfSha256,
+                HpkeAeadType::AesGcm128,
+            ) => hpke_core::hpke_open::<
+                hpke::aead::AesGcm128,
+                hpke::kdf::HkdfSha256,
+                hpke::kem::X25519HkdfSha256,
+            >(
+                sk_r,
                 input.kem_output.as_slice(),
-                &sk_r.into(),
                 info,
                 aad,
                 input.ciphertext.as_slice(),
-                None,
-                None,
-                None,
-            )
-            .map_err(|_| CryptoError::HpkeDecryptionError)
+            )?,
+            HpkeConfig(
+                HpkeKemType::DhKem25519,
+                HpkeKdfType::HkdfSha256,
+                HpkeAeadType::ChaCha20Poly1305,
+            ) => hpke_core::hpke_open::<
+                hpke::aead::ChaCha20Poly1305,
+                hpke::kdf::HkdfSha256,
+                hpke::kem::X25519HkdfSha256,
+            >(
+                sk_r,
+                input.kem_output.as_slice(),
+                info,
+                aad,
+                input.ciphertext.as_slice(),
+            )?,
+            HpkeConfig(
+                HpkeKemType::DhKemP256,
+                HpkeKdfType::HkdfSha256,
+                HpkeAeadType::AesGcm128,
+            ) => hpke_core::hpke_open::<
+                hpke::aead::AesGcm128,
+                hpke::kdf::HkdfSha256,
+                hpke::kem::DhP256HkdfSha256,
+            >(
+                sk_r,
+                input.kem_output.as_slice(),
+                info,
+                aad,
+                input.ciphertext.as_slice(),
+            )?,
+            HpkeConfig(
+                HpkeKemType::DhKemP384,
+                HpkeKdfType::HkdfSha384,
+                HpkeAeadType::AesGcm256,
+            ) => hpke_core::hpke_open::<
+                hpke::aead::AesGcm256,
+                hpke::kdf::HkdfSha384,
+                hpke::kem::DhP384HkdfSha384,
+            >(
+                sk_r,
+                input.kem_output.as_slice(),
+                info,
+                aad,
+                input.ciphertext.as_slice(),
+            )?,
+            HpkeConfig(
+                HpkeKemType::X25519Kyber768Draft00,
+                HpkeKdfType::HkdfSha256,
+                HpkeAeadType::AesGcm128,
+            ) => hpke_core::hpke_open::<
+                hpke::aead::AesGcm128,
+                hpke::kdf::HkdfSha256,
+                hpke::kem::X25519Kyber768Draft00,
+            >(
+                sk_r,
+                input.kem_output.as_slice(),
+                info,
+                aad,
+                input.ciphertext.as_slice(),
+            )?,
+            _ => return Err(CryptoError::UnsupportedKem),
+        };
+
+        Ok(plaintext)
     }
 
     fn hpke_setup_sender_and_export(
@@ -346,13 +532,63 @@ impl OpenMlsCrypto for RustCrypto {
         exporter_context: &[u8],
         exporter_length: usize,
     ) -> Result<(Vec<u8>, ExporterSecret), CryptoError> {
-        let (kem_output, context) = hpke_from_config(config)
-            .setup_sender(&pk_r.into(), info, None, None, None)
-            .map_err(|_| CryptoError::SenderSetupError)?;
-        let exported_secret = context
-            .export(exporter_context, exporter_length)
-            .map_err(|_| CryptoError::ExporterError)?;
-        Ok((kem_output, exported_secret.into()))
+        let mut rng = self
+            .rng
+            .write()
+            .map_err(|_| CryptoError::InsufficientRandomness)?;
+
+        let (kem_output, export) = match config {
+            HpkeConfig(
+                HpkeKemType::DhKem25519,
+                HpkeKdfType::HkdfSha256,
+                HpkeAeadType::AesGcm128,
+            ) => hpke_core::hpke_export_tx::<
+                hpke::aead::AesGcm128,
+                hpke::kdf::HkdfSha256,
+                hpke::kem::X25519HkdfSha256,
+            >(pk_r, info, exporter_context, exporter_length, &mut *rng)?,
+            HpkeConfig(
+                HpkeKemType::DhKem25519,
+                HpkeKdfType::HkdfSha256,
+                HpkeAeadType::ChaCha20Poly1305,
+            ) => hpke_core::hpke_export_tx::<
+                hpke::aead::ChaCha20Poly1305,
+                hpke::kdf::HkdfSha256,
+                hpke::kem::X25519HkdfSha256,
+            >(pk_r, info, exporter_context, exporter_length, &mut *rng)?,
+            HpkeConfig(
+                HpkeKemType::DhKemP256,
+                HpkeKdfType::HkdfSha256,
+                HpkeAeadType::AesGcm128,
+            ) => hpke_core::hpke_export_tx::<
+                hpke::aead::AesGcm128,
+                hpke::kdf::HkdfSha256,
+                hpke::kem::DhP256HkdfSha256,
+            >(pk_r, info, exporter_context, exporter_length, &mut *rng)?,
+            HpkeConfig(
+                HpkeKemType::DhKemP384,
+                HpkeKdfType::HkdfSha384,
+                HpkeAeadType::AesGcm256,
+            ) => hpke_core::hpke_export_tx::<
+                hpke::aead::AesGcm256,
+                hpke::kdf::HkdfSha384,
+                hpke::kem::DhP384HkdfSha384,
+            >(pk_r, info, exporter_context, exporter_length, &mut *rng)?,
+            HpkeConfig(
+                HpkeKemType::X25519Kyber768Draft00,
+                HpkeKdfType::HkdfSha256,
+                HpkeAeadType::AesGcm128,
+            ) => hpke_core::hpke_export_tx::<
+                hpke::aead::AesGcm128,
+                hpke::kdf::HkdfSha256,
+                hpke::kem::X25519Kyber768Draft00,
+            >(pk_r, info, exporter_context, exporter_length, &mut *rng)?,
+            _ => return Err(CryptoError::UnsupportedKem),
+        };
+
+        debug_assert_eq!(export.len(), exporter_length);
+
+        Ok((kem_output, export.into()))
     }
 
     fn hpke_setup_receiver_and_export(
@@ -364,41 +600,215 @@ impl OpenMlsCrypto for RustCrypto {
         exporter_context: &[u8],
         exporter_length: usize,
     ) -> Result<ExporterSecret, CryptoError> {
-        let context = hpke_from_config(config)
-            .setup_receiver(enc, &sk_r.into(), info, None, None, None)
-            .map_err(|_| CryptoError::ReceiverSetupError)?;
-        let exported_secret = context
-            .export(exporter_context, exporter_length)
-            .map_err(|_| CryptoError::ExporterError)?;
-        Ok(exported_secret.into())
+        let export = match config {
+            HpkeConfig(
+                HpkeKemType::DhKem25519,
+                HpkeKdfType::HkdfSha256,
+                HpkeAeadType::AesGcm128,
+            ) => hpke_core::hpke_export_rx::<
+                hpke::aead::AesGcm128,
+                hpke::kdf::HkdfSha256,
+                hpke::kem::X25519HkdfSha256,
+            >(enc, sk_r, info, exporter_context, exporter_length)?,
+            HpkeConfig(
+                HpkeKemType::DhKem25519,
+                HpkeKdfType::HkdfSha256,
+                HpkeAeadType::ChaCha20Poly1305,
+            ) => hpke_core::hpke_export_rx::<
+                hpke::aead::ChaCha20Poly1305,
+                hpke::kdf::HkdfSha256,
+                hpke::kem::X25519HkdfSha256,
+            >(enc, sk_r, info, exporter_context, exporter_length)?,
+            HpkeConfig(
+                HpkeKemType::DhKemP256,
+                HpkeKdfType::HkdfSha256,
+                HpkeAeadType::AesGcm128,
+            ) => hpke_core::hpke_export_rx::<
+                hpke::aead::AesGcm128,
+                hpke::kdf::HkdfSha256,
+                hpke::kem::DhP256HkdfSha256,
+            >(enc, sk_r, info, exporter_context, exporter_length)?,
+            HpkeConfig(
+                HpkeKemType::DhKemP384,
+                HpkeKdfType::HkdfSha384,
+                HpkeAeadType::AesGcm256,
+            ) => hpke_core::hpke_export_rx::<
+                hpke::aead::AesGcm256,
+                hpke::kdf::HkdfSha384,
+                hpke::kem::DhP384HkdfSha384,
+            >(enc, sk_r, info, exporter_context, exporter_length)?,
+            HpkeConfig(
+                HpkeKemType::X25519Kyber768Draft00,
+                HpkeKdfType::HkdfSha256,
+                HpkeAeadType::AesGcm128,
+            ) => hpke_core::hpke_export_rx::<
+                hpke::aead::AesGcm128,
+                hpke::kdf::HkdfSha256,
+                hpke::kem::X25519Kyber768Draft00,
+            >(enc, sk_r, info, exporter_context, exporter_length)?,
+            _ => return Err(CryptoError::UnsupportedKem),
+        };
+
+        debug_assert_eq!(export.len(), exporter_length);
+
+        Ok(export.into())
     }
 
-    fn derive_hpke_keypair(&self, config: HpkeConfig, ikm: &[u8]) -> types::HpkeKeyPair {
-        let kp = hpke_from_config(config)
-            .derive_key_pair(ikm)
-            .unwrap()
-            .into_keys();
-        HpkeKeyPair {
-            private: kp.0.as_slice().into(),
-            public: kp.1.as_slice().into(),
+    fn derive_hpke_keypair(
+        &self,
+        config: HpkeConfig,
+        ikm: &[u8],
+    ) -> Result<types::HpkeKeyPair, CryptoError> {
+        match config.0 {
+            HpkeKemType::DhKemP256 => {
+                hpke_core::hpke_derive_keypair::<hpke::kem::DhP256HkdfSha256>(ikm)
+            }
+            HpkeKemType::DhKemP384 => {
+                hpke_core::hpke_derive_keypair::<hpke::kem::DhP384HkdfSha384>(ikm)
+            }
+            HpkeKemType::DhKem25519 => {
+                hpke_core::hpke_derive_keypair::<hpke::kem::X25519HkdfSha256>(ikm)
+            }
+            HpkeKemType::X25519Kyber768Draft00 => {
+                hpke_core::hpke_derive_keypair::<hpke::kem::X25519Kyber768Draft00>(ikm)
+            }
+            _ => Err(CryptoError::UnsupportedKem),
         }
     }
 }
 
-fn hpke_from_config(config: HpkeConfig) -> Hpke<HpkeRustCrypto> {
-    Hpke::<HpkeRustCrypto>::new(
-        hpke::Mode::Base,
-        kem_mode(config.0),
-        kdf_mode(config.1),
-        aead_mode(config.2),
-    )
+mod hpke_core {
+    use openmls_traits::types::{CryptoError, HpkeCiphertext, HpkeKeyPair};
+
+    pub fn hpke_open<Aead: hpke::aead::Aead, Kdf: hpke::kdf::Kdf, Kem: hpke::Kem>(
+        private_key: &[u8],
+        kem_output: &[u8],
+        info: &[u8],
+        aad: &[u8],
+        ciphertext: &[u8],
+    ) -> Result<Vec<u8>, CryptoError> {
+        use hpke::Deserializable as _;
+        let encapped_key = Kem::EncappedKey::from_bytes(kem_output)
+            .map_err(|_| CryptoError::HpkeDecryptionError)?;
+        let key = Kem::PrivateKey::from_bytes(private_key)
+            .map_err(|_| CryptoError::HpkeDecryptionError)?;
+        let plaintext = hpke::single_shot_open::<Aead, Kdf, Kem>(
+            &hpke::OpModeR::Base,
+            &key,
+            &encapped_key,
+            info,
+            ciphertext,
+            aad,
+        )
+        .map_err(|_| CryptoError::HpkeDecryptionError)?;
+
+        Ok(plaintext)
+    }
+
+    pub fn hpke_seal<Aead: hpke::aead::Aead, Kdf: hpke::kdf::Kdf, Kem: hpke::Kem>(
+        public_key: &[u8],
+        info: &[u8],
+        aad: &[u8],
+        plaintext: &[u8],
+        csprng: &mut impl rand_core::CryptoRngCore,
+    ) -> Result<HpkeCiphertext, CryptoError> {
+        use hpke::{Deserializable as _, Serializable as _};
+        let key =
+            Kem::PublicKey::from_bytes(public_key).map_err(|_| CryptoError::HpkeEncryptionError)?;
+        let (encapped, ciphertext) = hpke::single_shot_seal::<Aead, Kdf, Kem, _>(
+            &hpke::OpModeS::Base,
+            &key,
+            info,
+            plaintext,
+            aad,
+            csprng,
+        )
+        .map_err(|_| CryptoError::HpkeEncryptionError)?;
+
+        Ok(HpkeCiphertext {
+            kem_output: encapped.to_bytes().to_vec().into(),
+            ciphertext: ciphertext.into(),
+        })
+    }
+
+    #[allow(dead_code)]
+    pub fn hpke_gen_keypair<Kem: hpke::Kem>(
+        csprng: &mut impl rand_core::CryptoRngCore,
+    ) -> Result<HpkeKeyPair, CryptoError> {
+        use hpke::Serializable as _;
+        let (sk, pk) = Kem::gen_keypair(csprng);
+        let (private, public) = (sk.to_bytes().to_vec().into(), pk.to_bytes().to_vec());
+
+        Ok(HpkeKeyPair { private, public })
+    }
+
+    pub fn hpke_derive_keypair<Kem: hpke::Kem>(ikm: &[u8]) -> Result<HpkeKeyPair, CryptoError> {
+        use hpke::Serializable as _;
+        let (sk, pk) = Kem::derive_keypair(ikm);
+        let (private, public) = (sk.to_bytes().to_vec().into(), pk.to_bytes().to_vec());
+
+        Ok(HpkeKeyPair { private, public })
+    }
+
+    pub fn hpke_export_rx<Aead: hpke::aead::Aead, Kdf: hpke::kdf::Kdf, Kem: hpke::Kem>(
+        encapped_key: &[u8],
+        rx_private_key: &[u8],
+        info: &[u8],
+        export_info: &[u8],
+        export_len: usize,
+    ) -> Result<Vec<u8>, CryptoError> {
+        use hpke::Deserializable as _;
+        let key = Kem::PrivateKey::from_bytes(rx_private_key)
+            .map_err(|_| CryptoError::ReceiverSetupError)?;
+        let encapped_key = Kem::EncappedKey::from_bytes(encapped_key)
+            .map_err(|_| CryptoError::ReceiverSetupError)?;
+        let ctx =
+            hpke::setup_receiver::<Aead, Kdf, Kem>(&hpke::OpModeR::Base, &key, &encapped_key, info)
+                .map_err(|_| CryptoError::ReceiverSetupError)?;
+
+        let mut export = vec![0u8; export_len];
+
+        ctx.export(export_info, &mut export)
+            .map_err(|_| CryptoError::ExporterError)?;
+
+        Ok(export)
+    }
+
+    pub fn hpke_export_tx<Aead: hpke::aead::Aead, Kdf: hpke::kdf::Kdf, Kem: hpke::Kem>(
+        tx_public_key: &[u8],
+        info: &[u8],
+        export_info: &[u8],
+        export_len: usize,
+        csprng: &mut impl rand_core::CryptoRngCore,
+    ) -> Result<(Vec<u8>, Vec<u8>), CryptoError> {
+        use hpke::{Deserializable as _, Serializable as _};
+        let key =
+            Kem::PublicKey::from_bytes(tx_public_key).map_err(|_| CryptoError::SenderSetupError)?;
+        let (kem_output, ctx) =
+            hpke::setup_sender::<Aead, Kdf, Kem, _>(&hpke::OpModeS::Base, &key, info, csprng)
+                .map_err(|_| CryptoError::SenderSetupError)?;
+
+        let mut export = vec![0u8; export_len];
+
+        ctx.export(export_info, &mut export)
+            .map_err(|_| CryptoError::ExporterError)?;
+
+        Ok((kem_output.to_bytes().to_vec(), export))
+    }
 }
 
 impl OpenMlsRand for RustCrypto {
     type Error = RandError;
 
+    type RandImpl = rand_chacha::ChaCha20Rng;
+    type BorrowTarget<'a> = std::sync::RwLockWriteGuard<'a, Self::RandImpl>;
+
+    fn borrow_rand(&self) -> Result<Self::BorrowTarget<'_>, Self::Error> {
+        self.rng.write().map_err(|_| Self::Error::LockPoisoned)
+    }
+
     fn random_array<const N: usize>(&self) -> Result<[u8; N], Self::Error> {
-        let mut rng = self.rng.write().map_err(|_| Self::Error::LockPoisoned)?;
+        let mut rng = self.borrow_rand()?;
         let mut out = [0u8; N];
         rng.try_fill_bytes(&mut out)
             .map_err(|_| Self::Error::NotEnoughRandomness)?;
@@ -406,7 +816,7 @@ impl OpenMlsRand for RustCrypto {
     }
 
     fn random_vec(&self, len: usize) -> Result<Vec<u8>, Self::Error> {
-        let mut rng = self.rng.write().map_err(|_| Self::Error::LockPoisoned)?;
+        let mut rng = self.borrow_rand()?;
         let mut out = vec![0u8; len];
         rng.try_fill_bytes(&mut out)
             .map_err(|_| Self::Error::NotEnoughRandomness)?;
@@ -420,4 +830,8 @@ pub enum RandError {
     LockPoisoned,
     #[error("Unable to collect enough randomness.")]
     NotEnoughRandomness,
+    #[error(
+        "The provided entropy seed has an incorrect length: expected {expected}, found {actual}"
+    )]
+    EntropySeedLengthError { actual: usize, expected: usize },
 }

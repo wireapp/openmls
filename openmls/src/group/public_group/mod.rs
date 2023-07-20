@@ -11,9 +11,6 @@
 //! To avoid duplication of code and functionality, [`CoreGroup`] internally
 //! relies on a [`PublicGroup`] as well.
 
-#[cfg(test)]
-use std::collections::HashSet;
-
 use openmls_traits::{crypto::OpenMlsCrypto, types::Ciphersuite, OpenMlsCryptoProvider};
 use serde::{Deserialize, Serialize};
 
@@ -21,7 +18,7 @@ use self::{
     diff::{PublicGroupDiff, StagedPublicGroupDiff},
     errors::CreationFromExternalError,
 };
-use super::{GroupContext, GroupId, Member, ProposalStore, QueuedProposal};
+use super::{group_context::GroupContext, GroupId, Member, ProposalStore, QueuedProposal};
 #[cfg(test)]
 use crate::treesync::{node::parent_node::PlainUpdatePathNode, treekem::UpdatePathNode};
 use crate::{
@@ -176,7 +173,7 @@ impl PublicGroup {
     /// of the sender.
     ///
     /// The proposals must be validated before calling this function.
-    pub(crate) fn free_leaf_index_after_remove<'a>(
+    pub fn free_leaf_index_after_remove<'a>(
         &self,
         mut inline_proposals: impl Iterator<Item = Option<&'a Proposal>>,
     ) -> Result<LeafNodeIndex, LibraryError> {
@@ -345,7 +342,7 @@ impl PublicGroup {
         ciphersuite: Ciphersuite,
         path: &[PlainUpdatePathNode],
         group_context: &[u8],
-        exclusion_list: &HashSet<&LeafNodeIndex>,
+        exclusion_list: &std::collections::HashSet<&LeafNodeIndex>,
         own_leaf_index: LeafNodeIndex,
     ) -> Result<Vec<UpdatePathNode>, LibraryError> {
         self.treesync().empty_diff().encrypt_path(

@@ -8,7 +8,7 @@ impl tls_codec::Size for Credential {
         self.credential_type.tls_serialized_len()
             + match &self.credential {
                 MlsCredentialType::Basic(c) => c.tls_serialized_len(),
-                MlsCredentialType::X509(_) => unimplemented!(),
+                MlsCredentialType::X509(c) => c.tls_serialized_len(),
             }
     }
 }
@@ -21,9 +21,10 @@ impl tls_codec::Serialize for Credential {
                 basic_credential.tls_serialize(writer).map(|l| l + written)
             }
             // TODO #134: implement encoding for X509 certificates
-            MlsCredentialType::X509(_) => Err(tls_codec::Error::EncodingError(
-                "X509 certificates are not yet implemented.".to_string(),
-            )),
+            MlsCredentialType::X509(credential) => {
+                let written = CredentialType::X509.tls_serialize(writer)?;
+                credential.tls_serialize(writer).map(|l| l + written)
+            }
         }
     }
 }
@@ -36,6 +37,9 @@ impl tls_codec::Deserialize for Credential {
         match credential_type {
             CredentialType::Basic => Ok(Credential::from(MlsCredentialType::Basic(
                 BasicCredential::tls_deserialize(bytes)?,
+            ))),
+            CredentialType::X509 => Ok(Credential::from(MlsCredentialType::X509(
+                Certificate::tls_deserialize(bytes)?,
             ))),
             _ => Err(tls_codec::Error::DecodingError(format!(
                 "{credential_type:?} can not be deserialized."

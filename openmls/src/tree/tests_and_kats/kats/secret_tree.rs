@@ -191,7 +191,7 @@ pub fn run_test_vector(
 }
 
 #[apply(backends)]
-fn read_test_vectors_st(backend: &impl OpenMlsCryptoProvider) {
+async fn read_test_vectors_st(backend: &impl OpenMlsCryptoProvider) {
     let _ = pretty_env_logger::try_init();
     log::debug!("Reading test vectors ...");
 

@@ -124,6 +124,19 @@ impl ProposalType {
         )
     }
 
+    /// Returns a slice of all supported proposal types by OpenMls
+    pub const fn supported_types() -> &'static [ProposalType] {
+        &[
+            ProposalType::Add,
+            ProposalType::Update,
+            ProposalType::Remove,
+            ProposalType::PreSharedKey,
+            ProposalType::Reinit,
+            ProposalType::ExternalInit,
+            ProposalType::GroupContextExtensions,
+        ]
+    }
+
     /// Returns `true` if the proposal type requires a path and `false`
     pub fn is_path_required(&self) -> bool {
         matches!(
@@ -426,9 +439,12 @@ pub struct GroupContextExtensionProposal {
 
 impl GroupContextExtensionProposal {
     /// Create a new [`GroupContextExtensionProposal`].
-    #[cfg(test)]
     pub(crate) fn new(extensions: Extensions) -> Self {
         Self { extensions }
+    }
+
+    pub(crate) fn extensions(&self) -> &Extensions {
+        &self.extensions
     }
 }
 
@@ -470,7 +486,7 @@ pub enum ProposalOrRefType {
 #[repr(u8)]
 #[allow(missing_docs)]
 #[allow(clippy::large_enum_variant)]
-pub(crate) enum ProposalOrRef {
+pub enum ProposalOrRef {
     #[tls_codec(discriminant = 1)]
     Proposal(Proposal),
     Reference(ProposalRef),

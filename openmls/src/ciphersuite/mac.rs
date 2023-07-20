@@ -2,16 +2,21 @@ use super::*;
 
 /// 7.1 Content Authentication
 ///
+/// ```ignore
 /// opaque MAC<V>;
+/// ```
 #[derive(Debug, Clone, Serialize, Deserialize, TlsDeserialize, TlsSerialize, TlsSize)]
-pub(crate) struct Mac {
+pub struct Mac {
     pub(crate) mac_value: VLBytes,
 }
 
 impl PartialEq for Mac {
     // Constant time comparison.
     fn eq(&self, other: &Mac) -> bool {
-        equal_ct(self.mac_value.as_slice(), other.mac_value.as_slice())
+        self.mac_value
+            .as_slice()
+            .ct_eq(other.mac_value.as_slice())
+            .into()
     }
 }
 
@@ -41,5 +46,12 @@ impl Mac {
         let mut last_bits = self.mac_value.pop().expect("An unexpected error occurred.");
         last_bits ^= 0xff;
         self.mac_value.push(last_bits);
+    }
+}
+
+impl std::ops::Deref for Mac {
+    type Target = [u8];
+    fn deref(&self) -> &Self::Target {
+        self.mac_value.as_slice()
     }
 }

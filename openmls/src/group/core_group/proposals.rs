@@ -13,7 +13,7 @@ use crate::{
     group::errors::*,
     messages::proposals::{
         AddProposal, PreSharedKeyProposal, Proposal, ProposalOrRef, ProposalOrRefType,
-        ProposalType, RemoveProposal, UpdateProposal,
+        ProposalType, ReInitProposal, RemoveProposal, UpdateProposal,
     },
     utils::vector_converter,
 };
@@ -39,22 +39,22 @@ impl ProposalStore {
             queued_proposals: vec![queued_proposal],
         }
     }
-    pub(crate) fn add(&mut self, queued_proposal: QueuedProposal) {
+    pub fn add(&mut self, queued_proposal: QueuedProposal) {
         self.queued_proposals.push(queued_proposal);
     }
-    pub(crate) fn proposals(&self) -> impl Iterator<Item = &QueuedProposal> {
+    pub fn proposals(&self) -> impl Iterator<Item = &QueuedProposal> {
         self.queued_proposals.iter()
     }
-    pub(crate) fn is_empty(&self) -> bool {
+    pub fn is_empty(&self) -> bool {
         self.queued_proposals.is_empty()
     }
-    pub(crate) fn empty(&mut self) {
+    pub fn empty(&mut self) {
         self.queued_proposals.clear();
     }
 
     /// Removes a proposal from the store using its reference. It will return None if it wasn't
     /// found in the store.
-    pub(crate) fn remove(&mut self, proposal_ref: ProposalRef) -> Option<()> {
+    pub fn remove(&mut self, proposal_ref: ProposalRef) -> Option<()> {
         let index = self
             .queued_proposals
             .iter()
@@ -153,11 +153,11 @@ impl QueuedProposal {
         &self.proposal
     }
     /// Returns the `ProposalRef`.
-    pub(crate) fn proposal_reference(&self) -> ProposalRef {
+    pub fn proposal_reference(&self) -> ProposalRef {
         self.proposal_reference.clone()
     }
     /// Returns the `ProposalOrRefType`.
-    pub(crate) fn proposal_or_ref_type(&self) -> ProposalOrRefType {
+    pub fn proposal_or_ref_type(&self) -> ProposalOrRefType {
         self.proposal_or_ref_type
     }
     /// Returns the `Sender` as a reference
@@ -171,8 +171,8 @@ impl QueuedProposal {
 /// references to Proposals, such that, given a reference, a proposal can be
 /// accessed efficiently. To enable iteration over the queue in order, the
 /// `ProposalQueue` also contains a vector of `ProposalRef`s.
-#[derive(Default, Debug, Serialize, Deserialize)]
-pub(crate) struct ProposalQueue {
+#[derive(Default, Clone, Debug, Serialize, Deserialize)]
+pub struct ProposalQueue {
     /// `proposal_references` holds references to the proposals in the queue and
     /// determines the order of the queue.
     proposal_references: Vec<ProposalRef>,
@@ -184,8 +184,12 @@ pub(crate) struct ProposalQueue {
 
 impl ProposalQueue {
     /// Returns `true` if the [`ProposalQueue`] is empty. Otherwise returns `false`.
-    pub(crate) fn is_empty(&self) -> bool {
+    pub fn is_empty(&self) -> bool {
         self.proposal_references.is_empty()
+    }
+    /// Returns the amount of proposals in the queue
+    pub fn count(&self) -> usize {
+        self.proposal_references.len()
     }
     /// Returns a new `QueuedProposalQueue` from proposals that were committed and
     /// don't need filtering.
@@ -294,7 +298,7 @@ impl ProposalQueue {
 
     /// Returns an iterator over all `QueuedProposal` in the queue
     /// in the order of the the Commit message
-    pub(crate) fn queued_proposals(&self) -> impl Iterator<Item = &QueuedProposal> {
+    pub fn queued_proposals(&self) -> impl Iterator<Item = &QueuedProposal> {
         // Iterate over the reference to extract the proposals in the right order
         self.proposal_references
             .iter()
@@ -303,7 +307,7 @@ impl ProposalQueue {
 
     /// Returns an iterator over all Add proposals in the queue
     /// in the order of the the Commit message
-    pub(crate) fn add_proposals(&self) -> impl Iterator<Item = QueuedAddProposal> {
+    pub fn add_proposals(&self) -> impl Iterator<Item = QueuedAddProposal> {
         self.queued_proposals().filter_map(|queued_proposal| {
             if let Proposal::Add(add_proposal) = queued_proposal.proposal() {
                 let sender = queued_proposal.sender();
@@ -319,7 +323,7 @@ impl ProposalQueue {
 
     /// Returns an iterator over all Remove proposals in the queue
     /// in the order of the the Commit message
-    pub(crate) fn remove_proposals(&self) -> impl Iterator<Item = QueuedRemoveProposal> {
+    pub fn remove_proposals(&self) -> impl Iterator<Item = QueuedRemoveProposal> {
         self.queued_proposals().filter_map(|queued_proposal| {
             if let Proposal::Remove(remove_proposal) = queued_proposal.proposal() {
                 let sender = queued_proposal.sender();
@@ -335,7 +339,7 @@ impl ProposalQueue {
 
     /// Returns an iterator over all Update in the queue
     /// in the order of the the Commit message
-    pub(crate) fn update_proposals(&self) -> impl Iterator<Item = QueuedUpdateProposal> {
+    pub fn update_proposals(&self) -> impl Iterator<Item = QueuedUpdateProposal> {
         self.queued_proposals().filter_map(|queued_proposal| {
             if let Proposal::Update(update_proposal) = queued_proposal.proposal() {
                 let sender = queued_proposal.sender();
@@ -351,7 +355,7 @@ impl ProposalQueue {
 
     /// Returns an iterator over all PresharedKey proposals in the queue
     /// in the order of the the Commit message
-    pub(crate) fn psk_proposals(&self) -> impl Iterator<Item = QueuedPskProposal> {
+    pub fn psk_proposals(&self) -> impl Iterator<Item = QueuedPskProposal> {
         self.queued_proposals().filter_map(|queued_proposal| {
             if let Proposal::PreSharedKey(psk_proposal) = queued_proposal.proposal() {
                 let sender = queued_proposal.sender();
@@ -359,6 +363,17 @@ impl ProposalQueue {
                     psk_proposal,
                     sender,
                 })
+            } else {
+                None
+            }
+        })
+    }
+
+    /// Returns the first Reinit proposal in the queue
+    pub fn reinit_proposal(&self) -> Option<&ReInitProposal> {
+        self.queued_proposals().find_map(|p| {
+            if let Proposal::ReInit(reinit) = p.proposal() {
+                Some(reinit)
             } else {
                 None
             }
@@ -479,7 +494,7 @@ impl ProposalQueue {
                     }
                 }
                 Proposal::GroupContextExtensions(_) => {
-                    // TODO: Validate proposal?
+                    valid_proposals.insert(queued_proposal.proposal_reference());
                     proposal_pool.insert(queued_proposal.proposal_reference(), queued_proposal);
                 }
                 Proposal::AppAck(_) => unimplemented!("See #291"),

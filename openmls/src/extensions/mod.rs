@@ -33,6 +33,7 @@ mod external_pub_extension;
 mod external_sender_extension;
 mod ratchet_tree_extension;
 mod required_capabilities;
+mod trust_anchor_extension;
 use errors::*;
 
 // Public
@@ -46,6 +47,7 @@ pub use external_sender_extension::{
 };
 pub use ratchet_tree_extension::RatchetTreeExtension;
 pub use required_capabilities::RequiredCapabilitiesExtension;
+pub use trust_anchor_extension::{PerDomainTrustAnchor, PerDomainTrustAnchorsExtension};
 
 #[cfg(test)]
 mod test_extensions;
@@ -87,6 +89,10 @@ pub enum ExtensionType {
     /// of senders that are permitted to send external proposals to the group.
     ExternalSenders,
 
+    /// Group context extension to restrict the set of trust anchors used for
+    /// identity validation in MLS groups
+    PerDomainTrustAnchor,
+
     /// A currently unknown extension type.
     Unknown(u16),
 }
@@ -125,6 +131,7 @@ impl From<u16> for ExtensionType {
             3 => ExtensionType::RequiredCapabilities,
             4 => ExtensionType::ExternalPub,
             5 => ExtensionType::ExternalSenders,
+            0x000a => ExtensionType::PerDomainTrustAnchor,
             unknown => ExtensionType::Unknown(unknown),
         }
     }
@@ -138,6 +145,7 @@ impl From<ExtensionType> for u16 {
             ExtensionType::RequiredCapabilities => 3,
             ExtensionType::ExternalPub => 4,
             ExtensionType::ExternalSenders => 5,
+            ExtensionType::PerDomainTrustAnchor => 0x000a,
             ExtensionType::Unknown(unknown) => unknown,
         }
     }
@@ -153,6 +161,7 @@ impl ExtensionType {
                 | ExtensionType::RequiredCapabilities
                 | ExtensionType::ExternalPub
                 | ExtensionType::ExternalSenders
+                | ExtensionType::PerDomainTrustAnchor
         )
     }
 }
@@ -187,6 +196,9 @@ pub enum Extension {
 
     /// A [`ExternalPubExtension`]
     ExternalSenders(ExternalSendersExtension),
+
+    /// A [`PerDomainTrustAnchorsExtension`]
+    PerDomainTrustAnchor(PerDomainTrustAnchorsExtension),
 
     /// A currently unknown extension.
     Unknown(u16, UnknownExtension),
@@ -242,6 +254,11 @@ impl Extensions {
     /// Returns an iterator over the extension list.
     pub fn iter(&self) -> impl Iterator<Item = &Extension> {
         self.unique.iter()
+    }
+
+    /// Checks if the extensions list is empty
+    pub fn is_empty(&self) -> bool {
+        self.unique.is_empty()
     }
 
     /// Add an extension to the extension list.
@@ -361,6 +378,15 @@ impl Extensions {
                 _ => None,
             })
     }
+
+    /// Get a reference to the [`PerDomainTrustAnchorsExtension`] if there is any.
+    pub fn per_domain_trust_anchors(&self) -> Option<&PerDomainTrustAnchorsExtension> {
+        self.find_by_type(ExtensionType::PerDomainTrustAnchor)
+            .and_then(|e| match e {
+                Extension::PerDomainTrustAnchor(e) => Some(e),
+                _ => None,
+            })
+    }
 }
 
 impl Extension {
@@ -437,6 +463,7 @@ impl Extension {
             Extension::RequiredCapabilities(_) => ExtensionType::RequiredCapabilities,
             Extension::ExternalPub(_) => ExtensionType::ExternalPub,
             Extension::ExternalSenders(_) => ExtensionType::ExternalSenders,
+            Extension::PerDomainTrustAnchor(_) => ExtensionType::PerDomainTrustAnchor,
             Extension::Unknown(kind, _) => ExtensionType::Unknown(*kind),
         }
     }

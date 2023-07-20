@@ -19,14 +19,15 @@ use crate::{
 use super::PublicGroup;
 
 #[apply(ciphersuites_and_backends)]
-fn public_group(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider) {
+async fn public_group(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider) {
     let group_id = GroupId::from_slice(b"Test Group");
 
     let (alice_credential_with_key, _alice_kpb, alice_signer, _alice_pk) =
-        setup_client("Alice", ciphersuite, backend);
-    let (_bob_credential, bob_kpb, bob_signer, _bob_pk) = setup_client("Bob", ciphersuite, backend);
+        setup_client("Alice", ciphersuite, backend).await;
+    let (_bob_credential, bob_kpb, bob_signer, _bob_pk) =
+        setup_client("Bob", ciphersuite, backend).await;
     let (_charlie_credential, charlie_kpb, charlie_signer, _charlie_pk) =
-        setup_client("Charly", ciphersuite, backend);
+        setup_client("Charly", ciphersuite, backend).await;
 
     // Define the MlsGroup configuration
     // Set plaintext wire format policy s.t. the public group can track changes.
@@ -43,6 +44,7 @@ fn public_group(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider) 
         group_id,
         alice_credential_with_key,
     )
+    .await
     .expect("An unexpected error occurred.");
 
     // === Create a public group that tracks the changes throughout this test ===
@@ -63,10 +65,12 @@ fn public_group(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider) 
     // === Alice adds Bob ===
     let (message, welcome, _group_info) = alice_group
         .add_members(backend, &alice_signer, &[bob_kpb.key_package().clone()])
+        .await
         .expect("Could not add member to group.");
 
     alice_group
         .merge_pending_commit(backend)
+        .await
         .expect("error merging pending commit");
 
     let public_message = match message.into_protocol_message().unwrap() {
@@ -98,11 +102,13 @@ fn public_group(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider) 
         welcome.into_welcome().expect("Unexpected message type."),
         Some(alice_group.export_ratchet_tree().into()),
     )
+    .await
     .expect("Error creating group from Welcome");
 
     // === Bob adds Charlie ===
     let (queued_messages, welcome, _group_info) = bob_group
         .add_members(backend, &bob_signer, &[charlie_kpb.key_package().clone()])
+        .await
         .unwrap();
 
     // Alice processes
@@ -114,12 +120,14 @@ fn public_group(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider) 
                 .into_protocol_message()
                 .expect("Unexpected message type"),
         )
+        .await
         .expect("Could not process messages.");
     if let ProcessedMessageContent::StagedCommitMessage(staged_commit) =
         alice_processed_message.into_content()
     {
         alice_group
             .merge_staged_commit(backend, *staged_commit)
+            .await
             .expect("Error merging commit.");
     } else {
         unreachable!("Expected a StagedCommit.");
@@ -134,6 +142,7 @@ fn public_group(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider) 
     // Bob merges
     bob_group
         .merge_pending_commit(backend)
+        .await
         .expect("error merging pending commit");
 
     let mut charlie_group = MlsGroup::new_from_welcome(
@@ -142,6 +151,7 @@ fn public_group(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider) 
         welcome.into_welcome().expect("Unexpected message type."),
         Some(bob_group.export_ratchet_tree().into()),
     )
+    .await
     .expect("Error creating group from Welcome");
 
     // === Alice removes Bob & Charlie commits ===
@@ -158,6 +168,7 @@ fn public_group(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider) 
                 .into_protocol_message()
                 .expect("Unexpected message type"),
         )
+        .await
         .expect("Could not process messages.");
 
     // The public group processes
@@ -203,6 +214,7 @@ fn public_group(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider) 
     // Charlie commits
     let (queued_messages, _welcome, _group_info) = charlie_group
         .commit_to_pending_proposals(backend, &charlie_signer)
+        .await
         .expect("Could not commit proposal");
 
     // The public group processes
@@ -227,6 +239,7 @@ fn public_group(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider) 
 
     charlie_group
         .merge_pending_commit(backend)
+        .await
         .expect("error merging pending commit");
 
     // Alice processes
@@ -237,12 +250,14 @@ fn public_group(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider) 
                 .into_protocol_message()
                 .expect("Unexpected message type"),
         )
+        .await
         .expect("Could not process messages.");
     if let ProcessedMessageContent::StagedCommitMessage(staged_commit) =
         alice_processed_message.into_content()
     {
         alice_group
             .merge_staged_commit(backend, *staged_commit)
+            .await
             .expect("Error merging commit.");
     } else {
         unreachable!("Expected a StagedCommit.");

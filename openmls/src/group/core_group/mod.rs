@@ -47,9 +47,10 @@ use super::{
     builder::TempBuilderPG1,
     errors::{
         CoreGroupBuildError, CreateAddProposalError, CreateCommitError, ExporterError,
-        ValidationError,
+        ProposeGroupContextExtensionError, ValidationError,
     },
     group_context::*,
+    mls_group::errors::ProposeReInitError,
     public_group::{diff::compute_path::PathComputationResult, PublicGroup},
 };
 
@@ -72,16 +73,15 @@ use crate::{
         *,
     },
     tree::{secret_tree::SecretTreeError, sender_ratchet::SenderRatchetConfiguration},
-    treesync::{node::encryption_keys::EncryptionKeyPair, *},
+    treesync::{
+        errors::MemberExtensionValidationError, node::encryption_keys::EncryptionKeyPair,
+        node::leaf_node::Capabilities, *,
+    },
     versions::ProtocolVersion,
 };
 
 #[cfg(test)]
-use super::errors::CreateGroupContextExtProposalError;
-#[cfg(test)]
 use crate::treesync::node::leaf_node::TreePosition;
-#[cfg(test)]
-use std::io::{Error, Read, Write};
 
 #[derive(Debug)]
 pub(crate) struct CreateCommitResult {
@@ -199,6 +199,30 @@ impl CoreGroupBuilder {
         }
         self
     }
+    /// Set the [`Extensions`] of the own leaf in [`CoreGroup`].
+    pub(crate) fn with_leaf_extensions(mut self, leaf_extensions: Extensions) -> Self {
+        self.public_group_builder = self
+            .public_group_builder
+            .with_leaf_extensions(leaf_extensions);
+        self
+    }
+    /// Set the [`Extensions`] of the own leaf in [`CoreGroup`].
+    pub(crate) fn with_trust_certificates(
+        mut self,
+        group_extensions: PerDomainTrustAnchorsExtension,
+    ) -> Self {
+        self.public_group_builder = self
+            .public_group_builder
+            .with_trust_certificates(group_extensions);
+        self
+    }
+    /// Set the [`Capabilities`] of the own leaf in [`CoreGroup`].
+    pub(crate) fn with_leaf_capabilities(mut self, leaf_capabilities: Capabilities) -> Self {
+        self.public_group_builder = self
+            .public_group_builder
+            .with_leaf_capabilities(leaf_capabilities);
+        self
+    }
     /// Set the number of past epochs the group should keep secrets.
     pub fn with_max_past_epoch_secrets(mut self, max_past_epochs: usize) -> Self {
         self.max_past_epochs = max_past_epochs;
@@ -216,7 +240,7 @@ impl CoreGroupBuilder {
     ///
     /// This function performs cryptographic operations and there requires an
     /// [`OpenMlsCryptoProvider`].
-    pub(crate) fn build<KeyStore: OpenMlsKeyStore>(
+    pub(crate) async fn build<KeyStore: OpenMlsKeyStore>(
         self,
         backend: &impl OpenMlsCryptoProvider<KeyStoreProvider = KeyStore>,
         signer: &impl Signer,
@@ -252,9 +276,9 @@ impl CoreGroupBuilder {
 
         // Prepare the PskSecret
         let psk_secret = {
-            let psks = load_psks(backend.key_store(), &resumption_psk_store, &self.psk_ids)?;
+            let psks = load_psks(backend.key_store(), &resumption_psk_store, &self.psk_ids).await?;
 
-            PskSecret::new(backend, ciphersuite, psks)?
+            PskSecret::new(backend, ciphersuite, psks).await?
         };
 
         let mut key_schedule = KeySchedule::init(ciphersuite, backend, &joiner_secret, psk_secret)?;
@@ -296,6 +320,7 @@ impl CoreGroupBuilder {
         // Store the private key of the own leaf in the key store as an epoch keypair.
         group
             .store_epoch_keypairs(backend, &[leaf_keypair])
+            .await
             .map_err(CoreGroupBuildError::KeyStoreError)?;
 
         Ok(group)
@@ -416,16 +441,13 @@ impl CoreGroup {
         )
     }
 
-    /// Create a `GroupContextExtensions` proposal.
-    #[cfg(test)]
-    pub(crate) fn create_group_context_ext_proposal(
+    /// Checks if the memebers suuport the provided extensions. Pending proposals have to be passed
+    /// as parameters as Remove Proposals should be ignored
+    pub(crate) fn members_support_extensions<'a>(
         &self,
-        framing_parameters: FramingParameters,
-        extensions: Extensions,
-        signer: &impl Signer,
-    ) -> Result<AuthenticatedContent, CreateGroupContextExtProposalError> {
-        // Ensure that the group supports all the extensions that are wanted.
-
+        extensions: &Extensions,
+        pending_proposals: impl Iterator<Item = &'a QueuedProposal>,
+    ) -> Result<(), MemberExtensionValidationError> {
         let required_extension = extensions
             .iter()
             .find(|extension| extension.extension_type() == ExtensionType::RequiredCapabilities);
@@ -433,18 +455,38 @@ impl CoreGroup {
             let required_capabilities = required_extension.as_required_capabilities_extension()?;
             // Ensure we support all the capabilities.
             required_capabilities.check_support()?;
-            // TODO #566/#1361: This needs to be re-enabled once we support GCEs
-            /* self.own_leaf_node()?
-            .capabilities()
-            .supports_required_capabilities(required_capabilities)?; */
+            self.own_leaf_node()?
+                .capabilities()
+                .supports_required_capabilities(required_capabilities)?;
 
             // Ensure that all other leaf nodes support all the required
             // extensions as well.
+            let removed = pending_proposals.filter_map(|proposal| {
+                if let Proposal::Remove(remove) = proposal.proposal() {
+                    Some(remove.removed())
+                } else {
+                    None
+                }
+            });
             self.public_group()
-                .check_extension_support(required_capabilities.extension_types())?;
+                .check_extension_support(required_capabilities.extension_types(), removed)?;
         }
-        let proposal = GroupContextExtensionProposal::new(extensions);
-        let proposal = Proposal::GroupContextExtensions(proposal);
+        Ok(())
+    }
+
+    /// Create a `GroupContextExtensions` proposal.
+    pub(crate) fn create_group_context_ext_proposal<'a>(
+        &self,
+        framing_parameters: FramingParameters,
+        extensions: Extensions,
+        pending_proposals: impl Iterator<Item = &'a QueuedProposal>,
+        signer: &impl Signer,
+    ) -> Result<AuthenticatedContent, ProposeGroupContextExtensionError> {
+        // Ensure that the group supports all the extensions that are wanted.
+        self.members_support_extensions(&extensions, pending_proposals)?;
+
+        let gce_proposal = GroupContextExtensionProposal::new(extensions);
+        let proposal = Proposal::GroupContextExtensions(gce_proposal);
         AuthenticatedContent::member_proposal(
             framing_parameters,
             self.own_leaf_index(),
@@ -454,7 +496,33 @@ impl CoreGroup {
         )
         .map_err(|e| e.into())
     }
-
+    /// Create a `ReInit` proposal
+    pub(crate) fn create_reinit_proposal(
+        &self,
+        framing_parameters: FramingParameters,
+        extensions: Extensions,
+        ciphersuite: Ciphersuite,
+        version: ProtocolVersion,
+        signer: &impl Signer,
+    ) -> Result<AuthenticatedContent, ProposeReInitError> {
+        self.public_group()
+            .check_reinit(&extensions, ciphersuite, version)?;
+        let reinit_proposal = ReInitProposal {
+            group_id: self.group_id().clone(),
+            version,
+            ciphersuite,
+            extensions,
+        };
+        let proposal = Proposal::ReInit(reinit_proposal);
+        AuthenticatedContent::member_proposal(
+            framing_parameters,
+            self.own_leaf_index(),
+            proposal,
+            self.context(),
+            signer,
+        )
+        .map_err(|e| e.into())
+    }
     // Create application message
     pub(crate) fn create_application_message(
         &mut self,
@@ -558,30 +626,35 @@ impl CoreGroup {
                     .group_epoch_secrets()
                     .external_secret()
                     .derive_external_keypair(backend.crypto(), self.ciphersuite())
+                    .map_err(LibraryError::unexpected_crypto_error)?
                     .public;
-                Extension::ExternalPub(ExternalPubExtension::new(HpkePublicKey::from(external_pub)))
+                Ok(Extension::ExternalPub(ExternalPubExtension::new(
+                    HpkePublicKey::from(external_pub),
+                )))
             };
 
             if with_ratchet_tree {
-                Extensions::from_vec(vec![ratchet_tree_extension(), external_pub_extension()])
+                Extensions::from_vec(vec![ratchet_tree_extension(), external_pub_extension()?])
                     .map_err(|_| {
                         LibraryError::custom(
                             "There should not have been duplicate extensions here.",
                         )
                     })?
             } else {
-                Extensions::single(external_pub_extension())
+                Extensions::single(external_pub_extension()?)
             }
         };
 
         // Create to-be-signed group info.
+        let confirmation_tag = self
+            .message_secrets()
+            .confirmation_key()
+            .tag(backend, self.context().confirmed_transcript_hash())
+            .map_err(LibraryError::unexpected_crypto_error)?;
         let group_info_tbs = GroupInfoTBS::new(
             self.context().clone(),
             extensions,
-            self.message_secrets()
-                .confirmation_key()
-                .tag(backend, self.context().confirmed_transcript_hash())
-                .map_err(LibraryError::unexpected_crypto_error)?,
+            confirmation_tag,
             self.own_leaf_index(),
         );
 
@@ -603,13 +676,13 @@ impl CoreGroup {
 
     /// Loads the state from persisted state
     #[cfg(test)]
-    pub(crate) fn load<R: Read>(reader: R) -> Result<CoreGroup, Error> {
+    pub(crate) fn load(reader: impl std::io::Read) -> Result<CoreGroup, std::io::Error> {
         serde_json::from_reader(reader).map_err(|e| e.into())
     }
 
     /// Persists the state
     #[cfg(test)]
-    pub(crate) fn save<W: Write>(&self, writer: &mut W) -> Result<(), Error> {
+    pub(crate) fn save(&self, writer: &mut impl std::io::Write) -> Result<(), std::io::Error> {
         let serialized_core_group = serde_json::to_string_pretty(self)?;
         writer.write_all(&serialized_core_group.into_bytes())
     }
@@ -754,7 +827,7 @@ impl CoreGroup {
     /// indexed by this group's [`GroupId`] and [`GroupEpoch`].
     ///
     /// Returns an error if access to the key store fails.
-    pub(super) fn store_epoch_keypairs<KeyStore: OpenMlsKeyStore>(
+    pub(super) async fn store_epoch_keypairs<KeyStore: OpenMlsKeyStore>(
         &self,
         backend: &impl OpenMlsCryptoProvider<KeyStoreProvider = KeyStore>,
         keypair_references: &[EncryptionKeyPair],
@@ -767,13 +840,14 @@ impl CoreGroup {
         backend
             .key_store()
             .store(&k.0, &keypair_references.to_vec())
+            .await
     }
 
     /// Read the [`EncryptionKeyPair`]s of this group and its current
     /// [`GroupEpoch`] from the `backend`'s key store.
     ///
     /// Returns `None` if access to the key store fails.
-    pub(super) fn read_epoch_keypairs<KeyStore: OpenMlsKeyStore>(
+    pub(super) async fn read_epoch_keypairs<KeyStore: OpenMlsKeyStore>(
         &self,
         backend: &impl OpenMlsCryptoProvider<KeyStoreProvider = KeyStore>,
     ) -> Vec<EncryptionKeyPair> {
@@ -785,6 +859,7 @@ impl CoreGroup {
         backend
             .key_store()
             .read::<Vec<EncryptionKeyPair>>(&k.0)
+            .await
             .unwrap_or_default()
     }
 
@@ -792,7 +867,7 @@ impl CoreGroup {
     /// the `backend`'s key store.
     ///
     /// Returns an error if access to the key store fails.
-    pub(super) fn delete_previous_epoch_keypairs<KeyStore: OpenMlsKeyStore>(
+    pub(super) async fn delete_previous_epoch_keypairs<KeyStore: OpenMlsKeyStore>(
         &self,
         backend: &impl OpenMlsCryptoProvider<KeyStoreProvider = KeyStore>,
     ) -> Result<(), KeyStore::Error> {
@@ -801,12 +876,15 @@ impl CoreGroup {
             self.context().epoch().as_u64() - 1,
             self.own_leaf_index(),
         );
-        backend.key_store().delete::<Vec<EncryptionKeyPair>>(&k.0)
+        backend
+            .key_store()
+            .delete::<Vec<EncryptionKeyPair>>(&k.0)
+            .await
     }
 
-    pub(crate) fn create_commit<KeyStore: OpenMlsKeyStore>(
+    pub(crate) async fn create_commit<KeyStore: OpenMlsKeyStore>(
         &self,
-        mut params: CreateCommitParams,
+        mut params: CreateCommitParams<'_>,
         backend: &impl OpenMlsCryptoProvider<KeyStoreProvider = KeyStore>,
         signer: &impl Signer,
     ) -> Result<CreateCommitResult, CreateCommitError<KeyStore::Error>> {
@@ -864,6 +942,10 @@ impl CoreGroup {
             .validate_remove_proposals(&proposal_queue)?;
         self.public_group
             .validate_pre_shared_key_proposals(&proposal_queue)?;
+        self.public_group()
+            .validate_group_context_extensions_proposals(&proposal_queue)?;
+        self.public_group()
+            .validate_reinit_proposal(&proposal_queue)?;
         // Validate update proposals for member commits
         if let Sender::Member(sender_index) = &sender {
             // ValSem110
@@ -889,21 +971,40 @@ impl CoreGroup {
                 || contains_own_updates
                 || params.force_self_update()
             {
+
+                // a bit chaotic for sure but too much indirection to do this cleanly
+                // Basically, inline proposals were not introspected for an explicit leaf_node
+                // this fixes exactly that
+                let leaf_node = if contains_own_updates {
+                    let local_proposals = params.proposal_store().proposals().map(QueuedProposal::proposal);
+                    let inline_proposals = params.inline_proposals().iter();
+                    let mut all_proposals = local_proposals.chain(inline_proposals);
+
+                    all_proposals.find_map(|p| {
+                        match p {
+                            Proposal::Update(UpdateProposal{leaf_node}) => Some(leaf_node.clone()),
+                            _ => None,
+                        }
+                    })
+                } else { None };
+
                 // Process the path. This includes updating the provisional
                 // group context by updating the epoch and computing the new
                 // tree hash.
                 diff.compute_path(
                     backend,
                     self.own_leaf_index(),
+                    leaf_node,
                     apply_proposals_values.exclusion_list(),
                     params.commit_type(),
                     signer,
-                    params.take_credential_with_key()
+                    params.take_credential_with_key(),
+                     apply_proposals_values.extensions
                 )?
             } else {
                 // If path is not needed, update the group context and return
                 // empty path processing results
-                diff.update_group_context(backend)?;
+                diff.update_group_context(backend, apply_proposals_values.extensions.cloned())?;
                 PathComputationResult::default()
             };
 
@@ -944,9 +1045,10 @@ impl CoreGroup {
                 backend.key_store(),
                 &self.resumption_psk_store,
                 &apply_proposals_values.presharedkeys,
-            )?;
+            )
+            .await?;
 
-            PskSecret::new(backend, ciphersuite, psks)?
+            PskSecret::new(backend, ciphersuite, psks).await?
         };
 
         // Create key schedule
@@ -986,6 +1088,7 @@ impl CoreGroup {
             let external_pub = provisional_epoch_secrets
                 .external_secret()
                 .derive_external_keypair(backend.crypto(), ciphersuite)
+                .map_err(LibraryError::unexpected_crypto_error)?
                 .public;
             let external_pub_extension =
                 Extension::ExternalPub(ExternalPubExtension::new(external_pub.into()));
@@ -999,14 +1102,12 @@ impl CoreGroup {
             };
 
             // Create to-be-signed group info.
-            let group_info_tbs = {
-                GroupInfoTBS::new(
-                    diff.group_context().clone(),
-                    other_extensions,
-                    confirmation_tag,
-                    self.own_leaf_index(),
-                )
-            };
+            let group_info_tbs = GroupInfoTBS::new(
+                diff.group_context().clone(),
+                other_extensions,
+                confirmation_tag,
+                self.own_leaf_index(),
+            );
             // Sign to-be-signed group info.
             Some(group_info_tbs.sign(signer)?)
         } else {
@@ -1068,10 +1169,13 @@ impl CoreGroup {
             // proposal, so there is no extra keypair to store here.
             None,
         );
-        let staged_commit = StagedCommit::new(
-            proposal_queue,
-            StagedCommitState::GroupMember(Box::new(staged_commit_state)),
-        );
+        let staged_commit_state = match params.commit_type() {
+            CommitType::Member => StagedCommitState::GroupMember(Box::new(staged_commit_state)),
+            CommitType::External => {
+                StagedCommitState::ExternalMember(Box::new(staged_commit_state))
+            }
+        };
+        let staged_commit = StagedCommit::new(proposal_queue, staged_commit_state);
 
         Ok(CreateCommitResult {
             commit: authenticated_content,
@@ -1084,6 +1188,10 @@ impl CoreGroup {
     #[cfg(test)]
     pub(crate) fn own_tree_position(&self) -> TreePosition {
         TreePosition::new(self.group_id().clone(), self.own_leaf_index())
+    }
+
+    pub(crate) fn print_ratchet_tree(&self, message: &str) {
+        println!("{}: {}", message, self.public_group().export_ratchet_tree());
     }
 }
 
@@ -1111,10 +1219,6 @@ impl CoreGroup {
 
     pub(crate) fn message_secrets_test_mut(&mut self) -> &mut MessageSecrets {
         self.message_secrets_store.message_secrets_mut()
-    }
-
-    pub(crate) fn print_ratchet_tree(&self, message: &str) {
-        println!("{}: {}", message, self.public_group().export_ratchet_tree());
     }
 
     #[cfg(test)]

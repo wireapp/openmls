@@ -3,10 +3,14 @@
 //! The [`OpenMlsRand`] trait defines the functionality required by OpenMLS to
 //! source randomness.
 
-use std::fmt::Debug;
-
 pub trait OpenMlsRand {
-    type Error: std::error::Error + Debug + Clone + PartialEq;
+    type Error: std::error::Error + std::fmt::Debug;
+    type RandImpl: rand_core::CryptoRngCore;
+    type BorrowTarget<'a>: std::ops::DerefMut<Target = Self::RandImpl>
+    where
+        Self: 'a;
+
+    fn borrow_rand(&self) -> Result<Self::BorrowTarget<'_>, Self::Error>;
 
     /// Fill an array with random bytes.
     fn random_array<const N: usize>(&self) -> Result<[u8; N], Self::Error>;

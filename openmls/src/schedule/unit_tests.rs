@@ -11,8 +11,11 @@ use crate::{
     versions::ProtocolVersion,
 };
 
+wasm_bindgen_test::wasm_bindgen_test_configure!(run_in_browser);
+
 #[apply(ciphersuites_and_backends)]
-fn test_psks(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider) {
+#[wasm_bindgen_test::wasm_bindgen_test]
+async fn test_psks(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider) {
     // Create a new PSK secret from multiple PSKs.
     let prng = backend.rand();
 
@@ -40,14 +43,17 @@ fn test_psks(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider) {
     {
         psk_id
             .write_to_key_store(backend, ciphersuite, secret.as_slice())
+            .await
             .unwrap();
     }
 
     let _psk_secret = {
         let resumption_psk_store = ResumptionPskStore::new(1024);
 
-        let psks = load_psks(backend.key_store(), &resumption_psk_store, &psk_ids).unwrap();
+        let psks = load_psks(backend.key_store(), &resumption_psk_store, &psk_ids)
+            .await
+            .unwrap();
 
-        PskSecret::new(backend, ciphersuite, psks).unwrap()
+        PskSecret::new(backend, ciphersuite, psks).await.unwrap()
     };
 }

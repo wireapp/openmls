@@ -5,17 +5,20 @@
 
 // These errors are exposed through `crate::group::errors`.
 
+use openmls_traits::types::CryptoError;
 use thiserror::Error;
 
 use crate::{
+    credentials::errors::CredentialError,
     error::LibraryError,
-    extensions::errors::InvalidExtensionError,
+    extensions::errors::{ExtensionError, InvalidExtensionError},
     group::errors::{
-        CreateAddProposalError, CreateCommitError, MergeCommitError, StageCommitError,
-        ValidationError,
+        CreateAddProposalError, CreateCommitError, MergeCommitError, ReInitValidationError,
+        StageCommitError, ValidationError,
     },
+    prelude::KeyPackageExtensionSupportError,
     schedule::errors::PskError,
-    treesync::errors::{LeafNodeValidationError, PublicTreeError},
+    treesync::errors::{LeafNodeValidationError, MemberExtensionValidationError, PublicTreeError},
 };
 
 /// New group error
@@ -113,6 +116,12 @@ pub enum ProcessMessageError {
     /// The proposal is invalid for the Sender of type [External](crate::prelude::Sender::External)
     #[error("The proposal is invalid for the Sender of type External")]
     UnsupportedProposalType,
+    /// Error parsing the certificate chain
+    #[error("Error parsing the X509 certificate chain: {0}")]
+    CredentialError(#[from] CredentialError),
+    /// Error validating the certificate chain
+    #[error("Error validating certificate chain")]
+    CryptoError(#[from] CryptoError),
 }
 
 /// Create message error
@@ -240,6 +249,73 @@ pub enum ProposeSelfUpdateError<KeyStoreError> {
     PublicTreeError(#[from] PublicTreeError),
 }
 
+/// Create group context ext proposal error
+#[derive(Error, Debug, PartialEq, Clone)]
+pub enum UpdateExtensionsError<KeyStoreError> {
+    /// See [`LibraryError`] for more details.
+    #[error(transparent)]
+    LibraryError(#[from] LibraryError),
+    /// See [`MemberExtensionValidationError`] for more details.
+    #[error(transparent)]
+    MemberExtensionValidationError(#[from] MemberExtensionValidationError),
+    /// See [`CreateCommitError`] for more details.
+    #[error(transparent)]
+    CreateCommitError(#[from] CreateCommitError<KeyStoreError>),
+    /// See [`MlsGroupStateError`] for more details.
+    #[error(transparent)]
+    GroupStateError(#[from] MlsGroupStateError),
+}
+
+/// Create group context ext proposal error
+#[derive(Error, Debug, PartialEq, Clone)]
+pub enum ProposeGroupContextExtensionError {
+    /// See [`LibraryError`] for more details.
+    #[error(transparent)]
+    LibraryError(#[from] LibraryError),
+    /// See [`KeyPackageExtensionSupportError`] for more details.
+    #[error(transparent)]
+    KeyPackageExtensionSupport(#[from] KeyPackageExtensionSupportError),
+    /// See [`ExtensionError`] for more details.
+    #[error(transparent)]
+    Extension(#[from] ExtensionError),
+    /// The own CredentialBundle could not be found in the key store.
+    #[error("The own CredentialBundle could not be found in the key store.")]
+    NoMatchingCredentialBundle,
+    /// See [`MlsGroupStateError`] for more details.
+    #[error(transparent)]
+    GroupStateError(#[from] MlsGroupStateError),
+    /// See [`MemberExtensionValidationError`] for more details.
+    #[error(transparent)]
+    MemberExtensionValidationError(#[from] MemberExtensionValidationError),
+}
+
+/// ReInit error
+#[derive(Error, Debug, PartialEq, Clone)]
+pub enum ReInitError<KeyStoreError> {
+    /// See [`LibraryError`] for more details.
+    #[error(transparent)]
+    LibraryError(#[from] LibraryError),
+    /// See [`CreateCommitError`] for more details.
+    #[error(transparent)]
+    CreateCommitError(#[from] CreateCommitError<KeyStoreError>),
+    /// See [`MlsGroupStateError`] for more details.
+    #[error(transparent)]
+    GroupStateError(#[from] MlsGroupStateError),
+}
+
+/// Create ReInit proposal error
+#[derive(Error, Debug, PartialEq, Clone)]
+pub enum ProposeReInitError {
+    /// See [`LibraryError`] for more details.
+    #[error(transparent)]
+    LibraryError(#[from] LibraryError),
+    /// See [`MlsGroupStateError`] for more details.
+    #[error(transparent)]
+    GroupStateError(#[from] MlsGroupStateError),
+    /// See [`ReInitValidationError`] for more details.
+    #[error(transparent)]
+    ReInitValidationError(#[from] ReInitValidationError),
+}
 /// Commit to pending proposals error
 #[derive(Error, Debug, PartialEq, Clone)]
 pub enum CommitToPendingProposalsError<KeyStoreError> {

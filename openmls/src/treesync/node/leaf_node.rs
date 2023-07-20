@@ -24,7 +24,6 @@ use crate::{
     versions::ProtocolVersion,
 };
 
-#[cfg(test)]
 use crate::treesync::errors::LeafNodeValidationError;
 
 mod capabilities;
@@ -179,7 +178,7 @@ impl LeafNode {
     /// This function can be used when generating an update. In most other cases
     /// a leaf node should be generated as part of a new [`KeyPackage`].
     #[cfg(test)]
-    pub(crate) fn updated<KeyStore: OpenMlsKeyStore>(
+    pub(crate) async fn updated<KeyStore: OpenMlsKeyStore>(
         &self,
         config: CryptoConfig,
         tree_info_tbs: TreeInfoTbs,
@@ -198,6 +197,7 @@ impl LeafNode {
             backend,
             signer,
         )
+        .await
     }
 
     /// Generate a fresh leaf node.
@@ -208,7 +208,7 @@ impl LeafNode {
     /// This function can be used when generating an update. In most other cases
     /// a leaf node should be generated as part of a new [`KeyPackage`].
     #[cfg(test)]
-    pub(crate) fn generate_update<KeyStore: OpenMlsKeyStore>(
+    pub(crate) async fn generate_update<KeyStore: OpenMlsKeyStore>(
         config: CryptoConfig,
         credential_with_key: CredentialWithKey,
         capabilities: Capabilities,
@@ -234,6 +234,7 @@ impl LeafNode {
         // Store the encryption key pair in the key store.
         encryption_key_pair
             .write_to_key_store(backend)
+            .await
             .map_err(LeafNodeGenerationError::KeyStoreError)?;
 
         Ok(leaf_node)
@@ -258,6 +259,8 @@ impl LeafNode {
         // Update credential
         if let Some(leaf_node) = leaf_node.into() {
             leaf_node_tbs.payload.credential = leaf_node.credential().clone();
+            leaf_node_tbs.payload.signature_key = leaf_node.signature_key().clone();
+
             leaf_node_tbs.payload.encryption_key = leaf_node.encryption_key().clone();
             leaf_node_tbs.payload.leaf_node_source = LeafNodeSource::Update;
         } else if let Some(new_encryption_key) = new_encryption_key.into() {
@@ -283,22 +286,25 @@ impl LeafNode {
     /// Replace the encryption key in this leaf with a random one.
     ///
     /// This signs the new leaf node as well.
-    pub(crate) fn rekey(
+    #[allow(clippy::too_many_arguments)]
+    pub fn rekey(
         &mut self,
         group_id: &GroupId,
         leaf_index: LeafNodeIndex,
+        leaf_node: Option<LeafNode>,
         ciphersuite: Ciphersuite,
         protocol_version: ProtocolVersion,
         backend: &impl OpenMlsCryptoProvider,
         signer: &impl Signer,
     ) -> Result<EncryptionKeyPair, PublicTreeError> {
-        if !self
+        let ciphersuite_capable = self
             .payload
             .capabilities
             .ciphersuites
-            .contains(&ciphersuite.into())
-            || !self.capabilities().versions.contains(&protocol_version)
-        {
+            .contains(&ciphersuite.into());
+        let version_capable = self.capabilities().versions.contains(&protocol_version);
+
+        if !ciphersuite_capable || !version_capable {
             debug_assert!(
                 false,
                 "Ciphersuite or protocol version is not supported by this leaf node.\
@@ -320,7 +326,7 @@ impl LeafNode {
 
         self.update_and_re_sign(
             key_pair.public_key().clone(),
-            None,
+            leaf_node,
             group_id.clone(),
             leaf_index,
             signer,
@@ -354,7 +360,7 @@ impl LeafNode {
 
     /// Returns the [`Lifetime`] if present.
     /// `None` otherwise.
-    pub(crate) fn life_time(&self) -> Option<&Lifetime> {
+    pub fn life_time(&self) -> Option<&Lifetime> {
         if let LeafNodeSource::KeyPackage(life_time) = &self.payload.leaf_node_source {
             Some(life_time)
         } else {
@@ -385,6 +391,34 @@ impl LeafNode {
             .contains(extension_type)
             || default_extensions().iter().any(|et| et == extension_type)
     }
+
+    /// Check whether this leaf node supports all the required extensions
+    /// in the provided list.
+    pub(crate) fn check_extension_support(
+        &self,
+        extensions: &[ExtensionType],
+    ) -> Result<(), LeafNodeValidationError> {
+        for required in extensions.iter() {
+            if !self.supports_extension(required) {
+                return Err(LeafNodeValidationError::UnsupportedExtensions);
+            }
+        }
+        Ok(())
+    }
+
+    /// Checks if leaf node supports the given ciphersuite.
+    pub(crate) fn supports_ciphersuite(&self, ciphersuite: Ciphersuite) -> bool {
+        self.payload
+            .capabilities
+            .ciphersuites()
+            .contains(&ciphersuite.into())
+    }
+
+    /// Replace the credential material in the LeafNode.
+    pub fn set_credential_with_key(&mut self, credential_with_key: CredentialWithKey) {
+        self.payload.credential = credential_with_key.credential;
+        self.payload.signature_key = credential_with_key.signature_key;
+    }
 }
 
 #[cfg(test)]
@@ -413,20 +447,6 @@ impl LeafNode {
     /// Return a mutable reference to [`Capabilities`].
     pub fn capabilities_mut(&mut self) -> &mut Capabilities {
         &mut self.payload.capabilities
-    }
-
-    /// Check whether the this leaf node supports all the required extensions
-    /// in the provided list.
-    pub(crate) fn check_extension_support(
-        &self,
-        extensions: &[ExtensionType],
-    ) -> Result<(), LeafNodeValidationError> {
-        for required in extensions.iter() {
-            if !self.supports_extension(required) {
-                return Err(LeafNodeValidationError::UnsupportedExtensions);
-            }
-        }
-        Ok(())
     }
 }
 
@@ -567,7 +587,7 @@ pub struct LeafNodeTbs {
 }
 
 impl LeafNodeTbs {
-    /// Build a [`LeafNodeTbs`] from a [`LeafNode`] and a [`TreeInfo`]
+    /// Build a [`LeafNodeTbs`] from a [`LeafNode`] and a [`TreeInfoTbs`]
     /// to update a leaf node.
     pub(crate) fn from(leaf_node: LeafNode, tree_info_tbs: TreeInfoTbs) -> Self {
         Self {
@@ -714,7 +734,6 @@ impl From<LeafNode> for LeafNodeIn {
     }
 }
 
-#[cfg(any(feature = "test-utils", test))]
 impl From<LeafNodeIn> for LeafNode {
     fn from(deserialized: LeafNodeIn) -> Self {
         Self {

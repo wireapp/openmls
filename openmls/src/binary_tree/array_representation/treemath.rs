@@ -30,6 +30,12 @@ impl std::fmt::Display for LeafNodeIndex {
     }
 }
 
+impl From<u32> for LeafNodeIndex {
+    fn from(value: u32) -> Self {
+        Self(value)
+    }
+}
+
 impl LeafNodeIndex {
     /// Create a new `LeafNodeIndex` from a `u32`.
     pub fn new(index: u32) -> Self {
@@ -61,6 +67,12 @@ impl LeafNodeIndex {
 /// ParentNodeIndex references a parent node in a tree.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
 pub struct ParentNodeIndex(u32);
+
+impl From<u32> for ParentNodeIndex {
+    fn from(value: u32) -> Self {
+        Self(value)
+    }
+}
 
 impl ParentNodeIndex {
     /// Create a new `ParentNodeIndex` from a `u32`.
@@ -142,7 +154,7 @@ impl TreeNodeIndex {
     }
 
     /// Return the inner value as `u32`.
-    fn u32(&self) -> u32 {
+    pub fn u32(&self) -> u32 {
         match self {
             TreeNodeIndex::Leaf(index) => index.to_tree_index(),
             TreeNodeIndex::Parent(index) => index.to_tree_index(),
@@ -156,8 +168,7 @@ impl TreeNodeIndex {
     }
 
     /// Return the inner value as `usize`.
-    #[cfg(any(feature = "test-utils", test))]
-    fn usize(&self) -> usize {
+    pub fn usize(&self) -> usize {
         self.u32() as usize
     }
 

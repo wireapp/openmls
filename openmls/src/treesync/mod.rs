@@ -24,8 +24,6 @@ use openmls_rust_crypto::OpenMlsRustCrypto;
 use rstest::*;
 #[cfg(test)]
 use rstest_reuse::apply;
-#[cfg(any(feature = "test-utils", test))]
-use std::fmt;
 
 use openmls_traits::{
     crypto::OpenMlsCrypto,
@@ -48,13 +46,7 @@ use self::{
     },
     treesync_node::{TreeSyncLeafNode, TreeSyncNode, TreeSyncParentNode},
 };
-#[cfg(test)]
-use crate::binary_tree::array_representation::ParentNodeIndex;
-#[cfg(any(feature = "test-utils", test))]
-use crate::{
-    binary_tree::array_representation::level, group::tests::tree_printing::root,
-    test_utils::bytes_to_hex,
-};
+
 use crate::{
     binary_tree::{
         array_representation::{is_node_in_tree, tree::TreeNode, LeafNodeIndex, TreeSize},
@@ -99,6 +91,13 @@ pub mod tests_and_kats;
 /// An exported ratchet tree as used in, e.g., [`GroupInfo`](crate::messages::group_info::GroupInfo).
 #[derive(PartialEq, Eq, Clone, Debug, Serialize, Deserialize, TlsSerialize, TlsSize)]
 pub struct RatchetTree(Vec<Option<Node>>);
+
+impl std::ops::Deref for RatchetTree {
+    type Target = [Option<Node>];
+    fn deref(&self) -> &Self::Target {
+        self.0.as_slice()
+    }
+}
 
 /// An error during processing of an incoming ratchet tree.
 #[derive(Error, Debug, PartialEq, Clone)]
@@ -269,12 +268,12 @@ impl From<RatchetTreeIn> for RatchetTree {
     }
 }
 
-#[cfg(any(feature = "test-utils", test))]
-impl fmt::Display for RatchetTree {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+impl std::fmt::Display for RatchetTree {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        use crate::binary_tree::array_representation::{level, root};
         let factor = 3;
         let nodes = &self.0;
-        let tree_size = nodes.len() as u32;
+        let tree_size = TreeSize::new(nodes.len() as u32);
 
         for (i, node) in nodes.iter().enumerate() {
             let level = level(i as u32);
@@ -284,27 +283,25 @@ impl fmt::Display for RatchetTree {
                     Node::LeafNode(leaf_node) => {
                         write!(f, "\tL      ")?;
                         let key_bytes = leaf_node.encryption_key().as_slice();
-                        let parent_hash_bytes = leaf_node
-                            .parent_hash()
-                            .map(bytes_to_hex)
-                            .unwrap_or_default();
+                        let parent_hash_bytes =
+                            leaf_node.parent_hash().map(hex::encode).unwrap_or_default();
                         (key_bytes, parent_hash_bytes)
                     }
                     Node::ParentNode(parent_node) => {
-                        if root(tree_size) == i as u32 {
+                        if root(tree_size).usize() == i {
                             write!(f, "\tP (*)  ")?;
                         } else {
                             write!(f, "\tP      ")?;
                         }
                         let key_bytes = parent_node.public_key().as_slice();
-                        let parent_hash_string = bytes_to_hex(parent_node.parent_hash());
+                        let parent_hash_string = hex::encode(parent_node.parent_hash());
                         (key_bytes, parent_hash_string)
                     }
                 };
                 write!(
                     f,
                     "PK: {}  PH: {} | ",
-                    bytes_to_hex(key_bytes),
+                    hex::encode(key_bytes),
                     if !parent_hash_bytes.is_empty() {
                         parent_hash_bytes
                     } else {
@@ -314,7 +311,7 @@ impl fmt::Display for RatchetTree {
 
                 write!(f, "{}◼︎", str::repeat(" ", level * factor))?;
             } else {
-                if root(tree_size) == i as u32 {
+                if root(tree_size).usize() == i {
                     write!(
                         f,
                         "\t_ (*)  PK: {}  PH: {} | ",
@@ -533,6 +530,13 @@ impl TreeSync {
             .filter_map(|(_, tsn)| tsn.node().as_ref())
     }
 
+    /// Returns an indexed list of [`LeafNodeIndex`]es containing only full nodes.
+    pub(crate) fn full_leaves_indexed(&self) -> impl Iterator<Item = (LeafNodeIndex, &LeafNode)> {
+        self.tree
+            .leaves()
+            .filter_map(|(index, tsn)| tsn.node().as_ref().map(|node| (index, node)))
+    }
+
     /// Returns the index of the last full leaf in the tree.
     fn rightmost_full_leaf(&self) -> LeafNodeIndex {
         let mut index = LeafNodeIndex::new(0);
@@ -697,7 +701,10 @@ impl TreeSync {
 
     /// Return a reference to the parent node at the given `ParentNodeIndex` or
     /// `None` if the node is blank.
-    pub(crate) fn parent(&self, node_index: ParentNodeIndex) -> Option<&ParentNode> {
+    pub(crate) fn parent(
+        &self,
+        node_index: crate::binary_tree::array_representation::ParentNodeIndex,
+    ) -> Option<&ParentNode> {
         let tsn = self.tree.parent(node_index);
         tsn.node().as_ref()
     }
@@ -724,12 +731,12 @@ mod test {
     }
 
     #[apply(ciphersuites_and_backends)]
-    fn test_ratchet_tree_trailing_blank_nodes(
+    async fn test_ratchet_tree_trailing_blank_nodes(
         ciphersuite: Ciphersuite,
         backend: &impl OpenMlsCryptoProvider,
     ) {
         let (key_package, _, _) =
-            crate::key_packages::test_key_packages::key_package(ciphersuite, backend);
+            crate::key_packages::test_key_packages::key_package(ciphersuite, backend).await;
         let node_in = NodeIn::from(Node::LeafNode(LeafNode::from(key_package)));
         let tests = [
             (vec![], false),

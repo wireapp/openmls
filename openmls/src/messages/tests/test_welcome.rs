@@ -14,7 +14,7 @@ use crate::{
     },
     extensions::Extensions,
     group::{
-        config::CryptoConfig, errors::WelcomeError, GroupContext, GroupId, MlsGroup,
+        config::CryptoConfig, errors::WelcomeError, group_context::GroupContext, GroupId, MlsGroup,
         MlsGroupConfigBuilder,
     },
     messages::{
@@ -30,12 +30,20 @@ use crate::{
     versions::ProtocolVersion,
 };
 
+use openmls_traits::random::OpenMlsRand;
+
+wasm_bindgen_test::wasm_bindgen_test_configure!(run_in_browser);
+
 /// This test detects if the decryption of the encrypted group secrets fails due to a change in
 /// the encrypted group info. As the group info is part of the decryption context of the encrypted
 /// group info, it is not possible to generate a matching encrypted group context with different
 /// parameters.
 #[apply(ciphersuites_and_backends)]
-fn test_welcome_context_mismatch(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider) {
+#[wasm_bindgen_test::wasm_bindgen_test]
+async fn test_welcome_context_mismatch(
+    ciphersuite: Ciphersuite,
+    backend: &impl OpenMlsCryptoProvider,
+) {
     let _ = pretty_env_logger::try_init();
 
     // We need a ciphersuite that is different from the current one to create
@@ -53,9 +61,9 @@ fn test_welcome_context_mismatch(ciphersuite: Ciphersuite, backend: &impl OpenMl
         .build();
 
     let (alice_credential_with_key, _alice_kpb, alice_signer, _alice_signature_key) =
-        crate::group::test_core_group::setup_client("Alice", ciphersuite, backend);
+        crate::group::test_core_group::setup_client("Alice", ciphersuite, backend).await;
     let (_bob_credential, bob_kpb, _bob_signer, _bob_signature_key) =
-        crate::group::test_core_group::setup_client("Bob", ciphersuite, backend);
+        crate::group::test_core_group::setup_client("Bob", ciphersuite, backend).await;
 
     let bob_kp = bob_kpb.key_package();
     let bob_private_key = bob_kpb.private_key();
@@ -68,14 +76,17 @@ fn test_welcome_context_mismatch(ciphersuite: Ciphersuite, backend: &impl OpenMl
         group_id,
         alice_credential_with_key,
     )
+    .await
     .expect("An unexpected error occurred.");
 
     let (_queued_message, welcome, _group_info) = alice_group
         .add_members(backend, &alice_signer, &[bob_kp.clone()])
+        .await
         .expect("Could not add member to group.");
 
     alice_group
         .merge_pending_commit(backend)
+        .await
         .expect("error merging pending commit");
 
     let mut welcome = welcome.into_welcome().expect("Unexpected message type.");
@@ -104,9 +115,13 @@ fn test_welcome_context_mismatch(ciphersuite: Ciphersuite, backend: &impl OpenMl
     let psk_secret = {
         let resumption_psk_store = ResumptionPskStore::new(1024);
 
-        let psks = load_psks(backend.key_store(), &resumption_psk_store, &[]).unwrap();
+        let psks = load_psks(backend.key_store(), &resumption_psk_store, &[])
+            .await
+            .unwrap();
 
-        PskSecret::new(backend, ciphersuite, psks).unwrap()
+        PskSecret::new(backend, ciphersuite, psks)
+            .await
+            .expect("Could not create PskSecret.")
     };
 
     // Create key schedule
@@ -147,6 +162,7 @@ fn test_welcome_context_mismatch(ciphersuite: Ciphersuite, backend: &impl OpenMl
         backend,
         bob_kpb.key_package().leaf_node().encryption_key(),
     )
+    .await
     .unwrap();
 
     // Bob tries to join the group
@@ -156,12 +172,13 @@ fn test_welcome_context_mismatch(ciphersuite: Ciphersuite, backend: &impl OpenMl
         welcome,
         Some(alice_group.export_ratchet_tree().into()),
     )
+    .await
     .expect_err("Created a group from an invalid Welcome.");
 
-    assert_eq!(
+    assert!(matches!(
         err,
         WelcomeError::GroupSecrets(GroupSecretsError::DecryptionFailed)
-    );
+    ));
 
     // === Process the original Welcome ===
 
@@ -173,13 +190,18 @@ fn test_welcome_context_mismatch(ciphersuite: Ciphersuite, backend: &impl OpenMl
             bob_kp.hash_ref(backend.crypto()).unwrap().as_slice(),
             bob_kp,
         )
+        .await
         .unwrap();
     backend
         .key_store()
         .store::<HpkePrivateKey>(bob_kp.hpke_init_key().as_slice(), bob_private_key)
+        .await
         .unwrap();
 
-    encryption_keypair.write_to_key_store(backend).unwrap();
+    encryption_keypair
+        .write_to_key_store(backend)
+        .await
+        .unwrap();
 
     let _group = MlsGroup::new_from_welcome(
         backend,
@@ -187,11 +209,13 @@ fn test_welcome_context_mismatch(ciphersuite: Ciphersuite, backend: &impl OpenMl
         original_welcome,
         Some(alice_group.export_ratchet_tree().into()),
     )
+    .await
     .expect("Error creating group from a valid Welcome.");
 }
 
 #[apply(ciphersuites_and_backends)]
-fn test_welcome_msg(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider) {
+#[wasm_bindgen_test::wasm_bindgen_test]
+async fn test_welcome_msg(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider) {
     test_welcome_message(ciphersuite, backend);
 }
 
@@ -218,7 +242,11 @@ fn test_welcome_message(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoPr
     };
 
     // We need a signer
-    let signer = SignatureKeyPair::new(ciphersuite.signature_algorithm()).unwrap();
+    let signer = SignatureKeyPair::new(
+        ciphersuite.signature_algorithm(),
+        &mut *backend.rand().borrow_rand().unwrap(),
+    )
+    .unwrap();
 
     let group_info = group_info_tbs
         .sign(&signer)
@@ -229,12 +257,15 @@ fn test_welcome_message(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoPr
     let welcome_nonce = AeadNonce::random(backend);
 
     // Generate receiver key pair.
-    let receiver_key_pair = backend.crypto().derive_hpke_keypair(
-        ciphersuite.hpke_config(),
-        Secret::random(ciphersuite, backend, None)
-            .expect("Not enough randomness.")
-            .as_slice(),
-    );
+    let receiver_key_pair = backend
+        .crypto()
+        .derive_hpke_keypair(
+            ciphersuite.hpke_config(),
+            Secret::random(ciphersuite, backend, None)
+                .expect("Not enough randomness.")
+                .as_slice(),
+        )
+        .unwrap();
     let hpke_context = b"group info welcome test info";
     let group_secrets = b"these should be the group secrets";
     let new_member = KeyPackageRef::from_slice(&[0u8; 16]);
@@ -296,6 +327,7 @@ fn test_welcome_message(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoPr
 }
 
 #[test]
+#[wasm_bindgen_test::wasm_bindgen_test]
 fn invalid_welcomes() {
     // An almost good welcome message.
     let mut bytes = &[

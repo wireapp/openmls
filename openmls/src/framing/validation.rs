@@ -23,7 +23,11 @@
 //! ```
 // TODO #106/#151: Update the above diagram
 
-use openmls_traits::{crypto::OpenMlsCrypto, types::Ciphersuite, OpenMlsCryptoProvider};
+use openmls_traits::{
+    crypto::OpenMlsCrypto,
+    types::{Ciphersuite, CryptoError},
+    OpenMlsCryptoProvider,
+};
 
 use crate::{
     binary_tree::LeafNodeIndex,
@@ -104,11 +108,11 @@ impl DecryptedMessage {
         //       Revisit when the transition is further along.
         let (message_secrets, _old_leaves) = group
             .message_secrets_and_leaves_mut(ciphertext.epoch())
-            .map_err(|_| MessageDecryptionError::AeadError)?;
+            .map_err(MessageDecryptionError::from)?;
         let sender_data = ciphertext.sender_data(message_secrets, backend, ciphersuite)?;
         let message_secrets = group
             .message_secrets_mut(ciphertext.epoch())
-            .map_err(|_| MessageDecryptionError::AeadError)?;
+            .map_err(MessageDecryptionError::from)?;
         let verifiable_content = ciphertext.to_verifiable_content(
             ciphersuite,
             backend,
@@ -153,14 +157,16 @@ impl DecryptedMessage {
     ///    of ValSem246 is validated as part of ValSem010.
     ///
     /// Returns the [`Credential`] and the leaf's [`SignaturePublicKey`].
-    pub(crate) fn credential(
+    pub fn credential(
         &self,
         treesync: &TreeSync,
         old_leaves: &[Member],
         external_senders: Option<&ExternalSendersExtension>,
     ) -> Result<CredentialWithKey, ValidationError> {
-        let sender = self.sender();
-        match sender {
+        if let Some(credential) = self.verifiable_content.update_path_credential() {
+            return Ok(credential);
+        }
+        match self.sender() {
             Sender::Member(leaf_index) => {
                 match treesync.leaf(*leaf_index) {
                     Some(sender_leaf) => {
@@ -231,7 +237,7 @@ impl DecryptedMessage {
 /// Context that is needed to verify the signature of a the leaf node of an
 /// UpdatePath or an update proposal.
 #[derive(Debug, Clone)]
-pub(crate) enum SenderContext {
+pub enum SenderContext {
     Member((GroupId, LeafNodeIndex)),
     ExternalCommit((GroupId, LeafNodeIndex)),
 }
@@ -273,10 +279,42 @@ impl UnverifiedMessage {
         crypto: &impl OpenMlsCrypto,
         protocol_version: ProtocolVersion,
     ) -> Result<(AuthenticatedContent, Credential), ProcessMessageError> {
-        let content: AuthenticatedContentIn = self
-            .verifiable_content
-            .verify(crypto, &self.sender_pk)
-            .map_err(|_| ProcessMessageError::InvalidSignature)?;
+        let content: AuthenticatedContentIn = match self.credential.mls_credential() {
+            MlsCredentialType::Basic(_) => self
+                .verifiable_content
+                .verify(crypto, &self.sender_pk)
+                .map_err(|_| ProcessMessageError::InvalidSignature)?,
+            MlsCredentialType::X509(certificate_chain) => {
+                certificate_chain
+                    .pki_path()?
+                    .iter()
+                    .enumerate()
+                    .map(Ok)
+                    .reduce(
+                        |a, b| -> Result<(usize, &x509_cert::Certificate), CryptoError> {
+                            use openmls_x509_credential::X509Ext;
+                            let (_, child_cert) = a?;
+                            let (parent_idx, parent_cert) = b?;
+                            // verify not expired
+                            child_cert.is_valid()?;
+
+                            // verify that child is signed by parent
+                            child_cert.is_signed_by(crypto, parent_cert)?;
+
+                            Ok((parent_idx, parent_cert))
+                        },
+                    )
+                    .ok_or_else(|| {
+                        ProcessMessageError::LibraryError(LibraryError::custom(
+                            "Cannot have validated an empty certificate chain",
+                        ))
+                    })??;
+                self.verifiable_content
+                    // sender pk should be the leaf certificate
+                    .verify(crypto, &self.sender_pk)
+                    .map_err(|_| ProcessMessageError::InvalidSignature)?
+            }
+        };
         let content =
             content.validate(ciphersuite, crypto, self.sender_context, protocol_version)?;
         Ok((content, self.credential))

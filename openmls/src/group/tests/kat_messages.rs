@@ -4,37 +4,19 @@
 //! See <https://github.com/mlswg/mls-implementations/blob/master/test-vectors.md>
 //! for more description on the test vectors.
 
-use openmls_rust_crypto::OpenMlsRustCrypto;
-use openmls_traits::{random::OpenMlsRand, types::SignatureScheme, OpenMlsCryptoProvider};
-use rand::{rngs::OsRng, RngCore};
 use serde::{self, Deserialize, Serialize};
 use thiserror::Error;
 use tls_codec::{Deserialize as TlsDeserialize, Serialize as TlsSerialize};
 
 use crate::{
-    binary_tree::array_representation::LeafNodeIndex,
-    ciphersuite::Mac,
     framing::*,
-    group::{
-        config::CryptoConfig,
-        tests::utils::{generate_credential_with_key, generate_key_package, randombytes},
-        *,
-    },
-    key_packages::*,
     messages::{
         proposals::*,
         proposals_in::{AddProposalIn, UpdateProposalIn},
         *,
     },
-    prelude::{CredentialType, LeafNode},
-    schedule::psk::{store::ResumptionPskStore, *},
     test_utils::*,
-    tree::sender_ratchet::*,
-    treesync::node::{
-        leaf_node::{Capabilities, TreeInfoTbs},
-        NodeIn,
-    },
-    versions::ProtocolVersion,
+    treesync::node::NodeIn,
 };
 
 /// ```json
@@ -119,294 +101,7 @@ pub struct MessagesTestVector {
     private_message: Vec<u8>,
 }
 
-pub fn generate_test_vector(ciphersuite: Ciphersuite) -> MessagesTestVector {
-    let crypto = OpenMlsRustCrypto::default();
-
-    let alice_credential_with_key_and_signer = generate_credential_with_key(
-        b"Alice".to_vec(),
-        SignatureScheme::from(ciphersuite),
-        &crypto,
-    );
-
-    // Create a proposal to update the user's key package.
-    let alice_key_package = generate_key_package(
-        ciphersuite,
-        Extensions::default(),
-        &crypto,
-        alice_credential_with_key_and_signer.clone(),
-    );
-
-    // Let's create a group
-    let mut alice_group = CoreGroup::builder(
-        GroupId::random(&crypto),
-        CryptoConfig::with_default_version(ciphersuite),
-        alice_credential_with_key_and_signer
-            .credential_with_key
-            .clone(),
-    )
-    .with_max_past_epoch_secrets(2)
-    .build(&crypto, &alice_credential_with_key_and_signer.signer)
-    .unwrap();
-
-    let alice_ratchet_tree = alice_group.public_group().export_ratchet_tree();
-
-    let alice_group_info = alice_group
-        .export_group_info(&crypto, &alice_credential_with_key_and_signer.signer, true)
-        .unwrap();
-
-    let alice_leaf_node = {
-        let capabilities = Capabilities::new(
-            None,
-            Some(&[
-                Ciphersuite::MLS_128_DHKEMX25519_AES128GCM_SHA256_Ed25519,
-                Ciphersuite::MLS_128_DHKEMP256_AES128GCM_SHA256_P256,
-                Ciphersuite::MLS_128_DHKEMX25519_CHACHA20POLY1305_SHA256_Ed25519,
-            ]),
-            None,
-            Some(&[ProposalType::AppAck]),
-            Some(&[CredentialType::Basic]),
-        );
-
-        LeafNode::generate_update(
-            CryptoConfig {
-                ciphersuite,
-                version: ProtocolVersion::Mls10,
-            },
-            alice_credential_with_key_and_signer
-                .credential_with_key
-                .clone(),
-            capabilities,
-            Extensions::default(),
-            TreeInfoTbs::Update(alice_group.own_tree_position()),
-            &crypto,
-            &alice_credential_with_key_and_signer.signer.clone(),
-        )
-        .unwrap()
-    };
-
-    let update_proposal = UpdateProposal {
-        leaf_node: alice_leaf_node,
-    };
-
-    // Bob
-    let bob_credential_with_key_and_signer =
-        generate_credential_with_key(b"Bob".to_vec(), SignatureScheme::from(ciphersuite), &crypto);
-
-    let bob_key_package_bundle = KeyPackageBundle::new(
-        &crypto,
-        &bob_credential_with_key_and_signer.signer,
-        ciphersuite,
-        bob_credential_with_key_and_signer.credential_with_key,
-    );
-
-    let add_proposal = AddProposal {
-        key_package: bob_key_package_bundle.key_package().clone(),
-    };
-
-    // Create proposal to remove a user
-    // TODO #525: This is not a valid RemoveProposal since random_u32() is not a valid KeyPackageRef.
-    let remove_proposal = RemoveProposal {
-        removed: LeafNodeIndex::new(random_u32()),
-    };
-
-    let psk_proposal = {
-        let psk_id = PreSharedKeyId::new(
-            ciphersuite,
-            crypto.rand(),
-            Psk::External(ExternalPsk::new(
-                crypto.rand().random_vec(ciphersuite.hash_length()).unwrap(),
-            )),
-        )
-        .unwrap();
-
-        PreSharedKeyProposal::new(psk_id)
-    };
-
-    let reinit_proposal = ReInitProposal {
-        group_id: alice_group.group_id().clone(),
-        version: ProtocolVersion::Mls10,
-        ciphersuite,
-        extensions: Extensions::single(Extension::RatchetTree(RatchetTreeExtension::new(
-            alice_ratchet_tree.clone(),
-        ))),
-    };
-
-    let external_init_proposal = ExternalInitProposal::from(randombytes(32));
-
-    let group_context_extensions_proposal =
-        GroupContextExtensionProposal::new(Extensions::default());
-
-    let framing_parameters = FramingParameters::new(b"aad", WireFormat::PrivateMessage);
-
-    let add_proposal_content = alice_group
-        .create_add_proposal(
-            framing_parameters,
-            bob_key_package_bundle.key_package.clone(),
-            &alice_credential_with_key_and_signer.signer.clone(),
-        )
-        .unwrap();
-
-    let mut proposal_store = ProposalStore::from_queued_proposal(
-        QueuedProposal::from_authenticated_content_by_ref(
-            ciphersuite,
-            &crypto,
-            add_proposal_content.clone(),
-        )
-        .unwrap(),
-    );
-    let params = CreateCommitParams::builder()
-        .framing_parameters(framing_parameters)
-        .proposal_store(&proposal_store)
-        .build();
-    let create_commit_result = alice_group
-        .create_commit(
-            params,
-            &crypto,
-            &alice_credential_with_key_and_signer.signer,
-        )
-        .unwrap();
-    alice_group
-        .merge_staged_commit(
-            &crypto,
-            create_commit_result.staged_commit,
-            &mut proposal_store,
-        )
-        .unwrap();
-
-    let commit = if let FramedContentBody::Commit(commit) = create_commit_result.commit.content() {
-        commit.clone()
-    } else {
-        panic!("Wrong content of MLS plaintext");
-    };
-
-    let alice_welcome = create_commit_result.welcome_option.unwrap();
-
-    let mut receiver_group = CoreGroup::new_from_welcome(
-        alice_welcome.clone(),
-        Some(alice_group.public_group().export_ratchet_tree().into()),
-        bob_key_package_bundle,
-        &crypto,
-        ResumptionPskStore::new(1024),
-    )
-    .expect("Error creating receiver group.");
-
-    // Clone the secret tree to bypass FS restrictions
-    let private_message_application = alice_group
-        .create_application_message(
-            b"aad",
-            b"msg",
-            random_u8() as usize,
-            &crypto,
-            &alice_credential_with_key_and_signer.signer,
-        )
-        .unwrap();
-    // Replace the secret tree
-    let verifiable_public_message_application: VerifiableAuthenticatedContentIn = receiver_group
-        .decrypt(
-            &private_message_application.into(),
-            &crypto,
-            &SenderRatchetConfiguration::default(),
-        )
-        .unwrap();
-    let mls_content_application: AuthenticatedContent =
-        AuthenticatedContentIn::from(verifiable_public_message_application).into();
-
-    let encryption_target = match random_u32() % 3 {
-        0 => create_commit_result.commit.clone(),
-        1 => add_proposal_content.clone(),
-        2 => mls_content_application.clone(),
-        _ => panic!("Modulo 3 of u32 shouldn't give us anything larger than 2"),
-    };
-
-    let mut mac_value = vec![0u8; alice_group.ciphersuite().hash_length()];
-    OsRng.fill_bytes(&mut mac_value);
-    let random_membership_tag = MembershipTag(Mac {
-        mac_value: mac_value.into(),
-    });
-
-    let mut application_pt: PublicMessage = mls_content_application.into();
-    application_pt.set_membership_tag_test(random_membership_tag.clone());
-
-    let mut proposal_pt: PublicMessage = add_proposal_content.into();
-    proposal_pt.set_membership_tag_test(random_membership_tag.clone());
-
-    let mut commit_pt: PublicMessage = create_commit_result.commit.into();
-    commit_pt.set_membership_tag_test(random_membership_tag);
-
-    let private_message = alice_group
-        .encrypt(encryption_target, random_u8() as usize, &crypto)
-        .unwrap();
-
-    MessagesTestVector {
-        mls_welcome: MlsMessageOut::from_welcome(alice_welcome, ProtocolVersion::Mls10)
-            .tls_serialize_detached()
-            .unwrap(),
-        mls_group_info: MlsMessageOut::from(alice_group_info)
-            .tls_serialize_detached()
-            .unwrap(),
-        mls_key_package: MlsMessageOut::from(alice_key_package)
-            .tls_serialize_detached()
-            .unwrap(),
-
-        group_secrets: GroupSecrets::random_encoded(
-            ciphersuite,
-            &crypto,
-            ProtocolVersion::default(),
-        )
-        .unwrap(),
-        ratchet_tree: alice_ratchet_tree.tls_serialize_detached().unwrap(),
-
-        add_proposal: add_proposal.tls_serialize_detached().unwrap(),
-        update_proposal: update_proposal.tls_serialize_detached().unwrap(),
-        remove_proposal: remove_proposal.tls_serialize_detached().unwrap(),
-        pre_shared_key_proposal: psk_proposal.tls_serialize_detached().unwrap(),
-        re_init_proposal: reinit_proposal.tls_serialize_detached().unwrap(),
-        external_init_proposal: external_init_proposal.tls_serialize_detached().unwrap(),
-        group_context_extensions_proposal: group_context_extensions_proposal
-            .tls_serialize_detached()
-            .unwrap(),
-
-        commit: commit.tls_serialize_detached().unwrap(),
-
-        public_message_application: MlsMessageOut::from(application_pt)
-            .tls_serialize_detached()
-            .unwrap(),
-        public_message_proposal: MlsMessageOut::from(proposal_pt)
-            .tls_serialize_detached()
-            .unwrap(),
-        public_message_commit: MlsMessageOut::from(commit_pt)
-            .tls_serialize_detached()
-            .unwrap(),
-        private_message: MlsMessageOut::from_private_message(
-            private_message,
-            ProtocolVersion::Mls10,
-        )
-        .tls_serialize_detached()
-        .unwrap(),
-    }
-}
-
-#[test]
-fn write_test_vectors_msg() {
-    use openmls_traits::crypto::OpenMlsCrypto;
-    let mut tests = Vec::new();
-    const NUM_TESTS: usize = 100;
-
-    for &ciphersuite in OpenMlsRustCrypto::default()
-        .crypto()
-        .supported_ciphersuites()
-        .iter()
-    {
-        for _ in 0..NUM_TESTS {
-            let test = generate_test_vector(ciphersuite);
-            tests.push(test);
-        }
-    }
-
-    write("test_vectors/messages-new.json", &tests);
-}
-
-pub fn run_test_vector(tv: MessagesTestVector) -> Result<(), EncodingMismatch> {
+pub async fn run_test_vector(tv: MessagesTestVector) -> Result<(), EncodingMismatch> {
     // Welcome
     let tv_mls_welcome = tv.mls_welcome;
     let my_mls_welcome = MlsMessageIn::tls_deserialize_exact(&tv_mls_welcome)
@@ -639,12 +334,12 @@ pub fn run_test_vector(tv: MessagesTestVector) -> Result<(), EncodingMismatch> {
     Ok(())
 }
 
-#[test]
-fn read_test_vectors_messages() {
+#[async_std::test]
+async fn read_test_vectors_messages() {
     let tests: Vec<MessagesTestVector> = read("test_vectors/messages.json");
 
     for test_vector in tests {
-        match run_test_vector(test_vector) {
+        match run_test_vector(test_vector).await {
             Ok(_) => {}
             Err(e) => panic!("Error while checking messages test vector.\n{e:?}"),
         }

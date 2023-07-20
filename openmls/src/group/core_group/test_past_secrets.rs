@@ -5,8 +5,11 @@ use crate::{
     schedule::message_secrets::MessageSecrets, test_utils::*,
 };
 
+wasm_bindgen_test::wasm_bindgen_test_configure!(run_in_browser);
+
 #[apply(ciphersuites_and_backends)]
-fn test_secret_tree_store(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider) {
+#[wasm_bindgen_test::wasm_bindgen_test]
+async fn test_secret_tree_store(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider) {
     // Create a store that keeps up to 3 epochs
     let mut message_secrets_store = MessageSecretsStore::new_with_secret(
         3,
@@ -45,7 +48,11 @@ fn test_secret_tree_store(ciphersuite: Ciphersuite, backend: &impl OpenMlsCrypto
 }
 
 #[apply(ciphersuites_and_backends)]
-fn test_empty_secret_tree_store(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider) {
+#[wasm_bindgen_test::wasm_bindgen_test]
+async fn test_empty_secret_tree_store(
+    ciphersuite: Ciphersuite,
+    backend: &impl OpenMlsCryptoProvider,
+) {
     // Create a store that keeps no epochs
     let mut message_secrets_store = MessageSecretsStore::new_with_secret(
         0,

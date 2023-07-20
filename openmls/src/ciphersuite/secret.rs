@@ -11,7 +11,7 @@ use super::{kdf_label::KdfLabel, *};
 /// Note: This has a hand-written `Debug` implementation.
 ///       Please update as well when changing this struct.
 #[derive(Clone, Serialize, Deserialize, Eq)]
-pub(crate) struct Secret {
+pub struct Secret {
     pub(in crate::ciphersuite) ciphersuite: Ciphersuite,
     pub(in crate::ciphersuite) value: SecretVLBytes,
     pub(in crate::ciphersuite) mls_version: ProtocolVersion,
@@ -65,7 +65,7 @@ impl PartialEq for Secret {
             );
             return false;
         }
-        equal_ct(self.value.as_slice(), other.value.as_slice())
+        self.value.as_slice().ct_eq(other.value.as_slice()).into()
     }
 }
 
@@ -129,21 +129,11 @@ impl Secret {
         let ikm = ikm_option.into().unwrap_or(&zero_secret);
         log_crypto!(trace, "  ikm:  {:x?}", ikm.value);
 
-        // We don't return an error here to keep the error propagation from
-        // blowing up. If this fails, something in the library is really wrong
-        // and we can't recover from it.
-        assert!(
-            self.mls_version == ikm.mls_version,
-            "{} != {}",
-            self.mls_version,
-            ikm.mls_version
-        );
-        assert!(
-            self.ciphersuite == ikm.ciphersuite,
-            "{} != {}",
-            self.ciphersuite,
-            ikm.ciphersuite
-        );
+        let different_versions = self.mls_version != ikm.mls_version;
+        let different_ciphersuites = self.ciphersuite != ikm.ciphersuite;
+        if different_versions || different_ciphersuites {
+            return Err(CryptoError::CryptoLibraryError);
+        }
 
         Ok(Self {
             value: backend.crypto().hkdf_extract(

@@ -1,6 +1,7 @@
 //! Processing functions of an [`MlsGroup`] for incoming messages.
 
 use std::mem;
+use std::ops::Deref;
 
 use core_group::staged_commit::StagedCommit;
 use openmls_traits::signatures::Signer;
@@ -23,7 +24,7 @@ impl MlsGroup {
     /// # Errors:
     /// Returns an [`ProcessMessageError`] when the validation checks fail
     /// with the exact reason of the failure.
-    pub fn process_message(
+    pub async fn process_message(
         &mut self,
         backend: &impl OpenMlsCryptoProvider,
         message: impl Into<ProtocolMessage>,
@@ -54,13 +55,16 @@ impl MlsGroup {
         // Parse the message
         let sender_ratchet_configuration =
             self.configuration().sender_ratchet_configuration().clone();
-        self.group.process_message(
-            backend,
-            message,
-            &sender_ratchet_configuration,
-            &self.proposal_store,
-            &self.own_leaf_nodes,
-        )
+
+        self.group
+            .process_message(
+                backend,
+                message,
+                &sender_ratchet_configuration,
+                &self.proposal_store,
+                &self.own_leaf_nodes,
+            )
+            .await
     }
 
     /// Stores a standalone proposal in the internal [ProposalStore]
@@ -81,7 +85,7 @@ impl MlsGroup {
     /// and `Welcome` are MlsMessages of the type [`MlsMessageOut`].
     // FIXME: #1217
     #[allow(clippy::type_complexity)]
-    pub fn commit_to_pending_proposals<KeyStore: OpenMlsKeyStore>(
+    pub async fn commit_to_pending_proposals<KeyStore: OpenMlsKeyStore>(
         &mut self,
         backend: &impl OpenMlsCryptoProvider<KeyStoreProvider = KeyStore>,
         signer: &impl Signer,
@@ -97,7 +101,7 @@ impl MlsGroup {
             .framing_parameters(self.framing_parameters())
             .proposal_store(&self.proposal_store)
             .build();
-        let create_commit_result = self.group.create_commit(params, backend, signer)?;
+        let create_commit_result = self.group.create_commit(params, backend, signer).await?;
 
         // Convert PublicMessage messages to MLSMessage and encrypt them if required by
         // the configuration
@@ -123,7 +127,7 @@ impl MlsGroup {
 
     /// Merge a [StagedCommit] into the group after inspection. As this advances
     /// the epoch of the group, it also clears any pending commits.
-    pub fn merge_staged_commit<KeyStore: OpenMlsKeyStore>(
+    pub async fn merge_staged_commit<KeyStore: OpenMlsKeyStore>(
         &mut self,
         backend: &impl OpenMlsCryptoProvider<KeyStoreProvider = KeyStore>,
         staged_commit: StagedCommit,
@@ -138,7 +142,8 @@ impl MlsGroup {
 
         // Merge staged commit
         self.group
-            .merge_staged_commit(backend, staged_commit, &mut self.proposal_store)?;
+            .merge_staged_commit(backend, staged_commit, &mut self.proposal_store)
+            .await?;
 
         // Extract and store the resumption psk for the current epoch
         let resumption_psk = self.group.group_epoch_secrets().resumption_psk();
@@ -157,15 +162,32 @@ impl MlsGroup {
 
     /// Merges the pending [`StagedCommit`] if there is one, and
     /// clears the field by setting it to `None`.
-    pub fn merge_pending_commit<KeyStore: OpenMlsKeyStore>(
+    ///
+    /// If the commit contains a ReInit proposal it will return a welcome message, a new group and
+    /// set the current as inactive.
+    pub async fn merge_pending_commit<KeyStore: OpenMlsKeyStore>(
         &mut self,
         backend: &impl OpenMlsCryptoProvider<KeyStoreProvider = KeyStore>,
     ) -> Result<(), MergePendingCommitError<KeyStore::Error>> {
         match &self.group_state {
-            MlsGroupState::PendingCommit(_) => {
-                let old_state = mem::replace(&mut self.group_state, MlsGroupState::Operational);
-                if let MlsGroupState::PendingCommit(pending_commit_state) = old_state {
-                    self.merge_staged_commit(backend, (*pending_commit_state).into())?;
+            MlsGroupState::PendingCommit(state) => {
+                match state.deref() {
+                    PendingCommitState::Member(_) => {
+                        let old_state =
+                            mem::replace(&mut self.group_state, MlsGroupState::Operational);
+                        if let MlsGroupState::PendingCommit(pending_commit_state) = old_state {
+                            self.merge_staged_commit(backend, (*pending_commit_state).into())
+                                .await?;
+                        }
+                    }
+                    PendingCommitState::External(_) => {
+                        let old_state =
+                            mem::replace(&mut self.group_state, MlsGroupState::Operational);
+                        if let MlsGroupState::PendingCommit(pending_commit_state) = old_state {
+                            self.merge_staged_commit(backend, (*pending_commit_state).into())
+                                .await?;
+                        }
+                    }
                 }
                 Ok(())
             }

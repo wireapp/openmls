@@ -7,6 +7,7 @@ use crate::{
     binary_tree::LeafNodeIndex,
     credentials::CredentialWithKey,
     error::LibraryError,
+    extensions::Extensions,
     group::{
         config::CryptoConfig, core_group::create_commit_params::CommitType,
         errors::CreateCommitError,
@@ -35,14 +36,17 @@ pub(crate) struct PathComputationResult {
 }
 
 impl<'a> PublicGroupDiff<'a> {
+    #[allow(clippy::too_many_arguments)]
     pub(crate) fn compute_path<KeyStore: OpenMlsKeyStore>(
         &mut self,
         backend: &impl OpenMlsCryptoProvider<KeyStoreProvider = KeyStore>,
         leaf_index: LeafNodeIndex,
+        mut leaf_node: Option<LeafNode>,
         exclusion_list: HashSet<&LeafNodeIndex>,
         commit_type: CommitType,
         signer: &impl Signer,
         credential_with_key: Option<CredentialWithKey>,
+        extensions: Option<&Extensions>,
     ) -> Result<PathComputationResult, CreateCommitError<KeyStore::Error>> {
         let version = self.group_context().protocol_version();
         let ciphersuite = self.group_context().ciphersuite();
@@ -74,14 +78,21 @@ impl<'a> PublicGroupDiff<'a> {
                 .map_err(|_| LibraryError::custom("Tree full: cannot add more members"))?;
             vec![encryption_keypair]
         } else {
+            // When we update with an explicit leaf_node consider it (instead of the old one) when computing the UpdatePath
+            if let Some(leaf_node) = leaf_node.take() {
+                self.diff.update_leaf(leaf_node, leaf_index)
+            }
+
             // If we're already in the tree, we rekey our existing leaf.
             let own_diff_leaf = self
                 .diff
                 .leaf_mut(leaf_index)
                 .ok_or_else(|| LibraryError::custom("Unable to get own leaf from diff"))?;
+
             let encryption_keypair = own_diff_leaf.rekey(
                 &group_id,
                 leaf_index,
+                None,
                 ciphersuite,
                 version,
                 backend,
@@ -101,7 +112,7 @@ impl<'a> PublicGroupDiff<'a> {
         // After we've processed the path, we can update the group context s.t.
         // the updated group context is used for path secret encryption. Note
         // that we have not yet updated the confirmed transcript hash.
-        self.update_group_context(backend)?;
+        self.update_group_context(backend, extensions.cloned())?;
 
         let serialized_group_context = self
             .group_context()

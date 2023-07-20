@@ -6,8 +6,11 @@ use crate::{
     versions::ProtocolVersion,
 };
 
+wasm_bindgen_test::wasm_bindgen_test_configure!(run_in_browser);
+
 #[apply(ciphersuites_and_backends)]
-fn secret_init(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider) {
+#[wasm_bindgen_test::wasm_bindgen_test]
+async fn secret_init(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider) {
     // These two secrets must be incompatible
     let default_secret =
         Secret::random(ciphersuite, backend, None).expect("Not enough randomness.");
@@ -19,9 +22,9 @@ fn secret_init(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider) {
     assert_ne!(derived_default_secret, derived_draft_secret);
 }
 
-#[should_panic]
 #[apply(ciphersuites_and_backends)]
-fn secret_incompatible(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider) {
+#[wasm_bindgen_test::wasm_bindgen_test]
+pub async fn secret_incompatible(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider) {
     // These two secrets must be incompatible
     let default_secret =
         Secret::random(ciphersuite, backend, None).expect("Not enough randomness.");
@@ -29,5 +32,5 @@ fn secret_incompatible(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoPro
         .expect("Not enough randomness.");
 
     // This must panic because the two secrets have incompatible MLS versions.
-    let _default_extracted = default_secret.hkdf_extract(backend, &draft_secret);
+    assert!(default_secret.hkdf_extract(backend, &draft_secret).is_err());
 }

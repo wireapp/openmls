@@ -244,7 +244,6 @@ impl ProposalOrRefIn {
 
 // The following `From` implementation breaks abstraction layers and MUST
 // NOT be made available outside of tests or "test-utils".
-#[cfg(any(feature = "test-utils", test))]
 impl From<AddProposalIn> for crate::messages::proposals::AddProposal {
     fn from(value: AddProposalIn) -> Self {
         Self {
@@ -263,7 +262,6 @@ impl From<crate::messages::proposals::AddProposal> for AddProposalIn {
 
 // The following `From` implementation( breaks abstraction layers and MUST
 // NOT be made available outside of tests or "test-utils".
-#[cfg(any(feature = "test-utils", test))]
 impl From<UpdateProposalIn> for crate::messages::proposals::UpdateProposal {
     fn from(value: UpdateProposalIn) -> Self {
         Self {
@@ -280,7 +278,6 @@ impl From<crate::messages::proposals::UpdateProposal> for UpdateProposalIn {
     }
 }
 
-#[cfg(any(feature = "test-utils", test))]
 impl From<ProposalIn> for crate::messages::proposals::Proposal {
     fn from(proposal: ProposalIn) -> Self {
         match proposal {
@@ -315,7 +312,6 @@ impl From<crate::messages::proposals::Proposal> for ProposalIn {
     }
 }
 
-#[cfg(any(feature = "test-utils", test))]
 impl From<ProposalOrRefIn> for crate::messages::proposals::ProposalOrRef {
     fn from(proposal: ProposalOrRefIn) -> Self {
         match proposal {

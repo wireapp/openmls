@@ -23,15 +23,19 @@ mod creation;
 mod exporting;
 mod updates;
 
+use crate::prelude::ConfirmationTag;
 use config::*;
 use errors::*;
+use openmls_traits::types::CryptoError;
 
 // Crate
 pub(crate) mod config;
 pub(crate) mod errors;
+pub(crate) mod extension;
 pub(crate) mod membership;
 pub(crate) mod processing;
 pub(crate) mod proposal;
+pub(crate) mod reinit;
 pub(crate) mod ser;
 
 // Tests
@@ -295,18 +299,22 @@ impl MlsGroup {
     // === Load & save ===
 
     /// Loads the state from persisted state.
-    pub fn load(group_id: &GroupId, backend: &impl OpenMlsCryptoProvider) -> Option<MlsGroup> {
-        backend.key_store().read(group_id.as_slice())
+    pub async fn load(
+        group_id: &GroupId,
+        backend: &impl OpenMlsCryptoProvider,
+    ) -> Option<MlsGroup> {
+        backend.key_store().read(group_id.as_slice()).await
     }
 
     /// Persists the state.
-    pub fn save<KeyStore: OpenMlsKeyStore>(
+    pub async fn save<KeyStore: OpenMlsKeyStore>(
         &mut self,
         backend: &impl OpenMlsCryptoProvider<KeyStoreProvider = KeyStore>,
     ) -> Result<(), KeyStore::Error> {
         backend
             .key_store()
-            .store(self.group_id().as_slice(), &*self)?;
+            .store(self.group_id().as_slice(), &*self)
+            .await?;
 
         self.state_changed = InnerState::Persisted;
         Ok(())
@@ -318,11 +326,28 @@ impl MlsGroup {
         self.state_changed
     }
 
+    /// Meh
+    pub fn set_state(&mut self, state: InnerState) {
+        self.state_changed = state;
+    }
+
     // === Extensions ===
 
     /// Exports the Ratchet Tree.
     pub fn export_ratchet_tree(&self) -> RatchetTree {
         self.group.public_group().export_ratchet_tree()
+    }
+
+    /// Calculates the confirmation tag of the current group
+    pub fn compute_confirmation_tag(
+        &self,
+        backend: &impl OpenMlsCryptoProvider,
+    ) -> Result<ConfirmationTag, CryptoError> {
+        let cth = self.export_group_context().confirmed_transcript_hash();
+        self.group
+            .message_secrets()
+            .confirmation_key()
+            .tag(backend, cth)
     }
 }
 
@@ -387,23 +412,12 @@ impl MlsGroup {
             MlsGroupState::Operational => Ok(()),
         }
     }
-}
-
-// Methods used in tests
-impl MlsGroup {
-    #[cfg(any(feature = "test-utils", test))]
-    pub fn export_group_context(&self) -> &GroupContext {
+    pub fn export_group_context(&self) -> &group_context::GroupContext {
         self.group.context()
     }
 
-    #[cfg(any(feature = "test-utils", test))]
     pub fn tree_hash(&self) -> &[u8] {
         self.group.public_group().group_context().tree_hash()
-    }
-
-    #[cfg(any(feature = "test-utils", test))]
-    pub fn print_ratchet_tree(&self, message: &str) {
-        self.group.print_ratchet_tree(message)
     }
 
     /// Returns the underlying [CoreGroup].
@@ -413,8 +427,7 @@ impl MlsGroup {
     }
 
     /// Clear the pending proposals.
-    #[cfg(test)]
-    pub(crate) fn clear_pending_proposals(&mut self) {
+    pub fn clear_pending_proposals(&mut self) {
         self.proposal_store.empty()
     }
 
@@ -426,6 +439,10 @@ impl MlsGroup {
         self.proposal_store
             .remove(proposal_ref)
             .ok_or(MlsGroupStateError::PendingProposalNotFound)
+    }
+
+    pub fn print_ratchet_tree(&self, message: &str) {
+        self.group.print_ratchet_tree(message)
     }
 }
 

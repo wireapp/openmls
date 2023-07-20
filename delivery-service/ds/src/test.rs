@@ -10,9 +10,14 @@ use tls_codec::{TlsByteVecU8, TlsVecU16};
 fn generate_credential(
     identity: Vec<u8>,
     signature_scheme: SignatureScheme,
+    crypto_backend: &impl OpenMlsCryptoProvider,
 ) -> (CredentialWithKey, SignatureKeyPair) {
-    let credential = Credential::new(identity, CredentialType::Basic).unwrap();
-    let signature_keys = SignatureKeyPair::new(signature_scheme).unwrap();
+    let credential = Credential::new_basic(identity);
+    let signature_keys = SignatureKeyPair::new(
+        signature_scheme,
+        &mut *crypto_backend.rand().borrow_rand().unwrap(),
+    )
+    .unwrap();
     let credential_with_key = CredentialWithKey {
         credential,
         signature_key: signature_keys.to_public_vec().into(),
@@ -21,7 +26,7 @@ fn generate_credential(
     (credential_with_key, signature_keys)
 }
 
-fn generate_key_package(
+async fn generate_key_package(
     ciphersuite: Ciphersuite,
     credential_with_key: CredentialWithKey,
     extensions: Extensions,
@@ -39,6 +44,7 @@ fn generate_key_package(
             signer,
             credential_with_key,
         )
+        .await
         .unwrap()
 }
 
@@ -79,8 +85,11 @@ async fn test_list_clients() {
     let client_name = "Client1";
     let ciphersuite = Ciphersuite::MLS_128_DHKEMX25519_AES128GCM_SHA256_Ed25519;
     let crypto = &OpenMlsRustCrypto::default();
-    let (credential_with_key, signer) =
-        generate_credential(client_name.into(), SignatureScheme::from(ciphersuite));
+    let (credential_with_key, signer) = generate_credential(
+        client_name.into(),
+        SignatureScheme::from(ciphersuite),
+        crypto,
+    );
     let client_id = credential_with_key.credential.identity().to_vec();
     let client_key_package = generate_key_package(
         ciphersuite,
@@ -88,7 +97,8 @@ async fn test_list_clients() {
         Extensions::empty(),
         crypto,
         &signer,
-    );
+    )
+    .await;
     let client_key_package = vec![(
         client_key_package
             .hash_ref(crypto.crypto())
@@ -184,6 +194,7 @@ async fn test_group() {
         let (credential_with_key, signer) = generate_credential(
             client_name.as_bytes().to_vec(),
             SignatureScheme::from(ciphersuite),
+            crypto,
         );
         let client_key_package = generate_key_package(
             ciphersuite,
@@ -191,7 +202,8 @@ async fn test_group() {
             Extensions::empty(),
             crypto,
             &signer,
-        );
+        )
+        .await;
         let client_data = ClientInfo::new(
             client_name.to_string(),
             vec![(
@@ -229,6 +241,7 @@ async fn test_group() {
         group_id,
         credential_with_key_1,
     )
+    .await
     .expect("An unexpected error occurred.");
 
     // === Client1 invites Client2 ===
@@ -262,9 +275,11 @@ async fn test_group() {
     // locally.)
     let (_out_messages, welcome_msg, _group_info) = group
         .add_members(crypto, &signer_1, &[client2_key_package.into()])
+        .await
         .expect("Could not add member to group.");
     group
         .merge_pending_commit(crypto)
+        .await
         .expect("error merging pending commit");
 
     // Send welcome message for Client2
@@ -308,6 +323,7 @@ async fn test_group() {
             .expect("Unexpected message type."),
         Some(group.export_ratchet_tree().into()), // delivered out of band
     )
+    .await
     .expect("Error creating group from Welcome");
 
     assert_eq!(
@@ -367,6 +383,7 @@ async fn test_group() {
     // Decrypt the message on Client1
     let processed_message = group
         .process_message(crypto, protocol_message)
+        .await
         .expect("Could not process unverified message.");
     if let ProcessedMessageContent::ApplicationMessage(application_message) =
         processed_message.into_content()

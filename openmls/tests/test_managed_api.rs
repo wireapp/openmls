@@ -6,7 +6,7 @@ use openmls::{
 };
 
 #[apply(ciphersuites)]
-fn test_mls_group_api(ciphersuite: Ciphersuite) {
+async fn test_mls_group_api(ciphersuite: Ciphersuite) {
     // Some basic setup functions for the MlsGroup.
     let mls_group_config = MlsGroupConfig::test_default(ciphersuite);
     let number_of_clients = 20;
@@ -14,12 +14,14 @@ fn test_mls_group_api(ciphersuite: Ciphersuite) {
         mls_group_config,
         number_of_clients,
         CodecUse::SerializedMessages,
-    );
+    )
+    .await;
 
     let group_id = setup
         .create_random_group(3, ciphersuite)
+        .await
         .expect("An unexpected error occurred.");
-    let mut groups = setup.groups.write().expect("An unexpected error occurred.");
+    let mut groups = setup.groups.write().await;
     let group = groups
         .get_mut(&group_id)
         .expect("An unexpected error occurred.");
@@ -28,9 +30,11 @@ fn test_mls_group_api(ciphersuite: Ciphersuite) {
     let (_, adder_id) = group.members().next().unwrap();
     let new_members = setup
         .random_new_members_for_group(group, 2)
+        .await
         .expect("An unexpected error occurred.");
     setup
         .add_clients(ActionType::Commit, group, &adder_id, new_members)
+        .await
         .expect("An unexpected error occurred.");
 
     // Remove a member
@@ -43,8 +47,9 @@ fn test_mls_group_api(ciphersuite: Ciphersuite) {
             &remover_id,
             &[LeafNodeIndex::new(target_index)],
         )
+        .await
         .expect("An unexpected error occurred.");
 
     // Check that all group members agree on the same group state.
-    setup.check_group_states(group);
+    setup.check_group_states(group).await;
 }

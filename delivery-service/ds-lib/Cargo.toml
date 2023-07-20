@@ -2,7 +2,7 @@
 name = "ds-lib"
 version = "0.1.0"
 authors = ["OpenMLS Authors"]
-edition = "2018"
+edition = "2021"
 description = "Types to interact with the OpenMLS DS."
 
 [dependencies]
@@ -12,3 +12,6 @@ openmls_traits = { path = "../../traits" }
 openmls_rust_crypto = { path = "../../openmls_rust_crypto" }
 openmls_memory_keystore = { path = "../../memory_keystore" }
 openmls_basic_credential = { path = "../../basic_credential" }
+
+[dev-dependencies]
+tokio = { version = "1.24", features = ["full"] }

@@ -122,7 +122,7 @@ impl MlsGroup {
     );
 
     /// Generate a proposal
-    pub fn propose<KeyStore: OpenMlsKeyStore>(
+    pub async fn propose<KeyStore: OpenMlsKeyStore>(
         &mut self,
         backend: &impl OpenMlsCryptoProvider<KeyStoreProvider = KeyStore>,
         signer: &impl Signer,
@@ -140,11 +140,21 @@ impl MlsGroup {
             },
 
             Propose::Update(leaf_node) => match ref_or_value {
-                ProposalOrRefType::Proposal => self
-                    .propose_self_update_by_value(backend, signer, leaf_node)
-                    .map_err(|e| e.into()),
+                ProposalOrRefType::Proposal => {
+                    if let Some(ln) = leaf_node {
+                        // FIXME: this does not work since both signers are the same
+                        self.propose_explicit_self_update(backend, signer, ln, signer)
+                            .await
+                            .map_err(|e| e.into())
+                    } else {
+                        self.propose_self_update_by_value(backend, signer)
+                            .await
+                            .map_err(|e| e.into())
+                    }
+                }
                 ProposalOrRefType::Reference => self
-                    .propose_self_update(backend, signer, leaf_node)
+                    .propose_self_update(backend, signer)
+                    .await
                     .map_err(|e| e.into()),
             },
 
@@ -317,36 +327,5 @@ impl MlsGroup {
                 ProposeRemoveMemberError::UnknownMember,
             ))
         }
-    }
-
-    #[cfg(test)]
-    pub fn propose_group_context_extensions(
-        &mut self,
-        backend: &impl OpenMlsCryptoProvider,
-        extensions: Extensions,
-        signer: &impl Signer,
-    ) -> Result<(MlsMessageOut, ProposalRef), ProposalError<()>> {
-        self.is_operational()?;
-
-        let proposal = self
-            .group
-            .create_group_context_ext_proposal(self.framing_parameters(), extensions, signer)
-            .unwrap();
-
-        let queued_proposal = QueuedProposal::from_authenticated_content_by_ref(
-            self.ciphersuite(),
-            backend,
-            proposal.clone(),
-        )?;
-
-        let proposal_ref = queued_proposal.proposal_reference();
-        self.proposal_store.add(queued_proposal);
-
-        let mls_message = self.content_to_mls_message(proposal, backend)?;
-
-        // Since the state of the group might be changed, arm the state flag
-        self.flag_state_change();
-
-        Ok((mls_message, proposal_ref))
     }
 }

@@ -41,9 +41,9 @@ use super::{
 /// original content, it can't provide the same information as the [`AbDiff`] it
 /// was created from. However, the lack of the internal reference means that its
 /// lifetime is not tied to that of the original tree.
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub(crate) struct StagedAbDiff<L: Clone + Debug + Default, P: Clone + Debug + Default> {
-    leaf_diff: BTreeMap<LeafNodeIndex, L>,
+    pub(crate) leaf_diff: BTreeMap<LeafNodeIndex, L>,
     parent_diff: BTreeMap<ParentNodeIndex, P>,
     size: TreeSize,
 }
@@ -400,7 +400,7 @@ impl<'a, L: Clone + Debug + Default, P: Clone + Debug + Default> AbDiff<'a, L, P
 
 /// Binary Tree Diff error
 #[derive(Error, Debug, PartialEq, Clone)]
-pub(crate) enum ABinaryTreeDiffError {
+pub enum ABinaryTreeDiffError {
     /// See [`LibraryError`] for more details.
     #[error(transparent)]
     LibraryError(#[from] LibraryError),

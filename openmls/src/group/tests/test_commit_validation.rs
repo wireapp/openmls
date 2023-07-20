@@ -23,6 +23,8 @@ use crate::{
     versions::ProtocolVersion,
 };
 
+wasm_bindgen_test::wasm_bindgen_test_configure!(run_in_browser);
+
 struct CommitValidationTestSetup {
     alice_group: MlsGroup,
     alice_credential: CredentialWithKeyAndSigner,
@@ -31,7 +33,7 @@ struct CommitValidationTestSetup {
 }
 
 // Validation test setup
-fn validation_test_setup(
+async fn validation_test_setup(
     wire_format_policy: WireFormatPolicy,
     ciphersuite: Ciphersuite,
     backend: &impl OpenMlsCryptoProvider,
@@ -40,24 +42,28 @@ fn validation_test_setup(
 
     // Generate credentials with keys
     let alice_credential =
-        generate_credential_with_key("Alice".into(), ciphersuite.signature_algorithm(), backend);
+        generate_credential_with_key("Alice".into(), ciphersuite.signature_algorithm(), backend)
+            .await;
 
     let bob_credential =
-        generate_credential_with_key("Bob".into(), ciphersuite.signature_algorithm(), backend);
+        generate_credential_with_key("Bob".into(), ciphersuite.signature_algorithm(), backend)
+            .await;
 
     let charlie_credential =
-        generate_credential_with_key("Charlie".into(), ciphersuite.signature_algorithm(), backend);
+        generate_credential_with_key("Charlie".into(), ciphersuite.signature_algorithm(), backend)
+            .await;
 
     // Generate KeyPackages
     let bob_key_package =
-        generate_key_package(ciphersuite, Extensions::empty(), backend, bob_credential);
+        generate_key_package(ciphersuite, Extensions::empty(), backend, bob_credential).await;
 
     let charlie_key_package = generate_key_package(
         ciphersuite,
         Extensions::empty(),
         backend,
         charlie_credential,
-    );
+    )
+    .await;
 
     // Define the MlsGroup configuration
 
@@ -74,6 +80,7 @@ fn validation_test_setup(
         group_id,
         alice_credential.credential_with_key.clone(),
     )
+    .await
     .expect("An unexpected error occurred.");
 
     let (_message, welcome, _group_info) = alice_group
@@ -82,10 +89,12 @@ fn validation_test_setup(
             &alice_credential.signer,
             &[bob_key_package, charlie_key_package],
         )
+        .await
         .expect("error adding Bob to group");
 
     alice_group
         .merge_pending_commit(backend)
+        .await
         .expect("error merging pending commit");
 
     let welcome = welcome.into_welcome().expect("Unexpected message type.");
@@ -96,6 +105,7 @@ fn validation_test_setup(
         welcome.clone(),
         Some(alice_group.export_ratchet_tree().into()),
     )
+    .await
     .expect("error creating group from welcome");
 
     let charlie_group = MlsGroup::new_from_welcome(
@@ -104,6 +114,7 @@ fn validation_test_setup(
         welcome,
         Some(alice_group.export_ratchet_tree().into()),
     )
+    .await
     .expect("error creating group from welcome");
 
     CommitValidationTestSetup {
@@ -116,14 +127,15 @@ fn validation_test_setup(
 
 // ValSem200: Commit must not cover inline self Remove proposal
 #[apply(ciphersuites_and_backends)]
-fn test_valsem200(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider) {
+#[wasm_bindgen_test::wasm_bindgen_test]
+async fn test_valsem200(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider) {
     // Test with PublicMessage
     let CommitValidationTestSetup {
         mut alice_group,
         alice_credential,
         mut bob_group,
         ..
-    } = validation_test_setup(PURE_PLAINTEXT_WIRE_FORMAT_POLICY, ciphersuite, backend);
+    } = validation_test_setup(PURE_PLAINTEXT_WIRE_FORMAT_POLICY, ciphersuite, backend).await;
 
     // Since Alice won't commit to her own removal directly, we have to create
     // proposal and commit independently and then insert the proposal into the
@@ -158,6 +170,7 @@ fn test_valsem200(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider
     // Now let's stick it in the commit.
     let serialized_message = alice_group
         .self_update(backend, &alice_credential.signer)
+        .await
         .expect("Error creating self-update")
         .tls_serialize_detached()
         .expect("Could not serialize message.");
@@ -219,6 +232,7 @@ fn test_valsem200(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider
 
     let err = bob_group
         .process_message(backend, message_in)
+        .await
         .expect_err("Could process unverified message despite self remove.");
 
     assert_eq!(
@@ -229,12 +243,14 @@ fn test_valsem200(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider
     // Positive case
     bob_group
         .process_message(backend, ProtocolMessage::from(original_plaintext))
+        .await
         .expect("Unexpected error.");
 }
 
 // ValSem201: Path must be present, if at least one proposal requires a path
 #[apply(ciphersuites_and_backends)]
-fn test_valsem201(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider) {
+#[wasm_bindgen_test::wasm_bindgen_test]
+async fn test_valsem201(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider) {
     let wire_format_policy = PURE_PLAINTEXT_WIRE_FORMAT_POLICY;
     // Test with PublicMessage
     let CommitValidationTestSetup {
@@ -243,7 +259,7 @@ fn test_valsem201(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider
         mut bob_group,
         charlie_group,
         ..
-    } = validation_test_setup(wire_format_policy, ciphersuite, backend);
+    } = validation_test_setup(wire_format_policy, ciphersuite, backend).await;
 
     let queued = |proposal: Proposal| {
         QueuedProposal::from_proposal_and_sender(
@@ -255,18 +271,19 @@ fn test_valsem201(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider
         .unwrap()
     };
 
-    let add_proposal = || {
+    let add_proposal = || async {
         let dave_credential =
-            generate_credential_with_key("Dave".into(), ciphersuite.signature_algorithm(), backend);
+            generate_credential_with_key("Dave".into(), ciphersuite.signature_algorithm(), backend)
+                .await;
         let dave_key_package =
-            generate_key_package(ciphersuite, Extensions::empty(), backend, dave_credential);
+            generate_key_package(ciphersuite, Extensions::empty(), backend, dave_credential).await;
 
         queued(Proposal::Add(AddProposal {
             key_package: dave_key_package,
         }))
     };
 
-    let psk_proposal = || {
+    let psk_proposal = || async {
         let secret = Secret::random(ciphersuite, backend, None).unwrap();
         let rand = backend
             .rand()
@@ -280,6 +297,7 @@ fn test_valsem201(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider
         .unwrap();
         psk_id
             .write_to_key_store(backend, ciphersuite, secret.as_slice())
+            .await
             .unwrap();
         queued(Proposal::PreSharedKey(PreSharedKeyProposal::new(psk_id)))
     };
@@ -312,19 +330,18 @@ fn test_valsem201(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider
     // cannot distinguish when the commit has a single ReInit proposal from the commit without proposals
     // in [CoreGroup::apply_proposals()]
     let cases = vec![
-        (vec![add_proposal()], false),
-        (vec![psk_proposal()], false),
+        (vec![add_proposal().await], false),
+        (vec![psk_proposal().await], false),
         (vec![update_proposal.clone()], true),
         (vec![remove_proposal()], true),
         (vec![gce_proposal()], true),
         // !path_required + !path_required = !path_required
-        (vec![add_proposal(), psk_proposal()], false),
+        (vec![add_proposal().await, psk_proposal().await], false),
         // path_required + !path_required = path_required
-        (vec![remove_proposal(), add_proposal()], true),
+        (vec![remove_proposal(), add_proposal().await], true),
         // path_required + path_required = path_required
         (vec![update_proposal, remove_proposal()], true),
-        // TODO: #566 this should work if GCE proposals validation were implemented
-        // (vec![add_proposal(), gce_proposal()], true),
+        (vec![add_proposal().await, gce_proposal()], true),
     ];
 
     for (proposal, is_path_required) in cases {
@@ -342,6 +359,7 @@ fn test_valsem201(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider
         let commit = alice_group
             .group()
             .create_commit(params, backend, &alice_credential.signer)
+            .await
             .unwrap()
             .commit;
 
@@ -369,7 +387,7 @@ fn test_valsem201(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider
                 &alice_group,
                 &alice_credential.signer,
             );
-            let processed_msg = bob_group.process_message(backend, commit_wo_path);
+            let processed_msg = bob_group.process_message(backend, commit_wo_path).await;
             assert_eq!(
                 processed_msg.unwrap_err(),
                 ProcessMessageError::InvalidCommit(StageCommitError::RequiredPathNotFound)
@@ -377,7 +395,7 @@ fn test_valsem201(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider
         }
 
         // Positive case
-        let process_message_result = bob_group.process_message(backend, commit);
+        let process_message_result = bob_group.process_message(backend, commit).await;
         assert!(process_message_result.is_ok(), "{process_message_result:?}");
 
         // cleanup & restore for next iteration
@@ -418,14 +436,15 @@ fn erase_path(
 
 // ValSem202: Path must be the right length
 #[apply(ciphersuites_and_backends)]
-fn test_valsem202(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider) {
+#[wasm_bindgen_test::wasm_bindgen_test]
+async fn test_valsem202(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider) {
     // Test with PublicMessage
     let CommitValidationTestSetup {
         mut alice_group,
         alice_credential,
         mut bob_group,
         ..
-    } = validation_test_setup(PURE_PLAINTEXT_WIRE_FORMAT_POLICY, ciphersuite, backend);
+    } = validation_test_setup(PURE_PLAINTEXT_WIRE_FORMAT_POLICY, ciphersuite, backend).await;
 
     // Have Alice generate a self-updating commit, remove a node from the path,
     // re-sign and have Bob process it.
@@ -433,6 +452,7 @@ fn test_valsem202(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider
     // Create the self-update
     let serialized_update = alice_group
         .self_update(backend, &alice_credential.signer)
+        .await
         .expect("Error creating self-update")
         .tls_serialize_detached()
         .expect("Could not serialize message.");
@@ -468,6 +488,7 @@ fn test_valsem202(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider
 
     let err = bob_group
         .process_message(backend, update_message_in)
+        .await
         .expect_err("Could process unverified message despite path length mismatch.");
 
     assert_eq!(
@@ -484,19 +505,21 @@ fn test_valsem202(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider
     // Positive case
     bob_group
         .process_message(backend, original_update_plaintext)
+        .await
         .expect("Unexpected error.");
 }
 
 // ValSem203: Path secrets must decrypt correctly
 #[apply(ciphersuites_and_backends)]
-fn test_valsem203(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider) {
+#[wasm_bindgen_test::wasm_bindgen_test]
+async fn test_valsem203(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider) {
     // Test with PublicMessage
     let CommitValidationTestSetup {
         mut alice_group,
         alice_credential,
         mut bob_group,
         ..
-    } = validation_test_setup(PURE_PLAINTEXT_WIRE_FORMAT_POLICY, ciphersuite, backend);
+    } = validation_test_setup(PURE_PLAINTEXT_WIRE_FORMAT_POLICY, ciphersuite, backend).await;
 
     // Have Alice generate a self-updating commit, scramble some ciphertexts and
     // have Bob process the resulting commit.
@@ -504,6 +527,7 @@ fn test_valsem203(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider
     // Create the self-update
     let serialized_update = alice_group
         .self_update(backend, &alice_credential.signer)
+        .await
         .expect("Error creating self-update")
         .tls_serialize_detached()
         .expect("Could not serialize message.");
@@ -541,6 +565,7 @@ fn test_valsem203(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider
 
     let err = bob_group
         .process_message(backend, update_message_in)
+        .await
         .expect_err("Could process unverified message despite scrambled ciphertexts.");
 
     assert_eq!(
@@ -557,19 +582,21 @@ fn test_valsem203(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider
     // Positive case
     bob_group
         .process_message(backend, original_update_plaintext)
+        .await
         .expect("Unexpected error.");
 }
 
 // ValSem204: Public keys from Path must be verified and match the private keys from the direct path
 #[apply(ciphersuites_and_backends)]
-fn test_valsem204(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider) {
+#[wasm_bindgen_test::wasm_bindgen_test]
+async fn test_valsem204(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider) {
     // Test with PublicMessage
     let CommitValidationTestSetup {
         mut alice_group,
         alice_credential,
         mut bob_group,
         mut charlie_group,
-    } = validation_test_setup(PURE_PLAINTEXT_WIRE_FORMAT_POLICY, ciphersuite, backend);
+    } = validation_test_setup(PURE_PLAINTEXT_WIRE_FORMAT_POLICY, ciphersuite, backend).await;
 
     // Have Alice generate a self-updating commit, flip the last byte of one of
     // the public keys in the path and have Bob process the commit.
@@ -577,6 +604,7 @@ fn test_valsem204(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider
     // Create the self-update
     let serialized_update = alice_group
         .self_update(backend, &alice_credential.signer)
+        .await
         .expect("Error creating self-update")
         .tls_serialize_detached()
         .expect("Could not serialize message.");
@@ -600,10 +628,12 @@ fn test_valsem204(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider
     // from them.
     let message = charlie_group
         .process_message(backend, original_plaintext.clone())
+        .await
         .unwrap();
     match message.into_content() {
         ProcessedMessageContent::StagedCommitMessage(staged_commit) => charlie_group
             .merge_staged_commit(backend, *staged_commit)
+            .await
             .unwrap(),
         _ => panic!("Unexpected message type."),
     }
@@ -660,6 +690,7 @@ fn test_valsem204(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider
 
     let err = bob_group
         .process_message(backend, update_message_in)
+        .await
         .expect_err("Could process unverified message despite modified public key in path.");
 
     assert_eq!(
@@ -676,19 +707,21 @@ fn test_valsem204(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider
     // Positive case
     bob_group
         .process_message(backend, original_update_plaintext)
+        .await
         .expect("Unexpected error.");
 }
 
 // ValSem205: Confirmation tag must be successfully verified
 #[apply(ciphersuites_and_backends)]
-fn test_valsem205(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider) {
+#[wasm_bindgen_test::wasm_bindgen_test]
+async fn test_valsem205(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider) {
     // Test with PublicMessage
     let CommitValidationTestSetup {
         mut alice_group,
         alice_credential,
         mut bob_group,
         ..
-    } = validation_test_setup(PURE_PLAINTEXT_WIRE_FORMAT_POLICY, ciphersuite, backend);
+    } = validation_test_setup(PURE_PLAINTEXT_WIRE_FORMAT_POLICY, ciphersuite, backend).await;
 
     // Have Alice generate a self-updating commit, flip the last bit of the
     // confirmation tag and have Bob process the commit.
@@ -696,6 +729,7 @@ fn test_valsem205(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider
     // Create the self-update
     let serialized_update = alice_group
         .self_update(backend, &alice_credential.signer)
+        .await
         .expect("Error creating self-update")
         .tls_serialize_detached()
         .expect("Could not serialize message.");
@@ -732,6 +766,7 @@ fn test_valsem205(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider
 
     let err = bob_group
         .process_message(backend, update_message_in)
+        .await
         .expect_err("Could process unverified message despite confirmation tag mismatch.");
 
     assert_eq!(
@@ -742,19 +777,24 @@ fn test_valsem205(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider
     // Positive case
     bob_group
         .process_message(backend, ProtocolMessage::from(original_plaintext))
+        .await
         .expect("Unexpected error.");
 }
 
 // this ensures that a member can process commits not containing all the stored proposals
 #[apply(ciphersuites_and_backends)]
-fn test_partial_proposal_commit(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider) {
+#[wasm_bindgen_test::wasm_bindgen_test]
+async fn test_partial_proposal_commit(
+    ciphersuite: Ciphersuite,
+    backend: &impl OpenMlsCryptoProvider,
+) {
     // Test with PublicMessage
     let CommitValidationTestSetup {
         mut alice_group,
         alice_credential,
         mut bob_group,
         ..
-    } = validation_test_setup(PURE_PLAINTEXT_WIRE_FORMAT_POLICY, ciphersuite, backend);
+    } = validation_test_setup(PURE_PLAINTEXT_WIRE_FORMAT_POLICY, ciphersuite, backend).await;
 
     let charlie_index = alice_group
         .members()
@@ -767,7 +807,10 @@ fn test_partial_proposal_commit(ciphersuite: Ciphersuite, backend: &impl OpenMls
         .propose_remove_member(backend, &alice_credential.signer, charlie_index)
         .map(|(out, _)| MlsMessageIn::from(out))
         .unwrap();
-    let proposal_1 = bob_group.process_message(backend, proposal_1).unwrap();
+    let proposal_1 = bob_group
+        .process_message(backend, proposal_1)
+        .await
+        .unwrap();
     match proposal_1.into_content() {
         ProcessedMessageContent::ProposalMessage(p) => bob_group.store_pending_proposal(*p),
         _ => unreachable!(),
@@ -775,10 +818,14 @@ fn test_partial_proposal_commit(ciphersuite: Ciphersuite, backend: &impl OpenMls
 
     // Create second proposal in Alice's group
     let proposal_2 = alice_group
-        .propose_self_update(backend, &alice_credential.signer, None)
+        .propose_self_update(backend, &alice_credential.signer)
+        .await
         .map(|(out, _)| MlsMessageIn::from(out))
         .unwrap();
-    let proposal_2 = bob_group.process_message(backend, proposal_2).unwrap();
+    let proposal_2 = bob_group
+        .process_message(backend, proposal_2)
+        .await
+        .unwrap();
     match proposal_2.into_content() {
         ProcessedMessageContent::ProposalMessage(p) => bob_group.store_pending_proposal(*p),
         _ => unreachable!(),
@@ -795,17 +842,21 @@ fn test_partial_proposal_commit(ciphersuite: Ciphersuite, backend: &impl OpenMls
     alice_group.proposal_store.add(remaining_proposal);
     let (commit, _, _) = alice_group
         .commit_to_pending_proposals(backend, &alice_credential.signer)
+        .await
         .unwrap();
     // Alice herself should be able to merge the commit
     alice_group
         .merge_pending_commit(backend)
+        .await
         .expect("Commits with partial proposals are not supported");
 
     // Bob should be able to process the commit
     bob_group
         .process_message(backend, commit.into_protocol_message().unwrap())
+        .await
         .expect("Commits with partial proposals are not supported");
     bob_group
         .merge_pending_commit(backend)
+        .await
         .expect("Commits with partial proposals are not supported");
 }

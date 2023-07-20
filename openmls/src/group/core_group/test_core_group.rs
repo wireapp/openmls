@@ -13,10 +13,15 @@ use crate::{
     messages::{group_info::GroupInfoTBS, *},
     schedule::psk::{store::ResumptionPskStore, ExternalPsk, PreSharedKeyId, Psk},
     test_utils::*,
-    treesync::{errors::ApplyUpdatePathError, node::leaf_node::TreeInfoTbs},
+    treesync::{
+        errors::ApplyUpdatePathError,
+        node::leaf_node::{Capabilities, TreeInfoTbs},
+    },
 };
 
-pub(crate) fn setup_alice_group(
+wasm_bindgen_test::wasm_bindgen_test_configure!(run_in_browser);
+
+pub(crate) async fn setup_alice_group(
     ciphersuite: Ciphersuite,
     backend: &impl OpenMlsCryptoProvider,
 ) -> (
@@ -26,12 +31,8 @@ pub(crate) fn setup_alice_group(
     OpenMlsSignaturePublicKey,
 ) {
     // Create credentials and keys
-    let (alice_credential_with_key, alice_signature_keys) = test_utils::new_credential(
-        backend,
-        b"Alice",
-        CredentialType::Basic,
-        ciphersuite.signature_algorithm(),
-    );
+    let (alice_credential_with_key, alice_signature_keys) =
+        test_utils::new_credential(backend, b"Alice", ciphersuite.signature_algorithm()).await;
     let pk = OpenMlsSignaturePublicKey::new(
         alice_signature_keys.to_public_vec().into(),
         ciphersuite.signature_algorithm(),
@@ -45,13 +46,18 @@ pub(crate) fn setup_alice_group(
         alice_credential_with_key.clone(),
     )
     .build(backend, &alice_signature_keys)
+    .await
     .expect("Error creating group.");
     (group, alice_credential_with_key, alice_signature_keys, pk)
 }
 
 #[apply(ciphersuites_and_backends)]
-fn test_core_group_persistence(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider) {
-    let (alice_group, _, _, _) = setup_alice_group(ciphersuite, backend);
+#[wasm_bindgen_test::wasm_bindgen_test]
+async fn test_core_group_persistence(
+    ciphersuite: Ciphersuite,
+    backend: &impl OpenMlsCryptoProvider,
+) {
+    let (alice_group, _, _, _) = setup_alice_group(ciphersuite, backend).await;
 
     let mut file_out = tempfile::NamedTempFile::new().expect("Could not create file");
     alice_group
@@ -78,7 +84,8 @@ pub fn flip_last_byte(ctxt: &mut HpkeCiphertext) {
 }
 
 #[apply(ciphersuites_and_backends)]
-fn test_failed_groupinfo_decryption(
+#[wasm_bindgen_test::wasm_bindgen_test]
+async fn test_failed_groupinfo_decryption(
     ciphersuite: Ciphersuite,
     backend: &impl OpenMlsCryptoProvider,
 ) {
@@ -92,22 +99,19 @@ fn test_failed_groupinfo_decryption(
     });
 
     // Create credentials and keys
-    let (alice_credential_with_key, alice_signature_keys) = test_utils::new_credential(
-        backend,
-        b"Alice",
-        CredentialType::Basic,
-        ciphersuite.signature_algorithm(),
-    );
+    let (alice_credential_with_key, alice_signature_keys) =
+        test_utils::new_credential(backend, b"Alice", ciphersuite.signature_algorithm()).await;
 
     let key_package_bundle = KeyPackageBundle::new(
         backend,
         &alice_signature_keys,
         ciphersuite,
         alice_credential_with_key,
-    );
+    )
+    .await;
 
     let group_info_tbs = {
-        let group_context = GroupContext::new(
+        let group_context = group_context::GroupContext::new(
             ciphersuite,
             group_id,
             epoch,
@@ -129,12 +133,15 @@ fn test_failed_groupinfo_decryption(
     let welcome_nonce = AeadNonce::random(backend);
 
     // Generate receiver key pair.
-    let receiver_key_pair = backend.crypto().derive_hpke_keypair(
-        ciphersuite.hpke_config(),
-        Secret::random(ciphersuite, backend, None)
-            .expect("Not enough randomness.")
-            .as_slice(),
-    );
+    let receiver_key_pair = backend
+        .crypto()
+        .derive_hpke_keypair(
+            ciphersuite.hpke_config(),
+            Secret::random(ciphersuite, backend, None)
+                .expect("Not enough randomness.")
+                .as_slice(),
+        )
+        .unwrap();
     let hpke_context = b"group info welcome test info";
     let group_secrets = b"these should be the group secrets";
     let mut encrypted_group_secrets = hpke::encrypt_with_label(
@@ -184,18 +191,20 @@ fn test_failed_groupinfo_decryption(
         backend,
         ResumptionPskStore::new(1024),
     )
+    .await
     .expect_err("Creation of core group from a broken Welcome was successful.");
 
-    assert_eq!(
+    assert!(matches!(
         error,
         WelcomeError::GroupSecrets(GroupSecretsError::DecryptionFailed)
-    )
+    ))
 }
 
 /// Test what happens if the KEM ciphertext for the receiver in the UpdatePath
 /// is broken.
 #[apply(ciphersuites_and_backends)]
-fn test_update_path(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider) {
+#[wasm_bindgen_test::wasm_bindgen_test]
+async fn test_update_path(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider) {
     // === Alice creates a group with her and Bob ===
     let (
         framing_parameters,
@@ -204,7 +213,7 @@ fn test_update_path(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvid
         group_bob,
         bob_signature_keys,
         _bob_credential_with_key,
-    ) = test_framing::setup_alice_bob_group(ciphersuite, backend);
+    ) = test_framing::setup_alice_bob_group(ciphersuite, backend).await;
 
     // === Bob updates and commits ===
     let bob_old_leaf = group_bob.own_leaf_node().unwrap();
@@ -215,6 +224,7 @@ fn test_update_path(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvid
             backend,
             &bob_signature_keys,
         )
+        .await
         .unwrap();
 
     let update_proposal_bob = group_bob
@@ -239,6 +249,7 @@ fn test_update_path(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvid
         .build();
     let create_commit_result = group_bob
         .create_commit(params, backend, &bob_signature_keys)
+        .await
         .expect("An unexpected error occurred.");
 
     // Now we break Alice's HPKE ciphertext in Bob's commit by breaking
@@ -285,15 +296,16 @@ fn test_update_path(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvid
         broken_plaintext.confirmation_tag()
     );
 
-    let staged_commit_res =
-        group_alice.read_keys_and_stage_commit(&broken_plaintext, &proposal_store, &[], backend);
+    let staged_commit_res = group_alice
+        .read_keys_and_stage_commit(&broken_plaintext, &proposal_store, &[], backend)
+        .await;
     assert_eq!(
         staged_commit_res.expect_err("Successful processing of a broken commit."),
         StageCommitError::UpdatePathError(ApplyUpdatePathError::UnableToDecrypt)
     );
 }
 
-fn setup_alice_bob(
+async fn setup_alice_bob(
     ciphersuite: Ciphersuite,
     backend: &impl OpenMlsCryptoProvider,
 ) -> (
@@ -303,22 +315,14 @@ fn setup_alice_bob(
     SignatureKeyPair,
 ) {
     // Create credentials and keys
-    let (alice_credential_with_key, alice_signer) = test_utils::new_credential(
-        backend,
-        b"Alice",
-        CredentialType::Basic,
-        ciphersuite.signature_algorithm(),
-    );
-    let (bob_credential_with_key, bob_signer) = test_utils::new_credential(
-        backend,
-        b"Bob",
-        CredentialType::Basic,
-        ciphersuite.signature_algorithm(),
-    );
+    let (alice_credential_with_key, alice_signer) =
+        test_utils::new_credential(backend, b"Alice", ciphersuite.signature_algorithm()).await;
+    let (bob_credential_with_key, bob_signer) =
+        test_utils::new_credential(backend, b"Bob", ciphersuite.signature_algorithm()).await;
 
     // Generate Bob's KeyPackage
     let bob_key_package_bundle =
-        KeyPackageBundle::new(backend, &bob_signer, ciphersuite, bob_credential_with_key);
+        KeyPackageBundle::new(backend, &bob_signer, ciphersuite, bob_credential_with_key).await;
 
     (
         alice_credential_with_key,
@@ -330,7 +334,8 @@ fn setup_alice_bob(
 
 // Test several scenarios when PSKs are used in a group
 #[apply(ciphersuites_and_backends)]
-fn test_psks(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider) {
+#[wasm_bindgen_test::wasm_bindgen_test]
+async fn test_psks(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider) {
     // Basic group setup.
     let group_aad = b"Alice's test group";
     let framing_parameters = FramingParameters::new(group_aad, WireFormat::PublicMessage);
@@ -340,7 +345,7 @@ fn test_psks(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider) {
         alice_signature_keys,
         bob_key_package_bundle,
         bob_signature_keys,
-    ) = setup_alice_bob(ciphersuite, backend);
+    ) = setup_alice_bob(ciphersuite, backend).await;
 
     // === Alice creates a group with a PSK ===
     let psk_id = vec![1u8, 2, 3];
@@ -353,6 +358,7 @@ fn test_psks(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider) {
             .expect("An unexpected error occured.");
     preshared_key_id
         .write_to_key_store(backend, ciphersuite, secret.as_slice())
+        .await
         .unwrap();
     let mut alice_group = CoreGroup::builder(
         GroupId::random(backend),
@@ -361,6 +367,7 @@ fn test_psks(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider) {
     )
     .with_psk(vec![preshared_key_id.clone()])
     .build(backend, &alice_signature_keys)
+    .await
     .expect("Error creating group.");
 
     // === Alice creates a PSK proposal ===
@@ -394,12 +401,14 @@ fn test_psks(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider) {
         .build();
     let create_commit_result = alice_group
         .create_commit(params, backend, &alice_signature_keys)
+        .await
         .expect("Error creating commit");
 
     log::info!(" >>> Staging & merging commit ...");
 
     alice_group
         .merge_commit(backend, create_commit_result.staged_commit)
+        .await
         .expect("error merging pending commit");
     let ratchet_tree = alice_group.public_group().export_ratchet_tree();
 
@@ -412,6 +421,7 @@ fn test_psks(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider) {
         backend,
         ResumptionPskStore::new(1024),
     )
+    .await
     .expect("Could not create new group from Welcome");
 
     // === Bob updates and commits ===
@@ -423,6 +433,7 @@ fn test_psks(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider) {
             backend,
             &bob_signature_keys,
         )
+        .await
         .unwrap();
 
     let update_proposal_bob = group_bob
@@ -447,18 +458,23 @@ fn test_psks(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider) {
         .build();
     let _create_commit_result = group_bob
         .create_commit(params, backend, &bob_signature_keys)
+        .await
         .expect("An unexpected error occurred.");
 }
 
 // Test several scenarios when PSKs are used in a group
 #[apply(ciphersuites_and_backends)]
-fn test_staged_commit_creation(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider) {
+#[wasm_bindgen_test::wasm_bindgen_test]
+async fn test_staged_commit_creation(
+    ciphersuite: Ciphersuite,
+    backend: &impl OpenMlsCryptoProvider,
+) {
     // Basic group setup.
     let group_aad = b"Alice's test group";
     let framing_parameters = FramingParameters::new(group_aad, WireFormat::PublicMessage);
 
     let (alice_credential_with_key, alice_signature_keys, bob_key_package_bundle, _) =
-        setup_alice_bob(ciphersuite, backend);
+        setup_alice_bob(ciphersuite, backend).await;
 
     // === Alice creates a group ===
     let mut alice_group = CoreGroup::builder(
@@ -467,6 +483,7 @@ fn test_staged_commit_creation(ciphersuite: Ciphersuite, backend: &impl OpenMlsC
         alice_credential_with_key,
     )
     .build(backend, &alice_signature_keys)
+    .await
     .expect("Error creating group.");
 
     // === Alice adds Bob ===
@@ -488,11 +505,13 @@ fn test_staged_commit_creation(ciphersuite: Ciphersuite, backend: &impl OpenMlsC
         .build();
     let create_commit_result = alice_group
         .create_commit(params, backend, &alice_signature_keys)
+        .await
         .expect("Error creating commit");
 
     // === Alice merges her own commit ===
     alice_group
         .merge_commit(backend, create_commit_result.staged_commit)
+        .await
         .expect("error processing own staged commit");
 
     // === Bob joins the group using Alice's tree ===
@@ -505,6 +524,7 @@ fn test_staged_commit_creation(ciphersuite: Ciphersuite, backend: &impl OpenMlsC
         backend,
         ResumptionPskStore::new(1024),
     )
+    .await
     .expect("An unexpected error occurred.");
 
     // Let's make sure we end up in the same group state.
@@ -520,18 +540,18 @@ fn test_staged_commit_creation(ciphersuite: Ciphersuite, backend: &impl OpenMlsC
 
 // Test processing of own commits
 #[apply(ciphersuites_and_backends)]
-fn test_own_commit_processing(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider) {
+#[wasm_bindgen_test::wasm_bindgen_test]
+async fn test_own_commit_processing(
+    ciphersuite: Ciphersuite,
+    backend: &impl OpenMlsCryptoProvider,
+) {
     // Basic group setup.
     let group_aad = b"Alice's test group";
     let framing_parameters = FramingParameters::new(group_aad, WireFormat::PublicMessage);
 
     // Create credentials and keys
-    let (alice_credential_with_key, alice_signature_keys) = test_utils::new_credential(
-        backend,
-        b"Alice",
-        CredentialType::Basic,
-        ciphersuite.signature_algorithm(),
-    );
+    let (alice_credential_with_key, alice_signature_keys) =
+        test_utils::new_credential(backend, b"Alice", ciphersuite.signature_algorithm()).await;
 
     // === Alice creates a group ===
     let alice_group = CoreGroup::builder(
@@ -540,6 +560,7 @@ fn test_own_commit_processing(ciphersuite: Ciphersuite, backend: &impl OpenMlsCr
         alice_credential_with_key,
     )
     .build(backend, &alice_signature_keys)
+    .await
     .expect("Error creating group.");
 
     let proposal_store = ProposalStore::default();
@@ -551,16 +572,51 @@ fn test_own_commit_processing(ciphersuite: Ciphersuite, backend: &impl OpenMlsCr
         .build();
     let create_commit_result = alice_group
         .create_commit(params, backend, &alice_signature_keys)
+        .await
         .expect("error creating commit");
 
     // Alice attempts to process her own commit
     let error = alice_group
         .read_keys_and_stage_commit(&create_commit_result.commit, &proposal_store, &[], backend)
+        .await
         .expect_err("no error while processing own commit");
     assert_eq!(error, StageCommitError::OwnCommit);
 }
 
-pub(crate) fn setup_client(
+pub(crate) async fn setup_client_with_extensions(
+    id: &str,
+    ciphersuite: Ciphersuite,
+    backend: &impl OpenMlsCryptoProvider,
+    extensions: Extensions,
+    capabilities: Capabilities,
+) -> (
+    CredentialWithKey,
+    KeyPackageBundle,
+    SignatureKeyPair,
+    OpenMlsSignaturePublicKey,
+) {
+    let (credential_with_key, signature_keys) =
+        test_utils::new_credential(backend, id.as_bytes(), ciphersuite.signature_algorithm()).await;
+    let pk = OpenMlsSignaturePublicKey::new(
+        signature_keys.to_public_vec().into(),
+        ciphersuite.signature_algorithm(),
+    )
+    .unwrap();
+
+    // Generate the KeyPackage
+    let key_package_bundle = KeyPackageBundle::new_with_extensions(
+        backend,
+        &signature_keys,
+        ciphersuite,
+        credential_with_key.clone(),
+        extensions,
+        capabilities,
+    )
+    .await;
+    (credential_with_key, key_package_bundle, signature_keys, pk)
+}
+
+pub(crate) async fn setup_client(
     id: &str,
     ciphersuite: Ciphersuite,
     backend: &impl OpenMlsCryptoProvider,
@@ -570,30 +626,19 @@ pub(crate) fn setup_client(
     SignatureKeyPair,
     OpenMlsSignaturePublicKey,
 ) {
-    let (credential_with_key, signature_keys) = test_utils::new_credential(
-        backend,
-        id.as_bytes(),
-        CredentialType::Basic,
-        ciphersuite.signature_algorithm(),
-    );
-    let pk = OpenMlsSignaturePublicKey::new(
-        signature_keys.to_public_vec().into(),
-        ciphersuite.signature_algorithm(),
-    )
-    .unwrap();
-
-    // Generate the KeyPackage
-    let key_package_bundle = KeyPackageBundle::new(
-        backend,
-        &signature_keys,
+    setup_client_with_extensions(
+        id,
         ciphersuite,
-        credential_with_key.clone(),
-    );
-    (credential_with_key, key_package_bundle, signature_keys, pk)
+        backend,
+        Extensions::default(),
+        Capabilities::default(),
+    )
+    .await
 }
 
 #[apply(ciphersuites_and_backends)]
-fn test_proposal_application_after_self_was_removed(
+#[wasm_bindgen_test::wasm_bindgen_test]
+async fn test_proposal_application_after_self_was_removed(
     ciphersuite: Ciphersuite,
     backend: &impl OpenMlsCryptoProvider,
 ) {
@@ -608,9 +653,9 @@ fn test_proposal_application_after_self_was_removed(
     let framing_parameters = FramingParameters::new(group_aad, WireFormat::PublicMessage);
 
     let (alice_credential_with_key, _, alice_signature_keys, _pk) =
-        setup_client("Alice", ciphersuite, backend);
-    let (_, bob_kpb, _, _) = setup_client("Bob", ciphersuite, backend);
-    let (_, charlie_kpb, _, _) = setup_client("Charlie", ciphersuite, backend);
+        setup_client("Alice", ciphersuite, backend).await;
+    let (_, bob_kpb, _, _) = setup_client("Bob", ciphersuite, backend).await;
+    let (_, charlie_kpb, _, _) = setup_client("Charlie", ciphersuite, backend).await;
 
     let mut alice_group = CoreGroup::builder(
         GroupId::random(backend),
@@ -618,6 +663,7 @@ fn test_proposal_application_after_self_was_removed(
         alice_credential_with_key,
     )
     .build(backend, &alice_signature_keys)
+    .await
     .expect("Error creating CoreGroup.");
 
     // Adding Bob
@@ -641,10 +687,12 @@ fn test_proposal_application_after_self_was_removed(
         .build();
     let add_commit_result = alice_group
         .create_commit(params, backend, &alice_signature_keys)
+        .await
         .expect("Error creating commit");
 
     alice_group
         .merge_commit(backend, add_commit_result.staged_commit)
+        .await
         .expect("error merging pending commit");
 
     let ratchet_tree = alice_group.public_group().export_ratchet_tree();
@@ -658,6 +706,7 @@ fn test_proposal_application_after_self_was_removed(
         backend,
         ResumptionPskStore::new(1024),
     )
+    .await
     .expect("Error joining group.");
 
     // Alice adds Charlie and removes Bob in the same commit.
@@ -709,6 +758,7 @@ fn test_proposal_application_after_self_was_removed(
         .build();
     let remove_add_commit_result = alice_group
         .create_commit(params, backend, &alice_signature_keys)
+        .await
         .expect("Error creating commit");
 
     let staged_commit = bob_group
@@ -718,13 +768,16 @@ fn test_proposal_application_after_self_was_removed(
             &[],
             backend,
         )
+        .await
         .expect("error staging commit");
     bob_group
         .merge_commit(backend, staged_commit)
+        .await
         .expect("Error merging commit.");
 
     alice_group
         .merge_commit(backend, remove_add_commit_result.staged_commit)
+        .await
         .expect("Error merging commit.");
 
     let ratchet_tree = alice_group.public_group().export_ratchet_tree();
@@ -738,6 +791,7 @@ fn test_proposal_application_after_self_was_removed(
         backend,
         ResumptionPskStore::new(1024),
     )
+    .await
     .expect("Error joining group.");
 
     // We can now check that Bob correctly processed his and applied the changes

@@ -64,7 +64,7 @@ impl Capabilities {
             },
             proposals: match proposals {
                 Some(p) => p.into(),
-                None => vec![],
+                None => ProposalType::supported_types().into(),
             },
             credentials: match credentials {
                 Some(c) => c.into(),
@@ -120,7 +120,7 @@ impl Capabilities {
     ///
     /// Returns a [`LeafNodeValidationError`] error if any of the required
     /// capabilities is not supported.
-    pub(crate) fn supports_required_capabilities(
+    pub fn supports_required_capabilities(
         &self,
         required_capabilities: &RequiredCapabilitiesExtension,
     ) -> Result<(), LeafNodeValidationError> {
@@ -152,7 +152,7 @@ impl Capabilities {
     }
 
     /// Check if these [`Capabilities`] contain all the extensions.
-    pub(crate) fn contain_extensions(&self, extension: &Extensions) -> bool {
+    pub fn are_extensions_supported(&self, extension: &Extensions) -> bool {
         extension
             .iter()
             .map(Extension::extension_type)
@@ -160,7 +160,7 @@ impl Capabilities {
     }
 
     /// Check if these [`Capabilities`] contain all the credentials.
-    pub(crate) fn contains_credential(&self, credential_type: &CredentialType) -> bool {
+    pub fn contains_credential(&self, credential_type: &CredentialType) -> bool {
         self.credentials().contains(credential_type)
     }
 }
@@ -201,7 +201,9 @@ pub(super) fn default_ciphersuites() -> Vec<Ciphersuite> {
     vec![
         Ciphersuite::MLS_128_DHKEMX25519_AES128GCM_SHA256_Ed25519,
         Ciphersuite::MLS_128_DHKEMP256_AES128GCM_SHA256_P256,
+        Ciphersuite::MLS_256_DHKEMP384_AES256GCM_SHA384_P384,
         Ciphersuite::MLS_128_DHKEMX25519_CHACHA20POLY1305_SHA256_Ed25519,
+        Ciphersuite::MLS_128_X25519KYBER768DRAFT00_AES128GCM_SHA256_Ed25519,
     ]
 }
 
@@ -224,7 +226,7 @@ pub(super) fn default_proposals() -> Vec<ProposalType> {
 
 // TODO(#1231)
 pub(super) fn default_credentials() -> Vec<CredentialType> {
-    vec![CredentialType::Basic]
+    vec![CredentialType::Basic, CredentialType::X509]
 }
 
 #[cfg(test)]
