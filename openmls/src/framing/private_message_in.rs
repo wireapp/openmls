@@ -203,7 +203,7 @@ impl PrivateMessageIn {
     }
 
     /// Get the `content_type` in the `PrivateMessage`.
-    pub(crate) fn content_type(&self) -> ContentType {
+    pub fn content_type(&self) -> ContentType {
         self.content_type
     }
 
