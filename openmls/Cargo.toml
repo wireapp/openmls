@@ -23,6 +23,7 @@ openmls_x509_credential = { version = "0.2.0", path = "../x509_credential" }
 x509-cert = "0.2"
 subtle = "2.5"
 fluvio-wasm-timer = "0.2"
+indexmap = "2.0"
 
 # Only required for tests.
 rand = { version = "0.8", optional = true, features = ["getrandom"] }
