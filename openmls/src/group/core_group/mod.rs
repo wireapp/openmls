@@ -349,27 +349,17 @@ impl CoreGroup {
     pub(crate) fn create_add_proposal(
         &self,
         framing_parameters: FramingParameters,
-        joiner_key_package: KeyPackage,
+        key_package: KeyPackage,
         signer: &impl Signer,
     ) -> Result<AuthenticatedContent, CreateAddProposalError> {
-        if let Some(required_capabilities) = self.required_capabilities() {
-            joiner_key_package
-                .leaf_node()
-                .capabilities()
-                .supports_required_capabilities(required_capabilities)?;
-        }
-        let add_proposal = AddProposal {
-            key_package: joiner_key_package,
-        };
-        let proposal = Proposal::Add(add_proposal);
-        AuthenticatedContent::member_proposal(
+        let proposal = Proposal::Add(AddProposal { key_package });
+        Ok(AuthenticatedContent::member_proposal(
             framing_parameters,
             self.own_leaf_index(),
             proposal,
             self.context(),
             signer,
-        )
-        .map_err(|e| e.into())
+        )?)
     }
 
     // 11.1.2. Update
@@ -442,7 +432,7 @@ impl CoreGroup {
         )
     }
 
-    /// Checks if the memebers suuport the provided extensions. Pending proposals have to be passed
+    /// Checks if the members support the provided extensions. Pending proposals have to be passed
     /// as parameters as Remove Proposals should be ignored
     pub(crate) fn members_support_extensions<'a>(
         &self,
@@ -717,11 +707,6 @@ impl CoreGroup {
     #[cfg(test)]
     pub(crate) fn group_context_extensions(&self) -> &Extensions {
         self.public_group.group_context().extensions()
-    }
-
-    /// Get the required capabilities extension of this group.
-    pub(crate) fn required_capabilities(&self) -> Option<&RequiredCapabilitiesExtension> {
-        self.public_group.required_capabilities()
     }
 
     /// Returns `true` if the group uses the ratchet tree extension anf `false

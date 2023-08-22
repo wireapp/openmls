@@ -6,13 +6,14 @@ use super::{
     errors::{ProposalError, ProposeAddMemberError, ProposeRemoveMemberError},
     MlsGroup,
 };
+use crate::prelude::KeyPackageIn;
 use crate::{
     binary_tree::LeafNodeIndex,
     ciphersuite::hash_ref::ProposalRef,
     credentials::Credential,
     extensions::Extensions,
     framing::MlsMessageOut,
-    group::{errors::CreateAddProposalError, GroupId, QueuedProposal},
+    group::{GroupId, QueuedProposal},
     key_packages::KeyPackage,
     messages::proposals::ProposalOrRefType,
     prelude::LibraryError,
@@ -93,12 +94,41 @@ macro_rules! impl_propose_fun {
 }
 
 impl MlsGroup {
-    impl_propose_fun!(
-        propose_add_member_by_value,
-        KeyPackage,
-        create_add_proposal,
-        ProposalOrRefType::Proposal
-    );
+    ///   Creates proposals to add an external PSK to the key schedule.
+    ///
+    ///   Returns an error if there is a pending commit.
+    pub fn propose_add_member_by_value<KeyStore: OpenMlsKeyStore>(
+        &mut self,
+        backend: &impl OpenMlsCryptoProvider<KeyStoreProvider = KeyStore>,
+        signer: &impl Signer,
+        joiner_key_package: KeyPackageIn,
+    ) -> Result<(MlsMessageOut, ProposalRef), ProposalError<KeyStore::Error>> {
+        self.is_operational()?;
+
+        let key_package = joiner_key_package.validate(
+            backend.crypto(),
+            ProtocolVersion::Mls10,
+            self.group().public_group(),
+        )?;
+        let proposal =
+            self.group
+                .create_add_proposal(self.framing_parameters(), key_package, signer)?;
+
+        let queued_proposal = QueuedProposal::from_authenticated_content(
+            self.ciphersuite(),
+            backend,
+            proposal.clone(),
+            ProposalOrRefType::Proposal,
+        )?;
+        let proposal_ref = queued_proposal.proposal_reference().clone();
+        self.proposal_store.add(queued_proposal);
+
+        let mls_message = self.content_to_mls_message(proposal, backend)?;
+
+        self.flag_state_change();
+
+        Ok((mls_message, proposal_ref))
+    }
 
     impl_propose_fun!(
         propose_remove_member_by_value,
@@ -132,10 +162,10 @@ impl MlsGroup {
         match propose {
             Propose::Add(key_package) => match ref_or_value {
                 ProposalOrRefType::Proposal => {
-                    self.propose_add_member_by_value(backend, signer, key_package)
+                    self.propose_add_member_by_value(backend, signer, key_package.into())
                 }
                 ProposalOrRefType::Reference => self
-                    .propose_add_member(backend, signer, &key_package)
+                    .propose_add_member(backend, signer, key_package.into())
                     .map_err(|e| e.into()),
             },
 
@@ -214,19 +244,18 @@ impl MlsGroup {
         &mut self,
         backend: &impl OpenMlsCryptoProvider,
         signer: &impl Signer,
-        key_package: &KeyPackage,
+        joiner_key_package: KeyPackageIn,
     ) -> Result<(MlsMessageOut, ProposalRef), ProposeAddMemberError> {
         self.is_operational()?;
 
-        let add_proposal = self
-            .group
-            .create_add_proposal(self.framing_parameters(), key_package.clone(), signer)
-            .map_err(|e| match e {
-                CreateAddProposalError::LibraryError(e) => e.into(),
-                CreateAddProposalError::LeafNodeValidation(error) => {
-                    ProposeAddMemberError::LeafNodeValidation(error)
-                }
-            })?;
+        let key_package = joiner_key_package.validate(
+            backend.crypto(),
+            ProtocolVersion::Mls10,
+            self.group().public_group(),
+        )?;
+        let add_proposal =
+            self.group
+                .create_add_proposal(self.framing_parameters(), key_package, signer)?;
 
         let proposal = QueuedProposal::from_authenticated_content_by_ref(
             self.ciphersuite(),

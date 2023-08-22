@@ -3,6 +3,7 @@ use openmls_traits::key_store::OpenMlsKeyStore;
 use crate::{
     ciphersuite::hash_ref::HashReference,
     group::{core_group::*, errors::WelcomeError},
+    prelude::HpkePrivateKey,
     schedule::{
         errors::PskError,
         psk::{store::ResumptionPskStore, ResumptionPsk, ResumptionPskUsage},
@@ -18,12 +19,12 @@ impl CoreGroup {
     pub async fn new_from_welcome<KeyStore: OpenMlsKeyStore>(
         welcome: Welcome,
         ratchet_tree: Option<RatchetTreeIn>,
-        key_package_bundle: KeyPackageBundle,
+        key_package: &KeyPackage,
+        key_package_private_key: HpkePrivateKey,
         backend: &impl OpenMlsCryptoProvider<KeyStoreProvider = KeyStore>,
         mut resumption_psk_store: ResumptionPskStore,
     ) -> Result<Self, WelcomeError<KeyStore::Error>> {
         log::debug!("CoreGroup::new_from_welcome_internal");
-        let key_package = key_package_bundle.key_package();
 
         // Read the encryption key pair from the key store and delete it there.
         // TODO #1207: Key store access happens as early as possible so it can
@@ -56,7 +57,7 @@ impl CoreGroup {
         }
 
         let group_secrets = GroupSecrets::try_from_ciphertext(
-            key_package_bundle.private_key(),
+            &key_package_private_key,
             egs.encrypted_group_secrets(),
             welcome.encrypted_group_info(),
             ciphersuite,
@@ -150,6 +151,12 @@ impl CoreGroup {
             ratchet_tree,
             verifiable_group_info,
             ProposalStore::new(),
+        )?;
+
+        KeyPackageIn::from(key_package.clone()).validate(
+            backend.crypto(),
+            ProtocolVersion::Mls10,
+            &public_group,
         )?;
 
         // Find our own leaf in the tree.
@@ -257,7 +264,7 @@ impl CoreGroup {
         welcome_secrets: &[EncryptedGroupSecrets],
     ) -> Option<EncryptedGroupSecrets> {
         for egs in welcome_secrets {
-            if hash_ref == egs.new_member() {
+            if &hash_ref == egs.new_member() {
                 return Some(egs.clone());
             }
         }

@@ -9,6 +9,8 @@ use super::{
     errors::{AddMembersError, LeaveGroupError, RemoveMembersError},
     *,
 };
+use crate::prelude::KeyPackageIn;
+use crate::versions::ProtocolVersion;
 use crate::{
     binary_tree::array_representation::LeafNodeIndex, messages::group_info::GroupInfo,
     treesync::LeafNode,
@@ -33,24 +35,27 @@ impl MlsGroup {
         &mut self,
         backend: &impl OpenMlsCryptoProvider<KeyStoreProvider = KeyStore>,
         signer: &impl Signer,
-        key_packages: &[KeyPackage],
+        key_packages: Vec<KeyPackageIn>,
     ) -> Result<(MlsMessageOut, MlsMessageOut, Option<GroupInfo>), AddMembersError<KeyStore::Error>>
     {
-        self.is_operational()?;
-
         if key_packages.is_empty() {
             return Err(AddMembersError::EmptyInput(EmptyInputError::AddMembers));
         }
 
+        self.is_operational()?;
+
         // Create inline add proposals from key packages
         let inline_proposals = key_packages
-            .iter()
+            .into_iter()
             .map(|key_package| {
-                Proposal::Add(AddProposal {
-                    key_package: key_package.clone(),
-                })
+                let key_package = key_package.validate(
+                    backend.crypto(),
+                    ProtocolVersion::Mls10,
+                    self.group().public_group(),
+                )?;
+                Ok(Proposal::Add(AddProposal { key_package }))
             })
-            .collect::<Vec<Proposal>>();
+            .collect::<Result<Vec<_>, AddMembersError<KeyStore::Error>>>()?;
 
         // Create Commit over all proposals
         // TODO #751

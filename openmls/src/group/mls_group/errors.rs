@@ -8,6 +8,7 @@
 use openmls_traits::types::CryptoError;
 use thiserror::Error;
 
+use crate::prelude::KeyPackageVerifyError;
 use crate::{
     credentials::errors::CredentialError,
     error::LibraryError,
@@ -153,6 +154,9 @@ pub enum AddMembersError<KeyStoreError> {
     /// See [`MlsGroupStateError`] for more details.
     #[error(transparent)]
     GroupStateError(#[from] MlsGroupStateError),
+    /// See [`KeyPackageVerifyError`] for more details.
+    #[error(transparent)]
+    KeyPackageVerifyError(#[from] KeyPackageVerifyError),
 }
 
 /// Propose add members error
@@ -167,9 +171,12 @@ pub enum ProposeAddMemberError {
     /// See [`MlsGroupStateError`] for more details.
     #[error(transparent)]
     GroupStateError(#[from] MlsGroupStateError),
-    /// See [`LeafNodeValidationError`] for more details.
+    /// See [`KeyPackageVerifyError`] for more details.
     #[error(transparent)]
-    LeafNodeValidation(#[from] LeafNodeValidationError),
+    KeyPackageVerifyError(#[from] KeyPackageVerifyError),
+    /// See [`CreateAddProposalError`] for more details.
+    #[error(transparent)]
+    CreateAddProposalError(#[from] CreateAddProposalError),
 }
 
 /// Propose remove members error
@@ -229,9 +236,12 @@ pub enum SelfUpdateError<KeyStoreError> {
     /// See [`MlsGroupStateError`] for more details.
     #[error(transparent)]
     GroupStateError(#[from] MlsGroupStateError),
+    /// See [`PublicTreeError`] for more details.
+    #[error(transparent)]
+    PublicTreeError(#[from] PublicTreeError),
     /// Error accessing the key store.
     #[error("Error accessing the key store.")]
-    KeyStoreError,
+    KeyStoreError(KeyStoreError),
 }
 
 /// Propose self update error
@@ -240,7 +250,6 @@ pub enum ProposeSelfUpdateError<KeyStoreError> {
     /// See [`LibraryError`] for more details.
     #[error(transparent)]
     LibraryError(#[from] LibraryError),
-
     /// See [`MlsGroupStateError`] for more details.
     #[error(transparent)]
     GroupStateError(#[from] MlsGroupStateError),
@@ -250,6 +259,9 @@ pub enum ProposeSelfUpdateError<KeyStoreError> {
     /// See [`PublicTreeError`] for more details.
     #[error(transparent)]
     PublicTreeError(#[from] PublicTreeError),
+    /// See [`LeafNodeValidationError`] for more details.
+    #[error(transparent)]
+    LeafNodeValidationError(#[from] LeafNodeValidationError),
 }
 
 /// Create group context ext proposal error
@@ -396,4 +408,7 @@ pub enum ProposalError<KeyStoreError> {
     /// See [`ValidationError`] for more details.
     #[error(transparent)]
     ValidationError(#[from] ValidationError),
+    /// See [`KeyPackageVerifyError`] for more details.
+    #[error(transparent)]
+    KeyPackageVerifyError(#[from] KeyPackageVerifyError),
 }

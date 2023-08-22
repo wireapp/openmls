@@ -73,7 +73,7 @@ async fn receive_message(
     .await;
 
     let (_message, welcome, _group_info) = alice_group
-        .add_members(backend, alice_signer, &[bob_key_package])
+        .add_members(backend, alice_signer, vec![bob_key_package.into()])
         .await
         .expect("Could not add member.");
 

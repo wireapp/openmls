@@ -53,6 +53,7 @@ impl AuthenticatedContentIn {
         crypto: &impl OpenMlsCrypto,
         sender_context: Option<SenderContext>,
         protocol_version: ProtocolVersion,
+        group: &PublicGroup,
     ) -> Result<AuthenticatedContent, ValidationError> {
         Ok(AuthenticatedContent {
             wire_format: self.wire_format,
@@ -61,6 +62,7 @@ impl AuthenticatedContentIn {
                 crypto,
                 sender_context,
                 protocol_version,
+                group,
             )?,
             auth: self.auth,
         })

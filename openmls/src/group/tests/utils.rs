@@ -246,7 +246,7 @@ pub(crate) async fn setup(
                                 y.key_package()
                                     .hash_ref(backend.crypto())
                                     .expect("Could not hash KeyPackage.")
-                                    == x.new_member()
+                                    == *x.new_member()
                             })
                     })
                     .expect("An unexpected error occurred.");
@@ -258,10 +258,10 @@ pub(crate) async fn setup(
                         y.key_package()
                             .hash_ref(backend.crypto())
                             .expect("Could not hash KeyPackage.")
-                            == member_secret.new_member()
+                            == *member_secret.new_member()
                     })
                     .expect("An unexpected error occurred.");
-                let key_package_bundle = new_group_member
+                let kpb = new_group_member
                     .key_package_bundles
                     .borrow_mut()
                     .remove(kpb_position);
@@ -270,7 +270,8 @@ pub(crate) async fn setup(
                 let new_group = match CoreGroup::new_from_welcome(
                     welcome.clone(),
                     Some(core_group.public_group().export_ratchet_tree().into()),
-                    key_package_bundle,
+                    kpb.key_package(),
+                    kpb.private_key.clone(),
                     backend,
                     ResumptionPskStore::new(1024),
                 )

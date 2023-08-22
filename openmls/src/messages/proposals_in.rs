@@ -6,7 +6,7 @@
 //! [`ProposalType::is_supported()`] can be used.
 
 use crate::{
-    ciphersuite::{hash_ref::ProposalRef, signable::Verifiable},
+    ciphersuite::hash_ref::ProposalRef,
     credentials::CredentialWithKey,
     framing::SenderContext,
     group::errors::ValidationError,
@@ -15,6 +15,8 @@ use crate::{
     versions::ProtocolVersion,
 };
 
+use crate::prelude::PublicGroup;
+use crate::treesync::node::validate::ValidatableLeafNode;
 use openmls_traits::{crypto::OpenMlsCrypto, types::Ciphersuite};
 use serde::{Deserialize, Serialize};
 use tls_codec::{TlsDeserialize, TlsSerialize, TlsSize};
@@ -99,15 +101,16 @@ impl ProposalIn {
         ciphersuite: Ciphersuite,
         sender_context: Option<SenderContext>,
         protocol_version: ProtocolVersion,
+        group: &PublicGroup,
     ) -> Result<Proposal, ValidationError> {
         Ok(match self {
             ProposalIn::Add(add) => {
-                Proposal::Add(add.validate(crypto, protocol_version, ciphersuite)?)
+                Proposal::Add(add.validate(crypto, protocol_version, ciphersuite, group)?)
             }
             ProposalIn::Update(update) => {
                 let sender_context =
                     sender_context.ok_or(ValidationError::CommitterIncludedOwnUpdate)?;
-                Proposal::Update(update.validate(crypto, ciphersuite, sender_context)?)
+                Proposal::Update(update.validate(crypto, sender_context, group)?)
             }
             ProposalIn::Remove(remove) => Proposal::Remove(remove),
             ProposalIn::PreSharedKey(psk) => Proposal::PreSharedKey(psk),
@@ -149,8 +152,9 @@ impl AddProposalIn {
         crypto: &impl OpenMlsCrypto,
         protocol_version: ProtocolVersion,
         ciphersuite: Ciphersuite,
+        group: &PublicGroup,
     ) -> Result<AddProposal, ValidationError> {
-        let key_package = self.key_package.validate(crypto, protocol_version)?;
+        let key_package = self.key_package.validate(crypto, protocol_version, group)?;
         // Verify that the ciphersuite is valid
         if key_package.ciphersuite() != ciphersuite {
             return Err(ValidationError::InvalidAddProposalCiphersuite);
@@ -182,27 +186,20 @@ impl UpdateProposalIn {
     pub(crate) fn validate(
         self,
         crypto: &impl OpenMlsCrypto,
-        ciphersuite: Ciphersuite,
         sender_context: SenderContext,
+        group: &PublicGroup,
     ) -> Result<UpdateProposal, ValidationError> {
-        let leaf_node = match self.leaf_node.into_verifiable_leaf_node() {
-            VerifiableLeafNode::Update(mut leaf_node) => {
-                let tree_position = match sender_context {
-                    SenderContext::Member((group_id, leaf_index)) => {
-                        TreePosition::new(group_id, leaf_index)
-                    }
-                    _ => return Err(ValidationError::InvalidSenderType),
-                };
-                leaf_node.add_tree_position(tree_position);
-                let pk = &leaf_node
-                    .signature_key()
-                    .clone()
-                    .into_signature_public_key_enriched(ciphersuite.signature_algorithm());
-
-                leaf_node
-                    .verify(crypto, pk)
-                    .map_err(|_| ValidationError::InvalidLeafNodeSignature)?
+        let tree_position = match sender_context {
+            SenderContext::Member((group_id, leaf_index)) => {
+                TreePosition::new(group_id, leaf_index)
             }
+            _ => return Err(ValidationError::InvalidSenderType),
+        };
+        let verifiable_leaf_node = self
+            .leaf_node
+            .try_into_verifiable_leaf_node(Some(tree_position))?;
+        let leaf_node = match verifiable_leaf_node {
+            VerifiableLeafNode::Update(leaf_node) => leaf_node.validate(group, crypto)?,
             _ => return Err(ValidationError::InvalidLeafNodeSourceType),
         };
 
@@ -232,10 +229,11 @@ impl ProposalOrRefIn {
         crypto: &impl OpenMlsCrypto,
         ciphersuite: Ciphersuite,
         protocol_version: ProtocolVersion,
+        group: &PublicGroup,
     ) -> Result<ProposalOrRef, ValidationError> {
         Ok(match self {
             ProposalOrRefIn::Proposal(proposal_in) => ProposalOrRef::Proposal(
-                proposal_in.validate(crypto, ciphersuite, None, protocol_version)?,
+                proposal_in.validate(crypto, ciphersuite, None, protocol_version, group)?,
             ),
             ProposalOrRefIn::Reference(reference) => ProposalOrRef::Reference(reference),
         })

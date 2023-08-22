@@ -22,7 +22,7 @@ fn criterion_benchmark(c: &mut Criterion) {
 
         c.bench_with_input(
             BenchmarkId::new(
-                format!("KeyPackage create bundle with ciphersuite"),
+                "KeyPackage create bundle with ciphersuite".to_string(),
                 ciphersuite,
             ),
             &(&backend, signer, credential_with_key),

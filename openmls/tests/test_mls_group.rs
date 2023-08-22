@@ -87,7 +87,7 @@ async fn mls_group_operations(ciphersuite: Ciphersuite, backend: &impl OpenMlsCr
 
         // === Alice adds Bob ===
         let welcome = match alice_group
-            .add_members(backend, &alice_signer, &[bob_key_package])
+            .add_members(backend, &alice_signer, vec![bob_key_package.into()])
             .await
         {
             Ok((_, welcome, _)) => welcome,
@@ -327,7 +327,7 @@ async fn mls_group_operations(ciphersuite: Ciphersuite, backend: &impl OpenMlsCr
         .await;
 
         let (queued_message, welcome, _group_info) = bob_group
-            .add_members(backend, &bob_signer, &[charlie_key_package])
+            .add_members(backend, &bob_signer, vec![charlie_key_package.into()])
             .await
             .unwrap();
 
@@ -648,7 +648,7 @@ async fn mls_group_operations(ciphersuite: Ciphersuite, backend: &impl OpenMlsCr
 
         // Create AddProposal and process it
         let (queued_message, _) = alice_group
-            .propose_add_member(backend, &alice_signer, &bob_key_package)
+            .propose_add_member(backend, &alice_signer, bob_key_package.into())
             .expect("Could not create proposal to add Bob");
 
         let charlie_processed_message = charlie_group
@@ -917,7 +917,7 @@ async fn mls_group_operations(ciphersuite: Ciphersuite, backend: &impl OpenMlsCr
 
         // Add Bob to the group
         let (_queued_message, welcome, _group_info) = alice_group
-            .add_members(backend, &alice_signer, &[bob_key_package])
+            .add_members(backend, &alice_signer, vec![bob_key_package.into()])
             .await
             .expect("Could not add Bob");
 
@@ -998,7 +998,7 @@ async fn test_empty_input_errors(ciphersuite: Ciphersuite, backend: &impl OpenMl
 
     assert!(matches!(
         alice_group
-            .add_members(backend, &alice_signer, &[])
+            .add_members(backend, &alice_signer, vec![])
             .await
             .expect_err("No EmptyInputError when trying to pass an empty slice to `add_members`."),
         AddMembersError::EmptyInput(EmptyInputError::AddMembers)
@@ -1061,7 +1061,7 @@ async fn mls_group_ratchet_tree_extension(
 
         // === Alice adds Bob ===
         let (_queued_message, welcome, _group_info) = alice_group
-            .add_members(backend, &alice_signer, &[bob_key_package.clone()])
+            .add_members(backend, &alice_signer, vec![bob_key_package.into()])
             .await
             .unwrap();
 
@@ -1109,7 +1109,7 @@ async fn mls_group_ratchet_tree_extension(
 
         // === Alice adds Bob ===
         let (_queued_message, welcome, _group_info) = alice_group
-            .add_members(backend, &alice_signer, &[bob_key_package])
+            .add_members(backend, &alice_signer, vec![bob_key_package.into()])
             .await
             .unwrap();
 
@@ -1178,7 +1178,7 @@ async fn addition_order(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoPr
             .add_members(
                 backend,
                 &alice_signer,
-                &[bob_key_package, charlie_key_package],
+                vec![bob_key_package.into(), charlie_key_package.into()],
             )
             .await
         {

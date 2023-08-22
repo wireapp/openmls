@@ -87,7 +87,7 @@ async fn validation_test_setup(
         .add_members(
             backend,
             &alice_credential.signer,
-            &[bob_key_package, charlie_key_package],
+            vec![bob_key_package.into(), charlie_key_package.into()],
         )
         .await
         .expect("error adding Bob to group");

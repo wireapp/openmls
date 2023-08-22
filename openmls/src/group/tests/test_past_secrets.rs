@@ -70,7 +70,7 @@ async fn test_past_secrets_in_group(
             .add_members(
                 backend,
                 &alice_credential_with_keys.signer,
-                &[bob_key_package],
+                vec![bob_key_package.into()],
             )
             .await
             .expect("An unexpected error occurred.");

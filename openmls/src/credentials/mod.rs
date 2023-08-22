@@ -230,7 +230,7 @@ pub enum MlsCredentialType {
 /// ```
 #[derive(Debug, PartialEq, Eq, Clone, Serialize, Deserialize)]
 pub struct Credential {
-    credential_type: CredentialType,
+    pub(crate) credential_type: CredentialType,
     credential: MlsCredentialType,
 }
 

@@ -107,7 +107,11 @@ async fn that_commit_secret_is_derived_from_end_of_update_path_not_root(
         .add_members(
             &alice.backend,
             &alice.credential_with_key_and_signer.signer,
-            &[bob.key_package, charlie.key_package, dave.key_package],
+            vec![
+                bob.key_package.into(),
+                charlie.key_package.into(),
+                dave.key_package.into(),
+            ],
         )
         .await
         .expect("Adding members failed.");

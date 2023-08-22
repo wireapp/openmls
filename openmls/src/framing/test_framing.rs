@@ -392,18 +392,18 @@ async fn unknown_sender(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoPr
         test_utils::new_credential(backend, b"Charlie", ciphersuite.signature_algorithm()).await;
 
     // Generate KeyPackages
-    let bob_key_package_bundle =
+    let bob_kpb =
         KeyPackageBundle::new(backend, &bob_signature_keys, ciphersuite, bob_credential).await;
-    let bob_key_package = bob_key_package_bundle.key_package();
+    let bob_key_package = bob_kpb.key_package();
 
-    let charlie_key_package_bundle = KeyPackageBundle::new(
+    let charlie_kpb = KeyPackageBundle::new(
         backend,
         &charlie_signature_keys,
         ciphersuite,
         charlie_credential,
     )
     .await;
-    let charlie_key_package = charlie_key_package_bundle.key_package();
+    let charlie_key_package = charlie_kpb.key_package();
 
     // Alice creates a group
     let mut group_alice = CoreGroup::builder(
@@ -449,7 +449,8 @@ async fn unknown_sender(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoPr
             .welcome_option
             .expect("An unexpected error occurred."),
         Some(group_alice.public_group().export_ratchet_tree().into()),
-        bob_key_package_bundle,
+        bob_kpb.key_package(),
+        bob_kpb.private_key.clone(),
         backend,
         ResumptionPskStore::new(1024),
     )
@@ -496,7 +497,8 @@ async fn unknown_sender(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoPr
             .welcome_option
             .expect("An unexpected error occurred."),
         Some(group_alice.public_group().export_ratchet_tree().into()),
-        charlie_key_package_bundle,
+        charlie_kpb.key_package(),
+        charlie_kpb.private_key.clone(),
         backend,
         ResumptionPskStore::new(1024),
     )
@@ -631,14 +633,14 @@ pub(crate) async fn setup_alice_bob_group(
         test_utils::new_credential(backend, b"Bob", ciphersuite.signature_algorithm()).await;
 
     // Generate KeyPackages
-    let bob_key_package_bundle = KeyPackageBundle::new(
+    let bob_kpb = KeyPackageBundle::new(
         backend,
         &bob_signature_keys,
         ciphersuite,
         bob_credential.clone(),
     )
     .await;
-    let bob_key_package = bob_key_package_bundle.key_package();
+    let bob_key_package = bob_kpb.key_package();
 
     // Alice creates a group
     let mut group_alice = CoreGroup::builder(
@@ -695,7 +697,8 @@ pub(crate) async fn setup_alice_bob_group(
             .welcome_option
             .expect("commit didn't return a welcome as expected"),
         Some(group_alice.public_group().export_ratchet_tree().into()),
-        bob_key_package_bundle,
+        bob_kpb.key_package(),
+        bob_kpb.private_key.clone(),
         backend,
         ResumptionPskStore::new(1024),
     )

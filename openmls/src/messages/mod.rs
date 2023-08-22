@@ -12,6 +12,7 @@ use serde::{Deserialize, Serialize};
 use thiserror::Error;
 use tls_codec::{Deserialize as TlsDeserializeTrait, Serialize as TlsSerializeTrait, *};
 
+use crate::prelude::PublicGroup;
 #[cfg(test)]
 use crate::schedule::psk::{ExternalPsk, Psk};
 use crate::{
@@ -120,8 +121,8 @@ impl EncryptedGroupSecrets {
     }
 
     /// Returns the encrypted group secrets' new [`KeyPackageRef`].
-    pub fn new_member(&self) -> KeyPackageRef {
-        self.new_member.clone()
+    pub fn new_member(&self) -> &KeyPackageRef {
+        &self.new_member
     }
 
     /// Returns a reference to the encrypted group secrets' encrypted group secrets.
@@ -194,11 +195,12 @@ impl CommitIn {
         crypto: &impl OpenMlsCrypto,
         sender_context: SenderContext,
         protocol_version: ProtocolVersion,
+        group: &PublicGroup,
     ) -> Result<Commit, ValidationError> {
         let proposals = self
             .proposals
             .into_iter()
-            .map(|p| p.validate(crypto, ciphersuite, protocol_version))
+            .map(|p| p.validate(crypto, ciphersuite, protocol_version, group))
             .collect::<Result<Vec<_>, _>>()?;
 
         let path = if let Some(path) = self.path {
@@ -232,7 +234,7 @@ impl CommitIn {
                     TreePosition::new(group_id, new_leaf_index)
                 }
             };
-            Some(path.into_verified(ciphersuite, crypto, tree_position)?)
+            Some(path.into_verified(crypto, tree_position, group)?)
         } else {
             None
         };

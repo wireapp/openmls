@@ -1,6 +1,8 @@
 use core_group::create_commit_params::CreateCommitParams;
 use openmls_traits::signatures::Signer;
 
+use crate::treesync::node::leaf_node::{LeafNodeIn, TreePosition, VerifiableLeafNode};
+use crate::treesync::node::validate::ValidatableLeafNode;
 use crate::{messages::group_info::GroupInfo, treesync::LeafNode, versions::ProtocolVersion};
 
 use super::*;
@@ -56,17 +58,13 @@ impl MlsGroup {
                 .ok_or_else(|| LibraryError::custom("The tree is broken. Couldn't find own leaf."))?
                 .clone();
 
-            own_leaf
-                .update_and_re_sign(
-                    None,
-                    Some(leaf_node),
-                    self.group_id().clone(),
-                    self.own_leaf_index(),
-                    signer,
-                )
-                .map_err(|_| {
-                    SelfUpdateError::LibraryError(LibraryError::custom("Could not resign the leaf"))
-                })?;
+            own_leaf.update_and_re_sign(
+                None,
+                Some(leaf_node),
+                self.group_id().clone(),
+                self.own_leaf_index(),
+                signer,
+            )?;
 
             let update_proposal = Proposal::Update(UpdateProposal {
                 leaf_node: own_leaf,
@@ -160,10 +158,8 @@ impl MlsGroup {
     ) -> Result<AuthenticatedContent, ProposeSelfUpdateError<KeyStore::Error>> {
         self.is_operational()?;
 
-        // Here we clone our own leaf to rekey it such that we don't change the
-        // tree.
-        // The new leaf node will be applied later when the proposal is
-        // committed.
+        // Here we clone our own leaf to rekey it such that we don't change the tree.
+        // The new leaf node will be applied later when the proposal is committed.
         let mut own_leaf = self
             .own_leaf()
             .ok_or_else(|| LibraryError::custom("The tree is broken. Couldn't find own leaf."))?
@@ -177,11 +173,22 @@ impl MlsGroup {
             backend,
             signer,
         )?;
-        // TODO #1207: Move to the top of the function.
+
         keypair
             .write_to_key_store(backend)
             .await
             .map_err(ProposeSelfUpdateError::KeyStoreError)?;
+
+        let tree_position = TreePosition::new(self.group_id().clone(), self.own_leaf_index());
+        let VerifiableLeafNode::Update(own_leaf) =
+            LeafNodeIn::from(own_leaf).try_into_verifiable_leaf_node(Some(tree_position))?
+        else {
+            return Err(LibraryError::custom(
+                "LeafNode source should have been set to 'update' at this point",
+            )
+            .into());
+        };
+        let own_leaf = own_leaf.validate(self.group().public_group(), backend.crypto())?;
 
         let update_proposal = self.group.create_update_proposal(
             self.framing_parameters(),
@@ -226,7 +233,7 @@ impl MlsGroup {
     /// private key must be manually added to the key store.
     pub(crate) async fn _propose_explicit_self_update<KeyStore: OpenMlsKeyStore>(
         &mut self,
-        _backend: &impl OpenMlsCryptoProvider<KeyStoreProvider = KeyStore>,
+        backend: &impl OpenMlsCryptoProvider<KeyStoreProvider = KeyStore>,
         signer: &impl Signer,
         leaf_node: LeafNode,
         leaf_node_signer: &impl Signer,
@@ -238,13 +245,31 @@ impl MlsGroup {
             .ok_or_else(|| LibraryError::custom("The tree is broken. Couldn't find own leaf."))?
             .clone();
 
-        own_leaf.update_and_re_sign(
-            None,
-            Some(leaf_node),
-            self.group_id().clone(),
+        let keypair = own_leaf.rekey(
+            self.group_id(),
             self.own_leaf_index(),
+            Some(leaf_node),
+            self.ciphersuite(),
+            ProtocolVersion::Mls10,
+            backend,
             leaf_node_signer,
         )?;
+
+        keypair
+            .write_to_key_store(backend)
+            .await
+            .map_err(ProposeSelfUpdateError::KeyStoreError)?;
+
+        let tree_position = TreePosition::new(self.group_id().clone(), self.own_leaf_index());
+        let VerifiableLeafNode::Update(own_leaf) =
+            LeafNodeIn::from(own_leaf).try_into_verifiable_leaf_node(Some(tree_position))?
+        else {
+            return Err(LibraryError::custom(
+                "LeafNode source should have been set to 'update' at this point",
+            )
+            .into());
+        };
+        let own_leaf = own_leaf.validate(self.group().public_group(), backend.crypto())?;
 
         let update_proposal = self.group.create_update_proposal(
             self.framing_parameters(),

@@ -93,7 +93,10 @@ async fn gce_commit_can_roundtrip(ciphersuite: Ciphersuite, backend: &impl OpenM
         .process_message(backend, MlsMessageIn::from(gce_commit))
         .await
         .unwrap();
-    let ProcessedMessageContent::StagedCommitMessage(gce_commit) = processed_message.into_content() else { panic!("Not a remove proposal");};
+    let ProcessedMessageContent::StagedCommitMessage(gce_commit) = processed_message.into_content()
+    else {
+        panic!("Not a remove proposal");
+    };
     bob_group
         .merge_staged_commit(backend, *gce_commit)
         .await

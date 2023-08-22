@@ -101,7 +101,7 @@
 //!     // The key package has to be retrieved from Maxim in some way. Most likely
 //!     // via a server storing key packages for users.
 //!     let (mls_message_out, welcome_out, group_info) = sasha_group
-//!         .add_members(backend, &sasha_signer, &[maxim_key_package])
+//!         .add_members(backend, &sasha_signer, vec![maxim_key_package.into()])
 //!         .await
 //!         .expect("Could not add members.");
 //!

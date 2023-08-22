@@ -26,10 +26,12 @@ use super::{
 };
 use crate::{
     binary_tree::array_representation::LeafNodeIndex,
-    ciphersuite::{hpke, signable::Verifiable, HpkePublicKey},
+    ciphersuite::{hpke, HpkePublicKey},
     error::LibraryError,
     messages::{proposals::AddProposal, EncryptedGroupSecrets, GroupSecrets, PathSecret},
+    prelude::PublicGroup,
     schedule::{psk::PreSharedKeyId, CommitSecret, JoinerSecret},
+    treesync::node::validate::ValidatableLeafNode,
     treesync::node::NodeReference,
     versions::ProtocolVersion,
 };
@@ -379,21 +381,16 @@ impl UpdatePathIn {
     /// Return a verified [`UpdatePath`].
     pub(crate) fn into_verified(
         self,
-        ciphersuite: Ciphersuite,
         crypto: &impl OpenMlsCrypto,
         tree_position: TreePosition,
+        group: &PublicGroup,
     ) -> Result<UpdatePath, UpdatePathError> {
         let leaf_node_in = self.leaf_node().clone();
-        let verifiable_leaf_node = leaf_node_in.into_verifiable_leaf_node();
+        let verifiable_leaf_node =
+            leaf_node_in.try_into_verifiable_leaf_node(Some(tree_position))?;
         match verifiable_leaf_node {
-            VerifiableLeafNode::Commit(mut commit_leaf_node) => {
-                let pk = &commit_leaf_node
-                    .signature_key()
-                    .clone()
-                    .into_signature_public_key_enriched(ciphersuite.signature_algorithm());
-                commit_leaf_node.add_tree_position(tree_position);
-
-                let leaf_node: LeafNode = commit_leaf_node.verify(crypto, pk)?;
+            VerifiableLeafNode::Commit(commit_leaf_node) => {
+                let leaf_node = commit_leaf_node.validate(group, crypto)?;
                 Ok(UpdatePath {
                     leaf_node,
                     nodes: self.nodes,

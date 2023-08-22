@@ -87,7 +87,7 @@ async fn validation_test_setup(
         .add_members(
             backend,
             &alice_credential.signer,
-            &[bob_key_package.clone()],
+            vec![bob_key_package.clone().into()],
         )
         .await
         .expect("Could not add member.");

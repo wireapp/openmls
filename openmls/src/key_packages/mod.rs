@@ -656,6 +656,7 @@ pub(crate) struct KeyPackageBundle {
 }
 
 // Public `KeyPackageBundle` functions.
+#[cfg(test)]
 impl KeyPackageBundle {
     /// Get a reference to the public part of this bundle, i.e. the [`KeyPackage`].
     pub fn key_package(&self) -> &KeyPackage {

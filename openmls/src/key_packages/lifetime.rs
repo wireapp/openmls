@@ -66,7 +66,7 @@ impl Lifetime {
             .duration_since(UNIX_EPOCH)
             .map(|duration| duration.as_secs())
         {
-            Ok(elapsed) => self.not_before < elapsed && elapsed < self.not_after,
+            Ok(elapsed) => (self.not_before < elapsed) && (elapsed < self.not_after),
             Err(_) => {
                 log::error!("SystemTime before UNIX EPOCH.");
                 false
