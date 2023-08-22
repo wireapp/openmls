@@ -142,7 +142,7 @@ async fn create_commit_optional_path(
         .read::<HpkePrivateKey>(bob_key_package.hpke_init_key().as_slice())
         .await
         .unwrap();
-    let bob_key_package_bundle = KeyPackageBundle {
+    let bob_kpb = KeyPackageBundle {
         key_package: bob_key_package,
         private_key: bob_private_key,
     };
@@ -153,7 +153,8 @@ async fn create_commit_optional_path(
             .welcome_option
             .expect("An unexpected error occurred."),
         Some(ratchet_tree.into()),
-        bob_key_package_bundle,
+        bob_kpb.key_package(),
+        bob_kpb.private_key.clone(),
         backend,
         ResumptionPskStore::new(1024),
     )
@@ -323,14 +324,14 @@ async fn group_operations(ciphersuite: Ciphersuite, backend: &impl OpenMlsCrypto
             .await;
 
     // Generate KeyPackages
-    let bob_key_package_bundle = KeyPackageBundle::new(
+    let bob_kpb = KeyPackageBundle::new(
         backend,
         &bob_credential_with_keys.signer,
         ciphersuite,
         bob_credential_with_keys.credential_with_key.clone(),
     )
     .await;
-    let bob_key_package = bob_key_package_bundle.key_package();
+    let bob_key_package = bob_kpb.key_package();
 
     // === Alice creates a group ===
     let mut group_alice = CoreGroup::builder(
@@ -384,7 +385,8 @@ async fn group_operations(ciphersuite: Ciphersuite, backend: &impl OpenMlsCrypto
             .welcome_option
             .expect("An unexpected error occurred."),
         Some(ratchet_tree.into()),
-        bob_key_package_bundle,
+        bob_kpb.key_package(),
+        bob_kpb.private_key.clone(),
         backend,
         ResumptionPskStore::new(1024),
     )
@@ -673,14 +675,14 @@ async fn group_operations(ciphersuite: Ciphersuite, backend: &impl OpenMlsCrypto
     )
     .await;
 
-    let charlie_key_package_bundle = KeyPackageBundle::new(
+    let charlie_kpb = KeyPackageBundle::new(
         backend,
         &charlie_credential_with_keys.signer,
         ciphersuite,
         charlie_credential_with_keys.credential_with_key.clone(),
     )
     .await;
-    let charlie_key_package = charlie_key_package_bundle.key_package().clone();
+    let charlie_key_package = charlie_kpb.key_package().clone();
 
     let add_charlie_proposal_bob = group_bob
         .create_add_proposal(
@@ -742,7 +744,8 @@ async fn group_operations(ciphersuite: Ciphersuite, backend: &impl OpenMlsCrypto
             .welcome_option
             .expect("An unexpected error occurred."),
         Some(ratchet_tree.into()),
-        charlie_key_package_bundle,
+        charlie_kpb.key_package(),
+        charlie_kpb.private_key.clone(),
         backend,
         ResumptionPskStore::new(1024),
     )

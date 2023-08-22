@@ -67,7 +67,7 @@ impl Deserialize for MlsMessageIn {
 
         // KeyPackage version must match MlsMessage version.
         if let MlsMessageInBody::KeyPackage(key_package) = &body {
-            if !key_package.version_is_supported(version) {
+            if !key_package.is_version_supported(version) {
                 return Err(tls_codec::Error::DecodingError(
                     "KeyPackage version does not match MlsMessage version.".into(),
                 ));

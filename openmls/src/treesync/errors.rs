@@ -250,6 +250,9 @@ pub enum LeafNodeValidationError {
     /// The leaf node's encryption key is already used in the group.
     #[error("The leaf node's encryption key is already used in the group.")]
     EncryptionKeyAlreadyInUse,
+    /// The leaf node's encryption key is already used by the leaf node it tries to replace.
+    #[error("The leaf node's encryption key is already used by the leaf node it tries to replace")]
+    UpdatedEncryptionKeyAlreadyInUse,
     /// The leaf node source is invalid in the given context.
     #[error("The leaf node source is invalid in the given context.")]
     InvalidLeafNodeSource,
@@ -259,6 +262,12 @@ pub enum LeafNodeValidationError {
     /// The credential used by a member is not supported by this leaf node.
     #[error("The credential used by a member is not supported by this leaf node.")]
     MemberCredentialNotSupportedByLeafNode,
+    /// A library error occurred.
+    #[error(transparent)]
+    LibraryError(#[from] LibraryError),
+    /// See [`SignatureError`] for more details.
+    #[error(transparent)]
+    SignatureError(#[from] SignatureError),
 }
 
 /// Errors that can happen during lifetime validation.
@@ -281,4 +290,7 @@ pub enum UpdatePathError {
     /// See [`SignatureError`] for more details.
     #[error(transparent)]
     SignatureError(#[from] SignatureError),
+    /// See [`LeafNodeValidationError`] for more details.
+    #[error(transparent)]
+    LeafNodeValidationError(#[from] LeafNodeValidationError),
 }

@@ -44,7 +44,7 @@ pub use crate::binary_tree::LeafNodeIndex;
 
 // TreeSync
 pub use crate::treesync::{
-    errors::{ApplyUpdatePathError, PublicTreeError},
+    errors::{ApplyUpdatePathError, LeafNodeValidationError, PublicTreeError},
     node::leaf_node::{Capabilities, LeafNode},
     node::parent_node::ParentNode,
     node::Node,

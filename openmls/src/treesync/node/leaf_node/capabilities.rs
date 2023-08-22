@@ -27,11 +27,11 @@ use crate::{
     Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TlsSerialize, TlsDeserialize, TlsSize,
 )]
 pub struct Capabilities {
-    pub(super) versions: Vec<ProtocolVersion>,
-    pub(super) ciphersuites: Vec<VerifiableCiphersuite>,
-    pub(super) extensions: Vec<ExtensionType>,
-    pub(super) proposals: Vec<ProposalType>,
-    pub(super) credentials: Vec<CredentialType>,
+    pub versions: Vec<ProtocolVersion>,
+    pub ciphersuites: Vec<VerifiableCiphersuite>,
+    pub extensions: Vec<ExtensionType>,
+    pub proposals: Vec<ProposalType>,
+    pub credentials: Vec<CredentialType>,
 }
 
 impl Capabilities {

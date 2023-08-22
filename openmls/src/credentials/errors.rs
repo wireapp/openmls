@@ -8,7 +8,7 @@ use thiserror::Error;
 /// An error that occurs in methods of a [`super::Credential`].
 #[derive(Error, Debug, PartialEq, Clone)]
 pub enum CredentialError {
-    /// A library error occured.
+    /// A library error occurred.
     #[error(transparent)]
     LibraryError(#[from] LibraryError),
     /// The type of credential is not supported.

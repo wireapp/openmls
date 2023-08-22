@@ -50,14 +50,14 @@ async fn ratchet_tree_extension(ciphersuite: Ciphersuite, backend: &impl OpenMls
         test_utils::new_credential(backend, b"Bob", ciphersuite.signature_algorithm()).await;
 
     // Generate KeyPackages
-    let bob_key_package_bundle = KeyPackageBundle::new(
+    let bob_kpb = KeyPackageBundle::new(
         backend,
         &bob_signature_keys,
         ciphersuite,
         bob_credential_with_key.clone(),
     )
     .await;
-    let bob_key_package = bob_key_package_bundle.key_package();
+    let bob_key_package = bob_kpb.key_package();
 
     let config = CoreGroupConfig {
         add_ratchet_tree_extension: true,
@@ -108,7 +108,8 @@ async fn ratchet_tree_extension(ciphersuite: Ciphersuite, backend: &impl OpenMls
             .welcome_option
             .expect("An unexpected error occurred."),
         None,
-        bob_key_package_bundle,
+        bob_kpb.key_package(),
+        bob_kpb.private_key().clone(),
         backend,
         ResumptionPskStore::new(1024),
     )
@@ -131,14 +132,14 @@ async fn ratchet_tree_extension(ciphersuite: Ciphersuite, backend: &impl OpenMls
     // === Alice creates a group without the ratchet tree extension ===
 
     // Generate KeyPackages
-    let bob_key_package_bundle = KeyPackageBundle::new(
+    let bob_kpb = KeyPackageBundle::new(
         backend,
         &bob_signature_keys,
         ciphersuite,
         bob_credential_with_key,
     )
     .await;
-    let bob_key_package = bob_key_package_bundle.key_package();
+    let bob_key_package = bob_kpb.key_package();
 
     let config = CoreGroupConfig {
         add_ratchet_tree_extension: false,
@@ -188,7 +189,8 @@ async fn ratchet_tree_extension(ciphersuite: Ciphersuite, backend: &impl OpenMls
             .welcome_option
             .expect("An unexpected error occurred."),
         None,
-        bob_key_package_bundle,
+        bob_kpb.key_package(),
+        bob_kpb.private_key().clone(),
         backend,
         ResumptionPskStore::new(1024),
     )

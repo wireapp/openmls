@@ -81,7 +81,11 @@ async fn validation_test_setup(
     .await;
 
     let (_message, welcome, _group_info) = alice_group
-        .add_members(backend, &alice_signer_with_keys.signer, &[bob_key_package])
+        .add_members(
+            backend,
+            &alice_signer_with_keys.signer,
+            vec![bob_key_package.clone().into()],
+        )
         .await
         .expect("error adding Bob to group");
 

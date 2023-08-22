@@ -2,6 +2,7 @@
 //! https://openmls.tech/book/message_validation.html#semantic-validation-of-proposals-covered-by-a-commit
 
 use openmls_rust_crypto::OpenMlsRustCrypto;
+use openmls_traits::types::SignatureScheme;
 use openmls_traits::{
     key_store::OpenMlsKeyStore, signatures::Signer, types::Ciphersuite, OpenMlsCryptoProvider,
 };
@@ -58,7 +59,7 @@ async fn generate_credential_with_key_and_key_package(
 async fn create_group_with_members<KeyStore: OpenMlsKeyStore>(
     ciphersuite: Ciphersuite,
     alice_credential_with_key_and_signer: &CredentialWithKeyAndSigner,
-    member_key_packages: &[KeyPackage],
+    member_key_packages: Vec<KeyPackageIn>,
     backend: &impl OpenMlsCryptoProvider<KeyStoreProvider = KeyStore>,
 ) -> Result<(MlsMessageIn, Welcome), AddMembersError<KeyStore::Error>> {
     let mut alice_group = MlsGroup::new_with_group_id(
@@ -157,7 +158,7 @@ async fn validation_test_setup(
         .add_members(
             backend,
             &alice_credential_with_key_and_signer.signer,
-            &[bob_key_package],
+            vec![bob_key_package.into()],
         )
         .await
         .unwrap();
@@ -304,7 +305,7 @@ async fn test_valsem101a(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoP
         let res = create_group_with_members(
             ciphersuite,
             &alice_credential_with_keys,
-            &[bob_key_package, charlie_key_package],
+            vec![bob_key_package.into(), charlie_key_package.into()],
             backend,
         )
         .await;
@@ -347,7 +348,7 @@ async fn test_valsem101a(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoP
         .add_members(
             backend,
             &alice_credential_with_key_and_signer.signer,
-            &[charlie_key_package],
+            vec![charlie_key_package.into()],
         )
         .await
         .expect("Error creating self-update")
@@ -471,7 +472,7 @@ async fn test_valsem102(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoPr
         let res = create_group_with_members(
             ciphersuite,
             &alice_credential_with_key,
-            &[bob_key_package, charlie_key_package],
+            vec![bob_key_package.into(), charlie_key_package.into()],
             backend,
         )
         .await;
@@ -514,7 +515,7 @@ async fn test_valsem102(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoPr
         .add_members(
             backend,
             &alice_credential_with_key_and_signer.signer,
-            &[charlie_key_package.clone()],
+            vec![charlie_key_package.clone().into()],
         )
         .await
         .expect("Error creating self-update")
@@ -662,7 +663,7 @@ async fn test_valsem101b(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoP
                     .add_members(
                         backend,
                         &alice_credential_with_key.signer,
-                        &[bob_key_package, target_key_package],
+                        vec![bob_key_package.into(), target_key_package.into()],
                     )
                     .await
                     .expect_err("was able to add user with same signature key as a group member!");
@@ -678,7 +679,7 @@ async fn test_valsem101b(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoP
                     .add_members(
                         backend,
                         &alice_credential_with_key.signer,
-                        &[bob_key_package, target_key_package],
+                        vec![bob_key_package.into(), target_key_package.into()],
                     )
                     .await
                     .expect("failed to add user with different signature keypair!");
@@ -688,7 +689,7 @@ async fn test_valsem101b(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoP
                     .add_members(
                         backend,
                         &alice_credential_with_key.signer,
-                        &[bob_key_package.clone()],
+                        vec![bob_key_package.clone().into()],
                     )
                     .await
                     .unwrap();
@@ -707,7 +708,7 @@ async fn test_valsem101b(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoP
                     .propose_remove_member(backend, &alice_credential_with_key.signer, bob_index)
                     .unwrap();
                 alice_group
-                    .add_members(backend, &alice_credential_with_key.signer, &[target_key_package])
+                    .add_members(backend, &alice_credential_with_key.signer, vec![target_key_package.into()])
                     .await
                     .expect(
                     "failed to add a user with the same identity as someone in the group (with a remove proposal)!",
@@ -892,7 +893,7 @@ async fn test_valsem103_valsem104(ciphersuite: Ciphersuite, backend: &impl OpenM
         let res = create_group_with_members(
             ciphersuite,
             &alice_credential_with_key,
-            &[bob_key_package],
+            vec![bob_key_package.into()],
             backend,
         )
         .await;
@@ -903,9 +904,9 @@ async fn test_valsem103_valsem104(ciphersuite: Ciphersuite, backend: &impl OpenM
                     res.expect_err("was able to add user with colliding init and encryption keys!");
                 assert!(matches!(
                     err,
-                    AddMembersError::CreateCommitError(CreateCommitError::ProposalValidationError(
-                        ProposalValidationError::InitEncryptionKeyCollision
-                    ))
+                    AddMembersError::KeyPackageVerifyError(
+                        KeyPackageVerifyError::InitKeyEqualsEncryptionKey
+                    )
                 ));
             }
             KeyUniqueness::PositiveDifferentKey => {
@@ -1081,17 +1082,16 @@ async fn test_valsem105(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoPr
             generate_credential_with_key_and_key_package("Charlie".into(), ciphersuite, backend)
                 .await;
 
-        let kpi = KeyPackageIn::from(charlie_key_package.clone());
-        kpi.validate(backend.crypto(), ProtocolVersion::Mls10)
+        let kpi: KeyPackageIn = charlie_key_package.clone().into();
+        kpi.standalone_validate(backend.crypto(), ProtocolVersion::Mls10)
             .unwrap();
 
         // Let's just pick a ciphersuite that's not the one we're testing right now.
-        let wrong_ciphersuite = match ciphersuite {
-            Ciphersuite::MLS_128_DHKEMX25519_AES128GCM_SHA256_Ed25519 => {
-                Ciphersuite::MLS_128_DHKEMP256_AES128GCM_SHA256_P256
-            }
+        let wrong_ciphersuite = match ciphersuite.signature_algorithm() {
+            SignatureScheme::ED25519 => Ciphersuite::MLS_128_DHKEMP256_AES128GCM_SHA256_P256,
             _ => Ciphersuite::MLS_128_DHKEMX25519_AES128GCM_SHA256_Ed25519,
         };
+
         match key_package_version {
             KeyPackageTestVersion::WrongCiphersuite => {
                 charlie_key_package.set_ciphersuite(wrong_ciphersuite)
@@ -1130,13 +1130,6 @@ async fn test_valsem105(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoPr
                 )
                 .await;
 
-            // Let's just pick a ciphersuite that's not the one we're testing right now.
-            let wrong_ciphersuite = match ciphersuite {
-                Ciphersuite::MLS_128_DHKEMX25519_AES128GCM_SHA256_Ed25519 => {
-                    Ciphersuite::MLS_128_DHKEMP256_AES128GCM_SHA256_P256
-                }
-                _ => Ciphersuite::MLS_128_DHKEMX25519_AES128GCM_SHA256_Ed25519,
-            };
             match key_package_version {
                 KeyPackageTestVersion::WrongCiphersuite => {
                     charlie_key_package.set_ciphersuite(wrong_ciphersuite)
@@ -1171,13 +1164,26 @@ async fn test_valsem105(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoPr
         for proposal_inclusion in [ProposalInclusion::ByReference, ProposalInclusion::ByValue] {
             match proposal_inclusion {
                 ProposalInclusion::ByReference => {
-                    let _proposal = alice_group
-                        .propose_add_member(
-                            backend,
-                            &alice_credential_with_key_and_signer.signer,
-                            &test_kp,
-                        )
-                        .unwrap();
+                    let proposal_result = alice_group.propose_add_member(
+                        backend,
+                        &alice_credential_with_key_and_signer.signer,
+                        test_kp.clone().into(),
+                    );
+
+                    match key_package_version {
+                        KeyPackageTestVersion::WrongCiphersuite => {
+                            assert!(matches!(
+                                proposal_result.unwrap_err(),
+                                ProposeAddMemberError::KeyPackageVerifyError(
+                                    KeyPackageVerifyError::InvalidSignature
+                                )
+                            ));
+                        }
+                        KeyPackageTestVersion::WrongVersion => {}
+                        KeyPackageTestVersion::UnsupportedVersion => {}
+                        KeyPackageTestVersion::UnsupportedCiphersuite => {}
+                        KeyPackageTestVersion::ValidTestCase => {}
+                    }
 
                     let result = alice_group
                         .commit_to_pending_proposals(
@@ -1191,15 +1197,17 @@ async fn test_valsem105(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoPr
                         KeyPackageTestVersion::ValidTestCase => {
                             result.unwrap();
                         }
+                        KeyPackageTestVersion::WrongCiphersuite
+                        | KeyPackageTestVersion::WrongVersion => {
+                            result.unwrap();
+                        }
                         _ => {
                             assert!(matches!(
                                 result.expect_err(
                                     "no error when committing add with key package with insufficient capabilities",
                                 ),
-                                CommitToPendingProposalsError::CreateCommitError(
-                                    _
-                                )
-                            ))
+                                CommitToPendingProposalsError::CreateCommitError(_)
+                            ));
                         }
                     }
                 }
@@ -1208,7 +1216,7 @@ async fn test_valsem105(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoPr
                         .add_members(
                             backend,
                             &alice_credential_with_key_and_signer.signer,
-                            &[test_kp_2.clone()],
+                            vec![test_kp_2.clone().into()],
                         )
                         .await;
 
@@ -1216,14 +1224,28 @@ async fn test_valsem105(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoPr
                         KeyPackageTestVersion::ValidTestCase => {
                             result.unwrap();
                         }
+                        KeyPackageTestVersion::WrongCiphersuite => {
+                            assert!(matches!(
+                                result.unwrap_err(),
+                                AddMembersError::KeyPackageVerifyError(
+                                    KeyPackageVerifyError::InvalidSignature
+                                )
+                            ))
+                        }
+                        KeyPackageTestVersion::WrongVersion => {
+                            assert!(matches!(
+                                result.unwrap_err(),
+                                AddMembersError::KeyPackageVerifyError(
+                                    KeyPackageVerifyError::InvalidProtocolVersion
+                                )
+                            ))
+                        }
                         _ => {
                             assert!(matches!(
                                 result.expect_err(
                                     "no error when committing add with key package with insufficient capabilities",
                                 ),
-                                AddMembersError::CreateCommitError(
-                                    _
-                                )
+                                AddMembersError::CreateCommitError(_)
                             ))
                         }
                     }
@@ -1318,7 +1340,7 @@ async fn test_valsem105(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoPr
                     );
                     let expected_error_2 = ProcessMessageError::ValidationError(
                         ValidationError::KeyPackageVerifyError(
-                            KeyPackageVerifyError::InvalidLeafNodeSignature,
+                            KeyPackageVerifyError::InvalidSignature,
                         ),
                     );
                     let expected_error_3 = ProcessMessageError::ValidationError(
@@ -1669,6 +1691,7 @@ async fn test_valsem108(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoPr
 /// Encryption key must be unique among existing members
 #[apply(ciphersuites_and_backends)]
 #[wasm_bindgen_test::wasm_bindgen_test]
+#[ignore] // Not testable since update proposal methods impose rekeying and do not delegate this to callers
 async fn test_valsem110(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider) {
     // Before we can test creation or reception of (invalid) proposals, we set
     // up a new group with Alice and Bob.

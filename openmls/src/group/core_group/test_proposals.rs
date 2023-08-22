@@ -48,8 +48,9 @@ async fn proposal_queue_functions(ciphersuite: Ciphersuite, backend: &impl OpenM
         KeyPackageBundle::new(backend, &alice_signer, ciphersuite, alice_credential).await;
     let alice_update_key_package = alice_update_key_package_bundle.key_package();
     let kpi = KeyPackageIn::from(alice_update_key_package.clone());
+
     assert!(kpi
-        .validate(backend.crypto(), ProtocolVersion::Mls10)
+        .standalone_validate(backend.crypto(), ProtocolVersion::Mls10)
         .is_ok());
 
     let group_context = GroupContext::new(
@@ -193,8 +194,9 @@ async fn proposal_queue_order(ciphersuite: Ciphersuite, backend: &impl OpenMlsCr
         KeyPackageBundle::new(backend, &alice_signer, ciphersuite, alice_credential).await;
     let alice_update_key_package = alice_update_key_package_bundle.key_package();
     let kpi = KeyPackageIn::from(alice_update_key_package.clone());
+
     assert!(kpi
-        .validate(backend.crypto(), ProtocolVersion::Mls10)
+        .standalone_validate(backend.crypto(), ProtocolVersion::Mls10)
         .is_ok());
 
     let group_context = GroupContext::new(
@@ -341,7 +343,7 @@ async fn test_group_context_extensions(
         leaf_capabilities.clone(),
     )
     .await;
-    let (_bob_credential_bundle, bob_key_package_bundle, _, _) = setup_client_with_extensions(
+    let (_bob_credential_bundle, bob_kpb, _, _) = setup_client_with_extensions(
         "Bob",
         ciphersuite,
         backend,
@@ -350,7 +352,7 @@ async fn test_group_context_extensions(
     )
     .await;
 
-    let bob_key_package = bob_key_package_bundle.key_package();
+    let bob_key_package = bob_kpb.key_package();
 
     let mut alice_group = CoreGroup::builder(
         GroupId::random(backend),
@@ -396,7 +398,8 @@ async fn test_group_context_extensions(
             .welcome_option
             .expect("An unexpected error occurred."),
         Some(ratchet_tree.into()),
-        bob_key_package_bundle,
+        bob_kpb.key_package(),
+        bob_kpb.private_key.clone(),
         backend,
         ResumptionPskStore::new(1024),
     )
@@ -416,10 +419,9 @@ async fn test_group_context_extension_proposal_fails(
 
     let (alice_credential, _, alice_signer, _alice_pk) =
         setup_client("Alice", ciphersuite, backend).await;
-    let (_bob_credential_with_key, bob_key_package_bundle, _, _) =
-        setup_client("Bob", ciphersuite, backend).await;
+    let (_bob_credential_with_key, bob_kpb, _, _) = setup_client("Bob", ciphersuite, backend).await;
 
-    let bob_key_package = bob_key_package_bundle.key_package();
+    let bob_key_package = bob_kpb.key_package();
 
     // Set required capabilities
     let proposals = &[];
@@ -491,7 +493,8 @@ async fn test_group_context_extension_proposal_fails(
             .welcome_option
             .expect("An unexpected error occurred."),
         Some(ratchet_tree.into()),
-        bob_key_package_bundle,
+        bob_kpb.key_package(),
+        bob_kpb.private_key.clone(),
         backend,
         ResumptionPskStore::new(1024),
     )
@@ -529,10 +532,9 @@ async fn test_group_context_extension_proposal(
 
     let (alice_credential, _, alice_signer, _alice_pk) =
         setup_client("Alice", ciphersuite, backend).await;
-    let (_bob_credential_with_key, bob_key_package_bundle, _, _) =
-        setup_client("Bob", ciphersuite, backend).await;
+    let (_bob_credential_with_key, bob_kpb, _, _) = setup_client("Bob", ciphersuite, backend).await;
 
-    let bob_key_package = bob_key_package_bundle.key_package();
+    let bob_key_package = bob_kpb.key_package();
 
     let mut alice_group = CoreGroup::builder(
         GroupId::random(backend),
@@ -577,7 +579,8 @@ async fn test_group_context_extension_proposal(
             .welcome_option
             .expect("An unexpected error occurred."),
         Some(ratchet_tree.into()),
-        bob_key_package_bundle,
+        bob_kpb.key_package(),
+        bob_kpb.private_key.clone(),
         backend,
         ResumptionPskStore::new(1024),
     )

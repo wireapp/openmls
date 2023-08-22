@@ -38,6 +38,9 @@ pub enum WelcomeError<KeyStoreError> {
     /// See [`GroupInfoError`] for more details.
     #[error(transparent)]
     GroupInfo(#[from] GroupInfoError),
+    /// See [`KeyPackageVerifyError`] for more details.
+    #[error(transparent)]
+    KeyPackageVerifyError(#[from] KeyPackageVerifyError),
     /// No joiner secret found in the Welcome message.
     #[error("No joiner secret found in the Welcome message.")]
     JoinerSecretNotFound,
@@ -303,6 +306,9 @@ pub enum ValidationError {
     /// The KeyPackage could not be validated.
     #[error(transparent)]
     KeyPackageVerifyError(#[from] KeyPackageVerifyError),
+    /// The LeafNode could not be validated.
+    #[error(transparent)]
+    LeafNodeValidationError(#[from] LeafNodeValidationError),
     /// The UpdatePath could not be validated.
     #[error(transparent)]
     UpdatePathError(#[from] UpdatePathError),
@@ -428,9 +434,12 @@ pub enum CreateAddProposalError {
     /// See [`LibraryError`] for more details.
     #[error(transparent)]
     LibraryError(#[from] LibraryError),
+    /// See [`KeyPackageVerifyError`] for more details.
+    #[error(transparent)]
+    KeyPackageVerifyError(#[from] KeyPackageVerifyError),
     /// See [`LeafNodeValidationError`] for more details.
     #[error(transparent)]
-    LeafNodeValidation(#[from] LeafNodeValidationError),
+    LeafNodeValidationError(#[from] LeafNodeValidationError),
 }
 
 // === Crate errors ===

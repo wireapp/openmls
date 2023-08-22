@@ -68,7 +68,7 @@ impl ProposalStore {
 /// the encapsulating PublicMessage and the ProposalRef is attached.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct QueuedProposal {
-    proposal: Proposal,
+    pub proposal: Proposal,
     proposal_reference: ProposalRef,
     sender: Sender,
     proposal_or_ref_type: ProposalOrRefType,
@@ -462,8 +462,7 @@ impl ProposalQueue {
                         &sender,
                     )
                 })
-                .collect::<Result<Vec<QueuedProposal>, _>>()?
-                .into_iter(),
+                .collect::<Result<Vec<QueuedProposal>, _>>()?,
         );
 
         // Parse proposals and build adds and member list

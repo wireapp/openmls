@@ -10,7 +10,7 @@ use crate::{
     error::LibraryError,
     framing::{mls_auth_content::AuthenticatedContent, *},
     group::*,
-    key_packages::{KeyPackage, KeyPackageBundle},
+    key_packages::KeyPackage,
     messages::{proposals::*, Welcome},
     schedule::ResumptionPskSecret,
     treesync::{node::leaf_node::LeafNode, RatchetTree},
@@ -422,7 +422,6 @@ impl MlsGroup {
     }
 
     /// Returns the underlying [CoreGroup].
-    #[cfg(test)]
     pub(crate) fn group(&self) -> &CoreGroup {
         &self.group
     }

@@ -262,6 +262,11 @@ impl LeafNode {
             leaf_node_tbs.payload.credential = leaf_node.credential().clone();
             leaf_node_tbs.payload.signature_key = leaf_node.signature_key().clone();
             leaf_node_tbs.payload.encryption_key = leaf_node.encryption_key().clone();
+
+            // The application MAY specify other changes to the leaf node, e.g. [..] updated capabilities, or different extensions
+            // cf https://www.rfc-editor.org/rfc/rfc9420.html#section-7.5-7
+            leaf_node_tbs.payload.capabilities = leaf_node.capabilities().clone();
+            leaf_node_tbs.payload.extensions = leaf_node.extensions().clone();
         } else if let Some(new_encryption_key) = new_encryption_key {
             leaf_node_tbs.payload.encryption_key = new_encryption_key;
         } else {
@@ -375,7 +380,7 @@ impl LeafNode {
     }
 
     /// Return a reference to [`Capabilities`].
-    pub(crate) fn capabilities(&self) -> &Capabilities {
+    pub fn capabilities(&self) -> &Capabilities {
         &self.payload.capabilities
     }
 
@@ -534,13 +539,13 @@ impl LeafNode {
 #[derive(
     Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TlsSerialize, TlsDeserialize, TlsSize,
 )]
-struct LeafNodePayload {
-    encryption_key: EncryptionKey,
-    signature_key: SignaturePublicKey,
-    credential: Credential,
-    capabilities: Capabilities,
-    leaf_node_source: LeafNodeSource,
-    extensions: Extensions,
+pub(crate) struct LeafNodePayload {
+    pub(crate) encryption_key: EncryptionKey,
+    pub(crate) signature_key: SignaturePublicKey,
+    pub(crate) credential: Credential,
+    pub(crate) capabilities: Capabilities,
+    pub(crate) leaf_node_source: LeafNodeSource,
+    pub(crate) extensions: Extensions,
 }
 
 #[derive(
@@ -666,7 +671,7 @@ impl TreeInfoTbs {
 #[derive(Debug, Clone, PartialEq, Eq, TlsSerialize, TlsSize)]
 pub(crate) struct TreePosition {
     group_id: GroupId,
-    leaf_index: LeafNodeIndex,
+    pub(crate) leaf_index: LeafNodeIndex,
 }
 
 impl TreePosition {
@@ -689,32 +694,34 @@ pub struct LeafNodeIn {
 }
 
 impl LeafNodeIn {
-    pub(crate) fn into_verifiable_leaf_node(self) -> VerifiableLeafNode {
-        match self.payload.leaf_node_source {
+    pub(crate) fn try_into_verifiable_leaf_node(
+        self,
+        tree_position: Option<TreePosition>,
+    ) -> Result<VerifiableLeafNode, LeafNodeValidationError> {
+        Ok(match self.payload.leaf_node_source {
             LeafNodeSource::KeyPackage(_) => {
-                let verifiable = VerifiableKeyPackageLeafNode {
+                VerifiableLeafNode::KeyPackage(VerifiableKeyPackageLeafNode {
                     payload: self.payload,
                     signature: self.signature,
-                };
-                VerifiableLeafNode::KeyPackage(verifiable)
+                })
             }
             LeafNodeSource::Update => {
-                let verifiable = VerifiableUpdateLeafNode {
+                let tree_position = tree_position.ok_or(LibraryError::custom("Internal error"))?;
+                VerifiableLeafNode::Update(VerifiableUpdateLeafNode {
                     payload: self.payload,
                     signature: self.signature,
-                    tree_position: None,
-                };
-                VerifiableLeafNode::Update(verifiable)
+                    tree_position,
+                })
             }
             LeafNodeSource::Commit(_) => {
-                let verifiable = VerifiableCommitLeafNode {
+                let tree_position = tree_position.ok_or(LibraryError::custom("Internal error"))?;
+                VerifiableLeafNode::Commit(VerifiableCommitLeafNode {
                     payload: self.payload,
                     signature: self.signature,
-                    tree_position: None,
-                };
-                VerifiableLeafNode::Commit(verifiable)
+                    tree_position,
+                })
             }
-        }
+        })
     }
 
     /// Returns the `signature_key` as byte slice.
@@ -771,7 +778,7 @@ impl VerifiableLeafNode {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct VerifiableKeyPackageLeafNode {
-    payload: LeafNodePayload,
+    pub(crate) payload: LeafNodePayload,
     signature: Signature,
 }
 
@@ -808,32 +815,28 @@ impl VerifiedStruct<VerifiableKeyPackageLeafNode> for LeafNode {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct VerifiableUpdateLeafNode {
-    payload: LeafNodePayload,
+    pub(crate) payload: LeafNodePayload,
     signature: Signature,
-    tree_position: Option<TreePosition>,
+    pub(crate) tree_position: TreePosition,
 }
 
 impl VerifiableUpdateLeafNode {
-    pub(crate) fn add_tree_position(&mut self, tree_info: TreePosition) {
-        self.tree_position = Some(tree_info);
-    }
-
     pub(crate) fn signature_key(&self) -> &SignaturePublicKey {
         &self.payload.signature_key
+    }
+
+    pub(crate) fn encryption_key(&self) -> &EncryptionKey {
+        &self.payload.encryption_key
     }
 }
 
 impl Verifiable for VerifiableUpdateLeafNode {
     fn unsigned_payload(&self) -> Result<Vec<u8>, tls_codec::Error> {
-        let tree_info_tbs = match &self.tree_position {
-            Some(tree_position) => TreeInfoTbs::Commit(tree_position.clone()),
-            None => return Err(tls_codec::Error::InvalidInput),
-        };
-        let leaf_node_tbs = LeafNodeTbs {
+        LeafNodeTbs {
             payload: self.payload.clone(),
-            tree_info_tbs,
-        };
-        leaf_node_tbs.tls_serialize_detached()
+            tree_info_tbs: TreeInfoTbs::Commit(self.tree_position.clone()),
+        }
+        .tls_serialize_detached()
     }
 
     fn signature(&self) -> &Signature {
@@ -858,16 +861,12 @@ impl VerifiedStruct<VerifiableUpdateLeafNode> for LeafNode {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct VerifiableCommitLeafNode {
-    payload: LeafNodePayload,
+    pub(crate) payload: LeafNodePayload,
     signature: Signature,
-    tree_position: Option<TreePosition>,
+    tree_position: TreePosition,
 }
 
 impl VerifiableCommitLeafNode {
-    pub(crate) fn add_tree_position(&mut self, tree_info: TreePosition) {
-        self.tree_position = Some(tree_info);
-    }
-
     pub(crate) fn signature_key(&self) -> &SignaturePublicKey {
         &self.payload.signature_key
     }
@@ -875,16 +874,11 @@ impl VerifiableCommitLeafNode {
 
 impl Verifiable for VerifiableCommitLeafNode {
     fn unsigned_payload(&self) -> Result<Vec<u8>, tls_codec::Error> {
-        let tree_info_tbs = match &self.tree_position {
-            Some(tree_position) => TreeInfoTbs::Commit(tree_position.clone()),
-            None => return Err(tls_codec::Error::InvalidInput),
-        };
-        let leaf_node_tbs = LeafNodeTbs {
+        LeafNodeTbs {
             payload: self.payload.clone(),
-            tree_info_tbs,
-        };
-
-        leaf_node_tbs.tls_serialize_detached()
+            tree_info_tbs: TreeInfoTbs::Commit(self.tree_position.clone()),
+        }
+        .tls_serialize_detached()
     }
 
     fn signature(&self) -> &Signature {

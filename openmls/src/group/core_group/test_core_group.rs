@@ -102,7 +102,7 @@ async fn test_failed_groupinfo_decryption(
     let (alice_credential_with_key, alice_signature_keys) =
         test_utils::new_credential(backend, b"Alice", ciphersuite.signature_algorithm()).await;
 
-    let key_package_bundle = KeyPackageBundle::new(
+    let kpb = KeyPackageBundle::new(
         backend,
         &alice_signature_keys,
         ciphersuite,
@@ -162,8 +162,7 @@ async fn test_failed_groupinfo_decryption(
     flip_last_byte(&mut encrypted_group_secrets);
 
     let broken_secrets = vec![EncryptedGroupSecrets::new(
-        key_package_bundle
-            .key_package
+        kpb.key_package
             .hash_ref(backend.crypto())
             .expect("Could not hash KeyPackage."),
         encrypted_group_secrets,
@@ -187,7 +186,8 @@ async fn test_failed_groupinfo_decryption(
     let error = CoreGroup::new_from_welcome(
         broken_welcome,
         None,
-        key_package_bundle,
+        kpb.key_package(),
+        kpb.private_key.clone(),
         backend,
         ResumptionPskStore::new(1024),
     )
@@ -340,12 +340,8 @@ async fn test_psks(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvide
     let group_aad = b"Alice's test group";
     let framing_parameters = FramingParameters::new(group_aad, WireFormat::PublicMessage);
 
-    let (
-        alice_credential_with_key,
-        alice_signature_keys,
-        bob_key_package_bundle,
-        bob_signature_keys,
-    ) = setup_alice_bob(ciphersuite, backend).await;
+    let (alice_credential_with_key, alice_signature_keys, bob_kpb, bob_signature_keys) =
+        setup_alice_bob(ciphersuite, backend).await;
 
     // === Alice creates a group with a PSK ===
     let psk_id = vec![1u8, 2, 3];
@@ -380,7 +376,7 @@ async fn test_psks(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvide
     let bob_add_proposal = alice_group
         .create_add_proposal(
             framing_parameters,
-            bob_key_package_bundle.key_package().clone(),
+            bob_kpb.key_package().clone(),
             &alice_signature_keys,
         )
         .expect("Could not create proposal");
@@ -417,7 +413,8 @@ async fn test_psks(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvide
             .welcome_option
             .expect("An unexpected error occurred."),
         Some(ratchet_tree.into()),
-        bob_key_package_bundle,
+        bob_kpb.key_package(),
+        bob_kpb.private_key.clone(),
         backend,
         ResumptionPskStore::new(1024),
     )
@@ -473,7 +470,7 @@ async fn test_staged_commit_creation(
     let group_aad = b"Alice's test group";
     let framing_parameters = FramingParameters::new(group_aad, WireFormat::PublicMessage);
 
-    let (alice_credential_with_key, alice_signature_keys, bob_key_package_bundle, _) =
+    let (alice_credential_with_key, alice_signature_keys, bob_kpb, _) =
         setup_alice_bob(ciphersuite, backend).await;
 
     // === Alice creates a group ===
@@ -490,7 +487,7 @@ async fn test_staged_commit_creation(
     let bob_add_proposal = alice_group
         .create_add_proposal(
             framing_parameters,
-            bob_key_package_bundle.key_package().clone(),
+            bob_kpb.key_package().clone(),
             &alice_signature_keys,
         )
         .expect("Could not create proposal.");
@@ -520,7 +517,8 @@ async fn test_staged_commit_creation(
             .welcome_option
             .expect("An unexpected error occurred."),
         Some(alice_group.public_group().export_ratchet_tree().into()),
-        bob_key_package_bundle,
+        bob_kpb.key_package(),
+        bob_kpb.private_key.clone(),
         backend,
         ResumptionPskStore::new(1024),
     )
@@ -702,7 +700,8 @@ async fn test_proposal_application_after_self_was_removed(
             .welcome_option
             .expect("An unexpected error occurred."),
         Some(ratchet_tree.into()),
-        bob_kpb,
+        bob_kpb.key_package(),
+        bob_kpb.private_key.clone(),
         backend,
         ResumptionPskStore::new(1024),
     )
@@ -787,7 +786,8 @@ async fn test_proposal_application_after_self_was_removed(
             .welcome_option
             .expect("An unexpected error occurred."),
         Some(ratchet_tree.into()),
-        charlie_kpb,
+        charlie_kpb.key_package(),
+        charlie_kpb.private_key.clone(),
         backend,
         ResumptionPskStore::new(1024),
     )

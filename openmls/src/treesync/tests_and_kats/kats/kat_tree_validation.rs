@@ -100,7 +100,7 @@ fn run_test_vector(test: TestElement, backend: &impl OpenMlsCryptoProvider) -> R
     let group_id = &GroupId::from_slice(test.group_id.as_slice());
     let Ok(ratchet_tree_in) = RatchetTreeIn::tls_deserialize_exact(test.tree) else {
         // ! Some trees are malformed in the test vectors, ignore them
-        return Ok(())
+        return Ok(());
     };
     let ratchet_tree = ratchet_tree_in
         .into_verified(ciphersuite, backend.crypto(), group_id)

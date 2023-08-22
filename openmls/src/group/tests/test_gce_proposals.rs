@@ -191,7 +191,10 @@ async fn gce_proposal_can_roundtrip(
         .process_message(backend, MlsMessageIn::from(gce_proposal))
         .await
         .unwrap();
-    let ProcessedMessageContent::ProposalMessage(gce_proposal) = processed_message.into_content() else { panic!("Not a remove proposal");};
+    let ProcessedMessageContent::ProposalMessage(gce_proposal) = processed_message.into_content()
+    else {
+        panic!("Not a remove proposal");
+    };
     bob_group.store_pending_proposal(*gce_proposal);
     let (commit, _, _) = bob_group
         .commit_to_pending_proposals(backend, &bob_signer)
@@ -281,7 +284,10 @@ async fn validating_commit_with_more_than_one_gce_proposal_should_fail(
         .process_message(backend, MlsMessageIn::from(first_gce_proposal))
         .await
         .unwrap();
-    let ProcessedMessageContent::ProposalMessage(gce_proposal) = processed_message.into_content() else { panic!("Not a proposal");};
+    let ProcessedMessageContent::ProposalMessage(gce_proposal) = processed_message.into_content()
+    else {
+        panic!("Not a proposal");
+    };
     bob_group.store_pending_proposal(*gce_proposal);
 
     // Bob creates a commit with just 1 GCE proposal
@@ -362,7 +368,7 @@ async fn gce_proposal_must_be_applied_first_then_used_to_validate_other_add_prop
         .propose_add_member(
             backend,
             &alice_signer,
-            charlie_key_package_bundle.key_package(),
+            charlie_key_package_bundle.key_package().clone().into(),
         )
         .unwrap();
 
@@ -370,14 +376,20 @@ async fn gce_proposal_must_be_applied_first_then_used_to_validate_other_add_prop
         .process_message(backend, MlsMessageIn::from(charlie_add_proposal))
         .await
         .unwrap();
-    let ProcessedMessageContent::ProposalMessage(add_proposal) = processed_message.into_content() else { panic!("Not a remove proposal");};
+    let ProcessedMessageContent::ProposalMessage(add_proposal) = processed_message.into_content()
+    else {
+        panic!("Not a remove proposal");
+    };
     bob_group.store_pending_proposal(*add_proposal);
 
     let processed_message = bob_group
         .process_message(backend, MlsMessageIn::from(gce_proposal))
         .await
         .unwrap();
-    let ProcessedMessageContent::ProposalMessage(gce_proposal) = processed_message.into_content() else { panic!("Not a remove proposal");};
+    let ProcessedMessageContent::ProposalMessage(gce_proposal) = processed_message.into_content()
+    else {
+        panic!("Not a remove proposal");
+    };
     bob_group.store_pending_proposal(*gce_proposal);
 
     assert_eq!(bob_group.pending_proposals().count(), 2);
@@ -454,7 +466,11 @@ async fn gce_proposal_must_be_applied_first_then_used_to_validate_other_external
         .process_message(backend, MlsMessageIn::from(charlie_add_proposal))
         .await
         .unwrap();
-    let ProcessedMessageContent::ExternalJoinProposalMessage(charlie_add_proposal) = processed_message.into_content() else { panic!("Not a proposal");};
+    let ProcessedMessageContent::ExternalJoinProposalMessage(charlie_add_proposal) =
+        processed_message.into_content()
+    else {
+        panic!("Not a proposal");
+    };
     alice_group.store_pending_proposal(*charlie_add_proposal);
 
     assert_eq!(alice_group.pending_proposals().count(), 2);
@@ -506,7 +522,7 @@ async fn gce_proposal_must_be_applied_first_but_ignored_for_remove_proposals(
         .add_members(
             backend,
             &alice_signer,
-            &[charlie_key_package_bundle.key_package().clone()],
+            vec![charlie_key_package_bundle.key_package().clone().into()],
         )
         .await
         .unwrap();
@@ -614,7 +630,7 @@ async fn gce_proposal_must_be_applied_first_but_ignored_for_external_remove_prop
         .add_members(
             backend,
             &alice_signer,
-            &[charlie_key_package_bundle.key_package().clone()],
+            vec![charlie_key_package_bundle.key_package().clone().into()],
         )
         .await
         .unwrap();
@@ -639,7 +655,11 @@ async fn gce_proposal_must_be_applied_first_but_ignored_for_external_remove_prop
         .process_message(backend, MlsMessageIn::from(charlie_ext_remove_proposal))
         .await
         .unwrap();
-    let ProcessedMessageContent::ProposalMessage(charlie_ext_remove_proposal) = processed_message.into_content() else { panic!("Not a remove proposal");};
+    let ProcessedMessageContent::ProposalMessage(charlie_ext_remove_proposal) =
+        processed_message.into_content()
+    else {
+        panic!("Not a remove proposal");
+    };
     alice_group.store_pending_proposal(*charlie_ext_remove_proposal);
 
     // Propose requiring ExternalSenders, which Charlie does not support
@@ -712,7 +732,7 @@ pub async fn group_setup(
         .add_members(
             backend,
             &alice_signer,
-            &[bob_key_package_bundle.key_package().clone()],
+            vec![bob_key_package_bundle.key_package().clone().into()],
         )
         .await
         .unwrap();

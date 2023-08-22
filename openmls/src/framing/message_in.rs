@@ -121,7 +121,7 @@ impl MlsMessageIn {
     pub fn into_keypackage(self) -> Option<crate::key_packages::KeyPackage> {
         match self.body {
             MlsMessageInBody::KeyPackage(key_package) => {
-                debug_assert!(key_package.version_is_supported(self.version));
+                debug_assert!(key_package.is_version_supported(self.version));
                 Some(key_package.into())
             }
             _ => None,

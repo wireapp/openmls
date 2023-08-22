@@ -161,7 +161,7 @@ impl PublicGroup {
         let unverified_message = self
             .parse_message(decrypted_message, None)
             .map_err(ProcessMessageError::from)?;
-        self.process_unverified_message(backend, unverified_message, &self.proposal_store)
+        self.process_unverified_message(backend, unverified_message, &self.proposal_store, self)
     }
 }
 
@@ -198,12 +198,17 @@ impl PublicGroup {
         backend: &impl OpenMlsCryptoProvider,
         unverified_message: UnverifiedMessage,
         proposal_store: &ProposalStore,
+        group: &PublicGroup,
     ) -> Result<ProcessedMessage, ProcessMessageError> {
         // Checks the following semantic validation:
         //  - ValSem010
         //  - ValSem246 (as part of ValSem010)
-        let (content, credential) =
-            unverified_message.verify(self.ciphersuite(), backend.crypto(), self.version())?;
+        let (content, credential) = unverified_message.verify(
+            self.ciphersuite(),
+            backend.crypto(),
+            self.version(),
+            group,
+        )?;
 
         match content.sender() {
             Sender::Member(_) | Sender::NewMemberCommit | Sender::NewMemberProposal => {

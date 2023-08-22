@@ -97,7 +97,11 @@ async fn remover(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider)
 
     // === Alice adds Bob ===
     let (_queued_message, welcome, _group_info) = alice_group
-        .add_members(backend, &alice_signer, &[bob_kpb.key_package().clone()])
+        .add_members(
+            backend,
+            &alice_signer,
+            vec![bob_kpb.key_package().clone().into()],
+        )
         .await
         .expect("Could not add member to group.");
 
@@ -117,7 +121,11 @@ async fn remover(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider)
 
     // === Bob adds Charlie ===
     let (queued_messages, welcome, _group_info) = bob_group
-        .add_members(backend, &bob_signer, &[charlie_kpb.key_package().clone()])
+        .add_members(
+            backend,
+            &bob_signer,
+            vec![charlie_kpb.key_package().clone().into()],
+        )
         .await
         .unwrap();
 
@@ -395,7 +403,7 @@ async fn test_pending_commit_logic(ciphersuite: Ciphersuite, backend: &impl Open
 
     // Let's add bob
     let (proposal, _) = alice_group
-        .propose_add_member(backend, &alice_signer, bob_key_package)
+        .propose_add_member(backend, &alice_signer, bob_key_package.clone().into())
         .expect("error creating self-update proposal");
 
     let alice_processed_message = alice_group
@@ -428,7 +436,7 @@ async fn test_pending_commit_logic(ciphersuite: Ciphersuite, backend: &impl Open
     // If there is a pending commit, other commit- or proposal-creating actions
     // should fail.
     let error = alice_group
-        .add_members(backend, &alice_signer, &[bob_key_package.clone()])
+        .add_members(backend, &alice_signer, vec![bob_key_package.clone().into()])
         .await
         .expect_err("no error committing while a commit is pending");
     assert!(matches!(
@@ -436,7 +444,7 @@ async fn test_pending_commit_logic(ciphersuite: Ciphersuite, backend: &impl Open
         AddMembersError::GroupStateError(MlsGroupStateError::PendingCommit)
     ));
     let error = alice_group
-        .propose_add_member(backend, &alice_signer, bob_key_package)
+        .propose_add_member(backend, &alice_signer, bob_key_package.clone().into())
         .expect_err("no error creating a proposal while a commit is pending");
     assert!(matches!(
         error,
@@ -582,7 +590,7 @@ async fn key_package_deletion(ciphersuite: Ciphersuite, backend: &impl OpenMlsCr
 
     // === Alice adds Bob ===
     let (_queued_message, welcome, _group_info) = alice_group
-        .add_members(backend, &alice_signer, &[bob_key_package.clone()])
+        .add_members(backend, &alice_signer, vec![bob_key_package.clone().into()])
         .await
         .unwrap();
 
@@ -653,7 +661,7 @@ async fn remove_prosposal_by_ref(ciphersuite: Ciphersuite, backend: &impl OpenMl
 
     // alice adds bob and bob processes the welcome
     let (_, welcome, _) = alice_group
-        .add_members(backend, &alice_signer, &[bob_key_package])
+        .add_members(backend, &alice_signer, vec![bob_key_package.clone().into()])
         .await
         .unwrap();
     alice_group.merge_pending_commit(backend).await.unwrap();
@@ -667,7 +675,7 @@ async fn remove_prosposal_by_ref(ciphersuite: Ciphersuite, backend: &impl OpenMl
     .unwrap();
     // alice proposes to add charlie
     let (_, reference) = alice_group
-        .propose_add_member(backend, &alice_signer, charlie_key_package)
+        .propose_add_member(backend, &alice_signer, charlie_key_package.clone().into())
         .unwrap();
 
     assert_eq!(alice_group.proposal_store.proposals().count(), 1);

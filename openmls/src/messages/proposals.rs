@@ -274,7 +274,7 @@ impl Proposal {
 /// ```
 #[derive(Debug, PartialEq, Clone, Serialize, Deserialize, TlsSerialize, TlsSize)]
 pub struct AddProposal {
-    pub(crate) key_package: KeyPackage,
+    pub key_package: KeyPackage,
 }
 
 impl AddProposal {

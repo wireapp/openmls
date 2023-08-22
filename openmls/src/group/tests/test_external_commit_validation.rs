@@ -194,7 +194,11 @@ async fn test_valsem242(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoPr
     .await;
 
     alice_group
-        .add_members(backend, &alice_credential.signer, &[bob_key_package])
+        .add_members(
+            backend,
+            &alice_credential.signer,
+            vec![bob_key_package.clone().into()],
+        )
         .await
         .unwrap();
     alice_group.merge_pending_commit(backend).await.unwrap();
@@ -349,7 +353,11 @@ async fn test_valsem243(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoPr
     .await;
 
     alice_group
-        .add_members(backend, &alice_credential.signer, &[bob_key_package])
+        .add_members(
+            backend,
+            &alice_credential.signer,
+            vec![bob_key_package.clone().into()],
+        )
         .await
         .unwrap();
 

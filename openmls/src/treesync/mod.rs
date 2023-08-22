@@ -114,6 +114,9 @@ pub enum RatchetTreeError {
     /// Wrong node type.
     #[error("Wrong node type.")]
     WrongNodeType,
+    /// See [`LeafNodeValidationError`] for more details.
+    #[error(transparent)]
+    LeafNodeValidationError(#[from] LeafNodeValidationError),
 }
 
 impl RatchetTree {
@@ -160,6 +163,7 @@ impl RatchetTree {
                 // The ratchet tree is not empty, i.e., has a last node, and the last node is not blank.
 
                 // Verify the nodes.
+                let signature_scheme = ciphersuite.signature_algorithm();
                 let mut verified_nodes = Vec::new();
                 for (index, node) in nodes.into_iter().enumerate() {
                     let verified_node = match (index % 2, node) {
@@ -169,30 +173,27 @@ impl RatchetTree {
                                 group_id.clone(),
                                 LeafNodeIndex::new((index / 2) as u32),
                             );
-                            let verifiable_leaf_node = leaf_node.into_verifiable_leaf_node();
+                            let verifiable_leaf_node =
+                                leaf_node.try_into_verifiable_leaf_node(Some(tree_position))?;
+
                             let signature_key = verifiable_leaf_node
                                 .signature_key()
                                 .clone()
-                                .into_signature_public_key_enriched(
-                                    ciphersuite.signature_algorithm(),
-                                );
-                            Some(Node::LeafNode(match verifiable_leaf_node {
-                                VerifiableLeafNode::KeyPackage(leaf_node) => leaf_node
-                                    .verify(crypto, &signature_key)
-                                    .map_err(|_| RatchetTreeError::InvalidNodeSignature)?,
-                                VerifiableLeafNode::Update(mut leaf_node) => {
-                                    leaf_node.add_tree_position(tree_position);
-                                    leaf_node
-                                        .verify(crypto, &signature_key)
-                                        .map_err(|_| RatchetTreeError::InvalidNodeSignature)?
+                                .into_signature_public_key_enriched(signature_scheme);
+
+                            let leaf_node = match verifiable_leaf_node {
+                                VerifiableLeafNode::KeyPackage(leaf_node) => {
+                                    leaf_node.verify(crypto, &signature_key)
                                 }
-                                VerifiableLeafNode::Commit(mut leaf_node) => {
-                                    leaf_node.add_tree_position(tree_position);
-                                    leaf_node
-                                        .verify(crypto, &signature_key)
-                                        .map_err(|_| RatchetTreeError::InvalidNodeSignature)?
+                                VerifiableLeafNode::Update(leaf_node) => {
+                                    leaf_node.verify(crypto, &signature_key)
                                 }
-                            }))
+                                VerifiableLeafNode::Commit(leaf_node) => {
+                                    leaf_node.verify(crypto, &signature_key)
+                                }
+                            }
+                            .map_err(|_| RatchetTreeError::InvalidNodeSignature)?;
+                            Some(Node::LeafNode(leaf_node))
                         }
                         // Odd indices must be parent nodes.
                         (1, Some(NodeIn::ParentNode(parent_node))) => {
@@ -528,6 +529,11 @@ impl TreeSync {
         self.tree
             .leaves()
             .filter_map(|(_, tsn)| tsn.node().as_ref())
+    }
+
+    /// Returns a list of nodes.
+    pub(crate) fn raw_leaves(&self) -> impl Iterator<Item = &LeafNode> {
+        self.tree.raw_leaves().filter_map(|tsn| tsn.node().as_ref())
     }
 
     /// Returns an indexed list of [`LeafNodeIndex`]es containing only full nodes.

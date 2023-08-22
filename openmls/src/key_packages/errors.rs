@@ -4,6 +4,7 @@
 
 use thiserror::Error;
 
+use crate::prelude::LeafNodeValidationError;
 use crate::{ciphersuite::signable::SignatureError, error::LibraryError};
 
 /// KeyPackage verify error
@@ -15,15 +16,15 @@ pub enum KeyPackageVerifyError {
     /// The lifetime of the leaf node is not valid.
     #[error("The lifetime of the leaf node is not valid.")]
     InvalidLifetime,
-    /// The lifetime of the leaf node is missing.
-    #[error("The lifetime of the leaf node is missing.")]
-    MissingLifetime,
     /// A key package extension is not supported in the leaf's capabilities.
     #[error("A key package extension is not supported in the leaf's capabilities.")]
     UnsupportedExtension,
     /// The key package signature is not valid.
     #[error("The key package signature is not valid.")]
     InvalidSignature,
+    /// The leaf node is not valid.
+    #[error(transparent)]
+    InvalidLeafNode(#[from] LeafNodeValidationError),
     /// The leaf node signature is not valid.
     #[error("The leaf node signature is not valid.")]
     InvalidLeafNodeSignature,
