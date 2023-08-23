@@ -2,6 +2,7 @@
 //!
 //! An implementation of the x509 credential from the MLS spec.
 
+use base64::Engine;
 use openmls_basic_credential::SignatureKeyPair;
 use x509_cert::der::Decode;
 use x509_cert::Certificate;
@@ -100,6 +101,8 @@ pub trait X509Ext {
         backend: &impl OpenMlsCrypto,
         issuer: &Certificate,
     ) -> Result<(), CryptoError>;
+
+    fn identity(&self) -> Result<Vec<u8>, CryptoError>;
 }
 
 impl X509Ext for Certificate {
@@ -180,4 +183,48 @@ impl X509Ext for Certificate {
             )
             .map_err(|_| CryptoError::InvalidSignature)
     }
+
+    fn identity(&self) -> Result<Vec<u8>, CryptoError> {
+        let extensions = self
+            .tbs_certificate
+            .extensions
+            .as_ref()
+            .ok_or(CryptoError::InvalidCertificate)?;
+        let san = extensions
+            .iter()
+            .find(|e| {
+                e.extn_id.as_bytes() == oid_registry::OID_X509_EXT_SUBJECT_ALT_NAME.as_bytes()
+            })
+            .and_then(|e| {
+                x509_cert::ext::pkix::SubjectAltName::from_der(e.extn_value.as_bytes()).ok()
+            })
+            .ok_or(CryptoError::InvalidCertificate)?;
+        san.0
+            .iter()
+            .filter_map(|n| match n {
+                x509_cert::ext::pkix::name::GeneralName::UniformResourceIdentifier(ia5_str) => {
+                    Some(ia5_str.as_str())
+                }
+                _ => None,
+            })
+            .filter(|n| n.starts_with("im:wireapp="))
+            .find_map(parse_client_id)
+            .map(|i| i.as_bytes().to_vec())
+            .ok_or(CryptoError::InvalidCertificate)
+    }
+}
+
+fn parse_client_id(client_id: &str) -> Option<&str> {
+    let (user_id, rest) = client_id.split_once('/')?;
+    parse_user_id(user_id)?;
+    let (device_id, _domain) = rest.split_once('@')?;
+    u64::from_str_radix(device_id, 16).ok()?;
+    Some(client_id)
+}
+
+fn parse_user_id(user_id: impl AsRef<[u8]>) -> Option<uuid::Uuid> {
+    let user_id = base64::prelude::BASE64_URL_SAFE_NO_PAD
+        .decode(user_id)
+        .ok()?;
+    uuid::Uuid::from_slice(&user_id).ok()
 }
