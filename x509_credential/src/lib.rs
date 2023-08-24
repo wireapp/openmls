@@ -228,11 +228,13 @@ fn parse_client_id(client_id: &str) -> Option<String> {
     Some(client_id)
 }
 
-fn parse_user_id(user_id: impl AsRef<[u8]>) -> Option<uuid::Uuid> {
-    let user_id = base64::prelude::BASE64_URL_SAFE_NO_PAD
+fn parse_user_id(user_id: impl AsRef<[u8]>) -> Option<()> {
+    let _user_id = base64::prelude::BASE64_URL_SAFE_NO_PAD
         .decode(user_id)
         .ok()?;
     // TODO: this holds for the former (wrong) userId encoding (where we were b64 encoding the uuid string and not byte representation)
     // When  upstream rusty-jwt-tools gets merged, change to `uuid::Uuid::from_slice`. Core-Crypto tests will spot that anyway
-    uuid::Uuid::try_parse_ascii(&user_id).ok()
+    // uuid::Uuid::from_slice(&user_id).ok()
+    // TODO: reintroduce this check once all platform got the fix with the correct userId encoding
+    Some(())
 }
