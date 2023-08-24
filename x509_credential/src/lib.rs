@@ -105,6 +105,8 @@ pub trait X509Ext {
     fn identity(&self) -> Result<Vec<u8>, CryptoError>;
 }
 
+const CLIENT_ID_PREFIX: &str = "im:wireapp=";
+
 impl X509Ext for Certificate {
     fn is_valid(&self) -> Result<(), CryptoError> {
         if !self.is_time_valid()? {
@@ -207,18 +209,20 @@ impl X509Ext for Certificate {
                 }
                 _ => None,
             })
-            .filter(|n| n.starts_with("im:wireapp="))
+            .filter(|n| n.starts_with(CLIENT_ID_PREFIX))
+            .map(|n| n.trim_start_matches(CLIENT_ID_PREFIX))
             .find_map(parse_client_id)
             .map(|i| i.as_bytes().to_vec())
             .ok_or(CryptoError::InvalidCertificate)
     }
 }
 
-fn parse_client_id(client_id: &str) -> Option<&str> {
+fn parse_client_id(client_id: &str) -> Option<String> {
     let (user_id, rest) = client_id.split_once('/')?;
     parse_user_id(user_id)?;
     let (device_id, _domain) = rest.split_once('@')?;
     u64::from_str_radix(device_id, 16).ok()?;
+    let client_id = client_id.replace('/', ":");
     Some(client_id)
 }
 
@@ -226,5 +230,7 @@ fn parse_user_id(user_id: impl AsRef<[u8]>) -> Option<uuid::Uuid> {
     let user_id = base64::prelude::BASE64_URL_SAFE_NO_PAD
         .decode(user_id)
         .ok()?;
-    uuid::Uuid::from_slice(&user_id).ok()
+    // TODO: this holds for the former (wrong) userId encoding (where we were b64 encoding the uuid string and not byte representation)
+    // When  upstream rusty-jwt-tools gets merged, change to `uuid::Uuid::from_slice`. Core-Crypto tests will spot that anyway
+    uuid::Uuid::try_parse_ascii(&user_id).ok()
 }
