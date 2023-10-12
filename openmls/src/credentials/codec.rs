@@ -1,3 +1,4 @@
+use crate::credentials::certificate::Certificate;
 use std::io::Read;
 
 use super::*;
