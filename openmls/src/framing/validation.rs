@@ -286,30 +286,31 @@ impl UnverifiedMessage {
                 .verify(crypto, &self.sender_pk)
                 .map_err(|_| ProcessMessageError::InvalidSignature)?,
             MlsCredentialType::X509(certificate_chain) => {
-                certificate_chain
-                    .pki_path()?
-                    .iter()
-                    .enumerate()
-                    .map(Ok)
-                    .reduce(
-                        |a, b| -> Result<(usize, &x509_cert::Certificate), CryptoError> {
-                            use openmls_x509_credential::X509Ext;
-                            let (_, child_cert) = a?;
-                            let (parent_idx, parent_cert) = b?;
-                            // verify not expired
-                            child_cert.is_valid()?;
+                certificate_chain.verify()?;
+                /*certificate_chain
+                .pki_path()?
+                .iter()
+                .enumerate()
+                .map(Ok)
+                .reduce(
+                    |a, b| -> Result<(usize, &x509_cert::Certificate), CryptoError> {
+                        use openmls_x509_credential::X509Ext;
+                        let (_, child_cert) = a?;
+                        let (parent_idx, parent_cert) = b?;
+                        // verify not expired
+                        child_cert.is_valid()?;
 
-                            // verify that child is signed by parent
-                            child_cert.is_signed_by(crypto, parent_cert)?;
+                        // verify that child is signed by parent
+                        child_cert.is_signed_by(crypto, parent_cert)?;
 
-                            Ok((parent_idx, parent_cert))
-                        },
-                    )
-                    .ok_or_else(|| {
-                        ProcessMessageError::LibraryError(LibraryError::custom(
-                            "Cannot have validated an empty certificate chain",
-                        ))
-                    })??;
+                        Ok((parent_idx, parent_cert))
+                    },
+                )
+                .ok_or_else(|| {
+                    ProcessMessageError::LibraryError(LibraryError::custom(
+                        "Cannot have validated an empty certificate chain",
+                    ))
+                })??;*/
                 self.verifiable_content
                     // sender pk should be the leaf certificate
                     .verify(crypto, &self.sender_pk)

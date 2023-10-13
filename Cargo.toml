@@ -21,3 +21,11 @@ features = ["derive", "serde", "mls"]
 [workspace.dependencies.tls_codec_derive]
 version = "0.3.0"
 features = ["derive", "serde", "mls"]
+
+[patch.crates-io.webpki]
+package = "rustls-webpki"
+path = "../webpki"
+
+[patch.crates-io.pki-types]
+package = "rustls-pki-types"
+path = "../pki-types"

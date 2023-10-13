@@ -1,13 +1,13 @@
 use std::io::{Read, Write};
 
+use rustls_platform_verifier::CertificateDer;
 use serde::{Deserialize, Serialize};
-use tls_codec::{Error, VLBytes};
+use tls_codec::VLBytes;
 use x509_cert::{der::Decode, PkiPath};
 
-use crate::ciphersuite::Signature;
 use openmls_x509_credential::X509Ext;
 
-use crate::prelude::{CredentialError, Verifiable};
+use crate::prelude::CredentialError;
 
 /// X.509 Certificate.
 ///
@@ -50,27 +50,50 @@ impl tls_codec::Deserialize for Certificate {
 }
 
 impl Certificate {
-    pub(crate) fn pki_path(&self) -> Result<PkiPath, CredentialError> {
-        self.certificates.iter().try_fold(
-            PkiPath::new(),
-            |mut acc, cert_data| -> Result<PkiPath, CredentialError> {
-                acc.push(x509_cert::Certificate::from_der(cert_data.as_slice())?);
-                Ok(acc)
-            },
-        )
-    }
-
     pub fn try_new(certificates: Vec<Vec<u8>>) -> Result<Self, CredentialError> {
-        let leaf = certificates
+        let end_entity = certificates
             .get(0)
             .ok_or(CredentialError::InvalidCertificateChain)?;
-        let leaf = x509_cert::Certificate::from_der(leaf)?;
-        let identity = leaf
+        let end_entity = x509_cert::Certificate::from_der(end_entity)?;
+        let identity = end_entity
             .identity()
             .map_err(|_| CredentialError::InvalidCertificateChain)?;
         Ok(Self {
             identity,
             certificates: certificates.into_iter().map(|c| c.into()).collect(),
         })
+    }
+
+    fn get_end_entity(&self) -> Result<CertificateDer, CredentialError> {
+        self.certificates
+            .first()
+            .map(VLBytes::as_slice)
+            .map(CertificateDer::from)
+            .ok_or(CredentialError::InvalidCertificateChain)
+    }
+
+    fn get_intermediates(&self) -> Result<Vec<CertificateDer>, CredentialError> {
+        if self.certificates.len() < 2 {
+            return Err(CredentialError::InvalidCertificateChain);
+        }
+        let intermediates = self.certificates.as_slice()[1..]
+            .iter()
+            .map(VLBytes::as_slice)
+            .map(CertificateDer::from)
+            .collect::<Vec<_>>();
+        Ok(intermediates)
+    }
+
+    pub fn verify(&self) -> Result<(), CredentialError> {
+        let verifier = rustls_platform_verifier::WireClientVerifier::new();
+
+        let now = rustls_platform_verifier::UnixTime::now();
+        let end_entity = self.get_end_entity()?;
+        let intermediates = self.get_intermediates()?;
+
+        use rustls_platform_verifier::ClientCertVerifier as _;
+        verifier.verify_client_cert(&end_entity, &intermediates[..], now)?;
+
+        Ok(())
     }
 }

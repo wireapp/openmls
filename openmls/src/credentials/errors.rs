@@ -26,4 +26,7 @@ pub enum CredentialError {
     /// x509 certificate chain is either unordered or a child is missigned by its issuer
     #[error("Invalid x509 certificate chain.")]
     InvalidCertificateChain,
+    /// Rustls error
+    #[error("Rustls error")]
+    RustlsError(#[from] rustls_platform_verifier::RustlsError),
 }

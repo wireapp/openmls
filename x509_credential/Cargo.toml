@@ -16,6 +16,8 @@ fluvio-wasm-timer = "0.2"
 base64 = "0.21"
 uuid = "1.4"
 
+rustls-platform-verifier = { path = "../../rustls-platform-verifier" }
+
 # Rust Crypto
 secrecy = { version = "0.8", features = ["serde"] }
 x509-cert = "0.2"

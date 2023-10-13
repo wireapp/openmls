@@ -4,8 +4,8 @@
 
 use base64::Engine;
 use openmls_basic_credential::SignatureKeyPair;
+use rustls_platform_verifier::CertificateDer;
 use x509_cert::der::Decode;
-use x509_cert::Certificate;
 
 use openmls_traits::{
     crypto::OpenMlsCrypto,
@@ -19,25 +19,37 @@ pub struct CertificateKeyPair(pub SignatureKeyPair);
 
 impl CertificateKeyPair {
     /// Constructs the `CertificateKeyPair` from a private key and a der encoded certificate chain
-    pub fn new(sk: Vec<u8>, cert_chain: Vec<Vec<u8>>) -> Result<Self, CryptoError> {
+    pub fn try_new(sk: Vec<u8>, cert_chain: Vec<Vec<u8>>) -> Result<Self, CryptoError> {
         if cert_chain.len() < 2 {
             return Err(CryptoError::IncompleteCertificateChain);
         }
-        let pki_path = cert_chain.into_iter().try_fold(
-            x509_cert::PkiPath::new(),
-            |mut acc, cert_data| -> Result<x509_cert::PkiPath, CryptoError> {
-                let cert = Certificate::from_der(&cert_data)
-                    .map_err(|_| CryptoError::CertificateDecodingError)?;
-                cert.is_valid()?;
-                acc.push(cert);
-                Ok(acc)
-            },
-        )?;
 
-        let leaf = pki_path.get(0).ok_or(CryptoError::CryptoLibraryError)?;
+        let verifier = rustls_platform_verifier::WireClientVerifier::new();
 
-        let signature_scheme = leaf.signature_scheme()?;
-        let pk = leaf.public_key()?;
+        let end_entity = cert_chain
+            .get(0)
+            .map(|c| CertificateDer::from(c.as_slice()))
+            .ok_or(CryptoError::IncompleteCertificateChain)?;
+
+        let intermediates = cert_chain.as_slice()[1..]
+            .into_iter()
+            .map(|c| CertificateDer::from(c.as_slice()))
+            .collect::<Vec<_>>();
+
+        let now = rustls_platform_verifier::UnixTime::now();
+
+        use rustls_platform_verifier::ClientCertVerifier as _;
+        verifier
+            .verify_client_cert(&end_entity, &intermediates[..], now)
+            .map_err(|_| CryptoError::InvalidCertificateChain)?;
+
+        // We use x509_cert crate here because it is better at introspecting certs compared rustls which
+        // is more TLS focused and does not come up with handy helpers
+        let end_entity = x509_cert::Certificate::from_der(end_entity.as_ref())
+            .map_err(|_| CryptoError::InvalidCertificateChain)?;
+
+        let signature_scheme = end_entity.signature_scheme()?;
+        let pk = end_entity.public_key()?;
 
         let kp = SignatureKeyPair::try_from_raw(signature_scheme, sk, pk.to_vec())?;
 
@@ -88,50 +100,16 @@ impl MlsEntity for CertificateKeyPair {
 }
 
 pub trait X509Ext {
-    fn is_valid(&self) -> Result<(), CryptoError>;
-
-    fn is_time_valid(&self) -> Result<bool, CryptoError>;
-
     fn public_key(&self) -> Result<&[u8], CryptoError>;
 
     fn signature_scheme(&self) -> Result<SignatureScheme, CryptoError>;
-
-    fn is_signed_by(
-        &self,
-        backend: &impl OpenMlsCrypto,
-        issuer: &Certificate,
-    ) -> Result<(), CryptoError>;
 
     fn identity(&self) -> Result<Vec<u8>, CryptoError>;
 }
 
 const CLIENT_ID_PREFIX: &str = "im:wireapp=";
 
-impl X509Ext for Certificate {
-    fn is_valid(&self) -> Result<(), CryptoError> {
-        if !self.is_time_valid()? {
-            return Err(CryptoError::ExpiredCertificate);
-        }
-        Ok(())
-    }
-
-    fn is_time_valid(&self) -> Result<bool, CryptoError> {
-        // 'not_before' < now < 'not_after'
-        let x509_cert::time::Validity {
-            not_before,
-            not_after,
-        } = self.tbs_certificate.validity;
-
-        let now = fluvio_wasm_timer::SystemTime::now();
-        let now = now
-            .duration_since(fluvio_wasm_timer::UNIX_EPOCH)
-            .map_err(|_| CryptoError::TimeError)?;
-
-        let is_nbf = now > not_before.to_unix_duration();
-        let is_naf = now < not_after.to_unix_duration();
-        Ok(is_nbf && is_naf)
-    }
-
+impl X509Ext for x509_cert::Certificate {
     fn public_key(&self) -> Result<&[u8], CryptoError> {
         self.tbs_certificate
             .subject_public_key_info
@@ -158,32 +136,6 @@ impl X509Ext for Certificate {
             return Err(CryptoError::UnsupportedSignatureScheme);
         };
         Ok(scheme)
-    }
-
-    fn is_signed_by(
-        &self,
-        backend: &impl OpenMlsCrypto,
-        issuer: &Certificate,
-    ) -> Result<(), CryptoError> {
-        let issuer_pk = issuer.public_key()?;
-        let cert_signature = self
-            .signature
-            .as_bytes()
-            .ok_or(CryptoError::InvalidCertificate)?;
-
-        use x509_cert::der::Encode as _;
-        let mut raw_tbs: Vec<u8> = vec![];
-        self.tbs_certificate
-            .encode(&mut raw_tbs)
-            .map_err(|_| CryptoError::CertificateEncodingError)?;
-        backend
-            .verify_signature(
-                self.signature_scheme()?,
-                &raw_tbs,
-                issuer_pk,
-                cert_signature,
-            )
-            .map_err(|_| CryptoError::InvalidSignature)
     }
 
     fn identity(&self) -> Result<Vec<u8>, CryptoError> {
