@@ -4,7 +4,6 @@
 
 use base64::Engine;
 use openmls_basic_credential::SignatureKeyPair;
-use rustls_platform_verifier::CertificateDer;
 use x509_cert::der::Decode;
 
 use openmls_traits::{
@@ -27,19 +26,21 @@ impl CertificateKeyPair {
 
         let end_entity = cert_chain
             .get(0)
-            .map(|c| CertificateDer::from(c.as_slice()))
+            .map(|c| c.as_slice())
             .ok_or(CryptoError::IncompleteCertificateChain)?;
 
         let intermediates = cert_chain.as_slice()[1..]
             .into_iter()
-            .map(|c| CertificateDer::from(c.as_slice()))
+            .map(|c| c.as_slice())
             .collect::<Vec<_>>();
 
-        let now = rustls_platform_verifier::UnixTime::now();
-
-        use rustls_platform_verifier::ClientCertVerifier as _;
+        use rustls_platform_verifier::WireVerifier as _;
         verifier
-            .verify_client_cert(&end_entity, &intermediates[..], now)
+            .verify_client_cert(
+                &end_entity,
+                &intermediates[..],
+                rustls_platform_verifier::VerifyOptions::default(),
+            )
             .map_err(|_| CryptoError::InvalidCertificateChain)?;
 
         // We use x509_cert crate here because it is better at introspecting certs compared rustls which

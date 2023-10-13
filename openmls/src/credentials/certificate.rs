@@ -1,6 +1,5 @@
 use std::io::{Read, Write};
 
-use rustls_platform_verifier::CertificateDer;
 use serde::{Deserialize, Serialize};
 use tls_codec::VLBytes;
 use x509_cert::der::Decode;
@@ -64,22 +63,20 @@ impl Certificate {
         })
     }
 
-    fn get_end_entity(&self) -> Result<CertificateDer, CredentialError> {
+    fn get_end_entity(&self) -> Result<&[u8], CredentialError> {
         self.certificates
             .first()
             .map(VLBytes::as_slice)
-            .map(CertificateDer::from)
             .ok_or(CredentialError::InvalidCertificateChain)
     }
 
-    fn get_intermediates(&self) -> Result<Vec<CertificateDer>, CredentialError> {
+    fn get_intermediates(&self) -> Result<Vec<&[u8]>, CredentialError> {
         if self.certificates.len() < 2 {
             return Err(CredentialError::InvalidCertificateChain);
         }
         let intermediates = self.certificates.as_slice()[1..]
             .iter()
             .map(VLBytes::as_slice)
-            .map(CertificateDer::from)
             .collect::<Vec<_>>();
         Ok(intermediates)
     }
@@ -87,12 +84,15 @@ impl Certificate {
     pub fn verify(&self) -> Result<(), CredentialError> {
         let verifier = rustls_platform_verifier::WireClientVerifier::new();
 
-        let now = rustls_platform_verifier::UnixTime::now();
         let end_entity = self.get_end_entity()?;
         let intermediates = self.get_intermediates()?;
 
-        use rustls_platform_verifier::ClientCertVerifier as _;
-        verifier.verify_client_cert(&end_entity, &intermediates[..], now)?;
+        use rustls_platform_verifier::WireVerifier as _;
+        verifier.verify_client_cert(
+            &end_entity,
+            &intermediates[..],
+            rustls_platform_verifier::VerifyOptions::default(),
+        )?;
 
         Ok(())
     }
