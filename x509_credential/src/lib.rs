@@ -8,7 +8,6 @@ use rustls_platform_verifier::CertificateDer;
 use x509_cert::der::Decode;
 
 use openmls_traits::{
-    crypto::OpenMlsCrypto,
     key_store::{MlsEntity, MlsEntityId},
     types::{CryptoError, SignatureScheme},
 };

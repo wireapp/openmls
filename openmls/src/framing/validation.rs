@@ -25,8 +25,8 @@
 
 use openmls_traits::{
     crypto::OpenMlsCrypto,
-    types::{Ciphersuite, CryptoError},
     OpenMlsCryptoProvider,
+    types::Ciphersuite,
 };
 
 use crate::{
@@ -43,15 +43,15 @@ use crate::{
     versions::ProtocolVersion,
 };
 
-use self::mls_group::errors::ProcessMessageError;
-
 use super::{
+    *,
     mls_auth_content::AuthenticatedContent,
     mls_auth_content_in::{AuthenticatedContentIn, VerifiableAuthenticatedContentIn},
     private_message_in::PrivateMessageIn,
     public_message_in::PublicMessageIn,
-    *,
 };
+
+use self::mls_group::errors::ProcessMessageError;
 
 /// Intermediate message that can be constructed either from a public message or from private message.
 /// If it it constructed from a ciphertext message, the ciphertext message is decrypted first.

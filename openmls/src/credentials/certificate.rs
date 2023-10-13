@@ -3,7 +3,7 @@ use std::io::{Read, Write};
 use rustls_platform_verifier::CertificateDer;
 use serde::{Deserialize, Serialize};
 use tls_codec::VLBytes;
-use x509_cert::{der::Decode, PkiPath};
+use x509_cert::der::Decode;
 
 use openmls_x509_credential::X509Ext;
 
