@@ -100,7 +100,7 @@ impl std::ops::Deref for RatchetTree {
 }
 
 /// An error during processing of an incoming ratchet tree.
-#[derive(Error, Debug, PartialEq, Clone)]
+#[derive(Error, Debug)]
 pub enum RatchetTreeError {
     /// The ratchet tree is empty.
     #[error("The ratchet tree has no nodes.")]

@@ -14,7 +14,7 @@ use crate::error::{ErrorString, LibraryError};
 use thiserror::Error;
 
 /// Extension error
-#[derive(Error, Debug, PartialEq, Clone)]
+#[derive(Error, Debug)]
 pub enum ExtensionError {
     /// Unsupported proposal type in required capabilities.
     #[error("Unsupported proposal type in required capabilities.")]

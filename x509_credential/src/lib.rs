@@ -3,6 +3,7 @@
 //! An implementation of the x509 credential from the MLS spec.
 
 use base64::Engine;
+use error::X509Error;
 use openmls_basic_credential::SignatureKeyPair;
 use x509_cert::der::Decode;
 
@@ -11,42 +12,36 @@ use openmls_traits::{
     types::{CryptoError, SignatureScheme},
 };
 
+pub mod error;
+
 #[derive(std::fmt::Debug, serde::Serialize, serde::Deserialize)]
 #[serde(transparent)]
 pub struct CertificateKeyPair(pub SignatureKeyPair);
 
 impl CertificateKeyPair {
-    /// Constructs the `CertificateKeyPair` from a private key and a der encoded certificate chain
-    pub fn try_new(sk: Vec<u8>, cert_chain: Vec<Vec<u8>>) -> Result<Self, CryptoError> {
+    /// Constructs the `CertificateKeyPair` from a private key and a der encoded certificate chain.
+    /// When
+    pub fn try_new(sk: Vec<u8>, mut cert_chain: Vec<Vec<u8>>) -> Result<Self, X509Error> {
         if cert_chain.len() < 2 {
-            return Err(CryptoError::IncompleteCertificateChain);
+            return Err(X509Error::IncompleteCertificateChain);
         }
 
-        let verifier = rustls_platform_verifier::WireClientVerifier::new();
+        let mut verifier = rustls_platform_verifier::WireClientVerifier::new();
 
-        let end_entity = cert_chain
-            .get(0)
-            .map(|c| c.as_slice())
-            .ok_or(CryptoError::IncompleteCertificateChain)?;
+        let end_entity = cert_chain.remove(0);
 
-        let intermediates = cert_chain.as_slice()[1..]
-            .into_iter()
-            .map(|c| c.as_slice())
-            .collect::<Vec<_>>();
+        let intermediates = cert_chain;
 
         use rustls_platform_verifier::WireVerifier as _;
+        let options = rustls_platform_verifier::VerifyOptions::try_new(true, &[])?;
         verifier
-            .verify_client_cert(
-                &end_entity,
-                &intermediates[..],
-                rustls_platform_verifier::VerifyOptions::default(),
-            )
-            .map_err(|_| CryptoError::InvalidCertificateChain)?;
+            .verify_client_cert(&end_entity, intermediates.as_slice(), options)
+            .map_err(|_| X509Error::InvalidCertificateChain)?;
 
         // We use x509_cert crate here because it is better at introspecting certs compared rustls which
         // is more TLS focused and does not come up with handy helpers
-        let end_entity = x509_cert::Certificate::from_der(end_entity.as_ref())
-            .map_err(|_| CryptoError::InvalidCertificateChain)?;
+        let end_entity = x509_cert::Certificate::from_der(&end_entity[..])
+            .map_err(|_| X509Error::InvalidCertificateChain)?;
 
         let signature_scheme = end_entity.signature_scheme()?;
         let pk = end_entity.public_key()?;

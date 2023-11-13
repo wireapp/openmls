@@ -8,7 +8,7 @@ use crate::prelude::LeafNodeValidationError;
 use crate::{ciphersuite::signable::SignatureError, error::LibraryError};
 
 /// KeyPackage verify error
-#[derive(Error, Debug, PartialEq, Clone)]
+#[derive(Error, Debug)]
 pub enum KeyPackageVerifyError {
     /// See [`LibraryError`] for more details.
     #[error(transparent)]
@@ -48,7 +48,7 @@ pub enum KeyPackageExtensionSupportError {
 }
 
 /// KeyPackage new error
-#[derive(Error, Debug, PartialEq, Clone)]
+#[derive(Error, Debug)]
 pub enum KeyPackageNewError<KeyStoreError> {
     /// See [`LibraryError`] for more details.
     #[error(transparent)]
@@ -65,7 +65,7 @@ pub enum KeyPackageNewError<KeyStoreError> {
 }
 
 /// KeyPackage delete error
-#[derive(Error, Debug, PartialEq, Clone)]
+#[derive(Error, Debug)]
 pub enum KeyPackageDeleteError<KeyStoreError> {
     /// See [`LibraryError`] for more details.
     #[error(transparent)]

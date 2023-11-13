@@ -6,7 +6,7 @@ use crate::error::LibraryError;
 use thiserror::Error;
 
 /// An error that occurs in methods of a [`super::Credential`].
-#[derive(Error, Debug, PartialEq, Clone)]
+#[derive(Error, Debug)]
 pub enum CredentialError {
     /// A library error occurred.
     #[error(transparent)]
@@ -26,7 +26,7 @@ pub enum CredentialError {
     /// x509 certificate chain is either unordered or a child is missigned by its issuer
     #[error("Invalid x509 certificate chain.")]
     InvalidCertificateChain,
-    /// Rustls error
-    #[error("Rustls error")]
-    RustlsError(#[from] rustls_platform_verifier::RustlsError),
+    /// X509 certificate verification error
+    #[error("X509 certificate verification error")]
+    RustlsError(#[from] rustls_platform_verifier::WireX509Error),
 }

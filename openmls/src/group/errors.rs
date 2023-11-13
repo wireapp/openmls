@@ -21,7 +21,7 @@ use crate::{
 };
 
 /// Welcome error
-#[derive(Error, Debug, PartialEq, Clone)]
+#[derive(Error, Debug)]
 pub enum WelcomeError<KeyStoreError> {
     /// See [`GroupSecretsError`] for more details.
     #[error(transparent)]
@@ -102,7 +102,7 @@ pub enum WelcomeError<KeyStoreError> {
 }
 
 /// External Commit error
-#[derive(Error, Debug, PartialEq, Clone)]
+#[derive(Error, Debug)]
 pub enum ExternalCommitError {
     /// See [`LibraryError`] for more details.
     #[error(transparent)]
@@ -135,7 +135,7 @@ pub enum ExternalCommitError {
 }
 
 /// Stage Commit error
-#[derive(Error, Debug, PartialEq, Clone)]
+#[derive(Error, Debug)]
 pub enum StageCommitError {
     /// See [`LibraryError`] for more details.
     #[error(transparent)]
@@ -203,7 +203,7 @@ pub enum StageCommitError {
 }
 
 /// Create commit error
-#[derive(Error, Debug, PartialEq, Clone)]
+#[derive(Error, Debug)]
 pub enum CreateCommitError<KeyStoreError> {
     /// See [`LibraryError`] for more details.
     #[error(transparent)]
@@ -247,7 +247,7 @@ pub enum CreateCommitError<KeyStoreError> {
 }
 
 /// Validation error
-#[derive(Error, Debug, PartialEq, Clone)]
+#[derive(Error, Debug)]
 pub enum ValidationError {
     /// See [`LibraryError`] for more details.
     #[error(transparent)]
@@ -332,7 +332,7 @@ pub enum ValidationError {
 }
 
 /// Proposal validation error
-#[derive(Error, Debug, PartialEq, Clone)]
+#[derive(Error, Debug)]
 pub enum ProposalValidationError {
     /// See [`LibraryError`] for more details.
     #[error(transparent)]
@@ -384,7 +384,7 @@ pub enum ProposalValidationError {
 }
 
 /// ReInit validation error
-#[derive(Error, Debug, PartialEq, Clone)]
+#[derive(Error, Debug)]
 pub enum ReInitValidationError {
     /// See [`LeafNodeValidationError`] for more details.
     #[error(transparent)]
@@ -395,7 +395,7 @@ pub enum ReInitValidationError {
 }
 
 /// External Commit validaton error
-#[derive(Error, Debug, PartialEq, Clone)]
+#[derive(Error, Debug)]
 pub enum ExternalCommitValidationError {
     /// See [`LibraryError`] for more details.
     #[error(transparent)]
@@ -429,7 +429,7 @@ pub enum ExternalCommitValidationError {
 }
 
 /// Create add proposal error
-#[derive(Error, Debug, PartialEq, Clone)]
+#[derive(Error, Debug)]
 pub enum CreateAddProposalError {
     /// See [`LibraryError`] for more details.
     #[error(transparent)]
@@ -445,7 +445,7 @@ pub enum CreateAddProposalError {
 // === Crate errors ===
 
 /// Exporter error
-#[derive(Error, Debug, PartialEq, Clone)]
+#[derive(Error, Debug)]
 pub enum ExporterError {
     /// See [`LibraryError`] for more details.
     #[error(transparent)]
@@ -455,7 +455,7 @@ pub enum ExporterError {
 }
 
 /// Proposal queue error
-#[derive(Error, Debug, PartialEq, Clone)]
+#[derive(Error, Debug)]
 pub enum ProposalQueueError {
     /// See [`LibraryError`] for more details.
     #[error(transparent)]
@@ -470,7 +470,7 @@ pub enum ProposalQueueError {
 
 /// Errors that can arise when creating a [`crate::group::core_group::proposals::ProposalQueue`] from committed
 /// proposals.
-#[derive(Error, Debug, PartialEq, Clone)]
+#[derive(Error, Debug)]
 pub enum FromCommittedProposalsError {
     /// See [`LibraryError`] for more details.
     #[error(transparent)]
@@ -484,7 +484,7 @@ pub enum FromCommittedProposalsError {
 }
 
 /// Creation proposal queue error
-#[derive(Error, Debug, PartialEq, Clone)]
+#[derive(Error, Debug)]
 pub enum CreationProposalQueueError {
     /// See [`LibraryError`] for more details.
     #[error(transparent)]
@@ -495,7 +495,7 @@ pub enum CreationProposalQueueError {
 }
 
 // Apply proposals error
-#[derive(Error, Debug, PartialEq, Clone)]
+#[derive(Error, Debug)]
 pub enum ApplyProposalsError {
     /// See [`LibraryError`] for more details.
     #[error(transparent)]
@@ -506,7 +506,7 @@ pub enum ApplyProposalsError {
 }
 
 // Core group build error
-#[derive(Error, Debug, PartialEq, Clone)]
+#[derive(Error, Debug)]
 pub enum CoreGroupBuildError<KeyStoreError> {
     /// See [`LibraryError`] for more details.
     #[error(transparent)]
@@ -523,7 +523,7 @@ pub enum CoreGroupBuildError<KeyStoreError> {
 }
 
 // CoreGroup parse message error
-#[derive(Error, Debug, PartialEq, Clone)]
+#[derive(Error, Debug)]
 pub enum CoreGroupParseMessageError {
     /// See [`LibraryError`] for more details.
     #[error(transparent)]
@@ -536,7 +536,7 @@ pub enum CoreGroupParseMessageError {
 }
 
 /// Error merging a commit.
-#[derive(Error, Debug, PartialEq, Clone)]
+#[derive(Error, Debug)]
 pub enum MergeCommitError<KeyStoreError> {
     /// See [`LibraryError`] for more details.
     #[error(transparent)]

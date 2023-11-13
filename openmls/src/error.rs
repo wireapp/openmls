@@ -67,7 +67,7 @@ use tls_codec::Error as TlsCodecError;
 ///
 /// In all cases, when a `LibraryError` is returned, applications should try to recover gracefully from it.
 /// It is recommended to log the error for potential debugging.
-#[derive(Error, Debug, PartialEq, Eq, Clone)]
+#[derive(Error, Debug)]
 pub struct LibraryError {
     internal: InternalLibraryError,
 }

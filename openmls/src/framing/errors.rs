@@ -11,7 +11,7 @@ use thiserror::Error;
 pub use crate::tree::secret_tree::SecretTreeError;
 
 /// Message decryption error
-#[derive(Error, Debug, PartialEq, Clone)]
+#[derive(Error, Debug)]
 pub enum MessageDecryptionError {
     /// See [`LibraryError`] for more details.
     #[error(transparent)]
@@ -37,7 +37,7 @@ pub enum MessageDecryptionError {
 }
 
 /// Message encryption error
-#[derive(Error, Debug, PartialEq, Clone)]
+#[derive(Error, Debug)]
 pub enum MessageEncryptionError {
     /// See [`LibraryError`] for more details.
     #[error(transparent)]
@@ -54,7 +54,7 @@ pub enum MessageEncryptionError {
 }
 
 /// Sender error
-#[derive(Error, Debug, PartialEq, Clone)]
+#[derive(Error, Debug)]
 pub enum SenderError {
     /// See [`LibraryError`] for more details.
     #[error(transparent)]

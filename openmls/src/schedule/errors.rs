@@ -9,7 +9,7 @@ use crate::{
 };
 
 /// PSK secret error
-#[derive(Error, Debug, PartialEq, Clone)]
+#[derive(Error, Debug)]
 pub enum PskError {
     /// See [`LibraryError`] for more details.
     #[error(transparent)]
@@ -61,7 +61,7 @@ pub enum PskError {
 // === Crate ===
 
 /// Key schedule state error
-#[derive(Error, Debug, PartialEq, Clone)]
+#[derive(Error, Debug)]
 pub enum ErrorState {
     /// Expected to be in initial state.
     #[error("Expected to be in initial state.")]
@@ -72,7 +72,7 @@ pub enum ErrorState {
 }
 
 /// Key schedule error
-#[derive(Error, Debug, PartialEq, Clone)]
+#[derive(Error, Debug)]
 pub enum KeyScheduleError {
     /// See [`LibraryError`] for more details.
     #[error(transparent)]

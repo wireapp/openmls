@@ -6,7 +6,7 @@ use crate::{
 };
 
 /// Public group creation from external error.
-#[derive(Error, Debug, PartialEq, Clone)]
+#[derive(Error, Debug)]
 pub enum CreationFromExternalError {
     /// See [`LibraryError`] for more details.
     #[error(transparent)]
@@ -29,7 +29,7 @@ pub enum CreationFromExternalError {
 }
 
 /// Public group builder error.
-#[derive(Error, Debug, PartialEq, Clone)]
+#[derive(Error, Debug)]
 pub enum PublicGroupBuildError {
     /// See [`LibraryError`] for more details.
     #[error(transparent)]

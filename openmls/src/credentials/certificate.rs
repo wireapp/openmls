@@ -82,17 +82,15 @@ impl Certificate {
     }
 
     pub fn verify(&self) -> Result<(), CredentialError> {
-        let verifier = rustls_platform_verifier::WireClientVerifier::new();
+        let mut verifier = rustls_platform_verifier::WireClientVerifier::new();
 
         let end_entity = self.get_end_entity()?;
         let intermediates = self.get_intermediates()?;
 
+        let options = rustls_platform_verifier::VerifyOptions::try_new(true, &[])?;
+
         use rustls_platform_verifier::WireVerifier as _;
-        verifier.verify_client_cert(
-            &end_entity,
-            &intermediates[..],
-            rustls_platform_verifier::VerifyOptions::default(),
-        )?;
+        verifier.verify_client_cert(&end_entity, intermediates.as_slice(), options)?;
 
         Ok(())
     }

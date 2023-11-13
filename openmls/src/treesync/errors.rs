@@ -13,7 +13,7 @@ use crate::{
 // === Public errors ===
 
 /// Public tree error
-#[derive(Error, Debug, PartialEq, Eq, Clone)]
+#[derive(Error, Debug)]
 pub enum PublicTreeError {
     /// See [`LibraryError`] for more details.
     #[error(transparent)]
@@ -42,7 +42,7 @@ pub enum PublicTreeError {
 }
 
 /// Apply update path error
-#[derive(Error, Debug, PartialEq, Clone)]
+#[derive(Error, Debug)]
 pub enum ApplyUpdatePathError {
     /// See [`LibraryError`] for more details.
     #[error(transparent)]
@@ -81,7 +81,7 @@ pub enum ApplyUpdatePathError {
 // `UnsupportedExtension` is only used in tests for now
 #[allow(dead_code)]
 /// TreeSync error
-#[derive(Error, Debug, PartialEq, Clone)]
+#[derive(Error, Debug)]
 pub enum TreeSyncError {
     /// See [`LibraryError`] for more details.
     #[error(transparent)]
@@ -119,7 +119,7 @@ pub enum TreeSyncError {
 }
 
 /// Derive path error
-#[derive(Error, Debug, PartialEq, Clone)]
+#[derive(Error, Debug)]
 pub enum DerivePathError {
     /// See [`LibraryError`] for more details.
     #[error(transparent)]
@@ -130,7 +130,7 @@ pub enum DerivePathError {
 }
 
 /// TreeSync set path error
-#[derive(Error, Debug, PartialEq, Clone)]
+#[derive(Error, Debug)]
 pub enum TreeSyncAddLeaf {
     /// See [`LibraryError`] for more details.
     #[error(transparent)]
@@ -141,7 +141,7 @@ pub enum TreeSyncAddLeaf {
 }
 
 /// TreeSync from nodes error
-#[derive(Error, Debug, PartialEq, Clone)]
+#[derive(Error, Debug)]
 pub enum TreeSyncFromNodesError {
     /// See [`LibraryError`] for more details.
     #[error(transparent)]
@@ -155,7 +155,7 @@ pub enum TreeSyncFromNodesError {
 }
 
 /// TreeSync parent hash error
-#[derive(Error, Debug, PartialEq, Clone)]
+#[derive(Error, Debug)]
 pub enum TreeSyncParentHashError {
     /// See [`LibraryError`] for more details.
     #[error(transparent)]
@@ -166,7 +166,7 @@ pub enum TreeSyncParentHashError {
 }
 
 /// TreeSync parent hash error
-#[derive(Error, Debug, PartialEq, Clone)]
+#[derive(Error, Debug)]
 pub enum TreeSyncDiffError {
     /// See [`LibraryError`] for more details.
     #[error(transparent)]
@@ -187,7 +187,7 @@ pub enum TreeSyncDiffError {
 }
 
 /// TreeKem error
-#[derive(Error, Debug, PartialEq, Clone)]
+#[derive(Error, Debug)]
 #[allow(clippy::enum_variant_names)]
 pub enum TreeKemError {
     /// See [`LibraryError`] for more details.
@@ -205,7 +205,7 @@ pub enum TreeKemError {
 }
 
 /// Errors that can happen during leaf node extension support validation.
-#[derive(Clone, Debug, Error, PartialEq)]
+#[derive(Debug, Error)]
 pub enum MemberExtensionValidationError {
     /// See [`LibraryError`] for more details.
     #[error(transparent)]
@@ -219,7 +219,7 @@ pub enum MemberExtensionValidationError {
 }
 
 /// Errors that can happen during leaf node validation.
-#[derive(Clone, Debug, Error, Eq, PartialEq)]
+#[derive(Debug, Error)]
 pub enum LeafNodeValidationError {
     /// Lifetime is not acceptable.
     #[error("Lifetime is not acceptable.")]
@@ -271,7 +271,7 @@ pub enum LeafNodeValidationError {
 }
 
 /// Errors that can happen during lifetime validation.
-#[derive(Clone, Debug, Error, Eq, PartialEq)]
+#[derive(Debug, Error)]
 pub enum LifetimeError {
     /// Lifetime range is too wide.
     #[error("Lifetime range is too wide.")]
@@ -282,7 +282,7 @@ pub enum LifetimeError {
 }
 
 /// Errors that can happen during path validation.
-#[derive(Debug, Clone, PartialEq, Eq, Error)]
+#[derive(Debug, Error)]
 pub enum UpdatePathError {
     /// The update path contains an invalid type of leaf node.
     #[error("The update path contains an invalid type of leaf node.")]

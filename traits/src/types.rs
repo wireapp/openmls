@@ -151,8 +151,6 @@ pub enum CryptoError {
     ExporterError,
     UnsupportedCiphersuite,
     TlsSerializationError,
-    InvalidCertificateChain,
-    IncompleteCertificateChain,
     CertificateDecodingError,
     CertificateEncodingError,
     IncompleteCertificate(&'static str),

@@ -23,7 +23,7 @@ use crate::{
 };
 
 /// New group error
-#[derive(Error, Debug, PartialEq, Clone)]
+#[derive(Error, Debug)]
 pub enum NewGroupError<KeyStoreError> {
     /// See [`LibraryError`] for more details.
     #[error(transparent)]
@@ -57,7 +57,7 @@ pub enum EmptyInputError {
 }
 
 /// Group state error
-#[derive(Error, Debug, PartialEq, Clone)]
+#[derive(Error, Debug)]
 pub enum MlsGroupStateError {
     /// See [`LibraryError`] for more details.
     #[error(transparent)]
@@ -83,7 +83,7 @@ pub enum MlsGroupStateError {
 }
 
 /// Error merging pending commit
-#[derive(Error, Debug, PartialEq, Clone)]
+#[derive(Error, Debug)]
 pub enum MergePendingCommitError<KeyStoreError> {
     /// See [`MlsGroupStateError`] for more details.
     #[error(transparent)]
@@ -94,7 +94,7 @@ pub enum MergePendingCommitError<KeyStoreError> {
 }
 
 /// Process message error
-#[derive(Error, Debug, PartialEq, Clone)]
+#[derive(Error, Debug)]
 pub enum ProcessMessageError {
     /// See [`LibraryError`] for more details.
     #[error(transparent)]
@@ -129,7 +129,7 @@ pub enum ProcessMessageError {
 }
 
 /// Create message error
-#[derive(Error, Debug, PartialEq, Clone)]
+#[derive(Error, Debug)]
 pub enum CreateMessageError {
     /// See [`LibraryError`] for more details.
     #[error(transparent)]
@@ -140,7 +140,7 @@ pub enum CreateMessageError {
 }
 
 /// Add members error
-#[derive(Error, Debug, PartialEq, Clone)]
+#[derive(Error, Debug)]
 pub enum AddMembersError<KeyStoreError> {
     /// See [`LibraryError`] for more details.
     #[error(transparent)]
@@ -160,7 +160,7 @@ pub enum AddMembersError<KeyStoreError> {
 }
 
 /// Propose add members error
-#[derive(Error, Debug, PartialEq, Clone)]
+#[derive(Error, Debug)]
 pub enum ProposeAddMemberError {
     /// See [`LibraryError`] for more details.
     #[error(transparent)]
@@ -180,7 +180,7 @@ pub enum ProposeAddMemberError {
 }
 
 /// Propose remove members error
-#[derive(Error, Debug, PartialEq, Clone)]
+#[derive(Error, Debug)]
 pub enum ProposeRemoveMemberError {
     /// See [`LibraryError`] for more details.
     #[error(transparent)]
@@ -194,7 +194,7 @@ pub enum ProposeRemoveMemberError {
 }
 
 /// Remove members error
-#[derive(Error, Debug, PartialEq, Clone)]
+#[derive(Error, Debug)]
 pub enum RemoveMembersError<KeyStoreError> {
     /// See [`LibraryError`] for more details.
     #[error(transparent)]
@@ -214,7 +214,7 @@ pub enum RemoveMembersError<KeyStoreError> {
 }
 
 /// Leave group error
-#[derive(Error, Debug, PartialEq, Clone)]
+#[derive(Error, Debug)]
 pub enum LeaveGroupError {
     /// See [`LibraryError`] for more details.
     #[error(transparent)]
@@ -225,7 +225,7 @@ pub enum LeaveGroupError {
 }
 
 /// Self update error
-#[derive(Error, Debug, PartialEq, Clone)]
+#[derive(Error, Debug)]
 pub enum SelfUpdateError<KeyStoreError> {
     /// See [`LibraryError`] for more details.
     #[error(transparent)]
@@ -245,7 +245,7 @@ pub enum SelfUpdateError<KeyStoreError> {
 }
 
 /// Propose self update error
-#[derive(Error, Debug, PartialEq, Clone)]
+#[derive(Error, Debug)]
 pub enum ProposeSelfUpdateError<KeyStoreError> {
     /// See [`LibraryError`] for more details.
     #[error(transparent)]
@@ -265,7 +265,7 @@ pub enum ProposeSelfUpdateError<KeyStoreError> {
 }
 
 /// Create group context ext proposal error
-#[derive(Error, Debug, PartialEq, Clone)]
+#[derive(Error, Debug)]
 pub enum UpdateExtensionsError<KeyStoreError> {
     /// See [`LibraryError`] for more details.
     #[error(transparent)]
@@ -282,7 +282,7 @@ pub enum UpdateExtensionsError<KeyStoreError> {
 }
 
 /// Create group context ext proposal error
-#[derive(Error, Debug, PartialEq, Clone)]
+#[derive(Error, Debug)]
 pub enum ProposeGroupContextExtensionError {
     /// See [`LibraryError`] for more details.
     #[error(transparent)]
@@ -305,7 +305,7 @@ pub enum ProposeGroupContextExtensionError {
 }
 
 /// ReInit error
-#[derive(Error, Debug, PartialEq, Clone)]
+#[derive(Error, Debug)]
 pub enum ReInitError<KeyStoreError> {
     /// See [`LibraryError`] for more details.
     #[error(transparent)]
@@ -319,7 +319,7 @@ pub enum ReInitError<KeyStoreError> {
 }
 
 /// Create ReInit proposal error
-#[derive(Error, Debug, PartialEq, Clone)]
+#[derive(Error, Debug)]
 pub enum ProposeReInitError {
     /// See [`LibraryError`] for more details.
     #[error(transparent)]
@@ -332,7 +332,7 @@ pub enum ProposeReInitError {
     ReInitValidationError(#[from] ReInitValidationError),
 }
 /// Commit to pending proposals error
-#[derive(Error, Debug, PartialEq, Clone)]
+#[derive(Error, Debug)]
 pub enum CommitToPendingProposalsError<KeyStoreError> {
     /// See [`LibraryError`] for more details.
     #[error(transparent)]
@@ -346,7 +346,7 @@ pub enum CommitToPendingProposalsError<KeyStoreError> {
 }
 
 /// Errors that can happen when exporting a group info object.
-#[derive(Error, Debug, PartialEq, Clone)]
+#[derive(Error, Debug)]
 pub enum ExportGroupInfoError {
     /// See [`LibraryError`] for more details.
     #[error(transparent)]
@@ -357,7 +357,7 @@ pub enum ExportGroupInfoError {
 }
 
 /// Export secret error
-#[derive(Error, Debug, PartialEq, Clone)]
+#[derive(Error, Debug)]
 pub enum ExportSecretError {
     /// See [`LibraryError`] for more details.
     #[error(transparent)]
@@ -371,7 +371,7 @@ pub enum ExportSecretError {
 }
 
 /// Propose PSK error
-#[derive(Error, Debug, PartialEq, Clone)]
+#[derive(Error, Debug)]
 pub enum ProposePskError {
     /// See [`PskError`] for more details.
     #[error(transparent)]
@@ -385,7 +385,7 @@ pub enum ProposePskError {
 }
 
 /// Export secret error
-#[derive(Error, Debug, PartialEq, Clone)]
+#[derive(Error, Debug)]
 pub enum ProposalError<KeyStoreError> {
     /// See [`LibraryError`] for more details.
     #[error(transparent)]

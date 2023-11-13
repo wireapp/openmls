@@ -15,6 +15,7 @@ openmls_basic_credential = { version = "0.2.0", path = "../basic_credential" }
 fluvio-wasm-timer = "0.2"
 base64 = "0.21"
 uuid = "1.4"
+thiserror = "1.0"
 
 rustls-platform-verifier = { path = "../../rustls-platform-verifier" }
 
