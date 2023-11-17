@@ -148,7 +148,11 @@ impl X509Ext for Certificate {
             SignatureScheme::ED25519
         } else if alg == oid_registry::OID_SIG_ED448 {
             SignatureScheme::ED448
-        } else if alg == oid_registry::OID_SIG_ECDSA_WITH_SHA256 {
+        } else if alg == oid_registry::OID_SIG_ECDSA_WITH_SHA256
+            || alg == oid_registry::OID_KEY_TYPE_EC_PUBLIC_KEY
+        //                         ☝️
+        // this is a mess but we will soon move to a x509 crate doing this for us
+        {
             SignatureScheme::ECDSA_SECP256R1_SHA256
         } else if alg == oid_registry::OID_SIG_ECDSA_WITH_SHA384 {
             SignatureScheme::ECDSA_SECP384R1_SHA384
@@ -176,13 +180,9 @@ impl X509Ext for Certificate {
         self.tbs_certificate
             .encode(&mut raw_tbs)
             .map_err(|_| CryptoError::CertificateEncodingError)?;
+        let sc = issuer.signature_scheme()?;
         backend
-            .verify_signature(
-                self.signature_scheme()?,
-                &raw_tbs,
-                issuer_pk,
-                cert_signature,
-            )
+            .verify_signature(sc, &raw_tbs, issuer_pk, cert_signature)
             .map_err(|_| CryptoError::InvalidSignature)
     }
 
