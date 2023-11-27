@@ -209,10 +209,8 @@ impl X509Ext for Certificate {
                 }
                 _ => None,
             })
-            .filter_map(|n| {
-                n.starts_with(CLIENT_ID_PREFIX)
-                    .then(|| n.trim_start_matches(CLIENT_ID_PREFIX))
-            })
+            .filter(|&n| n.starts_with(CLIENT_ID_PREFIX))
+            .map(|n| n.trim_start_matches(CLIENT_ID_PREFIX))
             .find_map(parse_client_id)
             .map(|i| i.as_bytes().to_vec())
             .ok_or(CryptoError::InvalidCertificate)

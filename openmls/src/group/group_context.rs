@@ -6,9 +6,7 @@ use openmls_traits::types::Ciphersuite;
 
 use super::*;
 use crate::{
-    error::LibraryError,
-    framing::{mls_auth_content::AuthenticatedContent, ConfirmedTranscriptHashInput},
-    versions::ProtocolVersion,
+    error::LibraryError, framing::mls_auth_content::AuthenticatedContent, versions::ProtocolVersion,
 };
 
 #[derive(
@@ -93,8 +91,10 @@ impl GroupContext {
         authenticated_content: &AuthenticatedContent,
     ) -> Result<(), LibraryError> {
         let confirmed_transcript_hash = {
-            let input = ConfirmedTranscriptHashInput::try_from(authenticated_content)
-                .map_err(|_| LibraryError::custom("PublicMessage did not contain a commit"))?;
+            let input = crate::framing::public_message::ConfirmedTranscriptHashInput::try_from(
+                authenticated_content,
+            )
+            .map_err(|_| LibraryError::custom("PublicMessage did not contain a commit"))?;
 
             input.calculate_confirmed_transcript_hash(
                 backend.crypto(),

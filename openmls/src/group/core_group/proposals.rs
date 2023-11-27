@@ -485,7 +485,7 @@ impl ProposalQueue {
                     if leaf_index != own_index {
                         members
                             .entry(leaf_index)
-                            .or_insert_with(Member::default)
+                            .or_default()
                             .updates
                             .push(queued_proposal.clone());
                     } else {
@@ -498,7 +498,7 @@ impl ProposalQueue {
                     let removed = remove_proposal.removed();
                     members
                         .entry(removed)
-                        .or_insert_with(Member::default)
+                        .or_default()
                         .updates
                         .push(queued_proposal.clone());
                     let proposal_reference = queued_proposal.proposal_reference();

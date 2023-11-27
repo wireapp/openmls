@@ -202,12 +202,13 @@ async fn bad_padding(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvi
             };
 
             let private_message_content_aad_bytes = {
-                let private_message_content_aad = PrivateContentAad {
-                    group_id: group_id.clone(),
-                    epoch,
-                    content_type: plaintext.content().content_type(),
-                    authenticated_data: VLByteSlice(plaintext.authenticated_data()),
-                };
+                let private_message_content_aad =
+                    crate::framing::private_message::PrivateContentAad {
+                        group_id: group_id.clone(),
+                        epoch,
+                        content_type: plaintext.content().content_type(),
+                        authenticated_data: VLByteSlice(plaintext.authenticated_data()),
+                    };
 
                 private_message_content_aad
                     .tls_serialize_detached()
