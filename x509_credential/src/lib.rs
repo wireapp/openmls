@@ -209,30 +209,31 @@ impl X509Ext for Certificate {
                 }
                 _ => None,
             })
-            .filter(|&n| n.starts_with(CLIENT_ID_PREFIX))
-            .map(|n| n.trim_start_matches(CLIENT_ID_PREFIX))
-            .find_map(parse_client_id)
-            .map(|i| i.as_bytes().to_vec())
+            .find_map(try_to_qualified_wire_client_id)
             .ok_or(CryptoError::InvalidCertificate)
     }
 }
 
-fn parse_client_id(client_id: &str) -> Option<String> {
+fn try_to_qualified_wire_client_id(client_id: &str) -> Option<Vec<u8>> {
+    const COLON: u8 = 58;
+
+    let client_id = client_id.strip_prefix(CLIENT_ID_PREFIX)?;
     let (user_id, rest) = client_id.split_once('/')?;
-    parse_user_id(user_id)?;
-    let (device_id, _domain) = rest.split_once('@')?;
-    u64::from_str_radix(device_id, 16).ok()?;
-    let client_id = client_id.replace('/', ":");
+    let user_id = to_hyphenated_user_id(user_id)?;
+
+    let client_id = [&user_id[..], &[COLON], rest.as_bytes()].concat();
     Some(client_id)
 }
 
-fn parse_user_id(user_id: impl AsRef<[u8]>) -> Option<()> {
-    let _user_id = base64::prelude::BASE64_URL_SAFE_NO_PAD
+fn to_hyphenated_user_id(user_id: &str) -> Option<[u8; uuid::fmt::Hyphenated::LENGTH]> {
+    let user_id = base64::prelude::BASE64_URL_SAFE_NO_PAD
         .decode(user_id)
         .ok()?;
-    // TODO: this holds for the former (wrong) userId encoding (where we were b64 encoding the uuid string and not byte representation)
-    // When  upstream rusty-jwt-tools gets merged, change to `uuid::Uuid::from_slice`. Core-Crypto tests will spot that anyway
-    // uuid::Uuid::from_slice(&user_id).ok()
-    // TODO: reintroduce this check once all platform got the fix with the correct userId encoding
-    Some(())
+
+    let user_id = uuid::Uuid::from_slice(&user_id).ok()?;
+
+    let mut buf = [0; uuid::fmt::Hyphenated::LENGTH];
+    user_id.hyphenated().encode_lower(&mut buf);
+
+    Some(buf)
 }
