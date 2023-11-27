@@ -3,8 +3,7 @@
 use openmls_rust_crypto::OpenMlsRustCrypto;
 use openmls_traits::{types::Ciphersuite, OpenMlsCryptoProvider};
 
-use rstest::*;
-use rstest_reuse::{self, *};
+use crate::test_utils::*;
 
 use super::utils::{generate_credential_with_key, generate_key_package};
 use crate::{

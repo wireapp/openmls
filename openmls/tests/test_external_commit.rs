@@ -1,6 +1,6 @@
 use openmls::{
     credentials::test_utils::new_credential, messages::group_info::VerifiableGroupInfo, prelude::*,
-    test_utils::*, *,
+    test_utils::*,
 };
 use openmls_basic_credential::SignatureKeyPair;
 

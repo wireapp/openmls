@@ -8,6 +8,7 @@ use openmls_rust_crypto::OpenMlsRustCrypto;
 use signable::Verifiable;
 use tls_codec::{Deserialize, Serialize};
 
+use crate::test_utils::*;
 use crate::{
     binary_tree::{array_representation::TreeSize, LeafNodeIndex},
     ciphersuite::signable::{Signable, SignatureError},

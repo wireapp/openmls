@@ -5,7 +5,6 @@ use openmls::{
         test_framework::{ActionType, CodecUse, MlsGroupTestSetup},
         *,
     },
-    *,
 };
 
 #[apply(ciphersuites)]

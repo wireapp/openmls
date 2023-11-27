@@ -2,7 +2,6 @@ use openmls::{
     prelude::*,
     test_utils::test_framework::{ActionType, CodecUse, MlsGroupTestSetup},
     test_utils::*,
-    *,
 };
 
 #[apply(ciphersuites)]

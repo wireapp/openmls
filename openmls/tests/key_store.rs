@@ -1,5 +1,5 @@
 //! A couple of simple tests on how to interact with the key store.
-use openmls::{prelude::*, test_utils::*, *};
+use openmls::{prelude::*, test_utils::*};
 use openmls_basic_credential::SignatureKeyPair;
 
 #[apply(ciphersuites_and_backends)]
