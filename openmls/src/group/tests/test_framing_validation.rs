@@ -18,6 +18,7 @@ use crate::{
 use super::utils::{
     generate_credential_with_key, generate_key_package, CredentialWithKeyAndSigner,
 };
+use crate::test_utils::*;
 
 wasm_bindgen_test::wasm_bindgen_test_configure!(run_in_browser);
 

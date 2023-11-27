@@ -19,7 +19,7 @@ use tls_codec::Serialize;
 use crate::{
     ciphersuite::signable::Signable, credentials::*, framing::*, group::*, key_packages::*,
     messages::ConfirmationTag, schedule::psk::store::ResumptionPskStore, test_utils::*,
-    versions::ProtocolVersion, *,
+    versions::ProtocolVersion,
 };
 
 /// Configuration of a client meant to be used in a test setup.

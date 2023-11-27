@@ -3,6 +3,7 @@ use openmls_traits::{types::Ciphersuite, OpenMlsCryptoProvider};
 use rstest::*;
 use rstest_reuse::apply;
 
+use crate::test_utils::*;
 use crate::{
     credentials::test_utils::new_credential,
     key_packages::KeyPackageBundle,

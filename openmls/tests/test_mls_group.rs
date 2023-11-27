@@ -1,7 +1,6 @@
 use openmls::{
     prelude::{config::CryptoConfig, test_utils::new_credential, *},
     test_utils::*,
-    *,
 };
 
 use openmls_traits::{key_store::OpenMlsKeyStore, signatures::Signer, OpenMlsCryptoProvider};

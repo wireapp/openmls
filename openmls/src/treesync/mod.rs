@@ -719,6 +719,7 @@ impl TreeSync {
 #[cfg(test)]
 mod test {
     use super::*;
+    use crate::test_utils::*;
 
     #[cfg(debug_assertions)]
     #[test]

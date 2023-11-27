@@ -11,6 +11,7 @@ use crate::{
 use openmls_traits::types::Ciphersuite;
 
 use super::utils::*;
+use crate::test_utils::*;
 
 wasm_bindgen_test::wasm_bindgen_test_configure!(run_in_browser);
 

@@ -7,7 +7,7 @@ use tls_codec::{Deserialize, Serialize};
 use super::utils::*;
 use crate::{
     binary_tree::LeafNodeIndex, framing::*, group::*, key_packages::*, messages::*,
-    schedule::psk::store::ResumptionPskStore, test_utils::*, *,
+    schedule::psk::store::ResumptionPskStore, test_utils::*,
 };
 wasm_bindgen_test::wasm_bindgen_test_configure!(run_in_browser);
 

@@ -13,6 +13,7 @@ use tls_codec::{Deserialize, Serialize};
 use super::utils::{
     generate_credential_with_key, generate_key_package, resign_message, CredentialWithKeyAndSigner,
 };
+use crate::test_utils::*;
 use crate::{
     binary_tree::LeafNodeIndex,
     ciphersuite::hash_ref::ProposalRef,

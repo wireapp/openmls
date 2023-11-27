@@ -17,6 +17,7 @@ use crate::{
 };
 
 use super::PublicGroup;
+use crate::test_utils::*;
 
 #[apply(ciphersuites_and_backends)]
 async fn public_group(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider) {

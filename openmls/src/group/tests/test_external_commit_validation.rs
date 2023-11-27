@@ -9,6 +9,7 @@ use rstest_reuse::apply;
 use tls_codec::{Deserialize, Serialize};
 
 use self::utils::*;
+use crate::test_utils::*;
 use crate::{
     ciphersuite::{hash_ref::ProposalRef, signable::Verifiable},
     framing::{

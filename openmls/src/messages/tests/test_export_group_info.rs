@@ -1,14 +1,10 @@
-use tls_codec::{Deserialize, Serialize};
-
+use crate::test_utils::*;
 use crate::{
     ciphersuite::signable::Verifiable,
     group::test_core_group::setup_alice_group,
-    messages::{
-        group_info::{GroupInfo, VerifiableGroupInfo},
-        *,
-    },
-    test_utils::*,
+    messages::group_info::{GroupInfo, VerifiableGroupInfo},
 };
+use tls_codec::{Deserialize, Serialize};
 
 wasm_bindgen_test::wasm_bindgen_test_configure!(run_in_browser);
 
