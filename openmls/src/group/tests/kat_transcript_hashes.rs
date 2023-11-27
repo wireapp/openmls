@@ -100,7 +100,10 @@ pub fn run_test_vector(test_vector: TranscriptTestVector) {
 
     // Verify that *`confirmed_transcript_hash_after`* and `interim_transcript_hash_after` are the result of updating `interim_transcript_hash_before` with `authenticated_content`.
     let got_confirmed_transcript_hash_after = {
-        let input = ConfirmedTranscriptHashInput::try_from(&authenticated_content).unwrap();
+        let input = crate::framing::public_message::ConfirmedTranscriptHashInput::try_from(
+            &authenticated_content,
+        )
+        .unwrap();
 
         input
             .calculate_confirmed_transcript_hash(
@@ -117,7 +120,8 @@ pub fn run_test_vector(test_vector: TranscriptTestVector) {
 
     // Verify that `confirmed_transcript_hash_after` and *`interim_transcript_hash_after`* are the result of updating `interim_transcript_hash_before` with `authenticated_content`.
     let got_interim_transcript_hash_after = {
-        let input = InterimTranscriptHashInput::from(&got_confirmation_tag);
+        let input =
+            crate::framing::public_message::InterimTranscriptHashInput::from(&got_confirmation_tag);
 
         input
             .calculate_interim_transcript_hash(

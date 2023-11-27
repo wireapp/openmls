@@ -26,7 +26,6 @@ use crate::{
     ciphersuite::signable::Verifiable,
     error::LibraryError,
     extensions::RequiredCapabilitiesExtension,
-    framing::InterimTranscriptHashInput,
     messages::{
         group_info::{GroupInfo, VerifiableGroupInfo},
         proposals::{Proposal, ProposalType},
@@ -77,7 +76,9 @@ impl PublicGroup {
         initial_confirmation_tag: ConfirmationTag,
     ) -> Result<Self, LibraryError> {
         let interim_transcript_hash = {
-            let input = InterimTranscriptHashInput::from(&initial_confirmation_tag);
+            let input = crate::framing::public_message::InterimTranscriptHashInput::from(
+                &initial_confirmation_tag,
+            );
 
             input.calculate_interim_transcript_hash(
                 crypto,
@@ -146,7 +147,9 @@ impl PublicGroup {
         let group_context = GroupContext::from(group_info.clone());
 
         let interim_transcript_hash = {
-            let input = InterimTranscriptHashInput::from(group_info.confirmation_tag());
+            let input = crate::framing::public_message::InterimTranscriptHashInput::from(
+                group_info.confirmation_tag(),
+            );
 
             input.calculate_interim_transcript_hash(
                 backend.crypto(),
