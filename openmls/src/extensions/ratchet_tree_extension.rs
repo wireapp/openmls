@@ -16,7 +16,7 @@ use crate::treesync::{RatchetTree, RatchetTreeIn};
     PartialEq, Eq, Clone, Debug, Serialize, Deserialize, TlsSerialize, TlsDeserialize, TlsSize,
 )]
 pub struct RatchetTreeExtension {
-    ratchet_tree: RatchetTreeIn,
+    pub(crate) ratchet_tree: RatchetTreeIn,
 }
 
 impl RatchetTreeExtension {

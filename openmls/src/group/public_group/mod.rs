@@ -96,7 +96,8 @@ impl PublicGroup {
         })
     }
 
-    /// Create a [`PublicGroup`] instance to start tracking an existing MLS group.
+    /// Create a [`PublicGroup`] instance to start tracking an existing MLS
+    /// group.
     ///
     /// This function performs basic validation checks and returns an error if
     /// one of the checks fails. See [`CreationFromExternalError`] for more
@@ -261,7 +262,8 @@ impl PublicGroup {
         self.treesync().export_ratchet_tree()
     }
 
-    /// Add the [`QueuedProposal`] to the [`PublicGroup`]s internal [`ProposalStore`].
+    /// Add the [`QueuedProposal`] to the [`PublicGroup`]s internal
+    /// [`ProposalStore`].
     pub fn add_proposal(&mut self, proposal: QueuedProposal) {
         self.proposal_store.add(proposal)
     }
@@ -304,8 +306,8 @@ impl PublicGroup {
         &self.confirmation_tag
     }
 
-    /// Return a reference to the leaf at the given `LeafNodeIndex` or `None` if the
-    /// leaf is blank.
+    /// Return a reference to the leaf at the given `LeafNodeIndex` or `None` if
+    /// the leaf is blank.
     pub fn leaf(&self, leaf_index: LeafNodeIndex) -> Option<&LeafNode> {
         self.treesync().leaf(leaf_index)
     }

@@ -26,14 +26,14 @@
 //! [the `ratchet_tree` extension](https://tools.ietf.org/html/draft-ietf-mls-protocol-17#section-12.4.3.3)
 //!
 //! Verification:
-//! * Verify that the resolution of each node in tree with node index `i` matches
-//!   `resolutions[i]`.
+//! * Verify that the resolution of each node in tree with node index `i`
+//!   matches `resolutions[i]`.
 //! * Verify that the tree hash of each node in tree with node index `i` matches
 //!   `tree_hashes[i]`.
 //! * [Verify the parent hashes](https://tools.ietf.org/html/draft-ietf-mls-protocol-17#section-7.9.2)
 //!   of `tree` as when joining the group.
-//! * Verify the signatures on all leaves of `tree` using the provided `group_id`
-//!   as context.
+//! * Verify the signatures on all leaves of `tree` using the provided
+//!   `group_id` as context.
 //!
 //! ### Origins of Test Trees
 //! Trees in the test vector are ordered according to increasing complexity. Let
@@ -53,8 +53,8 @@
 //!   leaves `1`, `2` and `3`.
 //! * Trees with skipping trailing blanks in the parent hash links:
 //!   `get_tree(n)` for `n` in `[3, 34]`.
-//! * A tree with unmerged leaves: start with `get_tree(7)`, then the leaf
-//!   with index `0` adds a member.
+//! * A tree with unmerged leaves: start with `get_tree(7)`, then the leaf with
+//!   index `0` adds a member.
 //! * A tree with unmerged leaves and skipping blanks in the parent hash links:
 //!   the tree from [Figure 20](https://tools.ietf.org/html/draft-ietf-mls-protocol-17#appendix-A).
 

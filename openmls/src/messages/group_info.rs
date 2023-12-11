@@ -1,8 +1,9 @@
 //! This module contains all types related to group info handling.
 
-use openmls_traits::{types::Ciphersuite, OpenMlsCryptoProvider};
 use thiserror::Error;
 use tls_codec::{Deserialize, Serialize, TlsDeserialize, TlsSerialize, TlsSize};
+
+use openmls_traits::{types::Ciphersuite, OpenMlsCryptoProvider};
 
 use crate::{
     binary_tree::LeafNodeIndex,
@@ -10,18 +11,20 @@ use crate::{
         signable::{Signable, SignedStruct, Verifiable, VerifiedStruct},
         AeadKey, AeadNonce, Signature,
     },
-    extensions::Extensions,
+    extensions::{Extension, Extensions},
     group::{group_context::GroupContext, GroupId},
     messages::ConfirmationTag,
+    treesync::{RatchetTree, TreeSync},
 };
 
 const SIGNATURE_GROUP_INFO_LABEL: &str = "GroupInfoTBS";
 
-/// A type that represents a group info of which the signature has not been verified.
-/// It implements the [`Verifiable`] trait and can be turned into a group info by calling
-/// `verify(...)` with the signature key of the [`Credential`](crate::credentials::Credential).
-/// When receiving a serialized group info, it can only be deserialized into a
-/// [`VerifiableGroupInfo`], which can then be turned into a group info as described above.
+/// A type that represents a group info of which the signature has not been
+/// verified. It implements the [`Verifiable`] trait and can be turned into a
+/// group info by calling `verify(...)` with the signature key of the
+/// [`Credential`](crate::credentials::Credential). When receiving a serialized
+/// group info, it can only be deserialized into a [`VerifiableGroupInfo`],
+/// which can then be turned into a group info as described above.
 #[derive(Debug, PartialEq, Clone, TlsDeserialize, TlsSize)]
 #[cfg_attr(any(test, feature = "test-utils"), derive(TlsSerialize))]
 pub struct VerifiableGroupInfo {
@@ -38,6 +41,21 @@ pub enum GroupInfoError {
     /// Malformed.
     #[error("Malformed.")]
     Malformed,
+    /// The required RatchetTreeExtension is missing
+    #[error("The required RatchetTreeExtension is missing")]
+    MissingRatchetTreeExtension,
+    /// Invalid
+    #[error("Invalid")]
+    Invalid,
+    /// Ratchet Tree error
+    #[error(transparent)]
+    RatchetTreeError(#[from] crate::treesync::RatchetTreeError),
+    /// TreeSyncFromNodesError
+    #[error(transparent)]
+    TreeSyncFromNodesError(#[from] crate::treesync::errors::TreeSyncFromNodesError),
+    /// A RatchetTree extension is required for this operation
+    #[error("A RatchetTree extension is required for this operation")]
+    RequiredRatchetTree,
 }
 
 impl VerifiableGroupInfo {
@@ -67,21 +85,24 @@ impl VerifiableGroupInfo {
 
     /// Get (unverified) ciphersuite of the verifiable group info.
     ///
-    /// Note: This method should only be used when necessary to verify the group info signature.
+    /// Note: This method should only be used when necessary to verify the group
+    /// info signature.
     pub fn ciphersuite(&self) -> Ciphersuite {
         self.payload.group_context.ciphersuite()
     }
 
     /// Get (unverified) signer of the verifiable group info.
     ///
-    /// Note: This method should only be used when necessary to verify the group info signature.
+    /// Note: This method should only be used when necessary to verify the group
+    /// info signature.
     pub(crate) fn signer(&self) -> LeafNodeIndex {
         self.payload.signer
     }
 
     /// Get (unverified) extensions of the verifiable group info.
     ///
-    /// Note: This method should only be used when necessary to verify the group info signature.
+    /// Note: This method should only be used when necessary to verify the group
+    /// info signature.
     pub(crate) fn extensions(&self) -> &Extensions {
         &self.payload.extensions
     }
@@ -96,6 +117,44 @@ impl VerifiableGroupInfo {
 
     pub(crate) fn context(&self) -> &GroupContext {
         &self.payload.group_context
+    }
+
+    /// Do whatever it takes not to clone the RatchetTree
+    pub fn take_ratchet_tree(
+        mut self,
+        backend: &impl OpenMlsCryptoProvider,
+    ) -> Result<RatchetTree, GroupInfoError> {
+        let cs = self.ciphersuite();
+
+        let ratchet_tree = self
+            .payload
+            .extensions
+            .unique
+            .iter_mut()
+            .find_map(|e| match e {
+                Extension::RatchetTree(rt) => {
+                    // we have to clone it here as well..
+                    Some(rt.ratchet_tree.clone())
+                }
+                _ => None,
+            })
+            .ok_or(GroupInfoError::MissingRatchetTreeExtension)?
+            .into_verified(cs, backend.crypto(), self.group_id())?;
+
+        // although it clones the ratchet tree here...
+        let treesync = TreeSync::from_ratchet_tree(backend, cs, ratchet_tree.clone())?;
+
+        let signer_signature_key = treesync
+            .leaf(self.signer())
+            .ok_or(GroupInfoError::Invalid)?
+            .signature_key()
+            .clone()
+            .into_signature_public_key_enriched(cs.signature_algorithm());
+
+        self.verify::<GroupInfo>(backend.crypto(), &signer_signature_key)
+            .map_err(|_| GroupInfoError::Invalid)?;
+
+        Ok(ratchet_tree)
     }
 }
 
