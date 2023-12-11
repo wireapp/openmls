@@ -223,7 +223,7 @@ pub struct UnknownExtension(pub Vec<u8>);
 /// A list of extensions with unique extension types.
 #[derive(Default, Debug, Clone, PartialEq, Eq, Serialize, Deserialize, tls_codec::TlsSize)]
 pub struct Extensions {
-    unique: Vec<Extension>,
+    pub(crate) unique: Vec<Extension>,
 }
 
 impl tls_codec::Serialize for Extensions {

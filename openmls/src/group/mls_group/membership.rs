@@ -202,6 +202,14 @@ impl MlsGroup {
         self.group.public_group().members()
     }
 
+    pub fn members_credentials(&self) -> impl Iterator<Item = &Credential> + '_ {
+        self.group
+            .public_group()
+            .treesync()
+            .raw_leaves()
+            .map(|ln| ln.credential())
+    }
+
     /// Returns the [`Credential`] of a member corresponding to the given
     /// leaf index. Returns `None` if the member can not be found in this group.
     pub fn member(&self, leaf_index: LeafNodeIndex) -> Option<&Credential> {
