@@ -30,7 +30,7 @@ impl CoreGroup {
     ///  - ValSem202: Path must be the right length
     ///  - ValSem203: Path secrets must decrypt correctly
     ///  - ValSem204: Public keys from Path must be verified and match the
-    ///               private keys from the direct path
+    ///    private keys from the direct path
     ///  - ValSem205
     ///  - ValSem240
     ///  - ValSem241
@@ -46,6 +46,7 @@ impl CoreGroup {
         old_epoch_keypairs: EpochEncryptionKeyPair,
         leaf_node_keypairs: Vec<EncryptionKeyPair>,
     ) -> Result<ProcessedMessage, ProcessMessageError> {
+        // println!("> CoreGroup::process_unverified_message");
         // Checks the following semantic validation:
         //  - ValSem010
         //  - ValSem246 (as part of ValSem010)
@@ -163,7 +164,7 @@ impl CoreGroup {
     ///  - ValSem202: Path must be the right length
     ///  - ValSem203: Path secrets must decrypt correctly
     ///  - ValSem204: Public keys from Path must be verified and match the
-    ///               private keys from the direct path
+    ///    private keys from the direct path
     ///  - ValSem205
     ///  - ValSem240
     ///  - ValSem241
@@ -180,6 +181,7 @@ impl CoreGroup {
         proposal_store: &ProposalStore,
         own_leaf_nodes: &[LeafNode],
     ) -> Result<ProcessedMessage, ProcessMessageError> {
+        // println!("> CoreGroup::process_message");
         let message: ProtocolMessage = message.into();
 
         // Checks the following semantic validation:
@@ -195,7 +197,8 @@ impl CoreGroup {
             .parse_message(decrypted_message, &self.message_secrets_store)
             .map_err(ProcessMessageError::from)?;
 
-        // If this is a commit, we need to load the private key material we need for decryption.
+        // If this is a commit, we need to load the private key material we need for
+        // decryption.
         let (old_epoch_keypairs, leaf_node_keypairs) =
             if let ContentType::Commit = unverified_message.content_type() {
                 self.read_decryption_keypairs(backend, own_leaf_nodes)
@@ -214,7 +217,8 @@ impl CoreGroup {
         .await
     }
 
-    /// Performs framing validation and, if necessary, decrypts the given message.
+    /// Performs framing validation and, if necessary, decrypts the given
+    /// message.
     ///
     /// Returns the [`DecryptedMessage`] if processing is successful, or a
     /// [`ValidationError`] if it is not.
@@ -242,7 +246,8 @@ impl CoreGroup {
         //  - ValSem007 MembershipTag presence
         match message {
             ProtocolMessage::PublicMessage(public_message) => {
-                // If the message is older than the current epoch, we need to fetch the correct secret tree first.
+                // If the message is older than the current epoch, we need to fetch the correct
+                // secret tree first.
                 let message_secrets =
                     self.message_secrets_for_epoch(epoch).map_err(|e| match e {
                         SecretTreeError::TooDistantInThePast => ValidationError::NoPastEpochData,
@@ -259,7 +264,8 @@ impl CoreGroup {
                 )
             }
             ProtocolMessage::PrivateMessage(ciphertext) => {
-                // If the message is older than the current epoch, we need to fetch the correct secret tree first
+                // If the message is older than the current epoch, we need to fetch the correct
+                // secret tree first
                 DecryptedMessage::from_inbound_ciphertext(
                     ciphertext,
                     backend,
@@ -304,8 +310,8 @@ impl CoreGroup {
         let past_epoch = self.context().epoch();
         // Get all the full leaves
         let leaves = self.public_group().members().collect();
-        // Merge the staged commit into the group state and store the secret tree from the
-        // previous epoch in the message secrets store.
+        // Merge the staged commit into the group state and store the secret tree from
+        // the previous epoch in the message secrets store.
         if let Some(message_secrets) = self.merge_commit(backend, staged_commit).await? {
             self.message_secrets_store
                 .add(past_epoch, message_secrets, leaves);

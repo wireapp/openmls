@@ -242,8 +242,8 @@ impl LeafNode {
 
     /// Update the `encryption_key` in this leaf node and re-signs it.
     ///
-    /// Optionally, a new leaf node can be provided to update more values such as
-    /// the credential.
+    /// Optionally, a new leaf node can be provided to update more values such
+    /// as the credential.
     pub(crate) fn update_and_re_sign(
         &mut self,
         new_encryption_key: Option<EncryptionKey>,
@@ -253,7 +253,8 @@ impl LeafNode {
         signer: &impl Signer,
     ) -> Result<(), PublicTreeError> {
         let tree_info = TreeInfoTbs::Update(TreePosition::new(group_id, leaf_index));
-        // TODO: If we could take out the leaf_node without cloning, this would all be nicer.
+        // TODO: If we could take out the leaf_node without cloning, this would all be
+        // nicer.
         let mut leaf_node_tbs = LeafNodeTbs::from(self.clone(), tree_info);
 
         // Update credential
@@ -263,8 +264,8 @@ impl LeafNode {
             leaf_node_tbs.payload.signature_key = leaf_node.signature_key().clone();
             leaf_node_tbs.payload.encryption_key = leaf_node.encryption_key().clone();
 
-            // The application MAY specify other changes to the leaf node, e.g. [..] updated capabilities, or different extensions
-            // cf https://www.rfc-editor.org/rfc/rfc9420.html#section-7.5-7
+            // The application MAY specify other changes to the leaf node, e.g. [..] updated
+            // capabilities, or different extensions cf https://www.rfc-editor.org/rfc/rfc9420.html#section-7.5-7
             leaf_node_tbs.payload.capabilities = leaf_node.capabilities().clone();
             leaf_node_tbs.payload.extensions = leaf_node.extensions().clone();
         } else if let Some(new_encryption_key) = new_encryption_key {
@@ -630,7 +631,8 @@ impl LeafNodeTbs {
     }
 }
 
-/// Helper struct that holds additional information required to sign a leaf node.
+/// Helper struct that holds additional information required to sign a leaf
+/// node.
 ///
 /// ```c
 /// // draft-ietf-mls-protocol-17

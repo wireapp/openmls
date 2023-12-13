@@ -118,7 +118,6 @@ impl PublicGroup {
                     e,
                 ))
             })?;
-
         // Create a RatchetTree from the given nodes. We have to do this before
         // verifying the group info, since we need to find the Credential to verify the
         // signature against.

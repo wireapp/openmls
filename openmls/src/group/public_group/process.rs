@@ -24,8 +24,8 @@ impl PublicGroup {
     /// This function is used to parse messages from the DS.
     /// It checks for syntactic errors and makes some semantic checks as well.
     /// If the input is a [PrivateMessage] message, it will be decrypted.
-    /// Returns an [UnverifiedMessage] that can be inspected and later processed in
-    /// [Self::process_unverified_message()].
+    /// Returns an [UnverifiedMessage] that can be inspected and later processed
+    /// in [Self::process_unverified_message()].
     /// Checks the following semantic validation:
     ///  - ValSem002
     ///  - ValSem003
@@ -41,7 +41,7 @@ impl PublicGroup {
         decrypted_message: DecryptedMessage,
         message_secrets_store_option: impl Into<Option<&'a MessageSecretsStore>>,
     ) -> Result<UnverifiedMessage, ValidationError> {
-        println!("> PublicGroup::parse_message");
+        // println!("> PublicGroup::parse_message");
         let message_secrets_store_option = message_secrets_store_option.into();
         // Checks the following semantic validation:
         //  - ValSem004
@@ -70,8 +70,8 @@ impl PublicGroup {
         // Checks the following semantic validation:
         //  - ValSem112
         //  - ValSem245
-        //  - Prepares ValSem246 by setting the right credential. The remainder
-        //    of ValSem246 is validated as part of ValSem010.
+        //  - Prepares ValSem246 by setting the right credential. The remainder of
+        //    ValSem246 is validated as part of ValSem010.
         // External senders are not supported yet #106/#151.
         let CredentialWithKey {
             credential,
@@ -123,7 +123,7 @@ impl PublicGroup {
     ///  - ValSem202: Path must be the right length
     ///  - ValSem203: Path secrets must decrypt correctly
     ///  - ValSem204: Public keys from Path must be verified and match the
-    ///               private keys from the direct path
+    ///    private keys from the direct path
     ///  - ValSem205
     ///  - ValSem240
     ///  - ValSem241
@@ -137,7 +137,7 @@ impl PublicGroup {
         backend: &impl OpenMlsCryptoProvider,
         message: impl Into<ProtocolMessage>,
     ) -> Result<ProcessedMessage, ProcessMessageError> {
-        println!("> PublicGroup::process_message");
+        // println!("> PublicGroup::process_message");
         let protocol_message = message.into();
         // Checks the following semantic validation:
         //  - ValSem002
@@ -187,7 +187,7 @@ impl PublicGroup {
     ///  - ValSem202: Path must be the right length
     ///  - ValSem203: Path secrets must decrypt correctly
     ///  - ValSem204: Public keys from Path must be verified and match the
-    ///               private keys from the direct path
+    ///    private keys from the direct path
     ///  - ValSem205
     ///  - ValSem240
     ///  - ValSem241
@@ -202,7 +202,7 @@ impl PublicGroup {
         proposal_store: &ProposalStore,
         group: &PublicGroup,
     ) -> Result<ProcessedMessage, ProcessMessageError> {
-        println!("> PublicGroup::process_unverified_message");
+        // println!("> PublicGroup::process_unverified_message");
         // Checks the following semantic validation:
         //  - ValSem010
         //  - ValSem246 (as part of ValSem010)
