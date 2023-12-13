@@ -83,6 +83,7 @@ pub use node::encryption_keys::test_utils;
 pub use node::encryption_keys::EncryptionKey;
 
 // Public re-exports
+use crate::treesync::node::leaf_node::LeafNodeIn;
 pub use node::{leaf_node::LeafNode, parent_node::ParentNode, Node};
 
 // Tests
@@ -449,12 +450,15 @@ impl TreeSync {
             Vec::with_capacity(ratchet_tree.0.len());
 
         // Set the leaf indices in all the leaves and convert the node types.
-        for (node_index, node_option) in ratchet_tree.0.into_iter().enumerate() {
-            let ts_node_option: TreeNode<TreeSyncLeafNode, TreeSyncParentNode> = match node_option {
-                Some(node) => {
-                    let node = node.clone();
-                    TreeSyncNode::from(node).into()
+        for (node_index, maybe_node) in ratchet_tree.0.into_iter().enumerate() {
+            let ts_node: TreeNode<TreeSyncLeafNode, TreeSyncParentNode> = match maybe_node {
+                Some(Node::LeafNode(ln)) => {
+                    let ln = LeafNodeIn::from(ln).try_into_verifiable_leaf_node(None)?;
+                    let ln =
+                        ln.validate(backend.crypto(), ciphersuite.signature_algorithm(), None)?;
+                    TreeSyncNode::from(Node::LeafNode(ln)).into()
                 }
+                Some(Node::ParentNode(pn)) => TreeSyncNode::from(Node::ParentNode(pn)).into(),
                 None => {
                     if node_index % 2 == 0 {
                         TreeNode::Leaf(TreeSyncLeafNode::blank())
@@ -463,7 +467,7 @@ impl TreeSync {
                     }
                 }
             };
-            ts_nodes.push(ts_node_option);
+            ts_nodes.push(ts_node);
         }
         let tree = MlsBinaryTree::new(ts_nodes).map_err(|_| PublicTreeError::MalformedTree)?;
         let mut tree_sync = Self {

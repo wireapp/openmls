@@ -17,7 +17,7 @@ use crate::{
 impl CoreGroup {
     // Join a group from a welcome message
     pub async fn new_from_welcome<KeyStore: OpenMlsKeyStore>(
-        welcome: Welcome,
+        mut welcome: Welcome,
         ratchet_tree: Option<RatchetTreeIn>,
         key_package: &KeyPackage,
         key_package_private_key: HpkePrivateKey,
@@ -42,14 +42,9 @@ impl CoreGroup {
             .map_err(|_| WelcomeError::NoMatchingEncryptionKey)?;
 
         // Find key_package in welcome secrets
-        let egs = if let Some(egs) = Self::find_key_package_from_welcome_secrets(
-            key_package.hash_ref(backend.crypto())?,
-            welcome.secrets(),
-        ) {
-            egs
-        } else {
-            return Err(WelcomeError::JoinerSecretNotFound);
-        };
+        let kpr = key_package.hash_ref(backend.crypto())?;
+        let egs = Self::find_group_secrets_from_key_package(kpr, welcome.take_secrets())
+            .ok_or(WelcomeError::JoinerSecretNotFound)?;
 
         let ciphersuite = welcome.ciphersuite();
         if ciphersuite != key_package.ciphersuite() {
@@ -153,6 +148,7 @@ impl CoreGroup {
             ProposalStore::new(),
         )?;
 
+        // Validate our KeyPackage in case it expired meanwhile
         KeyPackageIn::from(key_package.clone()).validate(
             backend.crypto(),
             ProtocolVersion::Mls10,
@@ -259,21 +255,18 @@ impl CoreGroup {
 
     // Helper functions
 
-    pub(crate) fn find_key_package_from_welcome_secrets(
+    pub(crate) fn find_group_secrets_from_key_package(
         hash_ref: HashReference,
-        welcome_secrets: &[EncryptedGroupSecrets],
+        welcome_secrets: Vec<EncryptedGroupSecrets>,
     ) -> Option<EncryptedGroupSecrets> {
-        for egs in welcome_secrets {
-            if &hash_ref == egs.new_member() {
-                return Some(egs.clone());
-            }
-        }
-        None
+        welcome_secrets
+            .into_iter()
+            .find(|egs| egs.new_member() == &hash_ref)
     }
 }
 
-/// Checks if there are multiple ocurrences of resumption psks of type Branch or Reinit
-/// It will return true if it contains any of those types
+/// Checks if there are multiple ocurrences of resumption psks of type Branch or
+/// Reinit It will return true if it contains any of those types
 fn check_welcome_psks<'i>(
     resumption_psks: impl Iterator<Item = &'i ResumptionPsk>,
 ) -> Result<bool, PskError> {

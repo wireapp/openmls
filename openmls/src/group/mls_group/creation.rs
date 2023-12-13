@@ -153,13 +153,6 @@ impl MlsGroup {
         )
         .await?;
 
-        // Validate our KeyPackage in case it expired meanwhile
-        KeyPackageIn::from(key_package.clone()).validate(
-            backend.crypto(),
-            ProtocolVersion::default(),
-            group.public_group(),
-        )?;
-
         group.set_max_past_epochs(mls_group_config.max_past_epochs);
 
         let group = MlsGroup {

@@ -29,7 +29,11 @@ use crate::treesync::errors::LeafNodeValidationError;
 mod capabilities;
 mod codec;
 
+use crate::group::PublicGroup;
+use crate::treesync::node::validate::ValidatableLeafNode;
 pub use capabilities::*;
+use openmls_traits::crypto::OpenMlsCrypto;
+use openmls_traits::types::SignatureScheme;
 
 /// Private module to ensure protection.
 mod private_mod {
@@ -774,6 +778,22 @@ impl VerifiableLeafNode {
             VerifiableLeafNode::KeyPackage(v) => v.signature_key(),
             VerifiableLeafNode::Update(v) => v.signature_key(),
             VerifiableLeafNode::Commit(v) => v.signature_key(),
+        }
+    }
+
+    pub(crate) fn validate(
+        self,
+        crypto: &impl OpenMlsCrypto,
+        sc: SignatureScheme,
+        group: Option<&PublicGroup>,
+    ) -> Result<LeafNode, LeafNodeValidationError> {
+        match (self, group) {
+            (VerifiableLeafNode::KeyPackage(ln), None) => ln.standalone_validate(crypto, sc),
+            (VerifiableLeafNode::KeyPackage(ln), Some(group)) => ln.validate(group, crypto),
+            (VerifiableLeafNode::Update(ln), None) => ln.standalone_validate(crypto, sc),
+            (VerifiableLeafNode::Update(ln), Some(group)) => ln.validate(group, crypto),
+            (VerifiableLeafNode::Commit(ln), None) => ln.standalone_validate(crypto, sc),
+            (VerifiableLeafNode::Commit(ln), Some(group)) => ln.validate(group, crypto),
         }
     }
 }

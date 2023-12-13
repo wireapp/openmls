@@ -33,7 +33,8 @@ pub enum PublicTreeError {
     /// A parent hash was invalid.
     #[error("A parent hash was invalid.")]
     InvalidParentHash,
-    /// An update failed because the provided credential has a different identity than the one in the leaf node.
+    /// An update failed because the provided credential has a different
+    /// identity than the one in the leaf node.
     #[error("An update failed because the provided credential has a different identity than the one in the leaf node.")]
     IdentityMismatch,
     /// See [`SignatureError`] for more details.
@@ -47,7 +48,8 @@ pub enum ApplyUpdatePathError {
     /// See [`LibraryError`] for more details.
     #[error(transparent)]
     LibraryError(#[from] LibraryError),
-    /// The length of the received update path and that of the sender's direct path do not match.
+    /// The length of the received update path and that of the sender's direct
+    /// path do not match.
     #[error(
         "The length of the received update path and that of the sender's direct path do not match."
     )]
@@ -152,6 +154,9 @@ pub enum TreeSyncFromNodesError {
     /// See [`RatchetTreeError`] for more details.
     #[error(transparent)]
     RatchetTreeError(#[from] RatchetTreeError),
+    /// See [`LeafNodeValidationError`] for more details.
+    #[error(transparent)]
+    LeafNodeValidationError(#[from] LeafNodeValidationError),
 }
 
 /// TreeSync parent hash error
@@ -236,10 +241,12 @@ pub enum LeafNodeValidationError {
     /// Ciphersuite is not acceptable.
     #[error("Ciphersuite is not acceptable.")]
     UnsupportedCipherSuite,
-    /// The leaf node's credential type is not listed in the leaf node's capabilities."
+    /// The leaf node's credential type is not listed in the leaf node's
+    /// capabilities."
     #[error("The leaf node's credential type is not listed in the leaf node's capabilities.")]
     CredentialNotInCapabilities,
-    /// The leaf node's extension types are not (all) listed in the leaf node's capabilities.
+    /// The leaf node's extension types are not (all) listed in the leaf node's
+    /// capabilities.
     #[error(
         "The leaf node's extension types are not (all) listed in the leaf node's capabilities."
     )]
@@ -250,7 +257,8 @@ pub enum LeafNodeValidationError {
     /// The leaf node's encryption key is already used in the group.
     #[error("The leaf node's encryption key is already used in the group.")]
     EncryptionKeyAlreadyInUse,
-    /// The leaf node's encryption key is already used by the leaf node it tries to replace.
+    /// The leaf node's encryption key is already used by the leaf node it tries
+    /// to replace.
     #[error("The leaf node's encryption key is already used by the leaf node it tries to replace")]
     UpdatedEncryptionKeyAlreadyInUse,
     /// The leaf node source is invalid in the given context.

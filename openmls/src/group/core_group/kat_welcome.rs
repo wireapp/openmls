@@ -14,10 +14,11 @@
 //!   * Decrypt the encrypted group info
 //! * Verify the signature on the decrypted group info using `signer_pub`
 //! * Verify the `confirmation_tag` in the decrypted group info:
-//!   * Initialize a key schedule epoch using the decrypted `joiner_secret` and no PSKs
-//!   * Recompute a candidate `confirmation_tag` value using the `confirmation_key`
-//!     from the key schedule epoch and the `confirmed_transcript_hash` from the
-//!     decrypted GroupContext
+//!   * Initialize a key schedule epoch using the decrypted `joiner_secret` and
+//!     no PSKs
+//!   * Recompute a candidate `confirmation_tag` value using the
+//!     `confirmation_key` from the key schedule epoch and the
+//!     `confirmed_transcript_hash` from the decrypted GroupContext
 
 use openmls_rust_crypto::OpenMlsRustCrypto;
 use openmls_traits::{crypto::OpenMlsCrypto, key_store::OpenMlsKeyStore, OpenMlsCryptoProvider};
@@ -187,12 +188,12 @@ pub async fn run_test_vector(test_vector: WelcomeTestVector) -> Result<(), &'sta
     // Verification:
     // * Decrypt the Welcome message:
     //  * Identify the entry in `welcome.secrets` corresponding to `key_package`
-    let encrypted_group_secrets = CoreGroup::find_key_package_from_welcome_secrets(
+    let encrypted_group_secrets = CoreGroup::find_group_secrets_from_key_package(
         key_package_bundle
             .key_package()
             .hash_ref(backend.crypto())
             .unwrap(),
-        welcome.secrets(),
+        welcome.secrets().to_vec(),
     )
     .unwrap();
     println!("{encrypted_group_secrets:?}");
@@ -254,8 +255,11 @@ pub async fn run_test_vector(test_vector: WelcomeTestVector) -> Result<(), &'sta
 
     // * Verify the confirmation_tag in the decrypted group info:
     //
-    //   * Initialize a key schedule epoch using the decrypted joiner_secret and no PSKs
-    //   * Recompute a candidate confirmation_tag value using the confirmation_key from the key schedule epoch and the confirmed_transcript_hash from the decrypted GroupContext
+    //   * Initialize a key schedule epoch using the decrypted joiner_secret and no
+    //     PSKs
+    //   * Recompute a candidate confirmation_tag value using the confirmation_key
+    //     from the key schedule epoch and the confirmed_transcript_hash from the
+    //     decrypted GroupContext
     let group_context = GroupContext::from(group_info.clone());
 
     let serialized_group_context = group_context.tls_serialize_detached().unwrap();
