@@ -271,8 +271,7 @@ impl UnverifiedMessage {
         }
     }
 
-    /// Verify the [`UnverifiedMessage`]. Returns the [`AuthenticatedContent`]
-    /// and the internal [`Credential`].
+    /// Verify the [`UnverifiedMessage`]. Returns the [`AuthenticatedContent`] and the internal [`Credential`].
     pub(crate) fn verify(
         self,
         ciphersuite: Ciphersuite,
