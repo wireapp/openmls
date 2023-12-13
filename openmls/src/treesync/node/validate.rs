@@ -61,7 +61,8 @@ impl ValidatableLeafNode for VerifiableUpdateLeafNode {
 }
 
 impl VerifiableUpdateLeafNode {
-    /// Verify that encryption_key represents a different public key than the encryption_key in the leaf node being replaced by the Update proposal.
+    /// Verify that encryption_key represents a different public key than the
+    /// encryption_key in the leaf node being replaced by the Update proposal.
     fn validate_replaced_encryption_key(
         &self,
         group: &PublicGroup,
@@ -106,6 +107,7 @@ impl ValidatableLeafNode for VerifiableKeyPackageLeafNode {
 
 impl VerifiableKeyPackageLeafNode {
     fn validate_lifetime(&self) -> Result<(), LeafNodeValidationError> {
+        println!("> Validate KeyPackage Lifetime");
         let LeafNodeSource::KeyPackage(lifetime) = self.payload.leaf_node_source else {
             return Err(LeafNodeValidationError::InvalidLeafNodeSource);
         };
@@ -172,8 +174,9 @@ where
     }
 
     /// Verify that the LeafNode is compatible with the group's parameters.
-    /// If the GroupContext has a required_capabilities extension, then the required extensions, proposals,
-    /// and credential types MUST be listed in the LeafNode's capabilities field.
+    /// If the GroupContext has a required_capabilities extension, then the
+    /// required extensions, proposals, and credential types MUST be listed
+    /// in the LeafNode's capabilities field.
     fn validate_capabilities(&self, group: &PublicGroup) -> Result<(), LeafNodeValidationError> {
         if let Some(group_required_capabilities) = group.required_capabilities() {
             self.capabilities()
@@ -182,8 +185,10 @@ where
         Ok(())
     }
 
-    /// (1) Verify that the credential type is supported by all members of the group, as specified by the capabilities field of each member's LeafNode
-    /// (2) and that the capabilities field of this LeafNode indicates support for all the credential types currently in use by other members.
+    /// (1) Verify that the credential type is supported by all members of the
+    /// group, as specified by the capabilities field of each member's LeafNode
+    /// (2) and that the capabilities field of this LeafNode indicates support
+    /// for all the credential types currently in use by other members.
     fn validate_credential_type(&self, group: &PublicGroup) -> Result<(), LeafNodeValidationError> {
         for leaf_node in group.treesync().raw_leaves() {
             // (1)
@@ -201,7 +206,8 @@ where
         Ok(())
     }
 
-    /// Verify that the following fields are unique among the members of the group: signature_key
+    /// Verify that the following fields are unique among the members of the
+    /// group: signature_key
     fn validate_signature_key_unique(
         &self,
         tree: &TreeSync,
@@ -211,7 +217,8 @@ where
         }
         Ok(())
     }
-    /// Verify that the following fields are unique among the members of the group: encryption_key
+    /// Verify that the following fields are unique among the members of the
+    /// group: encryption_key
     fn validate_encryption_key_unique(
         &self,
         tree: &TreeSync,
@@ -223,8 +230,9 @@ where
         Ok(())
     }
 
-    /// Verify that the extensions in the LeafNode are supported by checking that the ID for each extension in the extensions
-    /// field is listed in the capabilities.extensions field of the LeafNode.
+    /// Verify that the extensions in the LeafNode are supported by checking
+    /// that the ID for each extension in the extensions field is listed in
+    /// the capabilities.extensions field of the LeafNode.
     fn validate_extension_support(
         leaf_node: &LeafNode,
         extensions: &[ExtensionType],

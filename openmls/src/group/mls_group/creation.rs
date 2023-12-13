@@ -1,6 +1,8 @@
 use openmls_traits::signatures::Signer;
 
 use super::*;
+use crate::prelude::KeyPackageIn;
+use crate::versions::ProtocolVersion;
 use crate::{
     ciphersuite::HpkePrivateKey,
     credentials::CredentialWithKey,
@@ -17,7 +19,8 @@ use crate::{
 impl MlsGroup {
     // === Group creation ===
 
-    /// Creates a new group with the creator as the only member (and a random group ID).
+    /// Creates a new group with the creator as the only member (and a random
+    /// group ID).
     ///
     /// This function removes the private key corresponding to the
     /// `key_package` from the key store.
@@ -37,7 +40,8 @@ impl MlsGroup {
         .await
     }
 
-    /// Creates a new group with a given group ID with the creator as the only member.
+    /// Creates a new group with a given group ID with the creator as the only
+    /// member.
     pub async fn new_with_group_id<KeyStore: OpenMlsKeyStore>(
         backend: &impl OpenMlsCryptoProvider<KeyStoreProvider = KeyStore>,
         signer: &impl Signer,
@@ -130,9 +134,7 @@ impl MlsGroup {
             }
         }
 
-        let Some(key_package) = key_package.take() else {
-            return Err(WelcomeError::NoMatchingKeyPackage);
-        };
+        let key_package = key_package.ok_or(WelcomeError::NoMatchingKeyPackage)?;
 
         // TODO #751
         let private_key = backend
@@ -150,9 +152,17 @@ impl MlsGroup {
             resumption_psk_store,
         )
         .await?;
+
+        // Validate our KeyPackage in case it expired meanwhile
+        KeyPackageIn::from(key_package.clone()).validate(
+            backend.crypto(),
+            ProtocolVersion::default(),
+            group.public_group(),
+        )?;
+
         group.set_max_past_epochs(mls_group_config.max_past_epochs);
 
-        let mls_group = MlsGroup {
+        let group = MlsGroup {
             mls_group_config: mls_group_config.clone(),
             group,
             proposal_store: ProposalStore::new(),
@@ -162,10 +172,11 @@ impl MlsGroup {
             state_changed: InnerState::Changed,
         };
 
-        // Delete the [`KeyPackage`] and the corresponding private key from the key store
+        // Delete the [`KeyPackage`] and the corresponding private key from the key
+        // store
         key_package.delete(backend).await?;
 
-        Ok(mls_group)
+        Ok(group)
     }
 
     /// Join an existing group through an External Commit.
@@ -180,8 +191,8 @@ impl MlsGroup {
     /// group info. For more information on the external init process,
     /// please see Section 11.2.1 in the MLS specification.
     ///
-    /// Note: If there is a group member in the group with the same identity as us,
-    /// this will create a remove proposal.
+    /// Note: If there is a group member in the group with the same identity as
+    /// us, this will create a remove proposal.
     pub async fn join_by_external_commit(
         backend: &impl OpenMlsCryptoProvider,
         signer: &impl Signer,
