@@ -40,7 +40,7 @@ impl ValidatableLeafNode for VerifiableUpdateLeafNode {
         crypto: &impl OpenMlsCrypto,
     ) -> Result<LeafNode, LeafNodeValidationError> {
         self.validate_replaced_encryption_key(group)?;
-        self.generic_validate(crypto, group)
+        self._generic_validate(crypto, group)
     }
 
     fn signature_key(&self) -> &SignaturePublicKey {
@@ -79,13 +79,22 @@ impl VerifiableUpdateLeafNode {
 }
 
 impl ValidatableLeafNode for VerifiableKeyPackageLeafNode {
+    fn standalone_validate(
+        self,
+        crypto: &impl OpenMlsCrypto,
+        signature_scheme: SignatureScheme,
+    ) -> Result<LeafNode, LeafNodeValidationError> {
+        self.validate_lifetime()?;
+        self._generic_standalone_validate(crypto, signature_scheme)
+    }
+
     fn validate(
         self,
         group: &PublicGroup,
         crypto: &impl OpenMlsCrypto,
     ) -> Result<LeafNode, LeafNodeValidationError> {
         self.validate_lifetime()?;
-        self.generic_validate(crypto, group)
+        self._generic_validate(crypto, group)
     }
 
     fn signature_key(&self) -> &SignaturePublicKey {
@@ -127,6 +136,15 @@ where
         crypto: &impl OpenMlsCrypto,
         signature_scheme: SignatureScheme,
     ) -> Result<LeafNode, LeafNodeValidationError> {
+        self._generic_standalone_validate(crypto, signature_scheme)
+    }
+
+    /// Should never be called directly, always through [standalone_validate]
+    fn _generic_standalone_validate(
+        self,
+        crypto: &impl OpenMlsCrypto,
+        signature_scheme: SignatureScheme,
+    ) -> Result<LeafNode, LeafNodeValidationError> {
         let extension_types = self.extension_types();
         let leaf_node = self.verify_signature(crypto, signature_scheme)?;
         Self::validate_extension_support(&leaf_node, &extension_types[..])?;
@@ -139,11 +157,12 @@ where
         group: &PublicGroup,
         crypto: &impl OpenMlsCrypto,
     ) -> Result<LeafNode, LeafNodeValidationError> {
-        self.generic_validate(crypto, group)
+        self._generic_validate(crypto, group)
     }
 
     /// Validation regardless of [LeafNode]'s source
-    fn generic_validate(
+    /// Should never be called directly, always through [validate]
+    fn _generic_validate(
         self,
         crypto: &impl OpenMlsCrypto,
         group: &PublicGroup,

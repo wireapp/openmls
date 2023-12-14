@@ -3,8 +3,9 @@ use fluvio_wasm_timer::{SystemTime, UNIX_EPOCH};
 use serde::{Deserialize, Serialize};
 use tls_codec::{TlsDeserialize, TlsSerialize, TlsSize};
 
-/// This value is used as the default lifetime if no default  lifetime is configured.
-/// The value is in seconds and amounts to 3 * 28 Days, i.e. about 3 months.
+/// This value is used as the default lifetime if no default  lifetime is
+/// configured. The value is in seconds and amounts to 3 * 28 Days, i.e. about 3
+/// months.
 const DEFAULT_KEY_PACKAGE_LIFETIME_SECONDS: u64 = 60 * 60 * 24 * 28 * 3;
 
 /// This value is used as the default amount of time (in seconds) the lifetime
@@ -75,8 +76,9 @@ impl Lifetime {
     }
 
     /// ValSem(openmls/annotations#32):
-    /// Applications MUST define a maximum total lifetime that is acceptable for a LeafNode,
-    /// and reject any LeafNode where the total lifetime is longer than this duration.
+    /// Applications MUST define a maximum total lifetime that is acceptable for
+    /// a LeafNode, and reject any LeafNode where the total lifetime is
+    /// longer than this duration.
     pub fn has_acceptable_range(&self) -> bool {
         self.not_after.saturating_sub(self.not_before) <= MAX_LEAF_NODE_LIFETIME_RANGE_SECONDS
     }

@@ -454,6 +454,7 @@ impl TreeSync {
             let ts_node: TreeNode<TreeSyncLeafNode, TreeSyncParentNode> = match maybe_node {
                 Some(Node::LeafNode(ln)) => {
                     let ln = LeafNodeIn::from(ln).try_into_verifiable_leaf_node(None)?;
+                    println!("> Validate LeafNode");
                     let ln =
                         ln.validate(backend.crypto(), ciphersuite.signature_algorithm(), None)?;
                     TreeSyncNode::from(Node::LeafNode(ln)).into()
