@@ -6,7 +6,7 @@ use crate::error::LibraryError;
 use thiserror::Error;
 
 /// An error that occurs in methods of a [`super::Credential`].
-#[derive(Error, Debug, PartialEq, Clone)]
+#[derive(Error, Debug, Eq, PartialEq, Clone)]
 pub enum CredentialError {
     /// A library error occurred.
     #[error(transparent)]
@@ -26,4 +26,7 @@ pub enum CredentialError {
     /// x509 certificate chain is either unordered or a child is missigned by its issuer
     #[error("Invalid x509 certificate chain.")]
     InvalidCertificateChain,
+    /// one of x509 certificate chain member is expired
+    #[error("Expired x509 certificate chain.")]
+    ExpiredCertificate,
 }

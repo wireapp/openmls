@@ -35,6 +35,7 @@ mod codec;
 #[cfg(test)]
 mod tests;
 use errors::*;
+use openmls_traits::types::CryptoError;
 use openmls_x509_credential::X509Ext;
 use x509_cert::{der::Decode, PkiPath};
 
@@ -272,6 +273,25 @@ impl Credential {
             MlsCredentialType::Basic(basic_credential) => basic_credential.identity.as_slice(),
             MlsCredentialType::X509(cert) => cert.identity.as_slice(),
         }
+    }
+
+    pub fn verify(&self) -> Result<(), CredentialError> {
+        match &self.credential {
+            MlsCredentialType::X509(cert) => {
+                // TODO: implement this on the whole chain with certval
+                let ee_cert = cert
+                    .certificates
+                    .first()
+                    .ok_or(CredentialError::InvalidCertificateChain)?;
+                let ee_cert = x509_cert::Certificate::from_der(ee_cert.as_slice())?;
+                ee_cert.is_valid().map_err(|e| match e {
+                    CryptoError::ExpiredCertificate => CredentialError::ExpiredCertificate,
+                    _ => CredentialError::InvalidCertificateChain,
+                })?;
+            }
+            MlsCredentialType::Basic(_) => {}
+        }
+        Ok(())
     }
 }
 

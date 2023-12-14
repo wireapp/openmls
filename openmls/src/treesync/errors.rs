@@ -5,6 +5,7 @@
 use thiserror::Error;
 
 use super::*;
+use crate::prelude::CredentialError;
 use crate::{
     binary_tree::MlsBinaryTreeDiffError, ciphersuite::signable::SignatureError,
     error::LibraryError, extensions::errors::ExtensionError,
@@ -276,6 +277,9 @@ pub enum LeafNodeValidationError {
     /// See [`SignatureError`] for more details.
     #[error(transparent)]
     SignatureError(#[from] SignatureError),
+    /// See [`CredentialError`] for more details.
+    #[error(transparent)]
+    CredentialError(#[from] CredentialError),
 }
 
 /// Errors that can happen during lifetime validation.

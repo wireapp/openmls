@@ -1,3 +1,4 @@
+use crate::credentials::MlsCredentialType;
 use crate::{
     prelude::{
         Capabilities, CredentialType, ExtensionType, Extensions, SignaturePublicKey, Verifiable,
@@ -116,13 +117,13 @@ impl ValidatableLeafNode for VerifiableKeyPackageLeafNode {
 
 impl VerifiableKeyPackageLeafNode {
     fn validate_lifetime(&self) -> Result<(), LeafNodeValidationError> {
-        println!("> Validate KeyPackage Lifetime");
         let LeafNodeSource::KeyPackage(lifetime) = self.payload.leaf_node_source else {
             return Err(LeafNodeValidationError::InvalidLeafNodeSource);
         };
         if !lifetime.is_valid() {
             return Err(LeafNodeValidationError::Lifetime(LifetimeError::NotCurrent));
         }
+        self.payload.credential.verify()?;
         Ok(())
     }
 }
