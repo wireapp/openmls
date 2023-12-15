@@ -790,11 +790,20 @@ impl VerifiableLeafNode {
         group: Option<&PublicGroup>,
     ) -> Result<LeafNode, LeafNodeValidationError> {
         let r = match (self, group) {
-            (VerifiableLeafNode::KeyPackage(ln), None) => ln.standalone_validate(crypto, sc),
+            (VerifiableLeafNode::KeyPackage(ln), None) => {
+                println!("validate kp leafnode");
+                ln.standalone_validate(crypto, sc)
+            }
             (VerifiableLeafNode::KeyPackage(ln), Some(group)) => ln.validate(group, crypto),
-            (VerifiableLeafNode::Update(ln), None) => ln.standalone_validate(crypto, sc),
+            (VerifiableLeafNode::Update(ln), None) => {
+                println!("validate update leafnode");
+                ln.standalone_validate(crypto, sc)
+            }
             (VerifiableLeafNode::Update(ln), Some(group)) => ln.validate(group, crypto),
-            (VerifiableLeafNode::Commit(ln), None) => ln.standalone_validate(crypto, sc),
+            (VerifiableLeafNode::Commit(ln), None) => {
+                println!("validate commit leafnode");
+                ln.standalone_validate(crypto, sc)
+            }
             (VerifiableLeafNode::Commit(ln), Some(group)) => ln.validate(group, crypto),
         };
         println!("/ {:?}", r);
