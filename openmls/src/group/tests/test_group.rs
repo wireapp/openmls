@@ -150,7 +150,7 @@ async fn create_commit_optional_path(
     // Bob creates group from Welcome
     let group_bob = match CoreGroup::new_from_welcome(
         create_commit_result
-            .welcome_option
+            .welcome
             .expect("An unexpected error occurred."),
         Some(ratchet_tree.into()),
         bob_kpb.key_package(),
@@ -372,7 +372,7 @@ async fn group_operations(ciphersuite: Ciphersuite, backend: &impl OpenMlsCrypto
     };
     assert!(!commit.has_path());
     // Check that the function returned a Welcome message
-    assert!(create_commit_result.welcome_option.is_some());
+    assert!(create_commit_result.welcome.is_some());
 
     group_alice
         .merge_commit(backend, create_commit_result.staged_commit)
@@ -382,7 +382,7 @@ async fn group_operations(ciphersuite: Ciphersuite, backend: &impl OpenMlsCrypto
 
     let mut group_bob = match CoreGroup::new_from_welcome(
         create_commit_result
-            .welcome_option
+            .welcome
             .expect("An unexpected error occurred."),
         Some(ratchet_tree.into()),
         bob_kpb.key_package(),
@@ -494,7 +494,7 @@ async fn group_operations(ciphersuite: Ciphersuite, backend: &impl OpenMlsCrypto
     };
     assert!(commit.has_path());
     // Check there is no Welcome message
-    assert!(create_commit_result.welcome_option.is_none());
+    assert!(create_commit_result.welcome.is_none());
 
     let staged_commit = group_alice
         .read_keys_and_stage_commit(&create_commit_result.commit, &proposal_store, &[], backend)
@@ -723,7 +723,7 @@ async fn group_operations(ciphersuite: Ciphersuite, backend: &impl OpenMlsCrypto
     };
     assert!(!commit.has_path());
     // Make sure this is a Welcome message for Charlie
-    assert!(create_commit_result.welcome_option.is_some());
+    assert!(create_commit_result.welcome.is_some());
 
     let staged_commit = group_alice
         .read_keys_and_stage_commit(&create_commit_result.commit, &proposal_store, &[], backend)
@@ -741,7 +741,7 @@ async fn group_operations(ciphersuite: Ciphersuite, backend: &impl OpenMlsCrypto
     let ratchet_tree = group_alice.public_group().export_ratchet_tree();
     let mut group_charlie = match CoreGroup::new_from_welcome(
         create_commit_result
-            .welcome_option
+            .welcome
             .expect("An unexpected error occurred."),
         Some(ratchet_tree.into()),
         charlie_kpb.key_package(),

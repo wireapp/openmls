@@ -90,6 +90,7 @@ impl MlsGroup {
                 }
                 PublicGroupBuildError::InvalidExtensions(e) => NewGroupError::InvalidExtensions(e),
             },
+            CoreGroupBuildError::CryptoError(e) => e.into(),
         })?;
 
         // We already add a resumption PSK for epoch 0 to make things more unified.

@@ -2,6 +2,7 @@
 //!
 //! This module contains errors that originate at lower levels and are partially re-exported in errors thrown by functions of the `MlsGroup` API.
 
+use openmls_traits::types::CryptoError;
 use thiserror::Error;
 
 pub use super::mls_group::errors::*;
@@ -244,6 +245,12 @@ pub enum CreateCommitError<KeyStoreError> {
     /// See [`InvalidExtensionError`] for more details.
     #[error(transparent)]
     InvalidExtensionError(#[from] InvalidExtensionError),
+    /// See [`tls_codec::Error`] for more details.
+    #[error(transparent)]
+    TlsCodecError(#[from] tls_codec::Error),
+    /// See [`CryptoError`] for more details.
+    #[error(transparent)]
+    CryptoError(#[from] CryptoError),
 }
 
 /// Validation error
@@ -450,6 +457,9 @@ pub enum ExporterError {
     /// See [`LibraryError`] for more details.
     #[error(transparent)]
     LibraryError(#[from] LibraryError),
+    /// See [`CryptoError`] for more details.
+    #[error(transparent)]
+    CryptoError(#[from] CryptoError),
     #[error("The requested key length is not supported (too large).")]
     KeyLengthTooLong,
 }
@@ -517,6 +527,9 @@ pub enum CoreGroupBuildError<KeyStoreError> {
     /// See [`PskError`] for more details.
     #[error(transparent)]
     Psk(#[from] PskError),
+    /// See [`CryptoError`] for more details.
+    #[error(transparent)]
+    CryptoError(#[from] CryptoError),
     /// Error storing leaf private key in key store.
     #[error("Error storing leaf private key in key store.")]
     KeyStoreError(KeyStoreError),

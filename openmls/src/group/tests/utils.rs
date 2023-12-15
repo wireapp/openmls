@@ -214,7 +214,7 @@ pub(crate) async fn setup(
                 .await
                 .expect("An unexpected error occurred.");
             let welcome = create_commit_result
-                .welcome_option
+                .welcome
                 .expect("An unexpected error occurred.");
 
             core_group

@@ -410,7 +410,7 @@ async fn test_psks(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvide
 
     let group_bob = CoreGroup::new_from_welcome(
         create_commit_result
-            .welcome_option
+            .welcome
             .expect("An unexpected error occurred."),
         Some(ratchet_tree.into()),
         bob_kpb.key_package(),
@@ -514,7 +514,7 @@ async fn test_staged_commit_creation(
     // === Bob joins the group using Alice's tree ===
     let group_bob = CoreGroup::new_from_welcome(
         create_commit_result
-            .welcome_option
+            .welcome
             .expect("An unexpected error occurred."),
         Some(alice_group.public_group().export_ratchet_tree().into()),
         bob_kpb.key_package(),
@@ -697,7 +697,7 @@ async fn test_proposal_application_after_self_was_removed(
 
     let mut bob_group = CoreGroup::new_from_welcome(
         add_commit_result
-            .welcome_option
+            .welcome
             .expect("An unexpected error occurred."),
         Some(ratchet_tree.into()),
         bob_kpb.key_package(),
@@ -783,7 +783,7 @@ async fn test_proposal_application_after_self_was_removed(
 
     let charlie_group = CoreGroup::new_from_welcome(
         remove_add_commit_result
-            .welcome_option
+            .welcome
             .expect("An unexpected error occurred."),
         Some(ratchet_tree.into()),
         charlie_kpb.key_package(),

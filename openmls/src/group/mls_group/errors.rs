@@ -43,6 +43,9 @@ pub enum NewGroupError<KeyStoreError> {
     /// Invalid extensions set in configuration
     #[error("Invalid extensions set in configuration")]
     InvalidExtensions(InvalidExtensionError),
+    /// See [CryptoError]
+    #[error(transparent)]
+    CryptoError(#[from] CryptoError),
 }
 
 /// EmptyInput error
@@ -368,6 +371,9 @@ pub enum ExportSecretError {
     /// See [`MlsGroupStateError`] for more details.
     #[error(transparent)]
     GroupStateError(#[from] MlsGroupStateError),
+    /// See [`CryptoError`] for more details.
+    #[error(transparent)]
+    CryptoError(#[from] CryptoError),
 }
 
 /// Propose PSK error

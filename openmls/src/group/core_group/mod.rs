@@ -87,7 +87,7 @@ use crate::treesync::node::leaf_node::TreePosition;
 #[derive(Debug)]
 pub(crate) struct CreateCommitResult {
     pub(crate) commit: AuthenticatedContent,
-    pub(crate) welcome_option: Option<Welcome>,
+    pub(crate) welcome: Option<Welcome>,
     pub(crate) staged_commit: StagedCommit,
     pub(crate) group_info: Option<GroupInfo>,
 }
@@ -266,11 +266,9 @@ impl CoreGroupBuilder {
         let joiner_secret = JoinerSecret::new(
             backend,
             commit_secret,
-            &InitSecret::random(ciphersuite, backend, version)
-                .map_err(LibraryError::unexpected_crypto_error)?,
+            &InitSecret::random(ciphersuite, backend, version)?,
             &serialized_group_context,
-        )
-        .map_err(LibraryError::unexpected_crypto_error)?;
+        )?;
 
         // TODO(#1357)
         let resumption_psk_store = ResumptionPskStore::new(32);
@@ -297,10 +295,7 @@ impl CoreGroupBuilder {
             LeafNodeIndex::new(0u32),
         );
 
-        let initial_confirmation_tag = message_secrets
-            .confirmation_key()
-            .tag(backend, &[])
-            .map_err(LibraryError::unexpected_crypto_error)?;
+        let initial_confirmation_tag = message_secrets.confirmation_key().tag(backend, &[])?;
 
         let message_secrets_store =
             MessageSecretsStore::new_with_secret(self.max_past_epochs, message_secrets);
@@ -595,8 +590,7 @@ impl CoreGroup {
         Ok(self
             .group_epoch_secrets
             .exporter_secret()
-            .derive_exported_secret(self.ciphersuite(), backend, label, context, key_length)
-            .map_err(LibraryError::unexpected_crypto_error)?)
+            .derive_exported_secret(self.ciphersuite(), backend, label, context, key_length)?)
     }
 
     pub(crate) fn export_group_info(
@@ -911,19 +905,14 @@ impl CoreGroup {
 
         // Validate the proposals by doing the following checks:
 
-        // ValSem101
-        // ValSem102
-        // ValSem103
-        // ValSem104
+        // ValSem101, ValSem102, ValSem103, ValSem104
         self.public_group
             .validate_key_uniqueness(&proposal_queue, None)?;
         // ValSem105
         self.public_group.validate_add_proposals(&proposal_queue)?;
-        // ValSem106
-        // ValSem109
+        // ValSem106, ValSem109
         self.public_group.validate_capabilities(&proposal_queue)?;
-        // ValSem107
-        // ValSem108
+        // ValSem107, ValSem108
         self.public_group
             .validate_remove_proposals(&proposal_queue)?;
         self.public_group
@@ -934,9 +923,7 @@ impl CoreGroup {
             .validate_reinit_proposal(&proposal_queue)?;
         // Validate update proposals for member commits
         if let Sender::Member(sender_index) = &sender {
-            // ValSem110
-            // ValSem111
-            // ValSem112
+            // ValSem110, ValSem111, ValSem112
             self.public_group
                 .validate_update_proposals(&proposal_queue, *sender_index)?;
         }
@@ -1067,9 +1054,8 @@ impl CoreGroup {
         diff.update_interim_transcript_hash(ciphersuite, backend, confirmation_tag.clone())?;
 
         // only computes the group info if necessary
-        let group_info = if !apply_proposals_values.invitation_list.is_empty()
-            || self.use_ratchet_tree_extension
-        {
+        let contains_add_proposals = !apply_proposals_values.invitation_list.is_empty();
+        let (group_info, welcome) = if contains_add_proposals {
             // Create the ratchet tree extension if necessary
             let external_pub = provisional_epoch_secrets
                 .external_secret()
@@ -1095,30 +1081,15 @@ impl CoreGroup {
                 self.own_leaf_index(),
             );
             // Sign to-be-signed group info.
-            Some(group_info_tbs.sign(signer)?)
-        } else {
-            None
-        };
+            let group_info = group_info_tbs.sign(signer)?;
 
-        // Check if new members were added and, if so, create welcome messages
-        let welcome_option = if !apply_proposals_values.invitation_list.is_empty() {
             // Encrypt GroupInfo object
             let (welcome_key, welcome_nonce) = welcome_secret
                 .derive_welcome_key_nonce(backend)
                 .map_err(LibraryError::unexpected_crypto_error)?;
-            let encrypted_group_info = welcome_key
-                .aead_seal(
-                    backend,
-                    group_info
-                        .as_ref()
-                        .ok_or_else(|| LibraryError::custom("GroupInfo was not computed"))?
-                        .tls_serialize_detached()
-                        .map_err(LibraryError::missing_bound_check)?
-                        .as_slice(),
-                    &[],
-                    &welcome_nonce,
-                )
-                .map_err(LibraryError::unexpected_crypto_error)?;
+            let tls_group_info = group_info.tls_serialize_detached()?;
+            let encrypted_group_info =
+                welcome_key.aead_seal(backend, &tls_group_info[..], &[], &welcome_nonce)?;
 
             // Create group secrets for later use, so we can afterwards consume the
             // `joiner_secret`.
@@ -1134,9 +1105,9 @@ impl CoreGroup {
 
             // Create welcome message
             let welcome = Welcome::new(self.ciphersuite(), encrypted_secrets, encrypted_group_info);
-            Some(welcome)
+            (Some(group_info), Some(welcome))
         } else {
-            None
+            (None, None)
         };
 
         let (provisional_group_epoch_secrets, provisional_message_secrets) =
@@ -1165,7 +1136,7 @@ impl CoreGroup {
 
         Ok(CreateCommitResult {
             commit: authenticated_content,
-            welcome_option,
+            welcome,
             staged_commit,
             group_info: group_info.filter(|_| self.use_ratchet_tree_extension),
         })

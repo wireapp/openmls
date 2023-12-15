@@ -395,7 +395,7 @@ async fn test_group_context_extensions(
     // and Bob's key package supporting them.
     let _bob_group = CoreGroup::new_from_welcome(
         create_commit_result
-            .welcome_option
+            .welcome
             .expect("An unexpected error occurred."),
         Some(ratchet_tree.into()),
         bob_kpb.key_package(),
@@ -490,7 +490,7 @@ async fn test_group_context_extension_proposal_fails(
 
     let _bob_group = CoreGroup::new_from_welcome(
         create_commit_result
-            .welcome_option
+            .welcome
             .expect("An unexpected error occurred."),
         Some(ratchet_tree.into()),
         bob_kpb.key_package(),
@@ -576,7 +576,7 @@ async fn test_group_context_extension_proposal(
 
     let mut bob_group = CoreGroup::new_from_welcome(
         create_commit_results
-            .welcome_option
+            .welcome
             .expect("An unexpected error occurred."),
         Some(ratchet_tree.into()),
         bob_kpb.key_package(),

@@ -66,7 +66,7 @@ impl MlsGroup {
             .build();
         let create_commit_result = self.group.create_commit(params, backend, signer).await?;
 
-        let welcome = match create_commit_result.welcome_option {
+        let welcome = match create_commit_result.welcome {
             Some(welcome) => welcome,
             None => {
                 return Err(LibraryError::custom("No secrets to generate commit message.").into())
@@ -162,7 +162,7 @@ impl MlsGroup {
         Ok((
             mls_message,
             create_commit_result
-                .welcome_option
+                .welcome
                 .map(|w| MlsMessageOut::from_welcome(w, self.group.version())),
             create_commit_result.group_info,
         ))

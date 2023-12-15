@@ -26,6 +26,7 @@ impl MlsGroup {
                 .map_err(|e| match e {
                     ExporterError::LibraryError(e) => e.into(),
                     ExporterError::KeyLengthTooLong => ExportSecretError::KeyLengthTooLong,
+                    ExporterError::CryptoError(e) => e.into(),
                 })?)
         } else {
             Err(ExportSecretError::GroupStateError(

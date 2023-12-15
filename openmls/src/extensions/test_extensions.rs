@@ -105,7 +105,7 @@ async fn ratchet_tree_extension(ciphersuite: Ciphersuite, backend: &impl OpenMls
 
     let bob_group = match CoreGroup::new_from_welcome(
         create_commit_result
-            .welcome_option
+            .welcome
             .expect("An unexpected error occurred."),
         None,
         bob_kpb.key_package(),
@@ -186,7 +186,7 @@ async fn ratchet_tree_extension(ciphersuite: Ciphersuite, backend: &impl OpenMls
 
     let error = CoreGroup::new_from_welcome(
         create_commit_result
-            .welcome_option
+            .welcome
             .expect("An unexpected error occurred."),
         None,
         bob_kpb.key_package(),

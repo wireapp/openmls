@@ -413,7 +413,7 @@ async fn test_welcome_message_encoding(backend: &impl OpenMlsCryptoProvider) {
         // Welcome messages
 
         let welcome = create_commit_result
-            .welcome_option
+            .welcome
             .expect("An unexpected error occurred.");
 
         let welcome_encoded = welcome

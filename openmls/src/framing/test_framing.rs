@@ -447,7 +447,7 @@ async fn unknown_sender(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoPr
 
     let _group_bob = CoreGroup::new_from_welcome(
         create_commit_result
-            .welcome_option
+            .welcome
             .expect("An unexpected error occurred."),
         Some(group_alice.public_group().export_ratchet_tree().into()),
         bob_kpb.key_package(),
@@ -495,7 +495,7 @@ async fn unknown_sender(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoPr
 
     let mut group_charlie = CoreGroup::new_from_welcome(
         create_commit_result
-            .welcome_option
+            .welcome
             .expect("An unexpected error occurred."),
         Some(group_alice.public_group().export_ratchet_tree().into()),
         charlie_kpb.key_package(),
@@ -684,7 +684,7 @@ pub(crate) async fn setup_alice_bob_group(
     };
     assert!(!commit.has_path());
     // Check that the function returned a Welcome message
-    assert!(create_commit_result.welcome_option.is_some());
+    assert!(create_commit_result.welcome.is_some());
 
     group_alice
         .merge_commit(backend, create_commit_result.staged_commit)
@@ -695,7 +695,7 @@ pub(crate) async fn setup_alice_bob_group(
     // broken confirmation tag, because Alice can't process her own commit.
     let group_bob = CoreGroup::new_from_welcome(
         create_commit_result
-            .welcome_option
+            .welcome
             .expect("commit didn't return a welcome as expected"),
         Some(group_alice.public_group().export_ratchet_tree().into()),
         bob_kpb.key_package(),

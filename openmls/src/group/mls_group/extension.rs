@@ -97,7 +97,7 @@ impl MlsGroup {
         Ok((
             mls_messages,
             create_commit_result
-                .welcome_option
+                .welcome
                 .map(|w| MlsMessageOut::from_welcome(w, self.group.version())),
             create_commit_result.group_info,
         ))
