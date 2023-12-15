@@ -121,8 +121,9 @@ impl PublicGroup {
         // Create a RatchetTree from the given nodes. We have to do this before
         // verifying the group info, since we need to find the Credential to verify the
         // signature against.
-        println!("> From external");
-        let treesync = TreeSync::from_ratchet_tree(backend, ciphersuite, ratchet_tree)?;
+        println!("> From external",);
+        let treesync =
+            TreeSync::from_ratchet_tree(group_id.clone(), backend, ciphersuite, ratchet_tree)?;
 
         let group_info: GroupInfo = {
             let signer_signature_key = treesync

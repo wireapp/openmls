@@ -146,7 +146,8 @@ impl VerifiableGroupInfo {
             .into_verified(cs, backend.crypto(), self.group_id())?;
 
         // although it clones the ratchet tree here...
-        let treesync = TreeSync::from_ratchet_tree(backend, cs, ratchet_tree.clone())?;
+        let group_id = self.group_id().clone();
+        let treesync = TreeSync::from_ratchet_tree(group_id, backend, cs, ratchet_tree.clone())?;
 
         let signer_signature_key = treesync
             .leaf(self.signer())
@@ -158,42 +159,6 @@ impl VerifiableGroupInfo {
         self.verify::<GroupInfo>(backend.crypto(), &signer_signature_key)?;
 
         Ok(ratchet_tree)
-    }
-
-    pub(crate) fn try_verify(
-        self,
-        backend: &impl OpenMlsCryptoProvider,
-    ) -> Result<GroupInfo, GroupInfoError> {
-        let cs = self.ciphersuite();
-
-        let ratchet_tree = self
-            .payload
-            .extensions
-            .unique
-            .iter()
-            .find_map(|e| match e {
-                Extension::RatchetTree(rt) => {
-                    // we have to clone it here as well..
-                    Some(rt.ratchet_tree.clone())
-                }
-                _ => None,
-            })
-            .ok_or(GroupInfoError::MissingRatchetTreeExtension)?
-            .into_verified(cs, backend.crypto(), self.group_id())?;
-
-        // although it clones the ratchet tree here...
-        let treesync = TreeSync::from_ratchet_tree(backend, cs, ratchet_tree.clone())?;
-
-        let signer_signature_key = treesync
-            .leaf(self.signer())
-            .ok_or(GroupInfoError::Invalid)?
-            .signature_key()
-            .clone()
-            .into_signature_public_key_enriched(cs.signature_algorithm());
-
-        let group_info = self.verify::<GroupInfo>(backend.crypto(), &signer_signature_key)?;
-
-        Ok(group_info)
     }
 }
 

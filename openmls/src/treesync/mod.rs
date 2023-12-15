@@ -441,6 +441,7 @@ impl TreeSync {
     /// slice of nodes. It verifies that the provided encryption key is present
     /// in the tree and that the invariants documented in [`TreeSync`] hold.
     pub(crate) fn from_ratchet_tree(
+        group_id: GroupId,
         backend: &impl OpenMlsCryptoProvider,
         ciphersuite: Ciphersuite,
         ratchet_tree: RatchetTree,
@@ -453,10 +454,15 @@ impl TreeSync {
         for (node_index, maybe_node) in ratchet_tree.0.into_iter().enumerate() {
             let ts_node: TreeNode<TreeSyncLeafNode, TreeSyncParentNode> = match maybe_node {
                 Some(Node::LeafNode(ln)) => {
-                    let ln = LeafNodeIn::from(ln).try_into_verifiable_leaf_node(None)?;
-                    let ln = ln
-                        .validate(backend.crypto(), ciphersuite.signature_algorithm(), None)
-                        .unwrap();
+                    let index = node_index
+                        .try_into()
+                        .map_err(|_| LibraryError::custom("failed converting a usize -> u32"));
+                    let index = LeafNodeIndex::new(index?);
+                    let tree_position = TreePosition::new(group_id.clone(), index);
+                    let ln =
+                        LeafNodeIn::from(ln).try_into_verifiable_leaf_node(Some(tree_position))?;
+                    let ln =
+                        ln.validate(backend.crypto(), ciphersuite.signature_algorithm(), None)?;
                     TreeSyncNode::from(Node::LeafNode(ln)).into()
                 }
                 Some(Node::ParentNode(pn)) => TreeSyncNode::from(Node::ParentNode(pn)).into(),

@@ -1,8 +1,6 @@
 use openmls_traits::signatures::Signer;
 
 use super::*;
-use crate::prelude::KeyPackageIn;
-use crate::versions::ProtocolVersion;
 use crate::{
     ciphersuite::HpkePrivateKey,
     credentials::CredentialWithKey,

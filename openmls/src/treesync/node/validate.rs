@@ -1,16 +1,15 @@
-use crate::credentials::MlsCredentialType;
 use crate::{
     prelude::{
-        Capabilities, CredentialType, ExtensionType, Extensions, SignaturePublicKey, Verifiable,
+        Capabilities, CredentialType, Extension, ExtensionType, Extensions, LeafNode, LibraryError,
+        PublicGroup, SignaturePublicKey, Verifiable, VerifiedStruct,
     },
-    prelude::{Extension, LeafNode, LibraryError, PublicGroup, VerifiedStruct},
-    treesync::node::leaf_node::LeafNodeSource,
-    treesync::TreeSync,
     treesync::{
         errors::{LeafNodeValidationError, LifetimeError},
+        node::leaf_node::LeafNodeSource,
         node::leaf_node::{
             VerifiableCommitLeafNode, VerifiableKeyPackageLeafNode, VerifiableUpdateLeafNode,
         },
+        TreeSync,
     },
 };
 use itertools::Itertools;

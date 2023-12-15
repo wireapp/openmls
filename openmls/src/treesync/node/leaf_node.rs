@@ -712,7 +712,8 @@ impl LeafNodeIn {
                 })
             }
             LeafNodeSource::Update => {
-                let tree_position = tree_position.ok_or(LibraryError::custom("Internal error"))?;
+                let tree_position = tree_position
+                    .ok_or(LibraryError::custom("No tree position for Update LeafNode"))?;
                 VerifiableLeafNode::Update(VerifiableUpdateLeafNode {
                     payload: self.payload,
                     signature: self.signature,
@@ -720,7 +721,8 @@ impl LeafNodeIn {
                 })
             }
             LeafNodeSource::Commit(_) => {
-                let tree_position = tree_position.ok_or(LibraryError::custom("Internal error"))?;
+                let tree_position = tree_position
+                    .ok_or(LibraryError::custom("No tree position for Commit LeafNode"))?;
                 VerifiableLeafNode::Commit(VerifiableCommitLeafNode {
                     payload: self.payload,
                     signature: self.signature,
