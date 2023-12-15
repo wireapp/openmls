@@ -1009,8 +1009,7 @@ impl CoreGroup {
             path_computation_result.commit_secret,
             self.group_epoch_secrets().init_secret(),
             &serialized_provisional_group_context,
-        )
-        .map_err(LibraryError::unexpected_crypto_error)?;
+        )?;
 
         // Prepare the PskSecret
         let psk_secret = {
@@ -1027,10 +1026,7 @@ impl CoreGroup {
         // Create key schedule
         let mut key_schedule = KeySchedule::init(ciphersuite, backend, &joiner_secret, psk_secret)?;
 
-        let serialized_provisional_group_context = diff
-            .group_context()
-            .tls_serialize_detached()
-            .map_err(LibraryError::missing_bound_check)?;
+        let serialized_provisional_group_context = diff.group_context().tls_serialize_detached()?;
 
         let welcome_secret = key_schedule
             .welcome(backend)
@@ -1045,8 +1041,7 @@ impl CoreGroup {
         // Calculate the confirmation tag
         let confirmation_tag = provisional_epoch_secrets
             .confirmation_key()
-            .tag(backend, diff.group_context().confirmed_transcript_hash())
-            .map_err(LibraryError::unexpected_crypto_error)?;
+            .tag(backend, diff.group_context().confirmed_transcript_hash())?;
 
         // Set the confirmation tag
         authenticated_content.set_confirmation_tag(confirmation_tag.clone());
@@ -1059,8 +1054,7 @@ impl CoreGroup {
             // Create the ratchet tree extension if necessary
             let external_pub = provisional_epoch_secrets
                 .external_secret()
-                .derive_external_keypair(backend.crypto(), ciphersuite)
-                .map_err(LibraryError::unexpected_crypto_error)?
+                .derive_external_keypair(backend.crypto(), ciphersuite)?
                 .public;
             let external_pub_extension =
                 Extension::ExternalPub(ExternalPubExtension::new(external_pub.into()));
@@ -1084,9 +1078,7 @@ impl CoreGroup {
             let group_info = group_info_tbs.sign(signer)?;
 
             // Encrypt GroupInfo object
-            let (welcome_key, welcome_nonce) = welcome_secret
-                .derive_welcome_key_nonce(backend)
-                .map_err(LibraryError::unexpected_crypto_error)?;
+            let (welcome_key, welcome_nonce) = welcome_secret.derive_welcome_key_nonce(backend)?;
             let tls_group_info = group_info.tls_serialize_detached()?;
             let encrypted_group_info =
                 welcome_key.aead_seal(backend, &tls_group_info[..], &[], &welcome_nonce)?;
