@@ -787,14 +787,16 @@ impl VerifiableLeafNode {
         sc: SignatureScheme,
         group: Option<&PublicGroup>,
     ) -> Result<LeafNode, LeafNodeValidationError> {
-        match (self, group) {
+        let r = match (self, group) {
             (VerifiableLeafNode::KeyPackage(ln), None) => ln.standalone_validate(crypto, sc),
             (VerifiableLeafNode::KeyPackage(ln), Some(group)) => ln.validate(group, crypto),
             (VerifiableLeafNode::Update(ln), None) => ln.standalone_validate(crypto, sc),
             (VerifiableLeafNode::Update(ln), Some(group)) => ln.validate(group, crypto),
             (VerifiableLeafNode::Commit(ln), None) => ln.standalone_validate(crypto, sc),
             (VerifiableLeafNode::Commit(ln), Some(group)) => ln.validate(group, crypto),
-        }
+        };
+        println!("/ {:?}", r);
+        r
     }
 }
 
