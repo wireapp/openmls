@@ -1048,40 +1048,43 @@ impl CoreGroup {
 
         diff.update_interim_transcript_hash(ciphersuite, backend, confirmation_tag.clone())?;
 
-        // only computes the group info if necessary
+        let external_pub = provisional_epoch_secrets
+            .external_secret()
+            .derive_external_keypair(backend.crypto(), ciphersuite)?
+            .public;
+        let external_pub_extension =
+            Extension::ExternalPub(ExternalPubExtension::new(external_pub.into()));
+        let other_extensions: Extensions = if self.use_ratchet_tree_extension {
+            Extensions::from_vec(vec![
+                Extension::RatchetTree(RatchetTreeExtension::new(diff.export_ratchet_tree())),
+                external_pub_extension,
+            ])?
+        } else {
+            Extensions::single(external_pub_extension)
+        };
+
+        // Create to-be-signed group info.
+        let group_info_tbs = GroupInfoTBS::new(
+            diff.group_context().clone(),
+            other_extensions,
+            confirmation_tag,
+            self.own_leaf_index(),
+        );
+        // Sign to-be-signed group info.
+        let group_info = group_info_tbs.sign(signer)?;
+
+        // only computes the welcome if necessary
         let contains_add_proposals = !apply_proposals_values.invitation_list.is_empty();
-        let (group_info, welcome) = if contains_add_proposals {
-            // Create the ratchet tree extension if necessary
-            let external_pub = provisional_epoch_secrets
-                .external_secret()
-                .derive_external_keypair(backend.crypto(), ciphersuite)?
-                .public;
-            let external_pub_extension =
-                Extension::ExternalPub(ExternalPubExtension::new(external_pub.into()));
-            let other_extensions: Extensions = if self.use_ratchet_tree_extension {
-                Extensions::from_vec(vec![
-                    Extension::RatchetTree(RatchetTreeExtension::new(diff.export_ratchet_tree())),
-                    external_pub_extension,
-                ])?
-            } else {
-                Extensions::single(external_pub_extension)
-            };
-
-            // Create to-be-signed group info.
-            let group_info_tbs = GroupInfoTBS::new(
-                diff.group_context().clone(),
-                other_extensions,
-                confirmation_tag,
-                self.own_leaf_index(),
-            );
-            // Sign to-be-signed group info.
-            let group_info = group_info_tbs.sign(signer)?;
-
+        let welcome = if contains_add_proposals {
+            // Check if new members were added and, if so, create welcome messages
             // Encrypt GroupInfo object
             let (welcome_key, welcome_nonce) = welcome_secret.derive_welcome_key_nonce(backend)?;
-            let tls_group_info = group_info.tls_serialize_detached()?;
-            let encrypted_group_info =
-                welcome_key.aead_seal(backend, &tls_group_info[..], &[], &welcome_nonce)?;
+            let encrypted_group_info = welcome_key.aead_seal(
+                backend,
+                group_info.tls_serialize_detached()?.as_slice(),
+                &[],
+                &welcome_nonce,
+            )?;
 
             // Create group secrets for later use, so we can afterwards consume the
             // `joiner_secret`.
@@ -1096,10 +1099,13 @@ impl CoreGroup {
             )?;
 
             // Create welcome message
-            let welcome = Welcome::new(self.ciphersuite(), encrypted_secrets, encrypted_group_info);
-            (Some(group_info), Some(welcome))
+            Some(Welcome::new(
+                self.ciphersuite(),
+                encrypted_secrets,
+                encrypted_group_info,
+            ))
         } else {
-            (None, None)
+            None
         };
 
         let (provisional_group_epoch_secrets, provisional_message_secrets) =
@@ -1130,7 +1136,7 @@ impl CoreGroup {
             commit: authenticated_content,
             welcome,
             staged_commit,
-            group_info: group_info.filter(|_| self.use_ratchet_tree_extension),
+            group_info: Some(group_info).filter(|_| self.use_ratchet_tree_extension),
         })
     }
 
