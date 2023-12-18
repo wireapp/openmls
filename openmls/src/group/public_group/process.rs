@@ -41,7 +41,6 @@ impl PublicGroup {
         decrypted_message: DecryptedMessage,
         message_secrets_store_option: impl Into<Option<&'a MessageSecretsStore>>,
     ) -> Result<UnverifiedMessage, ValidationError> {
-        // println!("> PublicGroup::parse_message");
         let message_secrets_store_option = message_secrets_store_option.into();
         // Checks the following semantic validation:
         //  - ValSem004
@@ -137,7 +136,6 @@ impl PublicGroup {
         backend: &impl OpenMlsCryptoProvider,
         message: impl Into<ProtocolMessage>,
     ) -> Result<ProcessedMessage, ProcessMessageError> {
-        // println!("> PublicGroup::process_message");
         let protocol_message = message.into();
         // Checks the following semantic validation:
         //  - ValSem002
@@ -202,7 +200,6 @@ impl PublicGroup {
         proposal_store: &ProposalStore,
         group: &PublicGroup,
     ) -> Result<ProcessedMessage, ProcessMessageError> {
-        // println!("> PublicGroup::process_unverified_message");
         // Checks the following semantic validation:
         //  - ValSem010
         //  - ValSem246 (as part of ValSem010)

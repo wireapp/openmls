@@ -46,7 +46,6 @@ impl CoreGroup {
         old_epoch_keypairs: EpochEncryptionKeyPair,
         leaf_node_keypairs: Vec<EncryptionKeyPair>,
     ) -> Result<ProcessedMessage, ProcessMessageError> {
-        // println!("> CoreGroup::process_unverified_message");
         // Checks the following semantic validation:
         //  - ValSem010
         //  - ValSem246 (as part of ValSem010)
@@ -181,7 +180,6 @@ impl CoreGroup {
         proposal_store: &ProposalStore,
         own_leaf_nodes: &[LeafNode],
     ) -> Result<ProcessedMessage, ProcessMessageError> {
-        // println!("> CoreGroup::process_message");
         let message: ProtocolMessage = message.into();
 
         // Checks the following semantic validation:

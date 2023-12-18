@@ -446,10 +446,6 @@ impl TreeSync {
         ciphersuite: Ciphersuite,
         ratchet_tree: RatchetTree,
     ) -> Result<Self, TreeSyncFromNodesError> {
-        println!(
-            "> from_ratchet_tree ratchet tree len: {}",
-            ratchet_tree.0.len()
-        );
         // TODO #800: Unmerged leaves should be checked
         let mut ts_nodes: Vec<TreeNode<TreeSyncLeafNode, TreeSyncParentNode>> =
             Vec::with_capacity(ratchet_tree.0.len());

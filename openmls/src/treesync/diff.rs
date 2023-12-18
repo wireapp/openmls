@@ -295,6 +295,15 @@ impl<'a> TreeSyncDiff<'a> {
         group_id: GroupId,
         leaf_index: LeafNodeIndex,
     ) -> Result<UpdatePathResult, LibraryError> {
+        println!(
+            "APPLY_OWN_UPDATE_PATH BEGIN: {:?}",
+            TreeSync::from_ratchet_tree(
+                group_id.clone(),
+                backend,
+                ciphersuite,
+                self.export_ratchet_tree()
+            )
+        );
         debug_assert!(
             self.leaf(leaf_index).is_some(),
             "Tree diff is missing own leaf"
@@ -305,9 +314,29 @@ impl<'a> TreeSyncDiff<'a> {
 
         let parent_hash = self.process_update_path(backend, ciphersuite, leaf_index, path)?;
 
+        println!(
+            "APPLY_OWN_UPDATE_PATH after process_update_path: {:?}",
+            TreeSync::from_ratchet_tree(
+                group_id.clone(),
+                backend,
+                ciphersuite,
+                self.export_ratchet_tree()
+            )
+        );
+
         self.leaf_mut(leaf_index)
             .ok_or_else(|| LibraryError::custom("Didn't find own leaf in diff."))?
-            .update_parent_hash(&parent_hash, group_id, leaf_index, signer)?;
+            .update_parent_hash(&parent_hash, group_id.clone(), leaf_index, signer)?;
+
+        println!(
+            "APPLY_OWN_UPDATE_PATH after leaf_mut: {:?}",
+            TreeSync::from_ratchet_tree(
+                group_id.clone(),
+                backend,
+                ciphersuite,
+                self.export_ratchet_tree()
+            )
+        );
 
         Ok((update_path_nodes, keypairs, commit_secret))
     }

@@ -1,7 +1,7 @@
 //! # Validation steps for incoming messages
 //!
 //! ```text
-//! 
+//!
 //!                             MlsMessageIn
 //!                                  │                    -.
 //!                                  │                      │
@@ -283,7 +283,6 @@ impl UnverifiedMessage {
         protocol_version: ProtocolVersion,
         group: &PublicGroup,
     ) -> Result<(AuthenticatedContent, Credential), ProcessMessageError> {
-        // println!("> Verify Credential");
         let content: AuthenticatedContentIn = match self.credential.mls_credential() {
             MlsCredentialType::Basic(_) => self
                 .verifiable_content

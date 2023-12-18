@@ -5,6 +5,7 @@ use openmls_traits::{key_store::OpenMlsKeyStore, signatures::Signer, OpenMlsCryp
 use tls_codec::Serialize;
 
 use crate::prelude::{Capabilities, CredentialType, ExtensionType, ProtocolVersion};
+use crate::treesync::TreeSync;
 use crate::{
     binary_tree::LeafNodeIndex,
     credentials::CredentialWithKey,
@@ -50,9 +51,6 @@ impl<'a> PublicGroupDiff<'a> {
         credential_with_key: Option<CredentialWithKey>,
         extensions: Option<&Extensions>,
     ) -> Result<PathComputationResult, CreateCommitError<KeyStore::Error>> {
-        println!("> COMPUTE_PATH");
-        println!("0==> {}", self.export_ratchet_tree().len());
-
         let version = self.group_context().protocol_version();
         let ciphersuite = self.group_context().ciphersuite();
         let group_id = self.group_context().group_id().clone();
@@ -95,12 +93,9 @@ impl<'a> PublicGroupDiff<'a> {
                 )?;
 
             let leaf_node: LeafNode = key_package.into();
-            println!("0'==> {}", self.export_ratchet_tree().len());
-            println!("+++ leaf");
             self.diff
                 .add_leaf(leaf_node)
                 .map_err(|_| LibraryError::custom("Tree full: cannot add more members"))?;
-            println!("0''==> {}", self.export_ratchet_tree().len());
             vec![encryption_keypair]
         } else {
             // When we update with an explicit leaf_node consider it (instead of the old one) when computing the UpdatePath
@@ -126,15 +121,11 @@ impl<'a> PublicGroupDiff<'a> {
             vec![encryption_keypair]
         };
 
-        println!("1==> {}", self.export_ratchet_tree().len());
-
         // Derive and apply an update path based on the previously
         // generated new leaf.
         let (plain_path, mut new_parent_keypairs, commit_secret) = self
             .diff
             .apply_own_update_path(backend, signer, ciphersuite, group_id, leaf_index)?;
-
-        println!("2==> {}", self.export_ratchet_tree().len());
 
         new_keypairs.append(&mut new_parent_keypairs);
 
@@ -142,8 +133,6 @@ impl<'a> PublicGroupDiff<'a> {
         // the updated group context is used for path secret encryption. Note
         // that we have not yet updated the confirmed transcript hash.
         self.update_group_context(backend, extensions.cloned())?;
-
-        println!("3==> {}", self.export_ratchet_tree().len());
 
         let serialized_group_context = self
             .group_context()
@@ -165,8 +154,6 @@ impl<'a> PublicGroupDiff<'a> {
             .ok_or_else(|| LibraryError::custom("Couldn't find own leaf"))?
             .clone();
         let encrypted_path = UpdatePath::new(leaf_node, encrypted_path);
-        println!("4==> {}", self.export_ratchet_tree().len());
-
         Ok(PathComputationResult {
             commit_secret: Some(commit_secret),
             encrypted_path: Some(encrypted_path),

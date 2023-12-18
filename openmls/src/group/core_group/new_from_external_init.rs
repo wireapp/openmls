@@ -95,7 +95,6 @@ impl CoreGroup {
         if let Some(us) = public_group.members().find(|member| {
             member.signature_key == params_credential_with_key.signature_key.as_slice()
         }) {
-            println!("> Contains same hence remove");
             let remove_proposal = Proposal::Remove(RemoveProposal { removed: us.index });
             inline_proposals.push(remove_proposal);
         };
