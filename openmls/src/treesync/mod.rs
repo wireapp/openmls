@@ -90,6 +90,7 @@ pub use node::encryption_keys::test_utils;
 pub use node::encryption_keys::EncryptionKey;
 
 // Public re-exports
+use crate::treesync::node::leaf_node::LeafNodeIn;
 pub use node::{leaf_node::LeafNode, parent_node::ParentNode, Node};
 
 // Tests
@@ -437,10 +438,12 @@ impl TreeSync {
         // Set the leaf indices in all the leaves and convert the node types.
         for (node_index, node_option) in ratchet_tree.0.into_iter().enumerate() {
             let ts_node_option: TreeNode<TreeSyncLeafNode, TreeSyncParentNode> = match node_option {
-                Some(node) => {
-                    let node = node.clone();
-                    TreeSyncNode::from(node).into()
+                Some(Node::LeafNode(ln)) => {
+                    let ln = LeafNodeIn::from(ln).into_verifiable_leaf_node();
+                    let ln = ln.validate(crypto, ciphersuite.signature_algorithm());
+                    TreeSyncNode::from(Node::LeafNode(ln)).into()
                 }
+                Some(Node::ParentNode(pn)) => TreeSyncNode::from(Node::ParentNode(pn)).into(),
                 None => {
                     if node_index % 2 == 0 {
                         TreeNode::Leaf(TreeSyncLeafNode::blank())

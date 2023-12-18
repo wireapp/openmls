@@ -31,6 +31,8 @@ mod capabilities;
 mod codec;
 
 pub use capabilities::*;
+use openmls_traits::crypto::OpenMlsCrypto;
+use openmls_traits::types::SignatureScheme;
 
 /// Private module to ensure protection.
 mod private_mod {
@@ -745,6 +747,14 @@ impl VerifiableLeafNode {
             VerifiableLeafNode::Commit(v) => v.signature_key(),
         }
     }
+
+    pub(crate) fn validate(self, crypto: &impl OpenMlsCrypto, sc: SignatureScheme) -> LeafNode {
+        match self {
+            VerifiableLeafNode::Commit(ln) => ln.standalone_validate(crypto, sc),
+            VerifiableLeafNode::KeyPackage(ln) => ln.standalone_validate(crypto, sc),
+            VerifiableLeafNode::Update(ln) => ln.standalone_validate(crypto, sc),
+        }
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -756,6 +766,18 @@ pub(crate) struct VerifiableKeyPackageLeafNode {
 impl VerifiableKeyPackageLeafNode {
     pub(crate) fn signature_key(&self) -> &SignaturePublicKey {
         &self.payload.signature_key
+    }
+
+    pub fn standalone_validate(
+        self,
+        crypto: &impl OpenMlsCrypto,
+        signature_scheme: SignatureScheme,
+    ) -> LeafNode {
+        let pk = self
+            .signature_key()
+            .clone()
+            .into_signature_public_key_enriched(signature_scheme);
+        self.verify::<LeafNode>(crypto, &pk).unwrap()
     }
 }
 
@@ -798,6 +820,18 @@ impl VerifiableUpdateLeafNode {
 
     pub(crate) fn signature_key(&self) -> &SignaturePublicKey {
         &self.payload.signature_key
+    }
+
+    pub fn standalone_validate(
+        self,
+        crypto: &impl OpenMlsCrypto,
+        signature_scheme: SignatureScheme,
+    ) -> LeafNode {
+        let pk = self
+            .signature_key()
+            .clone()
+            .into_signature_public_key_enriched(signature_scheme);
+        self.verify::<LeafNode>(crypto, &pk).unwrap()
     }
 }
 
@@ -848,6 +882,18 @@ impl VerifiableCommitLeafNode {
 
     pub(crate) fn signature_key(&self) -> &SignaturePublicKey {
         &self.payload.signature_key
+    }
+
+    pub fn standalone_validate(
+        self,
+        crypto: &impl OpenMlsCrypto,
+        signature_scheme: SignatureScheme,
+    ) -> LeafNode {
+        let pk = self
+            .signature_key()
+            .clone()
+            .into_signature_public_key_enriched(signature_scheme);
+        self.verify::<LeafNode>(crypto, &pk).unwrap()
     }
 }
 
