@@ -791,17 +791,28 @@ impl VerifiableLeafNode {
     ) -> Result<LeafNode, LeafNodeValidationError> {
         let r = match (self, group) {
             (VerifiableLeafNode::KeyPackage(ln), None) => {
-                println!("validate kp leafnode");
+                println!(
+                    "> validate kp leafnode: {}",
+                    hex::encode(ln.payload.credential.identity())
+                );
                 ln.standalone_validate(crypto, sc)
             }
             (VerifiableLeafNode::KeyPackage(ln), Some(group)) => ln.validate(group, crypto),
             (VerifiableLeafNode::Update(ln), None) => {
-                println!("validate update leafnode");
+                println!(
+                    "> validate update leafnode: {} - {}",
+                    ln.tree_position.leaf_index,
+                    hex::encode(ln.payload.credential.identity())
+                );
                 ln.standalone_validate(crypto, sc)
             }
             (VerifiableLeafNode::Update(ln), Some(group)) => ln.validate(group, crypto),
             (VerifiableLeafNode::Commit(ln), None) => {
-                println!("validate commit leafnode");
+                println!(
+                    "> validate commit leafnode: {} - {}",
+                    ln.tree_position.leaf_index,
+                    hex::encode(ln.payload.credential.identity())
+                );
                 ln.standalone_validate(crypto, sc)
             }
             (VerifiableLeafNode::Commit(ln), Some(group)) => ln.validate(group, crypto),

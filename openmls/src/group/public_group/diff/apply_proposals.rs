@@ -80,7 +80,7 @@ impl<'a> PublicGroupDiff<'a> {
         // know that removing "ourselves" (i.e. removing the group member in the
         // same leaf as we are in) is valid in this case. We only care about the
         // first proposal and ignore all others.
-        let external_init_proposal_option = proposal_queue
+        let external_init_proposal = proposal_queue
             .filtered_by_type(ProposalType::ExternalInit)
             .next()
             .and_then(|queued_proposal| {
@@ -175,7 +175,7 @@ impl<'a> PublicGroupDiff<'a> {
         // * (or) the commit is empty which implicitly means it's a self-update
         let path_required = proposals_require_path
             // The fact that this is some implies that there's an external init proposal.
-            || external_init_proposal_option.is_some()
+            || external_init_proposal.is_some()
             || proposal_queue.is_empty();
 
         Ok(ApplyProposalsValues {
@@ -183,7 +183,7 @@ impl<'a> PublicGroupDiff<'a> {
             self_removed,
             invitation_list,
             presharedkeys,
-            external_init_proposal_option,
+            external_init_proposal_option: external_init_proposal,
             extensions,
         })
     }

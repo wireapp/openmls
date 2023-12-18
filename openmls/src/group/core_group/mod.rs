@@ -54,6 +54,7 @@ use super::{
     public_group::{diff::compute_path::PathComputationResult, PublicGroup},
 };
 
+use crate::group::errors::ProposalQueueError;
 use crate::treesync::node::encryption_keys::{EpochEncryptionKeyPair, EpochKeypairId};
 use crate::{
     binary_tree::array_representation::{LeafNodeIndex, TreeSize},
@@ -885,13 +886,9 @@ impl CoreGroup {
             self.own_leaf_index(),
         )
         .map_err(|e| match e {
-            crate::group::errors::ProposalQueueError::LibraryError(e) => e.into(),
-            crate::group::errors::ProposalQueueError::ProposalNotFound => {
-                CreateCommitError::MissingProposal
-            }
-            crate::group::errors::ProposalQueueError::SenderError(_) => {
-                CreateCommitError::WrongProposalSenderType
-            }
+            ProposalQueueError::LibraryError(e) => e.into(),
+            ProposalQueueError::ProposalNotFound => CreateCommitError::MissingProposal,
+            ProposalQueueError::SenderError(_) => CreateCommitError::WrongProposalSenderType,
         })?;
 
         // TODO: #581 Filter proposals by support
@@ -1065,6 +1062,8 @@ impl CoreGroup {
             } else {
                 Extensions::single(external_pub_extension)
             };
+
+            println!("> create_commit own_leaf_index {}", self.own_leaf_index());
 
             // Create to-be-signed group info.
             let group_info_tbs = GroupInfoTBS::new(

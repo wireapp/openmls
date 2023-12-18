@@ -95,6 +95,7 @@ impl CoreGroup {
         if let Some(us) = public_group.members().find(|member| {
             member.signature_key == params_credential_with_key.signature_key.as_slice()
         }) {
+            println!("> Contains same hence remove");
             let remove_proposal = Proposal::Remove(RemoveProposal { removed: us.index });
             inline_proposals.push(remove_proposal);
         };
@@ -121,15 +122,11 @@ impl CoreGroup {
             .build();
 
         // Immediately create the commit to add ourselves to the group.
-        let create_commit_result = group.create_commit(params, backend, signer).await;
-        debug_assert!(
-            create_commit_result.is_ok(),
-            "Error creating commit {create_commit_result:?}"
-        );
+        let create_commit_result = group
+            .create_commit(params, backend, signer)
+            .await
+            .map_err(|_| ExternalCommitError::CommitError)?;
 
-        Ok((
-            group,
-            create_commit_result.map_err(|_| ExternalCommitError::CommitError)?,
-        ))
+        Ok((group, create_commit_result))
     }
 }
