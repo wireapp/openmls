@@ -160,6 +160,23 @@ impl VerifiableGroupInfo {
 
         Ok(ratchet_tree)
     }
+
+    pub fn print_ratchet_tree(&self) {
+        let ratchet_tree = self
+            .payload
+            .extensions
+            .unique
+            .iter()
+            .find_map(|e| match e {
+                Extension::RatchetTree(rt) => {
+                    // we have to clone it here as well..
+                    Some(rt.ratchet_tree.clone())
+                }
+                _ => None,
+            })
+            .unwrap();
+        println!("{} - {ratchet_tree:#?}", ratchet_tree.0.len());
+    }
 }
 
 #[cfg(test)]

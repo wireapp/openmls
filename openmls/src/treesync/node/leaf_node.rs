@@ -817,7 +817,9 @@ impl VerifiableLeafNode {
             }
             (VerifiableLeafNode::Commit(ln), Some(group)) => ln.validate(group, crypto),
         };
-        println!("/ {:?}", r);
+        if r.is_err() {
+            println!("/ {:?}", r);
+        }
         r
     }
 }

@@ -869,6 +869,7 @@ impl CoreGroup {
         backend: &impl OpenMlsCryptoProvider<KeyStoreProvider = KeyStore>,
         signer: &impl Signer,
     ) -> Result<CreateCommitResult, CreateCommitError<KeyStore::Error>> {
+        println!("create commit begin: {}", self.own_leaf_index());
         let ciphersuite = self.ciphersuite();
 
         let sender = match params.commit_type() {
@@ -890,6 +891,10 @@ impl CoreGroup {
             ProposalQueueError::ProposalNotFound => CreateCommitError::MissingProposal,
             ProposalQueueError::SenderError(_) => CreateCommitError::WrongProposalSenderType,
         })?;
+        println!(
+            "create commit after filter proposals: idx: {}",
+            self.own_leaf_index()
+        );
 
         // TODO: #581 Filter proposals by support
         // 11.2:
@@ -931,6 +936,11 @@ impl CoreGroup {
         // Apply proposals to tree
         let apply_proposals_values =
             diff.apply_proposals(&proposal_queue, self.own_leaf_index())?;
+        println!(
+            "create commit after apply proposals: idx: {}, rt length: {}",
+            self.own_leaf_index(),
+            diff.export_ratchet_tree().len()
+        );
         if apply_proposals_values.self_removed && params.commit_type() != CommitType::External {
             return Err(CreateCommitError::CannotRemoveSelf);
         }
@@ -961,6 +971,7 @@ impl CoreGroup {
                 // Process the path. This includes updating the provisional
                 // group context by updating the epoch and computing the new
                 // tree hash.
+                println!("PATH UPDATE");
                 diff.compute_path(
                     backend,
                     self.own_leaf_index(),
@@ -972,11 +983,17 @@ impl CoreGroup {
                      apply_proposals_values.extensions
                 )?
             } else {
+                println!("NO PATH UPDATE");
                 // If path is not needed, update the group context and return
                 // empty path processing results
                 diff.update_group_context(backend, apply_proposals_values.extensions.cloned())?;
                 PathComputationResult::default()
             };
+        println!(
+            "create commit after compute path: idx: {}, rt length: {}",
+            self.own_leaf_index(),
+            diff.export_ratchet_tree().len()
+        );
 
         // Create commit message
         let commit = Commit {
@@ -1054,16 +1071,23 @@ impl CoreGroup {
                 .public;
             let external_pub_extension =
                 Extension::ExternalPub(ExternalPubExtension::new(external_pub.into()));
+
+            let ratchet_tree = diff.export_ratchet_tree();
+
             let other_extensions: Extensions = if self.use_ratchet_tree_extension {
                 Extensions::from_vec(vec![
-                    Extension::RatchetTree(RatchetTreeExtension::new(diff.export_ratchet_tree())),
+                    Extension::RatchetTree(RatchetTreeExtension::new(ratchet_tree.clone())),
                     external_pub_extension,
                 ])?
             } else {
                 Extensions::single(external_pub_extension)
             };
 
-            println!("> create_commit own_leaf_index {}", self.own_leaf_index());
+            println!(
+                "> create_commit own_leaf_index: {}, rt length: {}",
+                self.own_leaf_index(),
+                diff.export_ratchet_tree().len()
+            );
 
             // Create to-be-signed group info.
             let group_info_tbs = GroupInfoTBS::new(
@@ -1072,8 +1096,17 @@ impl CoreGroup {
                 confirmation_tag,
                 self.own_leaf_index(),
             );
+
             // Sign to-be-signed group info.
-            Some(group_info_tbs.sign(signer)?)
+            let group_info = group_info_tbs.sign(signer)?;
+
+            // REMOVE !!!
+            println!("> === EXPLICIT GROUP INFO VALIDATION ===");
+            let group_id = self.group_id();
+            TreeSync::from_ratchet_tree(group_id.clone(), backend, ciphersuite, ratchet_tree)
+                .unwrap();
+
+            Some(group_info)
         } else {
             None
         };
