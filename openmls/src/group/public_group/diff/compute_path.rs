@@ -4,7 +4,7 @@ use openmls_traits::types::Ciphersuite;
 use openmls_traits::{key_store::OpenMlsKeyStore, signatures::Signer, OpenMlsCryptoProvider};
 use tls_codec::Serialize;
 
-use crate::prelude::{Capabilities, CredentialType, ExtensionType, ProtocolVersion};
+use crate::prelude::{Capabilities, CredentialType, ProtocolVersion};
 use crate::{
     binary_tree::LeafNodeIndex,
     credentials::CredentialWithKey,
@@ -76,7 +76,7 @@ impl<'a> PublicGroupDiff<'a> {
                             Ciphersuite::MLS_256_DHKEMP384_AES256GCM_SHA384_P384,
                             Ciphersuite::MLS_128_X25519KYBER768DRAFT00_AES128GCM_SHA256_Ed25519,
                         ]),
-                        Some(&[ExtensionType::PerDomainTrustAnchor]),
+                        Some(&[]),
                         Some(&[]),
                         Some(&[CredentialType::Basic, CredentialType::X509]),
                     ),
