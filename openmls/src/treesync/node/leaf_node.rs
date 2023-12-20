@@ -834,7 +834,7 @@ impl Verifiable for VerifiableUpdateLeafNode {
     fn unsigned_payload(&self) -> Result<Vec<u8>, tls_codec::Error> {
         LeafNodeTbs {
             payload: self.payload.clone(),
-            tree_info_tbs: TreeInfoTbs::Commit(self.tree_position.clone()),
+            tree_info_tbs: TreeInfoTbs::Update(self.tree_position.clone()),
         }
         .tls_serialize_detached()
     }
