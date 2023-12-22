@@ -63,8 +63,10 @@ async fn run_test_vector(
 
     let ratchet_tree = RatchetTree::from(RatchetTreeIn::from_nodes(nodes));
 
-    let tree_before = TreeSync::from_ratchet_tree(backend, ciphersuite, ratchet_tree)
-        .map_err(|e| format!("Error while creating tree sync: {e:?}"))?;
+    let tree_before =
+        TreeSync::from_ratchet_tree(backend, ciphersuite, ratchet_tree, &group_id, false)
+            .await
+            .map_err(|e| format!("Error while creating tree sync: {e:?}"))?;
 
     let group_context = GroupContext::new(
         ciphersuite,
