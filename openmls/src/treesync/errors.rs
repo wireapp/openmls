@@ -152,6 +152,9 @@ pub enum TreeSyncFromNodesError {
     /// See [`RatchetTreeError`] for more details.
     #[error(transparent)]
     RatchetTreeError(#[from] RatchetTreeError),
+    /// See [`LeafNodeValidationError`] for more details.
+    #[error(transparent)]
+    LeafNodeValidationError(#[from] LeafNodeValidationError),
 }
 
 /// TreeSync parent hash error
@@ -262,14 +265,15 @@ pub enum LeafNodeValidationError {
     /// The credential used by a member is not supported by this leaf node.
     #[error("The credential used by a member is not supported by this leaf node.")]
     MemberCredentialNotSupportedByLeafNode,
-    #[error(transparent)]
-    InvalidCredential(#[from] CredentialError),
     /// A library error occurred.
     #[error(transparent)]
     LibraryError(#[from] LibraryError),
     /// See [`SignatureError`] for more details.
     #[error(transparent)]
     SignatureError(#[from] SignatureError),
+    /// See [`CredentialError`] for more details.
+    #[error(transparent)]
+    InvalidCredential(#[from] CredentialError),
 }
 
 /// Errors that can happen during lifetime validation.

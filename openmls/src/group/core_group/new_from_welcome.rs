@@ -151,7 +151,8 @@ impl CoreGroup {
             ratchet_tree,
             verifiable_group_info,
             ProposalStore::new(),
-        )?;
+        )
+        .await?;
 
         KeyPackageIn::from(key_package.clone())
             .validate(backend, ProtocolVersion::Mls10, &public_group)

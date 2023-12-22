@@ -102,7 +102,7 @@ impl PublicGroup {
     /// This function performs basic validation checks and returns an error if
     /// one of the checks fails. See [`CreationFromExternalError`] for more
     /// details.
-    pub fn from_external(
+    pub async fn from_external(
         backend: &impl OpenMlsCryptoProvider,
         ratchet_tree: RatchetTreeIn,
         verifiable_group_info: VerifiableGroupInfo,
@@ -122,7 +122,8 @@ impl PublicGroup {
         // Create a RatchetTree from the given nodes. We have to do this before
         // verifying the group info, since we need to find the Credential to verify the
         // signature against.
-        let treesync = TreeSync::from_ratchet_tree(backend, ciphersuite, ratchet_tree)?;
+        let treesync =
+            TreeSync::from_ratchet_tree(backend, ciphersuite, ratchet_tree, group_id, true).await?;
 
         let group_info: GroupInfo = {
             let signer_signature_key = treesync

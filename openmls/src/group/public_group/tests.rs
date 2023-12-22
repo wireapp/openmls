@@ -61,6 +61,7 @@ async fn public_group(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProv
         verifiable_group_info,
         ProposalStore::new(),
     )
+    .await
     .unwrap();
 
     // === Alice adds Bob ===
