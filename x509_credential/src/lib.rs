@@ -3,6 +3,7 @@
 //! An implementation of the x509 credential from the MLS spec.
 
 use base64::Engine;
+use percent_encoding::percent_decode_str;
 use openmls_basic_credential::SignatureKeyPair;
 use x509_cert::der::Decode;
 use x509_cert::Certificate;
@@ -18,7 +19,8 @@ use openmls_traits::{
 pub struct CertificateKeyPair(pub SignatureKeyPair);
 
 impl CertificateKeyPair {
-    /// Constructs the `CertificateKeyPair` from a private key and a der encoded certificate chain
+    /// Constructs the `CertificateKeyPair` from a private key and a der encoded
+    /// certificate chain
     pub fn new(sk: Vec<u8>, cert_chain: Vec<Vec<u8>>) -> Result<Self, CryptoError> {
         if cert_chain.len() < 2 {
             return Err(CryptoError::IncompleteCertificateChain);
@@ -104,8 +106,6 @@ pub trait X509Ext {
 
     fn identity(&self) -> Result<Vec<u8>, CryptoError>;
 }
-
-const CLIENT_ID_PREFIX: &str = "im:wireapp=";
 
 impl X509Ext for Certificate {
     fn is_valid(&self) -> Result<(), CryptoError> {
@@ -214,11 +214,16 @@ impl X509Ext for Certificate {
     }
 }
 
+/// Turn 'wireapp://ZHpLZLZMROeMWp4sJlL2XA!dee090f1ed94e4c8@wire.com' into
+/// '647a4b64-b64c-44e7-8c5a-9e2c2652f65c:dee090f1ed94e4c8@wire.com'
 fn try_to_qualified_wire_client_id(client_id: &str) -> Option<Vec<u8>> {
     const COLON: u8 = 58;
+    const WIRE_URI_SCHEME: &str = "wireapp://";
 
-    let client_id = client_id.strip_prefix(CLIENT_ID_PREFIX)?;
-    let (user_id, rest) = client_id.split_once('/')?;
+    let client_id = client_id.strip_prefix(WIRE_URI_SCHEME)?;
+    let client_id = percent_decode_str(client_id).decode_utf8().ok()?;
+
+    let (user_id, rest) = client_id.split_once('!')?;
     let user_id = to_hyphenated_user_id(user_id)?;
 
     let client_id = [&user_id[..], &[COLON], rest.as_bytes()].concat();
@@ -236,4 +241,22 @@ fn to_hyphenated_user_id(user_id: &str) -> Option<[u8; uuid::fmt::Hyphenated::LE
     user_id.hyphenated().encode_lower(&mut buf);
 
     Some(buf)
+}
+
+#[test]
+fn to_qualified_wire_client_id_should_work() {
+    const EXPECTED: &str = "647a4b64-b64c-44e7-8c5a-9e2c2652f65c:dee090f1ed94e4c8@wire.com";
+
+    let input = "wireapp://ZHpLZLZMROeMWp4sJlL2XA!dee090f1ed94e4c8@wire.com";
+    let output = try_to_qualified_wire_client_id(input).unwrap();
+    let output = std::str::from_utf8(&output).unwrap();
+    assert_eq!(output, EXPECTED);
+
+    // should percent decode the username before splitting it
+    // here '!' is percent encoded into '%21'
+    // that's the form in the x509 EE certificate
+    let input = "wireapp://ZHpLZLZMROeMWp4sJlL2XA%21dee090f1ed94e4c8@wire.com";
+    let output = try_to_qualified_wire_client_id(input).unwrap();
+    let output = std::str::from_utf8(&output).unwrap();
+    assert_eq!(output, EXPECTED);
 }
