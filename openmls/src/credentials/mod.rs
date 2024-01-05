@@ -22,10 +22,7 @@
 //! There are multiple [`CredentialType`]s, although OpenMLS currently only
 //! supports the [`BasicCredential`].
 
-use std::{
-    convert::TryFrom,
-    io::{Read, Write},
-};
+use std::io::{Read, Write};
 
 use serde::{Deserialize, Serialize};
 use tls_codec::{TlsDeserialize, TlsSerialize, TlsSize, VLBytes};
@@ -34,6 +31,7 @@ use tls_codec::{TlsDeserialize, TlsSerialize, TlsSize, VLBytes};
 mod codec;
 #[cfg(test)]
 mod tests;
+
 use errors::*;
 use openmls_x509_credential::X509Ext;
 use x509_cert::{der::Decode, PkiPath};
@@ -184,7 +182,7 @@ impl Certificate {
 
     fn try_new(certificates: Vec<Vec<u8>>) -> Result<Self, CredentialError> {
         let leaf = certificates
-            .get(0)
+            .first()
             .ok_or(CredentialError::InvalidCertificateChain)?;
         let leaf = x509_cert::Certificate::from_der(leaf)?;
         let identity = leaf

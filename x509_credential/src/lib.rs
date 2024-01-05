@@ -3,8 +3,8 @@
 //! An implementation of the x509 credential from the MLS spec.
 
 use base64::Engine;
-use percent_encoding::percent_decode_str;
 use openmls_basic_credential::SignatureKeyPair;
+use percent_encoding::percent_decode_str;
 use x509_cert::der::Decode;
 use x509_cert::Certificate;
 
@@ -36,7 +36,7 @@ impl CertificateKeyPair {
             },
         )?;
 
-        let leaf = pki_path.get(0).ok_or(CryptoError::CryptoLibraryError)?;
+        let leaf = pki_path.first().ok_or(CryptoError::CryptoLibraryError)?;
 
         let signature_scheme = leaf.signature_scheme()?;
         let pk = leaf.public_key()?;
