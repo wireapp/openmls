@@ -244,6 +244,10 @@ impl TreeSize {
             self.0 = 0;
         }
     }
+
+    pub(crate) fn height(&self) -> usize {
+        log2(self.0)
+    }
 }
 
 #[test]
@@ -363,33 +367,32 @@ pub(crate) fn test_sibling(index: TreeNodeIndex) -> TreeNodeIndex {
 pub(crate) fn direct_path(node_index: LeafNodeIndex, size: TreeSize) -> Vec<ParentNodeIndex> {
     let r = root(size).u32();
 
-    let mut d = vec![];
+    let mut direct_path = Vec::with_capacity(size.height());
     let mut x = node_index.to_tree_index();
     while x != r {
         let parent = parent(TreeNodeIndex::new(x));
-        d.push(parent);
+        direct_path.push(parent);
         x = parent.to_tree_index();
     }
-    d
+    direct_path
 }
 
 /// Copath of a leaf node.
-pub(crate) fn copath(leaf_index: LeafNodeIndex, size: TreeSize) -> Vec<TreeNodeIndex> {
+pub(crate) fn copath(
+    leaf_index: LeafNodeIndex,
+    size: TreeSize,
+) -> impl Iterator<Item = TreeNodeIndex> {
     // Start with leaf
-    let mut full_path = vec![TreeNodeIndex::Leaf(leaf_index)];
+    let mut full_path = Vec::with_capacity(size.height());
+    full_path.push(TreeNodeIndex::Leaf(leaf_index));
     let mut direct_path = direct_path(leaf_index, size);
     if !direct_path.is_empty() {
-        // Remove root
-        direct_path.pop();
+        direct_path.pop(); // Remove root
     }
-    full_path.append(
-        &mut direct_path
-            .iter()
-            .map(|i| TreeNodeIndex::Parent(*i))
-            .collect(),
-    );
+    let parent_direct_path = direct_path.into_iter().map(TreeNodeIndex::Parent);
+    full_path.extend(parent_direct_path);
 
-    full_path.into_iter().map(sibling).collect()
+    full_path.into_iter().map(sibling)
 }
 
 /// Common ancestor of two leaf nodes, aka the node where their direct paths
@@ -426,7 +429,7 @@ pub(crate) fn common_direct_path(
     x_path.reverse();
     y_path.reverse();
 
-    let mut common_path = vec![];
+    let mut common_path = Vec::with_capacity(size.height());
 
     for (x, y) in x_path.iter().zip(y_path.iter()) {
         if x == y {
@@ -459,7 +462,7 @@ fn test_node_in_tree() {
     for test in tests.iter() {
         assert!(is_node_in_tree(
             TreeNodeIndex::new(test.0),
-            TreeSize::new(test.1)
+            TreeSize::new(test.1),
         ));
     }
 }
@@ -470,7 +473,7 @@ fn test_node_not_in_tree() {
     for test in tests.iter() {
         assert!(!is_node_in_tree(
             TreeNodeIndex::new(test.0),
-            TreeSize::new(test.1)
+            TreeSize::new(test.1),
         ));
     }
 }

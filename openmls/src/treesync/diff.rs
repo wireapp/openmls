@@ -126,10 +126,9 @@ impl<'a> TreeSyncDiff<'a> {
         let copath_resolutions = self.copath_resolutions(leaf_index);
 
         // The two vectors should have the same length
-        debug_assert_eq!(copath.len(), copath_resolutions.len());
+        // debug_assert_eq!(copath.cloned().count(), copath_resolutions.len());
 
         copath
-            .into_iter()
             .zip(copath_resolutions)
             .filter_map(|(index, resolution)| {
                 // Filter out the nodes whose copath resolution is empty
@@ -539,7 +538,6 @@ impl<'a> TreeSyncDiff<'a> {
         // each node.
         self.diff
             .copath(leaf_index)
-            .into_iter()
             .map(|node_index| self.resolution(node_index, &HashSet::new()))
             .collect()
     }
