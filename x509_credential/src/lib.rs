@@ -22,7 +22,7 @@ impl CertificateKeyPair {
     /// Constructs the `CertificateKeyPair` from a private key and a der encoded
     /// certificate chain
     pub fn new(sk: Vec<u8>, cert_chain: Vec<Vec<u8>>) -> Result<Self, CryptoError> {
-        if cert_chain.len() < 2 {
+        if cert_chain.is_empty() {
             return Err(CryptoError::IncompleteCertificateChain);
         }
         let pki_path = cert_chain.into_iter().try_fold(
