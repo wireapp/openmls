@@ -28,6 +28,22 @@ use crate::{
 
 pub mod test_framework;
 
+#[derive(Debug)]
+pub struct DummyAuthenticationDelegate;
+
+impl DummyAuthenticationDelegate {
+    pub fn new() -> crate::AuthenticationServiceBoxedDelegate {
+        std::sync::Arc::new(Self)
+    }
+}
+
+#[async_trait::async_trait]
+impl crate::AuthenticationServiceDelegate for DummyAuthenticationDelegate {
+    async fn validate_credential(&self, _credential: &crate::credentials::Credential) -> bool {
+        true
+    }
+}
+
 // pub(crate) fn write(file_name: &str, obj: impl Serialize) {
 //     let mut file = match File::create(file_name) {
 //         Ok(f) => f,
@@ -205,12 +221,16 @@ pub use openmls_rust_crypto::OpenMlsRustCrypto;
 
 #[template]
 #[export]
-#[rstest(backend,
-    case::rust_crypto(&OpenMlsRustCrypto::default()),
+#[rstest(backend, authentication_delegate,
+    case::rust_crypto(&OpenMlsRustCrypto::default(), DummyAuthenticationDelegate::new()),
   )
 ]
 #[allow(non_snake_case)]
-pub async fn backends(backend: &impl OpenMlsCryptoProvider) {}
+pub async fn backends(
+    backend: &impl OpenMlsCryptoProvider,
+    authentication_delegate: AuthenticationServiceBoxedDelegate,
+) {
+}
 
 // === Ciphersuites ===
 
@@ -243,17 +263,18 @@ pub async fn ciphersuites(ciphersuite: Ciphersuite) {}
 
 #[template]
 #[export]
-#[rstest(ciphersuite, backend,
-    case::rust_crypto_MLS_128_DHKEMX25519_AES128GCM_SHA256_Ed25519(Ciphersuite::MLS_128_DHKEMX25519_AES128GCM_SHA256_Ed25519, &OpenMlsRustCrypto::default()),
-    case::rust_crypto_MLS_128_DHKEMP256_AES128GCM_SHA256_P256(Ciphersuite::MLS_128_DHKEMP256_AES128GCM_SHA256_P256, &OpenMlsRustCrypto::default()),
-    case::rust_crypto_MLS_256_DHKEMP384_AES256GCM_SHA384_P384(Ciphersuite::MLS_256_DHKEMP384_AES256GCM_SHA384_P384, &OpenMlsRustCrypto::default()),
-    case::rust_crypto_MLS_128_DHKEMX25519_CHACHA20POLY1305_SHA256_Ed25519(Ciphersuite::MLS_128_DHKEMX25519_CHACHA20POLY1305_SHA256_Ed25519, &OpenMlsRustCrypto::default()),
-    case::rust_crypto_MLS_128_X25519KYBER768DRAFT00_AES128GCM_SHA256_Ed25519(Ciphersuite::MLS_128_X25519KYBER768DRAFT00_AES128GCM_SHA256_Ed25519, &OpenMlsRustCrypto::default()),
+#[rstest(ciphersuite, backend, authentication_delegate,
+    case::rust_crypto_MLS_128_DHKEMX25519_AES128GCM_SHA256_Ed25519(Ciphersuite::MLS_128_DHKEMX25519_AES128GCM_SHA256_Ed25519, &OpenMlsRustCrypto::default(), crate::DummyAuthenticationDelegate::new()),
+    case::rust_crypto_MLS_128_DHKEMP256_AES128GCM_SHA256_P256(Ciphersuite::MLS_128_DHKEMP256_AES128GCM_SHA256_P256, &OpenMlsRustCrypto::default(), crate::DummyAuthenticationDelegate::new()),
+    case::rust_crypto_MLS_256_DHKEMP384_AES256GCM_SHA384_P384(Ciphersuite::MLS_256_DHKEMP384_AES256GCM_SHA384_P384, &OpenMlsRustCrypto::default(), crate::DummyAuthenticationDelegate::new()),
+    case::rust_crypto_MLS_128_DHKEMX25519_CHACHA20POLY1305_SHA256_Ed25519(Ciphersuite::MLS_128_DHKEMX25519_CHACHA20POLY1305_SHA256_Ed25519, &OpenMlsRustCrypto::default(), crate::DummyAuthenticationDelegate::new()),
+    case::rust_crypto_MLS_128_X25519KYBER768DRAFT00_AES128GCM_SHA256_Ed25519(Ciphersuite::MLS_128_X25519KYBER768DRAFT00_AES128GCM_SHA256_Ed25519, &OpenMlsRustCrypto::default(), crate::DummyAuthenticationDelegate::new()),
   )
 ]
 #[allow(non_snake_case)]
 pub async fn ciphersuites_and_backends(
     ciphersuite: Ciphersuite,
     backend: &impl OpenMlsCryptoProvider,
+    authentication_delegate: crate::AuthenticationServiceBoxedDelegate,
 ) {
 }

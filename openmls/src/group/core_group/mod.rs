@@ -149,6 +149,7 @@ pub(crate) struct CoreGroupBuilder {
     config: Option<CoreGroupConfig>,
     psk_ids: Vec<PreSharedKeyId>,
     max_past_epochs: usize,
+    authentication_service_delegate: std::sync::Arc<dyn crate::AuthenticationServiceDelegate>,
 }
 
 impl CoreGroupBuilder {
@@ -157,6 +158,7 @@ impl CoreGroupBuilder {
         group_id: GroupId,
         crypto_config: CryptoConfig,
         credential_with_key: CredentialWithKey,
+        authentication_service_delegate: std::sync::Arc<dyn crate::AuthenticationServiceDelegate>,
     ) -> Self {
         let public_group_builder =
             PublicGroup::builder(group_id, crypto_config, credential_with_key);
@@ -164,6 +166,7 @@ impl CoreGroupBuilder {
             config: None,
             psk_ids: vec![],
             max_past_epochs: 0,
+            authentication_service_delegate,
             public_group_builder,
         }
     }
@@ -335,8 +338,14 @@ impl CoreGroup {
         group_id: GroupId,
         crypto_config: CryptoConfig,
         credential_with_key: CredentialWithKey,
+        authentication_service_delegate: std::sync::Arc<dyn crate::AuthenticationServiceDelegate>,
     ) -> CoreGroupBuilder {
-        CoreGroupBuilder::new(group_id, crypto_config, credential_with_key)
+        CoreGroupBuilder::new(
+            group_id,
+            crypto_config,
+            credential_with_key,
+            authentication_service_delegate,
+        )
     }
 
     // === Create handshake messages ===

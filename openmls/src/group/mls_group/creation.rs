@@ -26,6 +26,7 @@ impl MlsGroup {
         signer: &impl Signer,
         mls_group_config: &MlsGroupConfig,
         credential_with_key: CredentialWithKey,
+        authentication_service_delegate: std::sync::Arc<dyn crate::AuthenticationServiceDelegate>,
     ) -> Result<Self, NewGroupError<KeyStore::Error>> {
         Self::new_with_group_id(
             backend,
@@ -33,6 +34,7 @@ impl MlsGroup {
             mls_group_config,
             GroupId::random(backend),
             credential_with_key,
+            authentication_service_delegate,
         )
         .await
     }
@@ -44,6 +46,7 @@ impl MlsGroup {
         mls_group_config: &MlsGroupConfig,
         group_id: GroupId,
         credential_with_key: CredentialWithKey,
+        authentication_service_delegate: std::sync::Arc<dyn crate::AuthenticationServiceDelegate>,
     ) -> Result<Self, NewGroupError<KeyStore::Error>> {
         // TODO #751
         let group_config = CoreGroupConfig {
@@ -54,6 +57,7 @@ impl MlsGroup {
             group_id,
             mls_group_config.crypto_config,
             credential_with_key,
+            authentication_service_delegate,
         )
         .with_config(group_config)
         .with_required_capabilities(mls_group_config.required_capabilities.clone())

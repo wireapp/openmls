@@ -251,13 +251,16 @@ pub fn generate_test_vector(
 // }
 
 #[apply(backends)]
-async fn read_test_vectors_key_schedule(backend: &impl OpenMlsCryptoProvider) {
+async fn read_test_vectors_key_schedule(
+    backend: &impl OpenMlsCryptoProvider,
+    authentication_delegate: crate::AuthenticationServiceBoxedDelegate,
+) {
     let _ = pretty_env_logger::try_init();
 
     let tests: Vec<KeyScheduleTestVector> = read("test_vectors/key-schedule.json");
 
     for test_vector in tests {
-        match run_test_vector(test_vector, backend) {
+        match run_test_vector(test_vector, backend, authentication_delegate.clone()) {
             Ok(_) => {}
             Err(e) => panic!("Error while checking key schedule test vector.\n{e:?}"),
         }
@@ -268,6 +271,7 @@ async fn read_test_vectors_key_schedule(backend: &impl OpenMlsCryptoProvider) {
 pub fn run_test_vector(
     test_vector: KeyScheduleTestVector,
     backend: &impl OpenMlsCryptoProvider,
+    _authentication_delegate: crate::AuthenticationServiceBoxedDelegate,
 ) -> Result<(), KsTestVectorError> {
     let ciphersuite = Ciphersuite::try_from(test_vector.cipher_suite).expect("Invalid ciphersuite");
     log::trace!("  {:?}", test_vector);

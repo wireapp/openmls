@@ -167,6 +167,7 @@ async fn generate_credential(
 async fn group(
     ciphersuite: Ciphersuite,
     backend: &impl OpenMlsCryptoProvider,
+    authentication_service_delegate: std::sync::Arc<dyn crate::AuthenticationServiceDelegate>,
 ) -> (CoreGroup, CredentialWithKey, SignatureKeyPair) {
     use crate::group::config::CryptoConfig;
 
@@ -177,6 +178,7 @@ async fn group(
         GroupId::random(backend),
         CryptoConfig::with_default_version(ciphersuite),
         credential_with_key.clone(),
+        authentication_service_delegate,
     )
     .build(backend, &signer)
     .await
@@ -189,6 +191,7 @@ async fn group(
 async fn receiver_group(
     ciphersuite: Ciphersuite,
     backend: &impl OpenMlsCryptoProvider,
+    authentication_service_delegate: crate::AuthenticationServiceBoxedDelegate,
     group_id: GroupId,
 ) -> (CoreGroup, CredentialWithKey, SignatureKeyPair) {
     use crate::group::config::CryptoConfig;
@@ -204,6 +207,7 @@ async fn receiver_group(
         group_id,
         CryptoConfig::with_default_version(ciphersuite),
         credential_with_key.clone(),
+        authentication_service_delegate,
     )
     .build(backend, &signer)
     .await
@@ -328,6 +332,7 @@ pub async fn generate_test_vector(
     n_generations: u32,
     n_leaves: u32,
     ciphersuite: Ciphersuite,
+    authentication_delegate: crate::AuthenticationServiceBoxedDelegate,
 ) -> EncryptionTestVector {
     use crate::binary_tree::array_representation::TreeSize;
 
@@ -358,7 +363,7 @@ pub async fn generate_test_vector(
         nonce: bytes_to_hex(sender_data_nonce.as_slice()),
     };
 
-    let (mut group, _, signer) = group(ciphersuite, &crypto).await;
+    let (mut group, _, signer) = group(ciphersuite, &crypto, authentication_delegate.clone()).await;
     *group.message_secrets_test_mut().sender_data_secret_mut() = SenderDataSecret::from_slice(
         sender_data_secret_bytes,
         ProtocolVersion::default(),
@@ -482,6 +487,7 @@ pub async fn generate_test_vector(
 pub async fn run_test_vector(
     test_vector: EncryptionTestVector,
     backend: &impl OpenMlsCryptoProvider,
+    authentication_delegate: crate::AuthenticationServiceBoxedDelegate,
 ) -> Result<(), EncTestVectorError> {
     use tls_codec::{Deserialize, Serialize};
 
@@ -612,6 +618,7 @@ pub async fn run_test_vector(
             let (mut group, _, _) = receiver_group(
                 ciphersuite,
                 backend,
+                authentication_delegate.clone(),
                 mls_ciphertext_application.group_id().clone(),
             )
             .await;
@@ -767,6 +774,7 @@ pub async fn run_test_vector(
             let (mut group, _, _) = receiver_group(
                 ciphersuite,
                 backend,
+                authentication_delegate.clone(),
                 mls_ciphertext_handshake.group_id().clone(),
             )
             .await;
@@ -822,14 +830,17 @@ pub async fn run_test_vector(
 }
 
 #[apply(backends)]
-async fn read_test_vectors_encryption(backend: &impl OpenMlsCryptoProvider) {
+async fn read_test_vectors_encryption(
+    backend: &impl OpenMlsCryptoProvider,
+    authentication_delegate: crate::AuthenticationServiceBoxedDelegate,
+) {
     let _ = pretty_env_logger::try_init();
     log::debug!("Reading test vectors ...");
 
     let tests: Vec<EncryptionTestVector> = read("test_vectors/kat_encryption_openmls.json");
 
     for test_vector in tests {
-        match run_test_vector(test_vector, backend).await {
+        match run_test_vector(test_vector, backend, authentication_delegate.clone()).await {
             Ok(_) => {}
             Err(e) => panic!("Error while checking encryption test vector.\n{e:?}"),
         }
@@ -847,7 +858,7 @@ async fn read_test_vectors_encryption(backend: &impl OpenMlsCryptoProvider) {
     ];
     for &tv_file in tv_files.iter() {
         let tv: EncryptionTestVector = read(tv_file);
-        run_test_vector(tv, backend)
+        run_test_vector(tv, backend, authentication_delegate.clone())
             .await
             .expect("Error while checking key schedule test vector.");
     }

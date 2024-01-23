@@ -185,6 +185,13 @@ pub mod schedule;
 pub mod treesync;
 pub mod versions;
 
+#[async_trait::async_trait]
+pub trait AuthenticationServiceDelegate: std::fmt::Debug + Send + Sync {
+    async fn validate_credential(&self, credential: &credentials::Credential) -> bool;
+}
+
+pub type AuthenticationServiceBoxedDelegate = std::sync::Arc<dyn AuthenticationServiceDelegate>;
+
 // Private
 pub mod binary_tree;
 mod tree;

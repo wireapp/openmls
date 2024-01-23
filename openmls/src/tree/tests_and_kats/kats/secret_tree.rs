@@ -191,7 +191,10 @@ pub fn run_test_vector(
 }
 
 #[apply(backends)]
-async fn read_test_vectors_st(backend: &impl OpenMlsCryptoProvider) {
+async fn read_test_vectors_st(
+    backend: &impl OpenMlsCryptoProvider,
+    authentication_delegate: crate::AuthenticationServiceBoxedDelegate,
+) {
     let _ = pretty_env_logger::try_init();
     log::debug!("Reading test vectors ...");
 
