@@ -43,7 +43,7 @@ impl CoreGroup {
                 &init_secret,
                 serialized_provisional_group_context,
             )
-            .map_err(LibraryError::unexpected_crypto_error)?
+                .map_err(LibraryError::unexpected_crypto_error)?
         } else {
             JoinerSecret::new(
                 backend,
@@ -51,7 +51,7 @@ impl CoreGroup {
                 epoch_secrets.init_secret(),
                 serialized_provisional_group_context,
             )
-            .map_err(LibraryError::unexpected_crypto_error)?
+                .map_err(LibraryError::unexpected_crypto_error)?
         };
 
         // Prepare the PskSecret
@@ -61,7 +61,7 @@ impl CoreGroup {
                 &self.resumption_psk_store,
                 &apply_proposals_values.presharedkeys,
             )
-            .await?;
+                .await?;
 
             PskSecret::new(backend, self.ciphersuite(), psks).await?
         };
@@ -151,7 +151,7 @@ impl CoreGroup {
         }
 
         // Determine if Commit has a path
-        let (commit_secret, new_keypairs, new_leaf_keypair_option) =
+        let (commit_secret, new_keypairs, new_leaf_keypair_option, update_path_leaf_node) =
             if let Some(path) = commit.path.clone() {
                 // Update the public group
                 // ValSem202: Path must be the right length
@@ -194,7 +194,14 @@ impl CoreGroup {
                     debug_assert!(false);
                     None
                 };
-                (commit_secret, new_keypairs, new_leaf_keypair_option)
+
+                // Return the leaf node in the update path so the credential can be validated.
+                // Since the diff has already been updated, this should be the same as the leaf
+                // at the sender index.
+                let update_path_leaf_node = Some(path.leaf_node().clone());
+                debug_assert_eq!(diff.leaf(sender_index), path.leaf_node().into());
+
+                (commit_secret, new_keypairs, new_leaf_keypair_option, update_path_leaf_node)
             } else {
                 if apply_proposals_values.path_required {
                     // ValSem201
@@ -207,6 +214,7 @@ impl CoreGroup {
                 (
                     CommitSecret::zero_secret(ciphersuite, self.version()),
                     vec![],
+                    None,
                     None,
                 )
             };
@@ -264,6 +272,7 @@ impl CoreGroup {
                 staged_diff,
                 new_keypairs,
                 new_leaf_keypair_option,
+                update_path_leaf_node,
             )));
 
         Ok(StagedCommit::new(proposal_queue, staged_commit_state))
@@ -276,7 +285,7 @@ impl CoreGroup {
     /// might throw a `LibraryError`.
     pub(crate) async fn merge_commit<KeyStore: OpenMlsKeyStore>(
         &mut self,
-        backend: &impl OpenMlsCryptoProvider<KeyStoreProvider = KeyStore>,
+        backend: &impl OpenMlsCryptoProvider<KeyStoreProvider=KeyStore>,
         staged_commit: StagedCommit,
     ) -> Result<Option<MessageSecrets>, MergeCommitError<KeyStore::Error>> {
         // Get all keypairs from the old epoch, so we can later store the ones
@@ -300,7 +309,7 @@ impl CoreGroup {
 
     async fn merge_member_commit<KeyStore: OpenMlsKeyStore>(
         &mut self,
-        backend: &impl OpenMlsCryptoProvider<KeyStoreProvider = KeyStore>,
+        backend: &impl OpenMlsCryptoProvider<KeyStoreProvider=KeyStore>,
         mut old_epoch_keypairs: EpochEncryptionKeyPair,
         mut state: Box<MemberStagedCommitState>,
         is_member: bool,
@@ -343,7 +352,7 @@ impl CoreGroup {
             return Err(LibraryError::custom(
                 "We should have all the private key material we need.",
             )
-            .into());
+                .into());
         }
 
         // Store the relevant keys under the new epoch
@@ -390,7 +399,7 @@ impl CoreGroup {
             leaf_node_keypairs,
             backend,
         )
-        .await
+            .await
     }
 }
 
@@ -419,27 +428,27 @@ impl StagedCommit {
     }
 
     /// Returns the Add proposals that are covered by the Commit message as in iterator over [QueuedAddProposal].
-    pub fn add_proposals(&self) -> impl Iterator<Item = QueuedAddProposal> {
+    pub fn add_proposals(&self) -> impl Iterator<Item=QueuedAddProposal> {
         self.staged_proposal_queue.add_proposals()
     }
 
     /// Returns the Remove proposals that are covered by the Commit message as in iterator over [QueuedRemoveProposal].
-    pub fn remove_proposals(&self) -> impl Iterator<Item = QueuedRemoveProposal> {
+    pub fn remove_proposals(&self) -> impl Iterator<Item=QueuedRemoveProposal> {
         self.staged_proposal_queue.remove_proposals()
     }
 
     /// Returns the Update proposals that are covered by the Commit message as in iterator over [QueuedUpdateProposal].
-    pub fn update_proposals(&self) -> impl Iterator<Item = QueuedUpdateProposal> {
+    pub fn update_proposals(&self) -> impl Iterator<Item=QueuedUpdateProposal> {
         self.staged_proposal_queue.update_proposals()
     }
 
     /// Returns the PresharedKey proposals that are covered by the Commit message as in iterator over [QueuedPskProposal].
-    pub fn psk_proposals(&self) -> impl Iterator<Item = QueuedPskProposal> {
+    pub fn psk_proposals(&self) -> impl Iterator<Item=QueuedPskProposal> {
         self.staged_proposal_queue.psk_proposals()
     }
 
     /// Returns an interator over all [`QueuedProposal`]s
-    pub fn queued_proposals(&self) -> impl Iterator<Item = &QueuedProposal> {
+    pub fn queued_proposals(&self) -> impl Iterator<Item=&QueuedProposal> {
         self.staged_proposal_queue.queued_proposals()
     }
 
@@ -469,6 +478,17 @@ impl StagedCommit {
             StagedCommitState::ExternalMember(diff) => &diff.staged_diff.confirmation_tag,
         }
     }
+
+
+    /// Returns the leaf node of the (optional) update path.
+    pub fn get_update_path_leaf_node(&self) -> Option<&LeafNode> {
+        match self.state {
+            StagedCommitState::PublicState(_) => None,
+            StagedCommitState::GroupMember(ref member) | StagedCommitState::ExternalMember(ref member) => {
+                member.update_path_leaf_node.as_ref()
+            }
+        }
+    }
 }
 
 /// This struct is used internally by [StagedCommit] to encapsulate all the modified group state.
@@ -479,6 +499,7 @@ pub(crate) struct MemberStagedCommitState {
     staged_diff: StagedPublicGroupDiff,
     new_keypairs: Vec<EncryptionKeyPair>,
     maybe_new_leaf_keypair: Option<EncryptionKeyPair>,
+    update_path_leaf_node: Option<LeafNode>,
 }
 
 impl MemberStagedCommitState {
@@ -488,6 +509,7 @@ impl MemberStagedCommitState {
         staged_diff: StagedPublicGroupDiff,
         new_keypairs: Vec<EncryptionKeyPair>,
         maybe_new_leaf_keypair: Option<EncryptionKeyPair>,
+        update_path_leaf_node: Option<LeafNode>,
     ) -> Self {
         Self {
             group_epoch_secrets,
@@ -495,6 +517,7 @@ impl MemberStagedCommitState {
             staged_diff,
             new_keypairs,
             maybe_new_leaf_keypair,
+            update_path_leaf_node,
         }
     }
 

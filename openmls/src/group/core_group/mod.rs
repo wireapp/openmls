@@ -243,7 +243,7 @@ impl CoreGroupBuilder {
     /// [`OpenMlsCryptoProvider`].
     pub(crate) async fn build<KeyStore: OpenMlsKeyStore>(
         self,
-        backend: &impl OpenMlsCryptoProvider<KeyStoreProvider = KeyStore>,
+        backend: &impl OpenMlsCryptoProvider<KeyStoreProvider=KeyStore>,
         signer: &impl Signer,
     ) -> Result<CoreGroup, CoreGroupBuildError<KeyStore::Error>> {
         let (public_group_builder, commit_secret, leaf_keypair) =
@@ -270,7 +270,7 @@ impl CoreGroupBuilder {
                 .map_err(LibraryError::unexpected_crypto_error)?,
             &serialized_group_context,
         )
-        .map_err(LibraryError::unexpected_crypto_error)?;
+            .map_err(LibraryError::unexpected_crypto_error)?;
 
         // TODO(#1357)
         let resumption_psk_store = ResumptionPskStore::new(32);
@@ -407,7 +407,7 @@ impl CoreGroup {
             self.context(),
             signer,
         )
-        .map_err(ValidationError::LibraryError)
+            .map_err(ValidationError::LibraryError)
     }
 
     // 11.1.4. PreSharedKey
@@ -437,7 +437,7 @@ impl CoreGroup {
     pub(crate) fn members_support_extensions<'a>(
         &self,
         extensions: &Extensions,
-        pending_proposals: impl Iterator<Item = &'a QueuedProposal>,
+        pending_proposals: impl Iterator<Item=&'a QueuedProposal>,
     ) -> Result<(), MemberExtensionValidationError> {
         let required_extension = extensions
             .iter()
@@ -470,7 +470,7 @@ impl CoreGroup {
         &self,
         framing_parameters: FramingParameters,
         extensions: Extensions,
-        pending_proposals: impl Iterator<Item = &'a QueuedProposal>,
+        pending_proposals: impl Iterator<Item=&'a QueuedProposal>,
         signer: &impl Signer,
     ) -> Result<AuthenticatedContent, ProposeGroupContextExtensionError> {
         // Ensure that the group supports all the extensions that are wanted.
@@ -485,7 +485,7 @@ impl CoreGroup {
             self.context(),
             signer,
         )
-        .map_err(|e| e.into())
+            .map_err(|e| e.into())
     }
     /// Create a `ReInit` proposal
     pub(crate) fn create_reinit_proposal(
@@ -512,7 +512,7 @@ impl CoreGroup {
             self.context(),
             signer,
         )
-        .map_err(|e| e.into())
+            .map_err(|e| e.into())
     }
     // Create application message
     pub(crate) fn create_application_message(
@@ -815,7 +815,7 @@ impl CoreGroup {
     /// Returns an error if access to the key store fails.
     pub(super) async fn store_epoch_keypairs<KeyStore: OpenMlsKeyStore>(
         &self,
-        backend: &impl OpenMlsCryptoProvider<KeyStoreProvider = KeyStore>,
+        backend: &impl OpenMlsCryptoProvider<KeyStoreProvider=KeyStore>,
         epoch_encryption_keypair: EpochEncryptionKeyPair,
     ) -> Result<(), KeyStore::Error> {
         let k = EpochKeypairId::new(
@@ -835,7 +835,7 @@ impl CoreGroup {
     /// Returns `None` if access to the key store fails.
     pub(super) async fn read_epoch_keypairs<KeyStore: OpenMlsKeyStore>(
         &self,
-        backend: &impl OpenMlsCryptoProvider<KeyStoreProvider = KeyStore>,
+        backend: &impl OpenMlsCryptoProvider<KeyStoreProvider=KeyStore>,
     ) -> EpochEncryptionKeyPair {
         let k = EpochKeypairId::new(
             self.group_id(),
@@ -855,7 +855,7 @@ impl CoreGroup {
     /// Returns an error if access to the key store fails.
     pub(super) async fn delete_previous_epoch_keypairs<KeyStore: OpenMlsKeyStore>(
         &self,
-        backend: &impl OpenMlsCryptoProvider<KeyStoreProvider = KeyStore>,
+        backend: &impl OpenMlsCryptoProvider<KeyStoreProvider=KeyStore>,
     ) -> Result<(), KeyStore::Error> {
         let k = EpochKeypairId::new(
             self.group_id(),
@@ -871,7 +871,7 @@ impl CoreGroup {
     pub(crate) async fn create_commit<KeyStore: OpenMlsKeyStore>(
         &self,
         mut params: CreateCommitParams<'_>,
-        backend: &impl OpenMlsCryptoProvider<KeyStoreProvider = KeyStore>,
+        backend: &impl OpenMlsCryptoProvider<KeyStoreProvider=KeyStore>,
         signer: &impl Signer,
     ) -> Result<CreateCommitResult, CreateCommitError<KeyStore::Error>> {
         let ciphersuite = self.ciphersuite();
@@ -890,15 +890,15 @@ impl CoreGroup {
             params.inline_proposals(),
             self.own_leaf_index(),
         )
-        .map_err(|e| match e {
-            crate::group::errors::ProposalQueueError::LibraryError(e) => e.into(),
-            crate::group::errors::ProposalQueueError::ProposalNotFound => {
-                CreateCommitError::MissingProposal
-            }
-            crate::group::errors::ProposalQueueError::SenderError(_) => {
-                CreateCommitError::WrongProposalSenderType
-            }
-        })?;
+            .map_err(|e| match e {
+                crate::group::errors::ProposalQueueError::LibraryError(e) => e.into(),
+                crate::group::errors::ProposalQueueError::ProposalNotFound => {
+                    CreateCommitError::MissingProposal
+                }
+                crate::group::errors::ProposalQueueError::SenderError(_) => {
+                    CreateCommitError::WrongProposalSenderType
+                }
+            })?;
 
         // TODO: #581 Filter proposals by support
         // 11.2:
@@ -968,7 +968,7 @@ impl CoreGroup {
 
                     all_proposals.find_map(|p| {
                         match p {
-                            Proposal::Update(UpdateProposal{leaf_node}) => Some(leaf_node.clone()),
+                            Proposal::Update(UpdateProposal { leaf_node }) => Some(leaf_node.clone()),
                             _ => None,
                         }
                     })
@@ -985,7 +985,7 @@ impl CoreGroup {
                     params.commit_type(),
                     signer,
                     params.take_credential_with_key(),
-                     apply_proposals_values.extensions
+                    apply_proposals_values.extensions,
                 )?
             } else {
                 // If path is not needed, update the group context and return
@@ -993,6 +993,11 @@ impl CoreGroup {
                 diff.update_group_context(backend, apply_proposals_values.extensions.cloned())?;
                 PathComputationResult::default()
             };
+
+        let update_path_leaf_node = path_computation_result
+            .encrypted_path
+            .as_ref()
+            .map(|path| path.leaf_node().clone());
 
         // Create commit message
         let commit = Commit {
@@ -1023,7 +1028,7 @@ impl CoreGroup {
             self.group_epoch_secrets().init_secret(),
             &serialized_provisional_group_context,
         )
-        .map_err(LibraryError::unexpected_crypto_error)?;
+            .map_err(LibraryError::unexpected_crypto_error)?;
 
         // Prepare the PskSecret
         let psk_secret = {
@@ -1032,7 +1037,7 @@ impl CoreGroup {
                 &self.resumption_psk_store,
                 &apply_proposals_values.presharedkeys,
             )
-            .await?;
+                .await?;
 
             PskSecret::new(backend, ciphersuite, psks).await?
         };
@@ -1154,6 +1159,7 @@ impl CoreGroup {
             // The committer is not allowed to include their own update
             // proposal, so there is no extra keypair to store here.
             None,
+            update_path_leaf_node,
         );
         let staged_commit_state = match params.commit_type() {
             CommitType::Member => StagedCommitState::GroupMember(Box::new(staged_commit_state)),
@@ -1185,7 +1191,7 @@ impl MlsGroup {
     /// re-export
     pub async fn delete_previous_epoch_keypairs<KeyStore: OpenMlsKeyStore>(
         &self,
-        backend: &impl OpenMlsCryptoProvider<KeyStoreProvider = KeyStore>,
+        backend: &impl OpenMlsCryptoProvider<KeyStoreProvider=KeyStore>,
     ) -> Result<(), KeyStore::Error> {
         self.group.delete_previous_epoch_keypairs(backend).await
     }
