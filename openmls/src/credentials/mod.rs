@@ -24,6 +24,10 @@
 
 use std::io::{Read, Write};
 
+use openmls_traits::{
+    authentication_service::{AuthenticationServiceDelegate, CredentialAuthenticationStatus},
+    OpenMlsCryptoProvider,
+};
 use serde::{Deserialize, Serialize};
 use tls_codec::{TlsDeserialize, TlsSerialize, TlsSize, VLBytes};
 
@@ -270,6 +274,53 @@ impl Credential {
             MlsCredentialType::Basic(basic_credential) => basic_credential.identity.as_slice(),
             MlsCredentialType::X509(cert) => cert.identity.as_slice(),
         }
+    }
+
+    pub async fn validate(
+        &self,
+        backend: &impl OpenMlsCryptoProvider,
+    ) -> Result<(), CredentialError> {
+        let tmp_certs = if let MlsCredentialType::X509(x509_certs) = &self.credential {
+            Some(
+                x509_certs
+                    .certificates
+                    .iter()
+                    .map(|bytes| bytes.as_slice())
+                    .collect::<Vec<_>>(),
+            )
+        } else {
+            None
+        };
+
+        let credential_ref = match &self.credential {
+            MlsCredentialType::Basic(basic_cred) => {
+                openmls_traits::authentication_service::CredentialRef::Basic {
+                    identity: basic_cred.identity.as_slice(),
+                }
+            }
+
+            MlsCredentialType::X509(_) => {
+                let credential_ref = openmls_traits::authentication_service::CredentialRef::X509 {
+                    certificates: tmp_certs.as_ref().unwrap().as_slice(),
+                };
+                credential_ref
+            }
+        };
+
+        let credential_authentication = backend
+            .authentication_service()
+            .validate_credential(credential_ref)
+            .await;
+
+        if credential_authentication != CredentialAuthenticationStatus::Valid {
+            return Err(CredentialError::AuthenticationServiceValidationFailure(
+                credential_authentication,
+            ));
+        }
+
+        drop(tmp_certs);
+
+        Ok(())
     }
 }
 
