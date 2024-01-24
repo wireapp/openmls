@@ -10,6 +10,7 @@ repository = "https://github.com/openmls/openmls/tree/main/openmls_rust_crypto"
 readme = "README.md"
 
 [dependencies]
+async-trait = { workspace = true }
 openmls_traits = { version = "0.2.0", path = "../traits" }
 openmls_memory_keystore = { version = "0.2.0", path = "../memory_keystore" }
 # Rust Crypto dependencies
