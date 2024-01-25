@@ -10,7 +10,7 @@ use crate::{
     error::LibraryError,
     framing::{mls_auth_content::AuthenticatedContent, *},
     group::*,
-    key_packages::{KeyPackage, KeyPackageBundle},
+    key_packages::KeyPackage,
     messages::{proposals::*, Welcome},
     schedule::ResumptionPskSecret,
     treesync::{node::leaf_node::LeafNode, RatchetTree},
@@ -24,6 +24,7 @@ mod exporting;
 mod updates;
 
 use crate::prelude::ConfirmationTag;
+use crate::treesync::node::encryption_keys::EncryptionKeyPair;
 use config::*;
 use errors::*;
 use openmls_traits::types::CryptoError;
@@ -156,14 +157,14 @@ pub struct MlsGroup {
     mls_group_config: MlsGroupConfig,
     // the internal `CoreGroup` used for lower level operations. See `CoreGroup` for more
     // information.
-    group: CoreGroup,
+    pub(crate) group: CoreGroup,
     // A [ProposalStore] that stores incoming proposals from the DS within one epoch.
     // The store is emptied after every epoch change.
     pub(crate) proposal_store: ProposalStore,
     // Own [`LeafNode`]s that were created for update proposals and that
     // are needed in case an update proposal is committed by another group
     // member. The vector is emptied after every epoch change.
-    own_leaf_nodes: Vec<LeafNode>,
+    pub own_leaf_nodes: Vec<LeafNode>,
     // The AAD that is used for all outgoing handshake messages. The AAD can be set through
     // `set_aad()`.
     aad: Vec<u8>,
@@ -421,7 +422,6 @@ impl MlsGroup {
     }
 
     /// Returns the underlying [CoreGroup].
-    #[cfg(test)]
     pub(crate) fn group(&self) -> &CoreGroup {
         &self.group
     }
@@ -432,13 +432,31 @@ impl MlsGroup {
     }
 
     /// Removes a specific proposal from the store.
-    pub fn remove_pending_proposal(
+    pub async fn remove_pending_proposal(
         &mut self,
-        proposal_ref: ProposalRef,
+        keystore: &impl OpenMlsKeyStore,
+        proposal_ref: &ProposalRef,
     ) -> Result<(), MlsGroupStateError> {
-        self.proposal_store
-            .remove(proposal_ref)
-            .ok_or(MlsGroupStateError::PendingProposalNotFound)
+        let maybe_proposal = self
+            .proposal_store
+            .proposals()
+            .find(|p| p.proposal_reference() == proposal_ref);
+
+        if let Some(proposal) = maybe_proposal {
+            if let Proposal::Update(UpdateProposal { leaf_node }) = proposal.proposal() {
+                let key = leaf_node.encryption_key().as_slice();
+                keystore
+                    .delete::<EncryptionKeyPair>(key)
+                    .await
+                    .map_err(|_| MlsGroupStateError::EncryptionKeyNotFound)?
+            }
+
+            self.proposal_store
+                .remove(proposal_ref)
+                .ok_or(MlsGroupStateError::PendingProposalNotFound)
+        } else {
+            Err(MlsGroupStateError::PendingProposalNotFound)
+        }
     }
 
     pub fn print_ratchet_tree(&self, message: &str) {

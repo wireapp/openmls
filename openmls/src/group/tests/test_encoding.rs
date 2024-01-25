@@ -7,7 +7,7 @@ use tls_codec::{Deserialize, Serialize};
 use super::utils::*;
 use crate::{
     binary_tree::LeafNodeIndex, framing::*, group::*, key_packages::*, messages::*,
-    schedule::psk::store::ResumptionPskStore, test_utils::*, *,
+    schedule::psk::store::ResumptionPskStore, test_utils::*,
 };
 wasm_bindgen_test::wasm_bindgen_test_configure!(run_in_browser);
 
@@ -431,7 +431,7 @@ async fn test_welcome_message_encoding(backend: &impl OpenMlsCryptoProvider) {
             .expect("An unexpected error occurred.")
             .borrow();
 
-        let charlie_key_package_bundle = charlie
+        let charlie_kpb = charlie
             .find_key_package_bundle(&charlie_key_package, backend)
             .expect("An unexpected error occurred.");
 
@@ -440,7 +440,8 @@ async fn test_welcome_message_encoding(backend: &impl OpenMlsCryptoProvider) {
         assert!(CoreGroup::new_from_welcome(
             welcome,
             Some(group_state.public_group().export_ratchet_tree().into()),
-            charlie_key_package_bundle,
+            charlie_kpb.key_package(),
+            charlie_kpb.private_key.clone(),
             backend,
             ResumptionPskStore::new(1024),
         )

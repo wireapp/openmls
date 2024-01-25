@@ -18,8 +18,8 @@
 //! Verification:
 //! * Compute `candidate_tree_after` by applying `proposal` sent by the member
 //!   with index `proposal_sender` to `tree_before`.
-//! * Verify that serialized `candidate_tree_after` matches the provided `tree_after`
-//!   value.
+//! * Verify that serialized `candidate_tree_after` matches the provided
+//!   `tree_after` value.
 
 use ::serde::Deserialize;
 use openmls_traits::OpenMlsCryptoProvider;

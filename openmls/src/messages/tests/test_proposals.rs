@@ -1,6 +1,4 @@
-use openmls_rust_crypto::OpenMlsRustCrypto;
-use tls_codec::{Deserialize, Serialize};
-
+use crate::test_utils::*;
 use crate::{
     binary_tree::LeafNodeIndex,
     ciphersuite::hash_ref::ProposalRef,
@@ -8,8 +6,9 @@ use crate::{
         proposals::{Proposal, ProposalOrRef, RemoveProposal},
         proposals_in::ProposalOrRefIn,
     },
-    test_utils::*,
 };
+use openmls_rust_crypto::OpenMlsRustCrypto;
+use tls_codec::{Deserialize, Serialize};
 
 wasm_bindgen_test::wasm_bindgen_test_configure!(run_in_browser);
 

@@ -417,7 +417,12 @@ pub async fn run_test_vector(
                 .parse_message(decrypted_message, group.message_secrets_store())
                 .unwrap();
             let processed_message: AuthenticatedContent = processed_unverified_message
-                .verify(ciphersuite, backend.crypto(), ProtocolVersion::Mls10)
+                .verify(
+                    ciphersuite,
+                    backend.crypto(),
+                    ProtocolVersion::Mls10,
+                    group.public_group(),
+                )
                 .unwrap()
                 .0;
             match processed_message.content().to_owned() {
@@ -557,7 +562,12 @@ pub async fn run_test_vector(
                 .parse_message(decrypted_message, group.message_secrets_store())
                 .unwrap();
             let processed_message: AuthenticatedContent = processed_unverified_message
-                .verify(ciphersuite, backend.crypto(), ProtocolVersion::Mls10)
+                .verify(
+                    ciphersuite,
+                    backend.crypto(),
+                    ProtocolVersion::Mls10,
+                    group.public_group(),
+                )
                 .unwrap()
                 .0;
             match processed_message.content().to_owned() {
@@ -600,7 +610,12 @@ pub async fn run_test_vector(
                 .parse_message(decrypted_message, group.message_secrets_store())
                 .unwrap();
             let processed_message: AuthenticatedContent = processed_unverified_message
-                .verify(ciphersuite, backend.crypto(), ProtocolVersion::Mls10)
+                .verify(
+                    ciphersuite,
+                    backend.crypto(),
+                    ProtocolVersion::Mls10,
+                    group.public_group(),
+                )
                 .unwrap()
                 .0;
             match processed_message.content().to_owned() {

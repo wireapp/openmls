@@ -1,10 +1,9 @@
+use crate::test_utils::*;
 use openmls_basic_credential::SignatureKeyPair;
 use openmls_rust_crypto::OpenMlsRustCrypto;
 use openmls_traits::{
     crypto::OpenMlsCrypto, key_store::OpenMlsKeyStore, types::Ciphersuite, OpenMlsCryptoProvider,
 };
-use rstest::*;
-use rstest_reuse::{self, *};
 use tls_codec::{Deserialize, Serialize};
 
 use crate::{
@@ -80,7 +79,7 @@ async fn test_welcome_context_mismatch(
     .expect("An unexpected error occurred.");
 
     let (_queued_message, welcome, _group_info) = alice_group
-        .add_members(backend, &alice_signer, &[bob_kp.clone()])
+        .add_members(backend, &alice_signer, vec![bob_kp.clone().into()])
         .await
         .expect("Could not add member to group.");
 

@@ -43,7 +43,7 @@ impl CoreGroup {
                 &init_secret,
                 serialized_provisional_group_context,
             )
-            .map_err(LibraryError::unexpected_crypto_error)?
+                .map_err(LibraryError::unexpected_crypto_error)?
         } else {
             JoinerSecret::new(
                 backend,
@@ -51,7 +51,7 @@ impl CoreGroup {
                 epoch_secrets.init_secret(),
                 serialized_provisional_group_context,
             )
-            .map_err(LibraryError::unexpected_crypto_error)?
+                .map_err(LibraryError::unexpected_crypto_error)?
         };
 
         // Prepare the PskSecret
@@ -61,7 +61,7 @@ impl CoreGroup {
                 &self.resumption_psk_store,
                 &apply_proposals_values.presharedkeys,
             )
-            .await?;
+                .await?;
 
             PskSecret::new(backend, self.ciphersuite(), psks).await?
         };
@@ -117,7 +117,7 @@ impl CoreGroup {
         &self,
         mls_content: &AuthenticatedContent,
         proposal_store: &ProposalStore,
-        old_epoch_keypairs: Vec<EncryptionKeyPair>,
+        old_epoch_keypairs: EpochEncryptionKeyPair,
         leaf_node_keypairs: Vec<EncryptionKeyPair>,
         backend: &impl OpenMlsCryptoProvider,
     ) -> Result<StagedCommit, StageCommitError> {
@@ -151,7 +151,7 @@ impl CoreGroup {
         }
 
         // Determine if Commit has a path
-        let (commit_secret, new_keypairs, new_leaf_keypair_option) =
+        let (commit_secret, new_keypairs, new_leaf_keypair_option, update_path_leaf_node) =
             if let Some(path) = commit.path.clone() {
                 // Update the public group
                 // ValSem202: Path must be the right length
@@ -194,7 +194,14 @@ impl CoreGroup {
                     debug_assert!(false);
                     None
                 };
-                (commit_secret, new_keypairs, new_leaf_keypair_option)
+
+                // Return the leaf node in the update path so the credential can be validated.
+                // Since the diff has already been updated, this should be the same as the leaf
+                // at the sender index.
+                let update_path_leaf_node = Some(path.leaf_node().clone());
+                debug_assert_eq!(diff.leaf(sender_index), path.leaf_node().into());
+
+                (commit_secret, new_keypairs, new_leaf_keypair_option, update_path_leaf_node)
             } else {
                 if apply_proposals_values.path_required {
                     // ValSem201
@@ -207,6 +214,7 @@ impl CoreGroup {
                 (
                     CommitSecret::zero_secret(ciphersuite, self.version()),
                     vec![],
+                    None,
                     None,
                 )
             };
@@ -264,6 +272,7 @@ impl CoreGroup {
                 staged_diff,
                 new_keypairs,
                 new_leaf_keypair_option,
+                update_path_leaf_node,
             )));
 
         Ok(StagedCommit::new(proposal_queue, staged_commit_state))
@@ -276,7 +285,7 @@ impl CoreGroup {
     /// might throw a `LibraryError`.
     pub(crate) async fn merge_commit<KeyStore: OpenMlsKeyStore>(
         &mut self,
-        backend: &impl OpenMlsCryptoProvider<KeyStoreProvider = KeyStore>,
+        backend: &impl OpenMlsCryptoProvider<KeyStoreProvider=KeyStore>,
         staged_commit: StagedCommit,
     ) -> Result<Option<MessageSecrets>, MergeCommitError<KeyStore::Error>> {
         // Get all keypairs from the old epoch, so we can later store the ones
@@ -300,9 +309,9 @@ impl CoreGroup {
 
     async fn merge_member_commit<KeyStore: OpenMlsKeyStore>(
         &mut self,
-        backend: &impl OpenMlsCryptoProvider<KeyStoreProvider = KeyStore>,
-        old_epoch_keypairs: Vec<EncryptionKeyPair>,
-        state: Box<MemberStagedCommitState>,
+        backend: &impl OpenMlsCryptoProvider<KeyStoreProvider=KeyStore>,
+        mut old_epoch_keypairs: EpochEncryptionKeyPair,
+        mut state: Box<MemberStagedCommitState>,
         is_member: bool,
     ) -> Result<Option<MessageSecrets>, MergeCommitError<<KeyStore as OpenMlsKeyStore>::Error>>
     {
@@ -317,14 +326,11 @@ impl CoreGroup {
 
         self.public_group.merge_diff(state.staged_diff);
 
-        // TODO #1194: Group storage and key storage should be
-        // correlated s.t. there is no divergence between key material
-        // and group state.
-
-        let leaf_keypair = if let Some(keypair) = &state.new_leaf_keypair_option {
-            vec![keypair.clone()]
-        } else {
-            vec![]
+        // TODO #1194: Group storage and key storage should be correlated s.t. there is no divergence between key material and group state.
+        let mut maybe_new_leaf_encryption_public_key = None;
+        if let Some(keypair) = state.maybe_new_leaf_keypair.take() {
+            maybe_new_leaf_encryption_public_key = Some(keypair.public_key().as_slice().to_vec());
+            old_epoch_keypairs.push(keypair);
         };
 
         // Figure out which keys we need in the new epoch.
@@ -333,23 +339,24 @@ impl CoreGroup {
             .owned_encryption_keys(self.own_leaf_index());
 
         // From the old and new keys, keep the ones that are still relevant in the new epoch.
-        let epoch_keypairs: Vec<EncryptionKeyPair> = old_epoch_keypairs
+        let epoch_keypairs: EpochEncryptionKeyPair = old_epoch_keypairs
+            .0
             .into_iter()
             .chain(state.new_keypairs.into_iter())
-            .chain(leaf_keypair.into_iter())
             .filter(|keypair| new_owned_encryption_keys.contains(keypair.public_key()))
-            .collect();
+            .collect::<Vec<_>>()
+            .into();
         // We should have private keys for all owned encryption keys.
         debug_assert_eq!(new_owned_encryption_keys.len(), epoch_keypairs.len());
         if new_owned_encryption_keys.len() != epoch_keypairs.len() {
             return Err(LibraryError::custom(
                 "We should have all the private key material we need.",
             )
-            .into());
+                .into());
         }
 
         // Store the relevant keys under the new epoch
-        self.store_epoch_keypairs(backend, epoch_keypairs.as_slice())
+        self.store_epoch_keypairs(backend, epoch_keypairs)
             .await
             .map_err(MergeCommitError::KeyStoreError)?;
 
@@ -360,9 +367,10 @@ impl CoreGroup {
                 .map_err(MergeCommitError::KeyStoreError)?;
         }
 
-        if let Some(keypair) = state.new_leaf_keypair_option {
-            keypair
-                .delete_from_key_store(backend)
+        if let Some(new_leaf_encryption_public_key) = maybe_new_leaf_encryption_public_key {
+            backend
+                .key_store()
+                .delete::<EncryptionKeyPair>(&new_leaf_encryption_public_key)
                 .await
                 .map_err(MergeCommitError::KeyStoreError)?;
         }
@@ -391,7 +399,7 @@ impl CoreGroup {
             leaf_node_keypairs,
             backend,
         )
-        .await
+            .await
     }
 }
 
@@ -420,27 +428,27 @@ impl StagedCommit {
     }
 
     /// Returns the Add proposals that are covered by the Commit message as in iterator over [QueuedAddProposal].
-    pub fn add_proposals(&self) -> impl Iterator<Item = QueuedAddProposal> {
+    pub fn add_proposals(&self) -> impl Iterator<Item=QueuedAddProposal> {
         self.staged_proposal_queue.add_proposals()
     }
 
     /// Returns the Remove proposals that are covered by the Commit message as in iterator over [QueuedRemoveProposal].
-    pub fn remove_proposals(&self) -> impl Iterator<Item = QueuedRemoveProposal> {
+    pub fn remove_proposals(&self) -> impl Iterator<Item=QueuedRemoveProposal> {
         self.staged_proposal_queue.remove_proposals()
     }
 
     /// Returns the Update proposals that are covered by the Commit message as in iterator over [QueuedUpdateProposal].
-    pub fn update_proposals(&self) -> impl Iterator<Item = QueuedUpdateProposal> {
+    pub fn update_proposals(&self) -> impl Iterator<Item=QueuedUpdateProposal> {
         self.staged_proposal_queue.update_proposals()
     }
 
     /// Returns the PresharedKey proposals that are covered by the Commit message as in iterator over [QueuedPskProposal].
-    pub fn psk_proposals(&self) -> impl Iterator<Item = QueuedPskProposal> {
+    pub fn psk_proposals(&self) -> impl Iterator<Item=QueuedPskProposal> {
         self.staged_proposal_queue.psk_proposals()
     }
 
     /// Returns an interator over all [`QueuedProposal`]s
-    pub fn queued_proposals(&self) -> impl Iterator<Item = &QueuedProposal> {
+    pub fn queued_proposals(&self) -> impl Iterator<Item=&QueuedProposal> {
         self.staged_proposal_queue.queued_proposals()
     }
 
@@ -470,6 +478,17 @@ impl StagedCommit {
             StagedCommitState::ExternalMember(diff) => &diff.staged_diff.confirmation_tag,
         }
     }
+
+
+    /// Returns the leaf node of the (optional) update path.
+    pub fn get_update_path_leaf_node(&self) -> Option<&LeafNode> {
+        match self.state {
+            StagedCommitState::PublicState(_) => None,
+            StagedCommitState::GroupMember(ref member) | StagedCommitState::ExternalMember(ref member) => {
+                member.update_path_leaf_node.as_ref()
+            }
+        }
+    }
 }
 
 /// This struct is used internally by [StagedCommit] to encapsulate all the modified group state.
@@ -479,7 +498,8 @@ pub(crate) struct MemberStagedCommitState {
     message_secrets: MessageSecrets,
     staged_diff: StagedPublicGroupDiff,
     new_keypairs: Vec<EncryptionKeyPair>,
-    new_leaf_keypair_option: Option<EncryptionKeyPair>,
+    maybe_new_leaf_keypair: Option<EncryptionKeyPair>,
+    update_path_leaf_node: Option<LeafNode>,
 }
 
 impl MemberStagedCommitState {
@@ -488,14 +508,16 @@ impl MemberStagedCommitState {
         message_secrets: MessageSecrets,
         staged_diff: StagedPublicGroupDiff,
         new_keypairs: Vec<EncryptionKeyPair>,
-        new_leaf_keypair_option: Option<EncryptionKeyPair>,
+        maybe_new_leaf_keypair: Option<EncryptionKeyPair>,
+        update_path_leaf_node: Option<LeafNode>,
     ) -> Self {
         Self {
             group_epoch_secrets,
             message_secrets,
             staged_diff,
             new_keypairs,
-            new_leaf_keypair_option,
+            maybe_new_leaf_keypair,
+            update_path_leaf_node,
         }
     }
 

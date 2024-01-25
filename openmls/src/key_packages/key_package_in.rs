@@ -5,7 +5,11 @@ use crate::{
     ciphersuite::{signable::*, *},
     credentials::*,
     extensions::Extensions,
-    treesync::node::leaf_node::{LeafNode, LeafNodeIn, VerifiableLeafNode},
+    prelude::PublicGroup,
+    treesync::{
+        node::leaf_node::{LeafNodeIn, VerifiableLeafNode},
+        node::validate::ValidatableLeafNode,
+    },
     versions::ProtocolVersion,
 };
 use openmls_traits::{crypto::OpenMlsCrypto, types::Ciphersuite};
@@ -70,7 +74,7 @@ mod private_mod {
 /// } KeyPackageTBS;
 /// ```
 #[derive(
-    Debug, Clone, PartialEq, TlsSize, TlsSerialize, TlsDeserialize, Serialize, Deserialize,
+Debug, Clone, PartialEq, TlsSize, TlsSerialize, TlsDeserialize, Serialize, Deserialize,
 )]
 struct KeyPackageTbsIn {
     protocol_version: ProtocolVersion,
@@ -82,7 +86,7 @@ struct KeyPackageTbsIn {
 
 /// The key package struct.
 #[derive(
-    Debug, PartialEq, Clone, Serialize, Deserialize, TlsSerialize, TlsDeserialize, TlsSize,
+Debug, PartialEq, Clone, Serialize, Deserialize, TlsSerialize, TlsDeserialize, TlsSize,
 )]
 pub struct KeyPackageIn {
     payload: KeyPackageTbsIn,
@@ -114,24 +118,52 @@ impl KeyPackageIn {
         self,
         crypto: &impl OpenMlsCrypto,
         protocol_version: ProtocolVersion,
+        group: &PublicGroup,
+    ) -> Result<KeyPackage, KeyPackageVerifyError> {
+        self._validate(crypto, protocol_version, Some(group))
+    }
+
+    /// Verify that this key package is valid disregarding the group it is supposed to be used with.
+    pub fn standalone_validate(
+        self,
+        crypto: &impl OpenMlsCrypto,
+        protocol_version: ProtocolVersion,
+    ) -> Result<KeyPackage, KeyPackageVerifyError> {
+        self._validate(crypto, protocol_version, None)
+    }
+
+    fn _validate(
+        self,
+        crypto: &impl OpenMlsCrypto,
+        protocol_version: ProtocolVersion,
+        group: Option<&PublicGroup>,
     ) -> Result<KeyPackage, KeyPackageVerifyError> {
         // We first need to verify the LeafNode inside the KeyPackage
-        let leaf_node = self.payload.leaf_node.clone().into_verifiable_leaf_node();
 
+        let signature_scheme = self.payload.ciphersuite.signature_algorithm();
         let signature_key = &OpenMlsSignaturePublicKey::from_signature_key(
             self.payload.leaf_node.signature_key().clone(),
-            self.payload.ciphersuite.signature_algorithm(),
+            signature_scheme,
         );
 
-        let leaf_node = match leaf_node {
-            VerifiableLeafNode::KeyPackage(leaf_node) => leaf_node
-                .verify::<LeafNode>(crypto, signature_key)
-                .map_err(|_| KeyPackageVerifyError::InvalidLeafNodeSignature)?,
+        let verifiable_leaf_node = self
+            .payload
+            .leaf_node
+            .clone()
+            .try_into_verifiable_leaf_node(None)?;
+        let leaf_node = match verifiable_leaf_node {
+            VerifiableLeafNode::KeyPackage(leaf_node) => {
+                if let Some(group) = group {
+                    leaf_node.validate(group, crypto)?
+                } else {
+                    leaf_node.standalone_validate(crypto, signature_scheme)?
+                }
+            }
             _ => return Err(KeyPackageVerifyError::InvalidLeafNodeSourceType),
         };
 
         // Verify that the protocol version is valid
-        if !self.version_is_supported(protocol_version) {
+        if !self.is_version_supported(protocol_version) {
             return Err(KeyPackageVerifyError::InvalidProtocolVersion);
         }
 
@@ -140,40 +172,18 @@ impl KeyPackageIn {
             return Err(KeyPackageVerifyError::InitKeyEqualsEncryptionKey);
         }
 
-        let key_package_tbs = KeyPackageTbs {
-            protocol_version: self.payload.protocol_version,
-            ciphersuite: self.payload.ciphersuite,
-            init_key: self.payload.init_key,
-            leaf_node,
-            extensions: self.payload.extensions,
-        };
-
         // Verify the KeyPackage signature
-        let key_package = VerifiableKeyPackage::new(key_package_tbs, self.signature)
+        let key_package = VerifiableKeyPackage::new(self.payload.into(), self.signature)
             .verify::<KeyPackage>(crypto, signature_key)
             .map_err(|_| KeyPackageVerifyError::InvalidSignature)?;
 
         // Extension included in the extensions or leaf_node.extensions fields
         // MUST be included in the leaf_node.capabilities field.
+        let leaf_node = &key_package.payload.leaf_node;
         for extension in key_package.payload.extensions.iter() {
-            if !key_package
-                .payload
-                .leaf_node
-                .supports_extension(&extension.extension_type())
-            {
+            if !leaf_node.supports_extension(&extension.extension_type()) {
                 return Err(KeyPackageVerifyError::UnsupportedExtension);
             }
-        }
-
-        // Ensure validity of the life time extension in the leaf node.
-        if let Some(life_time) = key_package.payload.leaf_node.life_time() {
-            if !life_time.is_valid() {
-                return Err(KeyPackageVerifyError::InvalidLifetime);
-            }
-        } else {
-            // This assumes that we only verify key packages with leaf nodes
-            // that were created for the key package.
-            return Err(KeyPackageVerifyError::MissingLifetime);
         }
 
         Ok(key_package)
@@ -181,8 +191,12 @@ impl KeyPackageIn {
 
     /// Returns true if the protocol version is supported by this key package and
     /// false otherwise.
-    pub(crate) fn version_is_supported(&self, protocol_version: ProtocolVersion) -> bool {
+    pub(crate) fn is_version_supported(&self, protocol_version: ProtocolVersion) -> bool {
         self.payload.protocol_version == protocol_version
+    }
+
+    pub fn credential(&self) -> &Credential {
+        self.payload.leaf_node.credential()
     }
 }
 

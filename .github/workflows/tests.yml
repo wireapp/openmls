@@ -24,7 +24,7 @@ jobs:
           - ubuntu-latest
           - windows-latest
         mode:
-          - debug
+#          - debug
           - release
     runs-on: ${{ matrix.os }}
     steps:

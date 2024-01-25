@@ -26,7 +26,6 @@ use crate::{
     ciphersuite::signable::Verifiable,
     error::LibraryError,
     extensions::RequiredCapabilitiesExtension,
-    framing::InterimTranscriptHashInput,
     messages::{
         group_info::{GroupInfo, VerifiableGroupInfo},
         proposals::{Proposal, ProposalType},
@@ -77,7 +76,9 @@ impl PublicGroup {
         initial_confirmation_tag: ConfirmationTag,
     ) -> Result<Self, LibraryError> {
         let interim_transcript_hash = {
-            let input = InterimTranscriptHashInput::from(&initial_confirmation_tag);
+            let input = crate::framing::public_message::InterimTranscriptHashInput::from(
+                &initial_confirmation_tag,
+            );
 
             input.calculate_interim_transcript_hash(
                 crypto,
@@ -95,7 +96,8 @@ impl PublicGroup {
         })
     }
 
-    /// Create a [`PublicGroup`] instance to start tracking an existing MLS group.
+    /// Create a [`PublicGroup`] instance to start tracking an existing MLS
+    /// group.
     ///
     /// This function performs basic validation checks and returns an error if
     /// one of the checks fails. See [`CreationFromExternalError`] for more
@@ -146,7 +148,9 @@ impl PublicGroup {
         let group_context = GroupContext::from(group_info.clone());
 
         let interim_transcript_hash = {
-            let input = InterimTranscriptHashInput::from(group_info.confirmation_tag());
+            let input = crate::framing::public_message::InterimTranscriptHashInput::from(
+                group_info.confirmation_tag(),
+            );
 
             input.calculate_interim_transcript_hash(
                 backend.crypto(),
@@ -258,7 +262,8 @@ impl PublicGroup {
         self.treesync().export_ratchet_tree()
     }
 
-    /// Add the [`QueuedProposal`] to the [`PublicGroup`]s internal [`ProposalStore`].
+    /// Add the [`QueuedProposal`] to the [`PublicGroup`]s internal
+    /// [`ProposalStore`].
     pub fn add_proposal(&mut self, proposal: QueuedProposal) {
         self.proposal_store.add(proposal)
     }
@@ -292,7 +297,7 @@ impl PublicGroup {
     }
 
     /// Get treesync.
-    fn treesync(&self) -> &TreeSync {
+    pub(crate) fn treesync(&self) -> &TreeSync {
         &self.treesync
     }
 
@@ -301,8 +306,8 @@ impl PublicGroup {
         &self.confirmation_tag
     }
 
-    /// Return a reference to the leaf at the given `LeafNodeIndex` or `None` if the
-    /// leaf is blank.
+    /// Return a reference to the leaf at the given `LeafNodeIndex` or `None` if
+    /// the leaf is blank.
     pub fn leaf(&self, leaf_index: LeafNodeIndex) -> Option<&LeafNode> {
         self.treesync().leaf(leaf_index)
     }

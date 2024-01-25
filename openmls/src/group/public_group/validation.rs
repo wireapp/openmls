@@ -265,7 +265,7 @@ impl PublicGroup {
         Ok(())
     }
 
-    /// Validate capablities. This function implements the following checks:
+    /// Validate capabilities. This function implements the following checks:
     /// - ValSem106: Add Proposal: required capabilities
     /// - ValSem109: Update Proposal: required capabilities
     pub(crate) fn validate_capabilities(

@@ -6,7 +6,7 @@
 // MlsGroup
 pub use crate::group::{config::CryptoConfig, core_group::Member, errors::*, ser::*, *};
 
-pub use crate::group::public_group::{errors::*, process::*, *};
+pub use crate::group::public_group::errors::*;
 
 // Ciphersuite
 pub use crate::ciphersuite::{hash_ref::KeyPackageRef, signable::*, signature::*, *};
@@ -24,10 +24,7 @@ pub use crate::versions::*;
 pub use crate::extensions::{errors::*, *};
 
 // Framing
-pub use crate::framing::{
-    message_in::*, message_out::MlsMessageOutBody, message_out::*,
-    mls_content_in::FramedContentBodyIn, sender::*, validation::*, *,
-};
+pub use crate::framing::{message_out::MlsMessageOutBody, mls_content_in::FramedContentBodyIn, *};
 
 // Key packages
 pub use crate::key_packages::{errors::*, *};
@@ -40,7 +37,7 @@ pub use crate::binary_tree::LeafNodeIndex;
 
 // TreeSync
 pub use crate::treesync::{
-    errors::{ApplyUpdatePathError, PublicTreeError},
+    errors::{ApplyUpdatePathError, LeafNodeValidationError, PublicTreeError},
     node::leaf_node::{Capabilities, LeafNode},
     node::parent_node::ParentNode,
     node::Node,

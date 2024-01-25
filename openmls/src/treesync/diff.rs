@@ -105,7 +105,7 @@ impl<'a> TreeSyncDiff<'a> {
 
         direct_path
             .into_iter()
-            .zip(copath_resolutions.into_iter())
+            .zip(copath_resolutions)
             .filter_map(|(index, resolution)| {
                 // Filter out the nodes whose copath resolution is empty
                 if !resolution.is_empty() {
@@ -130,7 +130,7 @@ impl<'a> TreeSyncDiff<'a> {
 
         copath
             .into_iter()
-            .zip(copath_resolutions.into_iter())
+            .zip(copath_resolutions)
             .filter_map(|(index, resolution)| {
                 // Filter out the nodes whose copath resolution is empty
                 if !resolution.is_empty() {
@@ -659,7 +659,6 @@ impl<'a> TreeSyncDiff<'a> {
                 // other child, the parent hash is valid.
                 if left_descendant.is_none() ^ right_descendant.is_some() {
                     return Err(TreeSyncParentHashError::InvalidParentHash);
-                } else {
                 }
             }
         }

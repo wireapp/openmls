@@ -5,7 +5,6 @@ use crate::{
     framing::*,
     group::{config::CryptoConfig, *},
     test_utils::*,
-    *,
 };
 use openmls_rust_crypto::OpenMlsRustCrypto;
 
@@ -93,7 +92,7 @@ async fn test_remove_operation_variants(
             .add_members(
                 &alice_backend,
                 &alice_credential_with_key_and_signer.signer,
-                &[bob_key_package, charlie_key_package],
+                vec![bob_key_package.into(), charlie_key_package.into()],
             )
             .await
             .expect("An unexpected error occurred.");

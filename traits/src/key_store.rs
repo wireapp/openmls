@@ -8,6 +8,7 @@ pub enum MlsEntityId {
     KeyPackage,
     PskBundle,
     EncryptionKeyPair,
+    EpochEncryptionKeyPair,
     GroupState,
 }
 
@@ -26,15 +27,8 @@ pub trait MlsEntity: serde::Serialize + serde::de::DeserializeOwned {
     }
 }
 
-/// Blanket impl for when you have to lookup a list of entities from the keystore
-impl<T> MlsEntity for Vec<T>
-where
-    T: MlsEntity + std::fmt::Debug,
-{
-    const ID: MlsEntityId = T::ID;
-}
-
-#[async_trait::async_trait(?Send)]
+#[cfg_attr(target_family = "wasm", async_trait::async_trait(?Send))]
+#[cfg_attr(not(target_family = "wasm"), async_trait::async_trait)]
 /// The Key Store trait
 pub trait OpenMlsKeyStore: Send + Sync {
     /// The error type returned by the [`OpenMlsKeyStore`].
@@ -44,7 +38,7 @@ pub trait OpenMlsKeyStore: Send + Sync {
     /// serialization for ID `k`.
     ///
     /// Returns an error if storing fails.
-    async fn store<V: MlsEntity>(&self, k: &[u8], v: &V) -> Result<(), Self::Error>
+    async fn store<V: MlsEntity + Sync>(&self, k: &[u8], v: &V) -> Result<(), Self::Error>
     where
         Self: Sized;
 

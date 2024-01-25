@@ -164,6 +164,18 @@ impl ExtensionType {
                 | ExtensionType::PerDomainTrustAnchor
         )
     }
+
+    /// Returns whether this is considered a spec default and should be kept out of capabilities verifications
+    pub fn is_spec_default(&self) -> bool {
+        matches!(
+            self,
+            ExtensionType::ApplicationId
+                | ExtensionType::RatchetTree
+                | ExtensionType::RequiredCapabilities
+                | ExtensionType::ExternalPub
+                | ExtensionType::ExternalSenders
+        )
+    }
 }
 
 /// # Extension
@@ -211,7 +223,7 @@ pub struct UnknownExtension(pub Vec<u8>);
 /// A list of extensions with unique extension types.
 #[derive(Default, Debug, Clone, PartialEq, Eq, Serialize, Deserialize, tls_codec::TlsSize)]
 pub struct Extensions {
-    unique: Vec<Extension>,
+    pub(crate) unique: Vec<Extension>,
 }
 
 impl tls_codec::Serialize for Extensions {

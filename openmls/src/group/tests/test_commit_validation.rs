@@ -10,6 +10,7 @@ use tls_codec::{Deserialize, Serialize};
 use super::utils::{
     generate_credential_with_key, generate_key_package, resign_message, CredentialWithKeyAndSigner,
 };
+use crate::test_utils::*;
 use crate::{
     binary_tree::LeafNodeIndex,
     ciphersuite::signable::Signable,
@@ -87,7 +88,7 @@ async fn validation_test_setup(
         .add_members(
             backend,
             &alice_credential.signer,
-            &[bob_key_package, charlie_key_package],
+            vec![bob_key_package.into(), charlie_key_package.into()],
         )
         .await
         .expect("error adding Bob to group");

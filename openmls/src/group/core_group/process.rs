@@ -43,14 +43,18 @@ impl CoreGroup {
         backend: &impl OpenMlsCryptoProvider,
         unverified_message: UnverifiedMessage,
         proposal_store: &ProposalStore,
-        old_epoch_keypairs: Vec<EncryptionKeyPair>,
+        old_epoch_keypairs: EpochEncryptionKeyPair,
         leaf_node_keypairs: Vec<EncryptionKeyPair>,
     ) -> Result<ProcessedMessage, ProcessMessageError> {
         // Checks the following semantic validation:
         //  - ValSem010
         //  - ValSem246 (as part of ValSem010)
-        let (content, credential) =
-            unverified_message.verify(self.ciphersuite(), backend.crypto(), self.version())?;
+        let (content, credential) = unverified_message.verify(
+            self.ciphersuite(),
+            backend.crypto(),
+            self.version(),
+            self.public_group(),
+        )?;
 
         match content.sender() {
             Sender::Member(_) | Sender::NewMemberCommit | Sender::NewMemberProposal => {
@@ -197,7 +201,7 @@ impl CoreGroup {
                 self.read_decryption_keypairs(backend, own_leaf_nodes)
                     .await?
             } else {
-                (vec![], vec![])
+                (EpochEncryptionKeyPair::default(), vec![])
             };
 
         self.process_unverified_message(
@@ -271,7 +275,7 @@ impl CoreGroup {
         &self,
         backend: &impl OpenMlsCryptoProvider,
         own_leaf_nodes: &[LeafNode],
-    ) -> Result<(Vec<EncryptionKeyPair>, Vec<EncryptionKeyPair>), StageCommitError> {
+    ) -> Result<(EpochEncryptionKeyPair, Vec<EncryptionKeyPair>), StageCommitError> {
         // All keys from the previous epoch are potential decryption keypairs.
         let old_epoch_keypairs = self.read_epoch_keypairs(backend).await;
 
@@ -280,11 +284,10 @@ impl CoreGroup {
         // potential decryption keypair.
         let mut leaf_node_keypairs = Vec::with_capacity(own_leaf_nodes.len());
         for leaf_node in own_leaf_nodes {
-            leaf_node_keypairs.push(
-                EncryptionKeyPair::read_from_key_store(backend, leaf_node.encryption_key())
-                    .await
-                    .ok_or(StageCommitError::MissingDecryptionKey)?,
-            );
+            let kp = EncryptionKeyPair::read_from_key_store(backend, leaf_node.encryption_key())
+                .await
+                .ok_or(StageCommitError::MissingDecryptionKey)?;
+            leaf_node_keypairs.push(kp);
         }
 
         Ok((old_epoch_keypairs, leaf_node_keypairs))

@@ -323,6 +323,14 @@ impl From<Ciphersuite> for VerifiableCiphersuite {
     }
 }
 
+impl TryFrom<VerifiableCiphersuite> for Ciphersuite {
+    type Error = tls_codec::Error;
+
+    fn try_from(value: VerifiableCiphersuite) -> Result<Self, Self::Error> {
+        value.0.try_into()
+    }
+}
+
 /// MLS ciphersuites.
 #[allow(non_camel_case_types)]
 #[allow(clippy::upper_case_acronyms)]

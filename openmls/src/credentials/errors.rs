@@ -8,7 +8,7 @@ use thiserror::Error;
 /// An error that occurs in methods of a [`super::Credential`].
 #[derive(Error, Debug, PartialEq, Clone)]
 pub enum CredentialError {
-    /// A library error occured.
+    /// A library error occurred.
     #[error(transparent)]
     LibraryError(#[from] LibraryError),
     /// The type of credential is not supported.
@@ -18,7 +18,7 @@ pub enum CredentialError {
     #[error("Invalid signature.")]
     InvalidSignature,
     /// Incomplete x509 certificate chain
-    #[error("x509 certificate chain is either empty or contains a single self-signed certificate which is not allowed.")]
+    #[error("x509 certificate chain is empty")]
     IncompleteCertificateChain,
     /// Failed to decode certificate data
     #[error("Failed to decode certificate data: {0}")]

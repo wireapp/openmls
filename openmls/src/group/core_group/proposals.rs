@@ -1,4 +1,4 @@
-use std::collections::{hash_map::Entry, HashMap, HashSet};
+use std::collections::{hash_map::Entry, HashMap};
 
 use openmls_traits::{types::Ciphersuite, OpenMlsCryptoProvider};
 use serde::{Deserialize, Serialize};
@@ -54,7 +54,7 @@ impl ProposalStore {
 
     /// Removes a proposal from the store using its reference. It will return None if it wasn't
     /// found in the store.
-    pub fn remove(&mut self, proposal_ref: ProposalRef) -> Option<()> {
+    pub fn remove(&mut self, proposal_ref: &ProposalRef) -> Option<()> {
         let index = self
             .queued_proposals
             .iter()
@@ -68,7 +68,7 @@ impl ProposalStore {
 /// the encapsulating PublicMessage and the ProposalRef is attached.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct QueuedProposal {
-    proposal: Proposal,
+    pub proposal: Proposal,
     proposal_reference: ProposalRef,
     sender: Sender,
     proposal_or_ref_type: ProposalOrRefType,
@@ -152,9 +152,10 @@ impl QueuedProposal {
     pub fn proposal(&self) -> &Proposal {
         &self.proposal
     }
+
     /// Returns the `ProposalRef`.
-    pub fn proposal_reference(&self) -> ProposalRef {
-        self.proposal_reference.clone()
+    pub fn proposal_reference(&self) -> &ProposalRef {
+        &self.proposal_reference
     }
     /// Returns the `ProposalOrRefType`.
     pub fn proposal_or_ref_type(&self) -> ProposalOrRefType {
@@ -163,6 +164,28 @@ impl QueuedProposal {
     /// Returns the `Sender` as a reference
     pub fn sender(&self) -> &Sender {
         &self.sender
+    }
+}
+
+/// Helper struct to collect proposals such that they are unique and can be read
+/// out in the order in that they were added.
+struct OrderedProposalRefs(indexmap::IndexSet<ProposalRef>);
+
+impl OrderedProposalRefs {
+    fn new() -> Self {
+        Self(indexmap::IndexSet::new())
+    }
+
+    /// Adds a proposal reference to the queue. If the proposal reference is
+    /// already in the queue, it ignores it.
+    fn add(&mut self, proposal_ref: ProposalRef) {
+        self.0.insert(proposal_ref);
+    }
+
+    /// Returns an iterator over the proposal references in the order in which
+    /// they were inserted.
+    fn iter(&self) -> impl Iterator<Item = &ProposalRef> {
+        self.0.iter()
     }
 }
 
@@ -208,7 +231,7 @@ impl ProposalQueue {
         let mut proposals_by_reference_queue: HashMap<ProposalRef, QueuedProposal> = HashMap::new();
         for queued_proposal in proposal_store.proposals() {
             proposals_by_reference_queue.insert(
-                queued_proposal.proposal_reference(),
+                queued_proposal.proposal_reference().clone(),
                 queued_proposal.clone(),
             );
         }
@@ -274,7 +297,7 @@ impl ProposalQueue {
         // Only add the proposal if it's not already there
         if let Entry::Vacant(entry) = self.queued_proposals.entry(proposal_reference.clone()) {
             // Add the proposal reference to ensure the correct order
-            self.proposal_references.push(proposal_reference);
+            self.proposal_references.push(proposal_reference.clone());
             // Add the proposal to the queue
             entry.insert(queued_proposal);
         }
@@ -415,8 +438,10 @@ impl ProposalQueue {
             removes: Vec<QueuedProposal>,
         }
         let mut members = HashMap::<LeafNodeIndex, Member>::new();
-        let mut adds: HashSet<ProposalRef> = HashSet::new();
-        let mut valid_proposals: HashSet<ProposalRef> = HashSet::new();
+        // We use a HashSet to filter out duplicate Adds and use a vector in
+        // addition to keep the order as they come in.
+        let mut adds: OrderedProposalRefs = OrderedProposalRefs::new();
+        let mut valid_proposals: OrderedProposalRefs = OrderedProposalRefs::new();
         let mut proposal_pool: HashMap<ProposalRef, QueuedProposal> = HashMap::new();
         let mut contains_own_updates = false;
         let mut contains_external_init = false;
@@ -437,16 +462,18 @@ impl ProposalQueue {
                         &sender,
                     )
                 })
-                .collect::<Result<Vec<QueuedProposal>, _>>()?
-                .into_iter(),
+                .collect::<Result<Vec<QueuedProposal>, _>>()?,
         );
 
         // Parse proposals and build adds and member list
         for queued_proposal in queued_proposal_list {
             match queued_proposal.proposal {
                 Proposal::Add(_) => {
-                    adds.insert(queued_proposal.proposal_reference());
-                    proposal_pool.insert(queued_proposal.proposal_reference(), queued_proposal);
+                    adds.add(queued_proposal.proposal_reference().clone());
+                    proposal_pool.insert(
+                        queued_proposal.proposal_reference().clone(),
+                        queued_proposal,
+                    );
                 }
                 Proposal::Update(_) => {
                     // Only members can send update proposals
@@ -458,44 +485,56 @@ impl ProposalQueue {
                     if leaf_index != own_index {
                         members
                             .entry(leaf_index)
-                            .or_insert_with(Member::default)
+                            .or_default()
                             .updates
                             .push(queued_proposal.clone());
                     } else {
                         contains_own_updates = true;
                     }
                     let proposal_reference = queued_proposal.proposal_reference();
-                    proposal_pool.insert(proposal_reference, queued_proposal);
+                    proposal_pool.insert(proposal_reference.clone(), queued_proposal);
                 }
                 Proposal::Remove(ref remove_proposal) => {
                     let removed = remove_proposal.removed();
                     members
                         .entry(removed)
-                        .or_insert_with(Member::default)
+                        .or_default()
                         .updates
                         .push(queued_proposal.clone());
                     let proposal_reference = queued_proposal.proposal_reference();
-                    proposal_pool.insert(proposal_reference, queued_proposal);
+                    proposal_pool.insert(proposal_reference.clone(), queued_proposal);
                 }
                 Proposal::PreSharedKey(_) => {
-                    valid_proposals.insert(queued_proposal.proposal_reference());
-                    proposal_pool.insert(queued_proposal.proposal_reference(), queued_proposal);
+                    valid_proposals.add(queued_proposal.proposal_reference().clone());
+                    proposal_pool.insert(
+                        queued_proposal.proposal_reference().clone(),
+                        queued_proposal,
+                    );
                 }
                 Proposal::ReInit(_) => {
                     // TODO #751: Only keep one ReInit
-                    proposal_pool.insert(queued_proposal.proposal_reference(), queued_proposal);
+                    proposal_pool.insert(
+                        queued_proposal.proposal_reference().clone(),
+                        queued_proposal,
+                    );
                 }
                 Proposal::ExternalInit(_) => {
                     // Only use the first external init proposal we find.
                     if !contains_external_init {
-                        valid_proposals.insert(queued_proposal.proposal_reference());
-                        proposal_pool.insert(queued_proposal.proposal_reference(), queued_proposal);
+                        valid_proposals.add(queued_proposal.proposal_reference().clone());
+                        proposal_pool.insert(
+                            queued_proposal.proposal_reference().clone(),
+                            queued_proposal,
+                        );
                         contains_external_init = true;
                     }
                 }
                 Proposal::GroupContextExtensions(_) => {
-                    valid_proposals.insert(queued_proposal.proposal_reference());
-                    proposal_pool.insert(queued_proposal.proposal_reference(), queued_proposal);
+                    valid_proposals.add(queued_proposal.proposal_reference().clone());
+                    proposal_pool.insert(
+                        queued_proposal.proposal_reference().clone(),
+                        queued_proposal,
+                    );
                 }
                 Proposal::AppAck(_) => unimplemented!("See #291"),
             }
@@ -507,11 +546,11 @@ impl ProposalQueue {
                 // Delete all Updates when a Remove is found
                 member.updates = Vec::new();
                 // Only keep the last Remove
-                valid_proposals.insert(last_remove.proposal_reference());
+                valid_proposals.add(last_remove.proposal_reference().clone());
             }
             if let Some(last_update) = member.updates.last() {
                 // Only keep the last Update
-                valid_proposals.insert(last_update.proposal_reference());
+                valid_proposals.add(last_update.proposal_reference().clone());
             }
         }
         // Only retain `adds` and `valid_proposals`

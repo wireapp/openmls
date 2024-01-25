@@ -278,6 +278,7 @@ impl UnverifiedMessage {
         ciphersuite: Ciphersuite,
         crypto: &impl OpenMlsCrypto,
         protocol_version: ProtocolVersion,
+        group: &PublicGroup,
     ) -> Result<(AuthenticatedContent, Credential), ProcessMessageError> {
         let content: AuthenticatedContentIn = match self.credential.mls_credential() {
             MlsCredentialType::Basic(_) => self
@@ -315,8 +316,13 @@ impl UnverifiedMessage {
                     .map_err(|_| ProcessMessageError::InvalidSignature)?
             }
         };
-        let content =
-            content.validate(ciphersuite, crypto, self.sender_context, protocol_version)?;
+        let content = content.validate(
+            ciphersuite,
+            crypto,
+            self.sender_context,
+            protocol_version,
+            group,
+        )?;
         Ok((content, self.credential))
     }
 

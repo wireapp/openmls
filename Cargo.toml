@@ -4,11 +4,8 @@ members = [
     "traits",
     "openmls_rust_crypto",
     "fuzz",
-    "cli",
     # "interop_client",
     "memory_keystore",
-    "delivery-service/ds",
-    "delivery-service/ds-lib",
     "basic_credential",
     "x509_credential"
 ]
@@ -18,9 +15,9 @@ resolver = "2"
 async-trait = "0.1"
 
 [workspace.dependencies.tls_codec]
-version = "0.3.0"
+version = "0.4.0"
 features = ["derive", "serde", "mls"]
 
 [workspace.dependencies.tls_codec_derive]
-version = "0.3.0"
+version = "0.4.0"
 features = ["derive", "serde", "mls"]

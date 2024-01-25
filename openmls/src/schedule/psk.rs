@@ -91,7 +91,7 @@ impl ExternalPsk {
 /// Contains the secret part of the PSK as well as the
 /// public part that is used as a marker for injection into the key schedule.
 #[derive(Serialize, Deserialize, TlsDeserialize, TlsSerialize, TlsSize)]
-pub(crate) struct PskBundle {
+pub struct PskBundle {
     secret: Secret,
 }
 

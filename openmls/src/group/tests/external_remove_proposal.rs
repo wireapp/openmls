@@ -11,6 +11,7 @@ use crate::{
 use openmls_traits::types::Ciphersuite;
 
 use super::utils::*;
+use crate::test_utils::*;
 
 wasm_bindgen_test::wasm_bindgen_test_configure!(run_in_browser);
 
@@ -80,7 +81,11 @@ async fn validation_test_setup(
     .await;
 
     alice_group
-        .add_members(backend, &alice_signer_when_keys.signer, &[bob_key_package])
+        .add_members(
+            backend,
+            &alice_signer_when_keys.signer,
+            vec![bob_key_package.clone().into()],
+        )
         .await
         .expect("error adding Bob to group");
 
@@ -154,7 +159,11 @@ async fn external_remove_proposal_should_remove_member(
         .await
         .unwrap();
     // commit the proposal
-    let ProcessedMessageContent::ProposalMessage(remove_proposal) = processed_message.into_content() else { panic!("Not a remove proposal");};
+    let ProcessedMessageContent::ProposalMessage(remove_proposal) =
+        processed_message.into_content()
+    else {
+        panic!("Not a remove proposal");
+    };
     alice_group.store_pending_proposal(*remove_proposal);
     alice_group
         .commit_to_pending_proposals(backend, &alice_credential.signer)
@@ -178,7 +187,11 @@ async fn external_remove_proposal_should_remove_member(
         .await
         .unwrap();
     // commit the proposal
-    let ProcessedMessageContent::ProposalMessage(remove_proposal) = processed_message.into_content() else { panic!("Not a remove proposal");};
+    let ProcessedMessageContent::ProposalMessage(remove_proposal) =
+        processed_message.into_content()
+    else {
+        panic!("Not a remove proposal");
+    };
     alice_group.store_pending_proposal(*remove_proposal);
     assert!(matches!(
         alice_group

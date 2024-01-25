@@ -9,6 +9,7 @@ use openmls_traits::{
 use serde::{Deserialize, Serialize};
 use tls_codec::{TlsDeserialize, TlsSerialize, TlsSize, VLBytes};
 
+use crate::prelude::{GroupEpoch, GroupId, LeafNodeIndex};
 use crate::{
     ciphersuite::{hpke, HpkePrivateKey, HpkePublicKey, Secret},
     error::LibraryError,
@@ -192,11 +193,12 @@ impl EncryptionKeyPair {
     ) -> Result<Self, LibraryError> {
         let ikm = Secret::random(config.ciphersuite, backend, config.version)
             .map_err(LibraryError::unexpected_crypto_error)?;
-        Ok(backend
+        let kp: Self = backend
             .crypto()
             .derive_hpke_keypair(config.ciphersuite.hpke_config(), ikm.as_slice())
             .map_err(LibraryError::unexpected_crypto_error)?
-            .into())
+            .into();
+        Ok(kp)
     }
 }
 
@@ -274,4 +276,55 @@ impl From<(EncryptionKey, EncryptionPrivateKey)> for EncryptionKeyPair {
 
 impl MlsEntity for EncryptionKeyPair {
     const ID: MlsEntityId = MlsEntityId::EncryptionKeyPair;
+}
+
+/// Composite key for key material of a client within an epoch
+pub struct EpochKeypairId(Vec<u8>);
+
+impl EpochKeypairId {
+    pub fn new(group_id: &GroupId, epoch: GroupEpoch, leaf_index: LeafNodeIndex) -> Self {
+        Self(
+            [
+                group_id.as_slice(),
+                &leaf_index.u32().to_be_bytes(),
+                &epoch.as_u64().to_be_bytes(),
+            ]
+            .concat(),
+        )
+    }
+}
+
+impl std::ops::Deref for EpochKeypairId {
+    type Target = [u8];
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+#[derive(Default, Debug, Clone, Serialize, Deserialize, TlsDeserialize, TlsSerialize, TlsSize)]
+pub struct EpochEncryptionKeyPair(pub(crate) Vec<EncryptionKeyPair>);
+
+impl MlsEntity for EpochEncryptionKeyPair {
+    const ID: MlsEntityId = MlsEntityId::EpochEncryptionKeyPair;
+}
+
+impl From<Vec<EncryptionKeyPair>> for EpochEncryptionKeyPair {
+    fn from(keypairs: Vec<EncryptionKeyPair>) -> Self {
+        Self(keypairs)
+    }
+}
+
+impl std::ops::Deref for EpochEncryptionKeyPair {
+    type Target = Vec<EncryptionKeyPair>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl std::ops::DerefMut for EpochEncryptionKeyPair {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
+    }
 }

@@ -6,6 +6,7 @@ use openmls_traits::{signatures::Signer, types::Ciphersuite, OpenMlsCryptoProvid
 use rstest::*;
 use rstest_reuse::{self, *};
 
+use crate::test_utils::*;
 use crate::{
     framing::*,
     group::{config::CryptoConfig, errors::*, *},
@@ -73,7 +74,7 @@ async fn receive_message(
     .await;
 
     let (_message, welcome, _group_info) = alice_group
-        .add_members(backend, alice_signer, &[bob_key_package])
+        .add_members(backend, alice_signer, vec![bob_key_package.into()])
         .await
         .expect("Could not add member.");
 

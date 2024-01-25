@@ -1,8 +1,10 @@
 use std::collections::HashSet;
 
+use openmls_traits::types::Ciphersuite;
 use openmls_traits::{key_store::OpenMlsKeyStore, signatures::Signer, OpenMlsCryptoProvider};
 use tls_codec::Serialize;
 
+use crate::prelude::{Capabilities, CredentialType, ProtocolVersion};
 use crate::{
     binary_tree::LeafNodeIndex,
     credentials::CredentialWithKey,
@@ -62,15 +64,32 @@ impl<'a> PublicGroupDiff<'a> {
                 // The KeyPackage is immediately put into the group. No need for
                 // the init key.
                 init_private_key: _,
-            } = KeyPackage::builder().build_without_key_storage(
-                CryptoConfig {
-                    ciphersuite,
-                    version,
-                },
-                backend,
-                signer,
-                credential_with_key.ok_or(CreateCommitError::MissingCredential)?,
-            )?;
+            } = KeyPackage::builder()
+                .leaf_node_capabilities(
+                    // TODO: factorize & have this injected by client
+                    Capabilities::new(
+                        Some(&[ProtocolVersion::Mls10]),
+                        Some(&[
+                            Ciphersuite::MLS_128_DHKEMX25519_AES128GCM_SHA256_Ed25519,
+                            Ciphersuite::MLS_128_DHKEMP256_AES128GCM_SHA256_P256,
+                            Ciphersuite::MLS_128_DHKEMX25519_CHACHA20POLY1305_SHA256_Ed25519,
+                            Ciphersuite::MLS_256_DHKEMP384_AES256GCM_SHA384_P384,
+                            Ciphersuite::MLS_128_X25519KYBER768DRAFT00_AES128GCM_SHA256_Ed25519,
+                        ]),
+                        Some(&[]),
+                        Some(&[]),
+                        Some(&[CredentialType::Basic, CredentialType::X509]),
+                    ),
+                )
+                .build_without_key_storage(
+                    CryptoConfig {
+                        ciphersuite,
+                        version,
+                    },
+                    backend,
+                    signer,
+                    credential_with_key.ok_or(CreateCommitError::MissingCredential)?,
+                )?;
 
             let leaf_node: LeafNode = key_package.into();
             self.diff

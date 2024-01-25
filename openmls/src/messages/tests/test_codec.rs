@@ -1,13 +1,12 @@
-use openmls_rust_crypto::OpenMlsRustCrypto;
-use tls_codec::{Deserialize, Serialize};
-
+use crate::test_utils::*;
 use crate::{
     extensions::Extensions,
     group::GroupId,
     messages::{PreSharedKeyProposal, ProtocolVersion, ReInitProposal},
     schedule::psk::{ExternalPsk, PreSharedKeyId, Psk, ResumptionPsk, ResumptionPskUsage},
-    test_utils::*,
 };
+use openmls_rust_crypto::OpenMlsRustCrypto;
+use tls_codec::{Deserialize, Serialize};
 
 wasm_bindgen_test::wasm_bindgen_test_configure!(run_in_browser);
 

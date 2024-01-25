@@ -1,7 +1,7 @@
 [package]
 name = "openmls_rust_crypto"
 authors = ["OpenMLS Authors"]
-version = "0.1.0"
+version = "0.2.0"
 edition = "2021"
 description = "A crypto backend for OpenMLS implementing openmls_traits using RustCrypto primitives."
 license = "MIT"
@@ -10,14 +10,14 @@ repository = "https://github.com/openmls/openmls/tree/main/openmls_rust_crypto"
 readme = "README.md"
 
 [dependencies]
-openmls_traits = { version = "0.1.0", path = "../traits" }
-openmls_memory_keystore = { version = "0.1.0", path = "../memory_keystore" }
+openmls_traits = { version = "0.2.0", path = "../traits" }
+openmls_memory_keystore = { version = "0.2.0", path = "../memory_keystore" }
 # Rust Crypto dependencies
 sha2 = { version = "0.10" }
 aes-gcm = { version = "0.9" }
 chacha20poly1305 = { version = "0.9" }
 hmac = { version = "0.12" }
-ed25519-dalek = { version = "2.0.0-rc.2", features = ["rand_core"] }
+ed25519-dalek = { version = "2.0.0-rc.3", features = ["rand_core"] }
 p256 = { version = "0.13" }
 p384 = { version = "0.13" }
 hkdf = { version = "0.12" }
@@ -29,6 +29,6 @@ signature = "2.1"
 thiserror = "1.0"
 
 [dependencies.hpke]
-git = "https://github.com/otak/rust-hpke.git"
-branch = "xyber768d00"
+git = "https://github.com/wireapp/rust-hpke.git"
+branch = "wire/unstable-pq-xyber"
 features = ["x25519", "p256", "p384", "xyber768d00", "serde_impls"]

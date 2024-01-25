@@ -258,7 +258,6 @@ impl MlsGroupTestSetup {
             }
             CodecUse::StructMessages => welcome,
         };
-        if self.use_codec == CodecUse::SerializedMessages {}
         let clients = self.clients.read().await;
         for egs in welcome.secrets() {
             let client_id = self
@@ -567,10 +566,10 @@ impl MlsGroupTestSetup {
             let key_package = self
                 .get_fresh_key_package(&addee, group.ciphersuite)
                 .await?;
-            key_packages.push(key_package);
+            key_packages.push(key_package.into());
         }
         let (messages, welcome_option, _) = adder
-            .add_members(action_type, &group.group_id, &key_packages)
+            .add_members(action_type, &group.group_id, key_packages)
             .await?;
         for message in messages {
             self.distribute_to_members(adder_id, group, &message.into())

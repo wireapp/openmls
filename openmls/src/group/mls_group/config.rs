@@ -245,6 +245,15 @@ impl MlsGroupConfigBuilder {
         self
     }
 
+    /// Sets the group creator's required capabilities
+    pub fn required_capabilities(
+        mut self,
+        required_capabilities: RequiredCapabilitiesExtension,
+    ) -> Self {
+        self.config.required_capabilities = required_capabilities;
+        self
+    }
+
     /// Finalizes the builder and retursn an `[MlsGroupConfig`].
     pub fn build(self) -> MlsGroupConfig {
         self.config

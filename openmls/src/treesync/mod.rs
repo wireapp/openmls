@@ -1,6 +1,7 @@
 //! This module implements the ratchet tree component of MLS.
 //!
-//! It exposes the [`Node`] enum that can contain either a [`LeafNode`] or a [`ParentNode`].
+//! It exposes the [`Node`] enum that can contain either a [`LeafNode`] or a
+//! [`ParentNode`].
 
 // # Internal documentation
 //
@@ -88,7 +89,8 @@ pub use node::{leaf_node::LeafNode, parent_node::ParentNode, Node};
 #[cfg(any(feature = "test-utils", test))]
 pub mod tests_and_kats;
 
-/// An exported ratchet tree as used in, e.g., [`GroupInfo`](crate::messages::group_info::GroupInfo).
+/// An exported ratchet tree as used in, e.g.,
+/// [`GroupInfo`](crate::messages::group_info::GroupInfo).
 #[derive(PartialEq, Eq, Clone, Debug, Serialize, Deserialize, TlsSerialize, TlsSize)]
 pub struct RatchetTree(Vec<Option<Node>>);
 
@@ -114,12 +116,17 @@ pub enum RatchetTreeError {
     /// Wrong node type.
     #[error("Wrong node type.")]
     WrongNodeType,
+    /// See [`LeafNodeValidationError`] for more details.
+    #[error(transparent)]
+    LeafNodeValidationError(#[from] LeafNodeValidationError),
 }
 
 impl RatchetTree {
-    /// Create a [`RatchetTree`] from a vector of nodes stripping all trailing blank nodes.
+    /// Create a [`RatchetTree`] from a vector of nodes stripping all trailing
+    /// blank nodes.
     ///
-    /// Note: The caller must ensure to call this with a vector that is *not* empty after removing all trailing blank nodes.
+    /// Note: The caller must ensure to call this with a vector that is *not*
+    /// empty after removing all trailing blank nodes.
     fn trimmed(mut nodes: Vec<Option<Node>>) -> Self {
         // Remove all trailing blank nodes.
         match nodes.iter().enumerate().rfind(|(_, node)| node.is_some()) {
@@ -128,7 +135,8 @@ impl RatchetTree {
                 nodes.resize(rightmost_nonempty_position + 1, None);
             }
             None => {
-                // If there is no rightmost non-blank node, the vector consist of blank nodes only.
+                // If there is no rightmost non-blank node, the vector consist of blank nodes
+                // only.
                 nodes.clear();
             }
         }
@@ -149,7 +157,8 @@ impl RatchetTree {
         // We can check this by only looking at the last node (if any).
         match nodes.last() {
             Some(None) => {
-                // The ratchet tree is not empty, i.e., has a last node, *but* the last node *is* blank.
+                // The ratchet tree is not empty, i.e., has a last node, *but* the last node
+                // *is* blank.
                 Err(RatchetTreeError::TrailingBlankNodes)
             }
             None => {
@@ -157,9 +166,11 @@ impl RatchetTree {
                 Err(RatchetTreeError::MissingNodes)
             }
             Some(Some(_)) => {
-                // The ratchet tree is not empty, i.e., has a last node, and the last node is not blank.
+                // The ratchet tree is not empty, i.e., has a last node, and the last node is
+                // not blank.
 
                 // Verify the nodes.
+                let signature_scheme = ciphersuite.signature_algorithm();
                 let mut verified_nodes = Vec::new();
                 for (index, node) in nodes.into_iter().enumerate() {
                     let verified_node = match (index % 2, node) {
@@ -169,30 +180,27 @@ impl RatchetTree {
                                 group_id.clone(),
                                 LeafNodeIndex::new((index / 2) as u32),
                             );
-                            let verifiable_leaf_node = leaf_node.into_verifiable_leaf_node();
+                            let verifiable_leaf_node =
+                                leaf_node.try_into_verifiable_leaf_node(Some(tree_position))?;
+
                             let signature_key = verifiable_leaf_node
                                 .signature_key()
                                 .clone()
-                                .into_signature_public_key_enriched(
-                                    ciphersuite.signature_algorithm(),
-                                );
-                            Some(Node::LeafNode(match verifiable_leaf_node {
-                                VerifiableLeafNode::KeyPackage(leaf_node) => leaf_node
-                                    .verify(crypto, &signature_key)
-                                    .map_err(|_| RatchetTreeError::InvalidNodeSignature)?,
-                                VerifiableLeafNode::Update(mut leaf_node) => {
-                                    leaf_node.add_tree_position(tree_position);
-                                    leaf_node
-                                        .verify(crypto, &signature_key)
-                                        .map_err(|_| RatchetTreeError::InvalidNodeSignature)?
+                                .into_signature_public_key_enriched(signature_scheme);
+
+                            let leaf_node = match verifiable_leaf_node {
+                                VerifiableLeafNode::KeyPackage(leaf_node) => {
+                                    leaf_node.verify(crypto, &signature_key)
                                 }
-                                VerifiableLeafNode::Commit(mut leaf_node) => {
-                                    leaf_node.add_tree_position(tree_position);
-                                    leaf_node
-                                        .verify(crypto, &signature_key)
-                                        .map_err(|_| RatchetTreeError::InvalidNodeSignature)?
+                                VerifiableLeafNode::Update(leaf_node) => {
+                                    leaf_node.verify(crypto, &signature_key)
                                 }
-                            }))
+                                VerifiableLeafNode::Commit(leaf_node) => {
+                                    leaf_node.verify(crypto, &signature_key)
+                                }
+                            }
+                            .map_err(|_| RatchetTreeError::InvalidNodeSignature)?;
+                            Some(Node::LeafNode(leaf_node))
                         }
                         // Odd indices must be parent nodes.
                         (1, Some(NodeIn::ParentNode(parent_node))) => {
@@ -216,7 +224,16 @@ impl RatchetTree {
 /// A ratchet tree made of unverified nodes. This is used for deserialization
 /// and verification.
 #[derive(
-    PartialEq, Eq, Clone, Debug, Serialize, Deserialize, TlsDeserialize, TlsSerialize, TlsSize,
+    Default,
+    PartialEq,
+    Eq,
+    Clone,
+    Debug,
+    Serialize,
+    Deserialize,
+    TlsDeserialize,
+    TlsSerialize,
+    TlsSize,
 )]
 pub struct RatchetTreeIn(Vec<Option<NodeIn>>);
 
@@ -467,10 +484,10 @@ impl TreeSync {
         Ok(tree_sync)
     }
 
-    /// Find the `LeafNodeIndex` which a new leaf would have if it were added to the
-    /// tree. This is either the left-most blank node or, if there are no blank
-    /// leaves, the leaf count, since adding a member would extend the tree by
-    /// one leaf.
+    /// Find the `LeafNodeIndex` which a new leaf would have if it were added to
+    /// the tree. This is either the left-most blank node or, if there are
+    /// no blank leaves, the leaf count, since adding a member would extend
+    /// the tree by one leaf.
     pub(crate) fn free_leaf_index(&self) -> LeafNodeIndex {
         let diff = self.empty_diff();
         diff.free_leaf_index()
@@ -530,7 +547,13 @@ impl TreeSync {
             .filter_map(|(_, tsn)| tsn.node().as_ref())
     }
 
-    /// Returns an indexed list of [`LeafNodeIndex`]es containing only full nodes.
+    /// Returns a list of nodes.
+    pub(crate) fn raw_leaves(&self) -> impl Iterator<Item = &LeafNode> {
+        self.tree.raw_leaves().filter_map(|tsn| tsn.node().as_ref())
+    }
+
+    /// Returns an indexed list of [`LeafNodeIndex`]es containing only full
+    /// nodes.
     pub(crate) fn full_leaves_indexed(&self) -> impl Iterator<Item = (LeafNodeIndex, &LeafNode)> {
         self.tree
             .leaves()
@@ -550,8 +573,8 @@ impl TreeSync {
 
     /// Returns a list of [`Member`]s containing only full nodes.
     ///
-    /// XXX: For performance reasons we probably want to have this in a borrowing
-    ///      version as well. But it might well go away again.
+    /// XXX: For performance reasons we probably want to have this in a
+    /// borrowing      version as well. But it might well go away again.
     pub(crate) fn full_leave_members(&self) -> impl Iterator<Item = Member> + '_ {
         self.tree
             .leaves()
@@ -618,8 +641,8 @@ impl TreeSync {
         RatchetTree::trimmed(nodes)
     }
 
-    /// Return a reference to the leaf at the given `LeafNodeIndex` or `None` if the
-    /// leaf is blank.
+    /// Return a reference to the leaf at the given `LeafNodeIndex` or `None` if
+    /// the leaf is blank.
     pub(crate) fn leaf(&self, leaf_index: LeafNodeIndex) -> Option<&LeafNode> {
         let tsn = self.tree.leaf(leaf_index);
         tsn.node().as_ref()
@@ -648,8 +671,8 @@ impl TreeSync {
     /// node, as well as the derived [`EncryptionKeyPair`]s. Returns an error if
     /// the target leaf is outside of the tree.
     ///
-    /// Returns TreeSyncSetPathError::PublicKeyMismatch if the derived keys don't
-    /// match with the existing ones.
+    /// Returns TreeSyncSetPathError::PublicKeyMismatch if the derived keys
+    /// don't match with the existing ones.
     ///
     /// Returns TreeSyncSetPathError::LibraryError if the sender_index is not
     /// in the tree.
@@ -661,8 +684,9 @@ impl TreeSync {
         sender_index: LeafNodeIndex,
         leaf_index: LeafNodeIndex,
     ) -> Result<(Vec<EncryptionKeyPair>, CommitSecret), DerivePathError> {
-        // We assume both nodes are in the tree, since the sender_index must be in the tree
-        // Skip the nodes in the subtree path for which we are an unmerged leaf.
+        // We assume both nodes are in the tree, since the sender_index must be in the
+        // tree Skip the nodes in the subtree path for which we are an unmerged
+        // leaf.
         let subtree_path = self.tree.subtree_path(leaf_index, sender_index);
         let mut keypairs = Vec::new();
         for parent_index in subtree_path {
@@ -713,6 +737,7 @@ impl TreeSync {
 #[cfg(test)]
 mod test {
     use super::*;
+    use crate::test_utils::*;
 
     #[cfg(debug_assertions)]
     #[test]

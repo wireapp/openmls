@@ -134,6 +134,11 @@ impl<L: Clone + Debug + Default, P: Clone + Debug + Default> ABinaryTree<L, P> {
             .map(|(index, leave)| (LeafNodeIndex::new(index as u32), leave))
     }
 
+    /// Like [Self::leaves] but do not enumerate
+    pub(crate) fn raw_leaves(&self) -> impl Iterator<Item = &L> {
+        self.leaf_nodes.iter()
+    }
+
     /// Returns an iterator over a tuple of the parent index and a reference to
     /// a parent, sorted according to their position in the tree from left to
     /// right.

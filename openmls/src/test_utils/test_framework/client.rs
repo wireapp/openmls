@@ -249,7 +249,7 @@ impl Client {
         &self,
         action_type: ActionType,
         group_id: &GroupId,
-        key_packages: &[KeyPackage],
+        key_packages: Vec<KeyPackageIn>,
     ) -> Result<(Vec<MlsMessageOut>, Option<Welcome>, Option<GroupInfo>), ClientError> {
         let mut groups = self.groups.write().await;
         let group = groups
@@ -280,7 +280,7 @@ impl Client {
                 let mut messages = Vec::new();
                 for key_package in key_packages {
                     let message = group
-                        .propose_add_member(&self.crypto, &signer, key_package)
+                        .propose_add_member(&self.crypto, &signer, key_package.clone())
                         .map(|(out, _)| out)?;
                     messages.push(message);
                 }

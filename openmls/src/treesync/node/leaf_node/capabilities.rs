@@ -27,11 +27,11 @@ use crate::{
     Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TlsSerialize, TlsDeserialize, TlsSize,
 )]
 pub struct Capabilities {
-    pub(super) versions: Vec<ProtocolVersion>,
-    pub(super) ciphersuites: Vec<VerifiableCiphersuite>,
-    pub(super) extensions: Vec<ExtensionType>,
-    pub(super) proposals: Vec<ProposalType>,
-    pub(super) credentials: Vec<CredentialType>,
+    pub versions: Vec<ProtocolVersion>,
+    pub ciphersuites: Vec<VerifiableCiphersuite>,
+    pub extensions: Vec<ExtensionType>,
+    pub proposals: Vec<ProposalType>,
+    pub credentials: Vec<CredentialType>,
 }
 
 impl Capabilities {
@@ -125,26 +125,26 @@ impl Capabilities {
         required_capabilities: &RequiredCapabilitiesExtension,
     ) -> Result<(), LeafNodeValidationError> {
         // Check if all required extensions are supported.
-        if required_capabilities
+        if !required_capabilities
             .extension_types()
             .iter()
-            .any(|e| !self.extensions().contains(e))
+            .all(|e| e.is_spec_default() || self.extensions().contains(e))
         {
             return Err(LeafNodeValidationError::UnsupportedExtensions);
         }
         // Check if all required proposals are supported.
-        if required_capabilities
+        if !required_capabilities
             .proposal_types()
             .iter()
-            .any(|p| !self.proposals().contains(p))
+            .all(|p| p.is_spec_default() || self.proposals().contains(p))
         {
             return Err(LeafNodeValidationError::UnsupportedProposals);
         }
         // Check if all required credential types are supported.
-        if required_capabilities
+        if !required_capabilities
             .credential_types()
             .iter()
-            .any(|c| !self.credentials().contains(c))
+            .all(|c| self.credentials().contains(c))
         {
             return Err(LeafNodeValidationError::UnsupportedCredentials);
         }
@@ -156,7 +156,7 @@ impl Capabilities {
         extension
             .iter()
             .map(Extension::extension_type)
-            .all(|e| self.extensions().contains(&e))
+            .all(|e| e.is_spec_default() || self.extensions().contains(&e))
     }
 
     /// Check if these [`Capabilities`] contain all the credentials.
@@ -209,19 +209,12 @@ pub(super) fn default_ciphersuites() -> Vec<Ciphersuite> {
 
 /// All extensions defined in the MLS spec are considered "default" by the spec.
 pub(super) fn default_extensions() -> Vec<ExtensionType> {
-    vec![ExtensionType::ApplicationId]
+    vec![]
 }
 
 /// All proposals defined in the MLS spec are considered "default" by the spec.
 pub(super) fn default_proposals() -> Vec<ProposalType> {
-    vec![
-        ProposalType::Add,
-        ProposalType::Update,
-        ProposalType::Remove,
-        ProposalType::PreSharedKey,
-        ProposalType::Reinit,
-        ProposalType::GroupContextExtensions,
-    ]
+    vec![]
 }
 
 // TODO(#1231)

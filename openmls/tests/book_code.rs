@@ -1,7 +1,6 @@
 use openmls::{
     prelude::{config::CryptoConfig, *},
     test_utils::*,
-    *,
 };
 use openmls_basic_credential::SignatureKeyPair;
 use openmls_rust_crypto::OpenMlsRustCrypto;
@@ -167,7 +166,7 @@ async fn book_operations(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoP
     // === Alice adds Bob ===
     // ANCHOR: alice_adds_bob
     let (mls_message_out, welcome, group_info) = alice_group
-        .add_members(backend, &alice_signature_keys, &[bob_key_package])
+        .add_members(backend, &alice_signature_keys, vec![bob_key_package.into()])
         .await
         .expect("Could not add members.");
     // ANCHOR_END: alice_adds_bob
@@ -450,7 +449,11 @@ async fn book_operations(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoP
     .await;
 
     let (queued_message, welcome, _group_info) = bob_group
-        .add_members(backend, &bob_signature_keys, &[charlie_key_package])
+        .add_members(
+            backend,
+            &bob_signature_keys,
+            vec![charlie_key_package.into()],
+        )
         .await
         .unwrap();
 
@@ -838,17 +841,26 @@ async fn book_operations(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoP
     // Create AddProposal and remove it
     // ANCHOR: rollback_proposal_by_ref
     let (_mls_message_out, proposal_ref) = alice_group
-        .propose_add_member(backend, &alice_signature_keys, &bob_key_package)
+        .propose_add_member(
+            backend,
+            &alice_signature_keys,
+            bob_key_package.clone().into(),
+        )
         .expect("Could not create proposal to add Bob");
     alice_group
-        .remove_pending_proposal(proposal_ref)
+        .remove_pending_proposal(backend.key_store(), &proposal_ref)
+        .await
         .expect("The proposal was not found");
     // ANCHOR_END: rollback_proposal_by_ref
 
     // Create AddProposal and process it
     // ANCHOR: propose_add
     let (mls_message_out, _proposal_ref) = alice_group
-        .propose_add_member(backend, &alice_signature_keys, &bob_key_package)
+        .propose_add_member(
+            backend,
+            &alice_signature_keys,
+            bob_key_package.clone().into(),
+        )
         .expect("Could not create proposal to add Bob");
     // ANCHOR_END: propose_add
 
@@ -1259,7 +1271,7 @@ async fn book_operations(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoP
 
     // Add Bob to the group
     let (_queued_message, welcome, _group_info) = alice_group
-        .add_members(backend, &alice_signature_keys, &[bob_key_package])
+        .add_members(backend, &alice_signature_keys, vec![bob_key_package.into()])
         .await
         .expect("Could not add Bob");
 
@@ -1330,7 +1342,7 @@ async fn test_empty_input_errors(ciphersuite: Ciphersuite, backend: &impl OpenMl
 
     assert!(matches!(
         alice_group
-            .add_members(backend, &alice_signature_keys, &[])
+            .add_members(backend, &alice_signature_keys, vec![])
             .await
             .expect_err("No EmptyInputError when trying to pass an empty slice to `add_members`."),
         AddMembersError::EmptyInput(EmptyInputError::AddMembers)

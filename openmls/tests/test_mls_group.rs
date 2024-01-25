@@ -1,7 +1,6 @@
 use openmls::{
     prelude::{config::CryptoConfig, test_utils::new_credential, *},
     test_utils::*,
-    *,
 };
 
 use openmls_traits::{key_store::OpenMlsKeyStore, signatures::Signer, OpenMlsCryptoProvider};
@@ -87,7 +86,7 @@ async fn mls_group_operations(ciphersuite: Ciphersuite, backend: &impl OpenMlsCr
 
         // === Alice adds Bob ===
         let welcome = match alice_group
-            .add_members(backend, &alice_signer, &[bob_key_package])
+            .add_members(backend, &alice_signer, vec![bob_key_package.into()])
             .await
         {
             Ok((_, welcome, _)) => welcome,
@@ -327,7 +326,7 @@ async fn mls_group_operations(ciphersuite: Ciphersuite, backend: &impl OpenMlsCr
         .await;
 
         let (queued_message, welcome, _group_info) = bob_group
-            .add_members(backend, &bob_signer, &[charlie_key_package])
+            .add_members(backend, &bob_signer, vec![charlie_key_package.into()])
             .await
             .unwrap();
 
@@ -648,7 +647,7 @@ async fn mls_group_operations(ciphersuite: Ciphersuite, backend: &impl OpenMlsCr
 
         // Create AddProposal and process it
         let (queued_message, _) = alice_group
-            .propose_add_member(backend, &alice_signer, &bob_key_package)
+            .propose_add_member(backend, &alice_signer, bob_key_package.into())
             .expect("Could not create proposal to add Bob");
 
         let charlie_processed_message = charlie_group
@@ -917,7 +916,7 @@ async fn mls_group_operations(ciphersuite: Ciphersuite, backend: &impl OpenMlsCr
 
         // Add Bob to the group
         let (_queued_message, welcome, _group_info) = alice_group
-            .add_members(backend, &alice_signer, &[bob_key_package])
+            .add_members(backend, &alice_signer, vec![bob_key_package.into()])
             .await
             .expect("Could not add Bob");
 
@@ -998,7 +997,7 @@ async fn test_empty_input_errors(ciphersuite: Ciphersuite, backend: &impl OpenMl
 
     assert!(matches!(
         alice_group
-            .add_members(backend, &alice_signer, &[])
+            .add_members(backend, &alice_signer, vec![])
             .await
             .expect_err("No EmptyInputError when trying to pass an empty slice to `add_members`."),
         AddMembersError::EmptyInput(EmptyInputError::AddMembers)
@@ -1061,7 +1060,7 @@ async fn mls_group_ratchet_tree_extension(
 
         // === Alice adds Bob ===
         let (_queued_message, welcome, _group_info) = alice_group
-            .add_members(backend, &alice_signer, &[bob_key_package.clone()])
+            .add_members(backend, &alice_signer, vec![bob_key_package.into()])
             .await
             .unwrap();
 
@@ -1109,7 +1108,7 @@ async fn mls_group_ratchet_tree_extension(
 
         // === Alice adds Bob ===
         let (_queued_message, welcome, _group_info) = alice_group
-            .add_members(backend, &alice_signer, &[bob_key_package])
+            .add_members(backend, &alice_signer, vec![bob_key_package.into()])
             .await
             .unwrap();
 
@@ -1124,5 +1123,107 @@ async fn mls_group_ratchet_tree_extension(
         .expect_err("Could join a group without a ratchet tree");
 
         assert!(matches!(error, WelcomeError::MissingRatchetTree));
+    }
+}
+
+#[apply(ciphersuites_and_backends)]
+async fn addition_order(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider) {
+    for wire_format_policy in WIRE_FORMAT_POLICIES.iter() {
+        let group_id = GroupId::from_slice(b"Test Group");
+        // Generate credentials with keys
+        let sc = ciphersuite.signature_algorithm();
+        let (alice_credential, alice_signer) = new_credential(backend, b"Alice", sc).await;
+        let (bob_credential, bob_signer) = new_credential(backend, b"Bob", sc).await;
+        let (charlie_credential, charlie_signer) = new_credential(backend, b"Charlie", sc).await;
+
+        // Generate KeyPackages
+        let bob_key_package = generate_key_package(
+            ciphersuite,
+            Extensions::empty(),
+            backend,
+            bob_credential.clone(),
+            &bob_signer,
+        )
+        .await;
+        let charlie_key_package = generate_key_package(
+            ciphersuite,
+            Extensions::empty(),
+            backend,
+            charlie_credential.clone(),
+            &charlie_signer,
+        )
+        .await;
+
+        // Define the MlsGroup configuration
+
+        let mls_group_config = MlsGroupConfig::builder()
+            .wire_format_policy(*wire_format_policy)
+            .crypto_config(CryptoConfig::with_default_version(ciphersuite))
+            .build();
+
+        // === Alice creates a group ===
+        let mut alice_group = MlsGroup::new_with_group_id(
+            backend,
+            &alice_signer,
+            &mls_group_config,
+            group_id.clone(),
+            alice_credential.clone(),
+        )
+        .await
+        .expect("An unexpected error occurred.");
+
+        // === Alice adds Bob ===
+        let _welcome = match alice_group
+            .add_members(
+                backend,
+                &alice_signer,
+                vec![bob_key_package.into(), charlie_key_package.into()],
+            )
+            .await
+        {
+            Ok((_, welcome, _)) => welcome,
+            Err(e) => panic!("Could not add member to group: {e:?}"),
+        };
+
+        // Check that the proposals are in the right order in the staged commit.
+        if let Some(staged_commit) = alice_group.pending_commit() {
+            let mut add_proposals = staged_commit.add_proposals();
+            let add_bob = add_proposals.next().expect("Expected a proposal.");
+            // Check that Bob is first
+            assert_eq!(
+                add_bob
+                    .add_proposal()
+                    .key_package()
+                    .leaf_node()
+                    .credential(),
+                &bob_credential.credential
+            );
+            let add_charlie = add_proposals.next().expect("Expected a proposal.");
+            // Check that Charlie is second
+            assert_eq!(
+                add_charlie
+                    .add_proposal()
+                    .key_package()
+                    .leaf_node()
+                    .credential(),
+                &charlie_credential.credential
+            );
+        } else {
+            unreachable!("Expected a StagedCommit.");
+        }
+
+        alice_group
+            .merge_pending_commit(backend)
+            .await
+            .expect("error merging pending commit");
+
+        // Check that the members got added in the same order as the KeyPackages
+        // in the original API call. After merging, bob should be at index 1 and
+        // charlie at index 2.
+        let members = alice_group.members().collect::<Vec<Member>>();
+        assert_eq!(members[1].credential.identity(), b"Bob");
+        assert_eq!(members[1].index, LeafNodeIndex::new(1));
+        assert_eq!(members[2].credential.identity(), b"Charlie");
+        assert_eq!(members[2].index, LeafNodeIndex::new(2));
     }
 }

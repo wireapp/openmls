@@ -17,6 +17,7 @@ use crate::{
 };
 
 use super::PublicGroup;
+use crate::test_utils::*;
 
 #[apply(ciphersuites_and_backends)]
 async fn public_group(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider) {
@@ -64,7 +65,11 @@ async fn public_group(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProv
 
     // === Alice adds Bob ===
     let (message, welcome, _group_info) = alice_group
-        .add_members(backend, &alice_signer, &[bob_kpb.key_package().clone()])
+        .add_members(
+            backend,
+            &alice_signer,
+            vec![bob_kpb.key_package().clone().into()],
+        )
         .await
         .expect("Could not add member to group.");
 
@@ -107,7 +112,11 @@ async fn public_group(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProv
 
     // === Bob adds Charlie ===
     let (queued_messages, welcome, _group_info) = bob_group
-        .add_members(backend, &bob_signer, &[charlie_kpb.key_package().clone()])
+        .add_members(
+            backend,
+            &bob_signer,
+            vec![charlie_kpb.key_package().clone().into()],
+        )
         .await
         .unwrap();
 

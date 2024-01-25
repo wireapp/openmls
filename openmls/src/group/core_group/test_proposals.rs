@@ -6,7 +6,7 @@ use crate::{
     binary_tree::LeafNodeIndex,
     ciphersuite::hash_ref::ProposalRef,
     credentials::CredentialType,
-    extensions::{Extension, ExtensionType, Extensions, RequiredCapabilitiesExtension},
+    extensions::{Extension, Extensions, RequiredCapabilitiesExtension},
     framing::{
         mls_auth_content::AuthenticatedContent, sender::Sender, FramingParameters, WireFormat,
     },
@@ -23,7 +23,7 @@ use crate::{
     messages::proposals::{AddProposal, Proposal, ProposalOrRef, ProposalType},
     schedule::psk::store::ResumptionPskStore,
     test_utils::*,
-    treesync::{errors::LeafNodeValidationError, node::leaf_node::Capabilities},
+    treesync::node::leaf_node::Capabilities,
     versions::ProtocolVersion,
 };
 
@@ -48,8 +48,9 @@ async fn proposal_queue_functions(ciphersuite: Ciphersuite, backend: &impl OpenM
         KeyPackageBundle::new(backend, &alice_signer, ciphersuite, alice_credential).await;
     let alice_update_key_package = alice_update_key_package_bundle.key_package();
     let kpi = KeyPackageIn::from(alice_update_key_package.clone());
+
     assert!(kpi
-        .validate(backend.crypto(), ProtocolVersion::Mls10)
+        .standalone_validate(backend.crypto(), ProtocolVersion::Mls10)
         .is_ok());
 
     let group_context = GroupContext::new(
@@ -193,8 +194,9 @@ async fn proposal_queue_order(ciphersuite: Ciphersuite, backend: &impl OpenMlsCr
         KeyPackageBundle::new(backend, &alice_signer, ciphersuite, alice_credential).await;
     let alice_update_key_package = alice_update_key_package_bundle.key_package();
     let kpi = KeyPackageIn::from(alice_update_key_package.clone());
+
     assert!(kpi
-        .validate(backend.crypto(), ProtocolVersion::Mls10)
+        .standalone_validate(backend.crypto(), ProtocolVersion::Mls10)
         .is_ok());
 
     let group_context = GroupContext::new(
@@ -297,7 +299,7 @@ async fn test_required_unsupported_proposals(
 
     // Set required capabilities
     let extensions = &[];
-    let proposals = &[ProposalType::GroupContextExtensions, ProposalType::AppAck];
+    let proposals = &[ProposalType::AppAck];
     let credentials = &[CredentialType::Basic];
     let required_capabilities =
         RequiredCapabilitiesExtension::new(extensions, proposals, credentials);
@@ -322,60 +324,6 @@ async fn test_required_unsupported_proposals(
 
 #[apply(ciphersuites_and_backends)]
 #[wasm_bindgen_test::wasm_bindgen_test]
-async fn test_required_extension_key_package_mismatch(
-    ciphersuite: Ciphersuite,
-    backend: &impl OpenMlsCryptoProvider,
-) {
-    // Basic group setup.
-    let group_aad = b"Alice's test group";
-    let framing_parameters = FramingParameters::new(group_aad, WireFormat::PublicMessage);
-
-    let (alice_credential, _, alice_signer, _alice_pk) =
-        setup_client("Alice", ciphersuite, backend).await;
-    let (_bob_credential_with_key, bob_key_package_bundle, _, _) =
-        setup_client("Bob", ciphersuite, backend).await;
-    let bob_key_package = bob_key_package_bundle.key_package();
-
-    // Set required capabilities
-    let extensions = &[
-        ExtensionType::RequiredCapabilities,
-        ExtensionType::ApplicationId,
-    ];
-    let proposals = &[
-        ProposalType::GroupContextExtensions,
-        ProposalType::Add,
-        ProposalType::Remove,
-        ProposalType::Update,
-    ];
-    let credentials = &[CredentialType::Basic];
-    let required_capabilities =
-        RequiredCapabilitiesExtension::new(extensions, proposals, credentials);
-
-    let alice_group = CoreGroup::builder(
-        GroupId::random(backend),
-        CryptoConfig::with_default_version(ciphersuite),
-        alice_credential,
-    )
-    .with_required_capabilities(required_capabilities)
-    .build(backend, &alice_signer)
-    .await
-    .expect("Error creating CoreGroup.");
-
-    let e = alice_group
-        .create_add_proposal(
-            framing_parameters,
-            bob_key_package.clone(),
-            &alice_signer,
-        )
-        .expect_err("Proposal was created even though the key package didn't support the required extensions.");
-    assert_eq!(
-        e,
-        CreateAddProposalError::LeafNodeValidation(LeafNodeValidationError::UnsupportedExtensions)
-    );
-}
-
-#[apply(ciphersuites_and_backends)]
-#[wasm_bindgen_test::wasm_bindgen_test]
 async fn test_group_context_extensions(
     ciphersuite: Ciphersuite,
     backend: &impl OpenMlsCryptoProvider,
@@ -384,22 +332,8 @@ async fn test_group_context_extensions(
     let group_aad = b"Alice's test group";
     let framing_parameters = FramingParameters::new(group_aad, WireFormat::PublicMessage);
 
-    // Set required capabilities
-    let extensions = &[ExtensionType::ApplicationId];
-    let proposals = &[
-        ProposalType::GroupContextExtensions,
-        ProposalType::Add,
-        ProposalType::Remove,
-        ProposalType::Update,
-    ];
     let credentials = &[CredentialType::Basic];
-    let leaf_capabilities = Capabilities::new(
-        None,
-        None,
-        Some(extensions),
-        Some(proposals),
-        Some(credentials),
-    );
+    let leaf_capabilities = Capabilities::new(None, None, None, None, Some(credentials));
     // create clients
     let (alice_credential, _, alice_signer, _alice_pk) = setup_client_with_extensions(
         "Alice",
@@ -409,7 +343,7 @@ async fn test_group_context_extensions(
         leaf_capabilities.clone(),
     )
     .await;
-    let (_bob_credential_bundle, bob_key_package_bundle, _, _) = setup_client_with_extensions(
+    let (_bob_credential_bundle, bob_kpb, _, _) = setup_client_with_extensions(
         "Bob",
         ciphersuite,
         backend,
@@ -418,7 +352,7 @@ async fn test_group_context_extensions(
     )
     .await;
 
-    let bob_key_package = bob_key_package_bundle.key_package();
+    let bob_key_package = bob_kpb.key_package();
 
     let mut alice_group = CoreGroup::builder(
         GroupId::random(backend),
@@ -464,7 +398,8 @@ async fn test_group_context_extensions(
             .welcome_option
             .expect("An unexpected error occurred."),
         Some(ratchet_tree.into()),
-        bob_key_package_bundle,
+        bob_kpb.key_package(),
+        bob_kpb.private_key.clone(),
         backend,
         ResumptionPskStore::new(1024),
     )
@@ -484,18 +419,12 @@ async fn test_group_context_extension_proposal_fails(
 
     let (alice_credential, _, alice_signer, _alice_pk) =
         setup_client("Alice", ciphersuite, backend).await;
-    let (_bob_credential_with_key, bob_key_package_bundle, _, _) =
-        setup_client("Bob", ciphersuite, backend).await;
+    let (_bob_credential_with_key, bob_kpb, _, _) = setup_client("Bob", ciphersuite, backend).await;
 
-    let bob_key_package = bob_key_package_bundle.key_package();
+    let bob_key_package = bob_kpb.key_package();
 
     // Set required capabilities
-    let proposals = &[
-        ProposalType::GroupContextExtensions,
-        ProposalType::Add,
-        ProposalType::Remove,
-        ProposalType::Update,
-    ];
+    let proposals = &[];
     let credentials = &[CredentialType::Basic];
     let required_capabilities = RequiredCapabilitiesExtension::new(&[], proposals, credentials);
 
@@ -564,7 +493,8 @@ async fn test_group_context_extension_proposal_fails(
             .welcome_option
             .expect("An unexpected error occurred."),
         Some(ratchet_tree.into()),
-        bob_key_package_bundle,
+        bob_kpb.key_package(),
+        bob_kpb.private_key.clone(),
         backend,
         ResumptionPskStore::new(1024),
     )
@@ -602,10 +532,9 @@ async fn test_group_context_extension_proposal(
 
     let (alice_credential, _, alice_signer, _alice_pk) =
         setup_client("Alice", ciphersuite, backend).await;
-    let (_bob_credential_with_key, bob_key_package_bundle, _, _) =
-        setup_client("Bob", ciphersuite, backend).await;
+    let (_bob_credential_with_key, bob_kpb, _, _) = setup_client("Bob", ciphersuite, backend).await;
 
-    let bob_key_package = bob_key_package_bundle.key_package();
+    let bob_key_package = bob_kpb.key_package();
 
     let mut alice_group = CoreGroup::builder(
         GroupId::random(backend),
@@ -650,7 +579,8 @@ async fn test_group_context_extension_proposal(
             .welcome_option
             .expect("An unexpected error occurred."),
         Some(ratchet_tree.into()),
-        bob_key_package_bundle,
+        bob_kpb.key_package(),
+        bob_kpb.private_key.clone(),
         backend,
         ResumptionPskStore::new(1024),
     )
@@ -658,12 +588,9 @@ async fn test_group_context_extension_proposal(
     .expect("Error joining group.");
 
     // Alice adds a required capability.
-    let required_application_id =
-        Extension::RequiredCapabilities(RequiredCapabilitiesExtension::new(
-            &[ExtensionType::ApplicationId],
-            &[],
-            &[CredentialType::Basic],
-        ));
+    let required_application_id = Extension::RequiredCapabilities(
+        RequiredCapabilitiesExtension::new(&[], &[], &[CredentialType::Basic]),
+    );
     let gce_proposal = alice_group
         .create_group_context_ext_proposal(
             framing_parameters,

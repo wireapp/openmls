@@ -2,7 +2,6 @@ use openmls::{
     prelude::*,
     test_utils::test_framework::{ActionType, CodecUse, MlsGroupTestSetup},
     test_utils::*,
-    *,
 };
 
 // The following tests correspond to the interop test scenarios detailed here:

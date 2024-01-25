@@ -3,13 +3,15 @@ use openmls_traits::{types::Ciphersuite, OpenMlsCryptoProvider};
 use rstest::*;
 use rstest_reuse::apply;
 
+use crate::test_utils::*;
 use crate::{
     credentials::test_utils::new_credential,
     key_packages::KeyPackageBundle,
     treesync::{node::Node, RatchetTree, TreeSync},
 };
 
-// Verifies that when we add a leaf to a tree with blank leaf nodes, the leaf will be added at the leftmost free leaf index
+// Verifies that when we add a leaf to a tree with blank leaf nodes, the leaf
+// will be added at the leftmost free leaf index
 #[apply(ciphersuites_and_backends)]
 async fn test_free_leaf_computation(
     ciphersuite: Ciphersuite,
