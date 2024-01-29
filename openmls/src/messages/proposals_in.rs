@@ -17,7 +17,7 @@ use crate::{
 
 use crate::prelude::PublicGroup;
 use crate::treesync::node::validate::ValidatableLeafNode;
-use openmls_traits::{crypto::OpenMlsCrypto, types::Ciphersuite};
+use openmls_traits::{crypto::OpenMlsCrypto, types::Ciphersuite, OpenMlsCryptoProvider};
 use serde::{Deserialize, Serialize};
 use tls_codec::{TlsDeserialize, TlsSerialize, TlsSize};
 
@@ -97,7 +97,7 @@ impl ProposalIn {
     /// Returns a [`Proposal`] after successful validation.
     pub(crate) fn validate(
         self,
-        crypto: &impl OpenMlsCrypto,
+        backend: &impl OpenMlsCryptoProvider,
         ciphersuite: Ciphersuite,
         sender_context: Option<SenderContext>,
         protocol_version: ProtocolVersion,
@@ -105,12 +105,12 @@ impl ProposalIn {
     ) -> Result<Proposal, ValidationError> {
         Ok(match self {
             ProposalIn::Add(add) => {
-                Proposal::Add(add.validate(crypto, protocol_version, ciphersuite, group)?)
+                Proposal::Add(add.validate(backend, protocol_version, ciphersuite, group)?)
             }
             ProposalIn::Update(update) => {
                 let sender_context =
                     sender_context.ok_or(ValidationError::CommitterIncludedOwnUpdate)?;
-                Proposal::Update(update.validate(crypto, sender_context, group)?)
+                Proposal::Update(update.validate(backend.crypto(), sender_context, group)?)
             }
             ProposalIn::Remove(remove) => Proposal::Remove(remove),
             ProposalIn::PreSharedKey(psk) => Proposal::PreSharedKey(psk),
@@ -149,12 +149,14 @@ impl AddProposalIn {
     /// Returns a [`AddProposal`] after successful validation.
     pub(crate) fn validate(
         self,
-        crypto: &impl OpenMlsCrypto,
+        backend: &impl OpenMlsCryptoProvider,
         protocol_version: ProtocolVersion,
         ciphersuite: Ciphersuite,
         group: &PublicGroup,
     ) -> Result<AddProposal, ValidationError> {
-        let key_package = self.key_package.validate(crypto, protocol_version, group)?;
+        let key_package = self
+            .key_package
+            .validate(backend, protocol_version, group)?;
         // Verify that the ciphersuite is valid
         if key_package.ciphersuite() != ciphersuite {
             return Err(ValidationError::InvalidAddProposalCiphersuite);
@@ -226,14 +228,14 @@ impl ProposalOrRefIn {
     /// Returns a [`ProposalOrRef`] after successful validation.
     pub(crate) fn validate(
         self,
-        crypto: &impl OpenMlsCrypto,
+        backend: &impl OpenMlsCryptoProvider,
         ciphersuite: Ciphersuite,
         protocol_version: ProtocolVersion,
         group: &PublicGroup,
     ) -> Result<ProposalOrRef, ValidationError> {
         Ok(match self {
             ProposalOrRefIn::Proposal(proposal_in) => ProposalOrRef::Proposal(
-                proposal_in.validate(crypto, ciphersuite, None, protocol_version, group)?,
+                proposal_in.validate(backend, ciphersuite, None, protocol_version, group)?,
             ),
             ProposalOrRefIn::Reference(reference) => ProposalOrRef::Reference(reference),
         })

@@ -12,7 +12,7 @@ use crate::{
     },
     versions::ProtocolVersion,
 };
-use openmls_traits::{crypto::OpenMlsCrypto, types::Ciphersuite};
+use openmls_traits::{types::Ciphersuite, OpenMlsCryptoProvider};
 use serde::{Deserialize, Serialize};
 use tls_codec::{Serialize as TlsSerializeTrait, TlsDeserialize, TlsSerialize, TlsSize};
 
@@ -116,25 +116,25 @@ impl KeyPackageIn {
     /// [`KeyPackageVerifyError`] otherwise.
     pub fn validate(
         self,
-        crypto: &impl OpenMlsCrypto,
+        backend: &impl OpenMlsCryptoProvider,
         protocol_version: ProtocolVersion,
         group: &PublicGroup,
     ) -> Result<KeyPackage, KeyPackageVerifyError> {
-        self._validate(crypto, protocol_version, Some(group))
+        self._validate(backend, protocol_version, Some(group))
     }
 
     /// Verify that this key package is valid disregarding the group it is supposed to be used with.
     pub fn standalone_validate(
         self,
-        crypto: &impl OpenMlsCrypto,
+        backend: &impl OpenMlsCryptoProvider,
         protocol_version: ProtocolVersion,
     ) -> Result<KeyPackage, KeyPackageVerifyError> {
-        self._validate(crypto, protocol_version, None)
+        self._validate(backend, protocol_version, None)
     }
 
     fn _validate(
         self,
-        crypto: &impl OpenMlsCrypto,
+        backend: &impl OpenMlsCryptoProvider,
         protocol_version: ProtocolVersion,
         group: Option<&PublicGroup>,
     ) -> Result<KeyPackage, KeyPackageVerifyError> {
@@ -154,9 +154,9 @@ impl KeyPackageIn {
         let leaf_node = match verifiable_leaf_node {
             VerifiableLeafNode::KeyPackage(leaf_node) => {
                 if let Some(group) = group {
-                    leaf_node.validate(group, crypto)?
+                    leaf_node.validate(group, backend.crypto())?
                 } else {
-                    leaf_node.standalone_validate(crypto, signature_scheme)?
+                    leaf_node.standalone_validate(backend.crypto(), signature_scheme)?
                 }
             }
             _ => return Err(KeyPackageVerifyError::InvalidLeafNodeSourceType),
@@ -174,7 +174,7 @@ impl KeyPackageIn {
 
         // Verify the KeyPackage signature
         let key_package = VerifiableKeyPackage::new(self.payload.into(), self.signature)
-            .verify::<KeyPackage>(crypto, signature_key)
+            .verify::<KeyPackage>(backend.crypto(), signature_key)
             .map_err(|_| KeyPackageVerifyError::InvalidSignature)?;
 
         // Extension included in the extensions or leaf_node.extensions fields

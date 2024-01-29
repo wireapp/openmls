@@ -192,7 +192,7 @@ impl CommitIn {
     pub fn validate(
         self,
         ciphersuite: Ciphersuite,
-        crypto: &impl OpenMlsCrypto,
+        backend: &impl OpenMlsCryptoProvider,
         sender_context: SenderContext,
         protocol_version: ProtocolVersion,
         group: &PublicGroup,
@@ -200,7 +200,7 @@ impl CommitIn {
         let proposals = self
             .proposals
             .into_iter()
-            .map(|p| p.validate(crypto, ciphersuite, protocol_version, group))
+            .map(|p| p.validate(backend, ciphersuite, protocol_version, group))
             .collect::<Result<Vec<_>, _>>()?;
 
         let path = if let Some(path) = self.path {
@@ -234,7 +234,7 @@ impl CommitIn {
                     TreePosition::new(group_id, new_leaf_index)
                 }
             };
-            Some(path.into_verified(crypto, tree_position, group)?)
+            Some(path.into_verified(backend.crypto(), tree_position, group)?)
         } else {
             None
         };

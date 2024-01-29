@@ -51,7 +51,7 @@ impl CoreGroup {
         //  - ValSem246 (as part of ValSem010)
         let (content, credential) = unverified_message.verify(
             self.ciphersuite(),
-            backend.crypto(),
+            backend,
             self.version(),
             self.public_group(),
         )?;
