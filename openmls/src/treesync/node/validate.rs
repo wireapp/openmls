@@ -38,7 +38,8 @@ impl ValidatableLeafNode for VerifiableCommitLeafNode {
     }
 }
 
-#[async_trait::async_trait(?Send)]
+#[cfg_attr(target_family = "wasm", async_trait::async_trait(?Send))]
+#[cfg_attr(not(target_family = "wasm"), async_trait::async_trait)]
 impl ValidatableLeafNode for VerifiableUpdateLeafNode {
     async fn validate(
         self,
@@ -87,8 +88,8 @@ impl VerifiableUpdateLeafNode {
     }
 }
 
-#[async_trait::async_trait(?Send)]
-
+#[cfg_attr(target_family = "wasm", async_trait::async_trait(?Send))]
+#[cfg_attr(not(target_family = "wasm"), async_trait::async_trait)]
 impl ValidatableLeafNode for VerifiableKeyPackageLeafNode {
     async fn validate(
         self,
@@ -132,8 +133,9 @@ impl VerifiableKeyPackageLeafNode {
     }
 }
 
-#[async_trait::async_trait(?Send)]
-pub(crate) trait ValidatableLeafNode: Verifiable + Sized
+#[cfg_attr(target_family = "wasm", async_trait::async_trait(?Send))]
+#[cfg_attr(not(target_family = "wasm"), async_trait::async_trait)]
+pub(crate) trait ValidatableLeafNode: Verifiable + Send + Sync + Sized
 where
     LeafNode: VerifiedStruct<Self>,
 {
