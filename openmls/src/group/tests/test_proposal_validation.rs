@@ -1084,7 +1084,7 @@ async fn test_valsem105(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoPr
                 .await;
 
         let kpi: KeyPackageIn = charlie_key_package.clone().into();
-        kpi.standalone_validate(backend.crypto(), ProtocolVersion::Mls10)
+        kpi.standalone_validate(backend, ProtocolVersion::Mls10)
             .unwrap();
 
         // Let's just pick a ciphersuite that's not the one we're testing right now.

@@ -19,7 +19,7 @@ use super::{
 };
 
 use crate::prelude::PublicGroup;
-use openmls_traits::{crypto::OpenMlsCrypto, types::Ciphersuite};
+use openmls_traits::{types::Ciphersuite, OpenMlsCryptoProvider};
 use serde::{Deserialize, Serialize};
 use tls_codec::{
     Deserialize as TlsDeserializeTrait, Serialize as TlsSerializeTrait, Size, TlsDeserialize,
@@ -53,7 +53,7 @@ impl FramedContentIn {
     pub fn validate(
         self,
         ciphersuite: Ciphersuite,
-        crypto: &impl OpenMlsCrypto,
+        backend: &impl OpenMlsCryptoProvider,
         sender_context: Option<SenderContext>,
         protocol_version: ProtocolVersion,
         group: &PublicGroup,
@@ -65,7 +65,7 @@ impl FramedContentIn {
             authenticated_data: self.authenticated_data,
             body: self.body.validate(
                 ciphersuite,
-                crypto,
+                backend,
                 sender_context,
                 protocol_version,
                 group,
@@ -138,7 +138,7 @@ impl FramedContentBodyIn {
     pub fn validate(
         self,
         ciphersuite: Ciphersuite,
-        crypto: &impl OpenMlsCrypto,
+        backend: &impl OpenMlsCryptoProvider,
         sender_context: Option<SenderContext>,
         protocol_version: ProtocolVersion,
         group: &PublicGroup,
@@ -147,7 +147,7 @@ impl FramedContentBodyIn {
             FramedContentBodyIn::Application(bytes) => FramedContentBody::Application(bytes),
             FramedContentBodyIn::Proposal(proposal_in) => {
                 FramedContentBody::Proposal(proposal_in.validate(
-                    crypto,
+                    backend,
                     ciphersuite,
                     sender_context,
                     protocol_version,
@@ -159,7 +159,7 @@ impl FramedContentBodyIn {
                     .ok_or(LibraryError::custom("Forgot the commit sender context"))?;
                 FramedContentBody::Commit(commit_in.validate(
                     ciphersuite,
-                    crypto,
+                    backend,
                     sender_context,
                     protocol_version,
                     group,

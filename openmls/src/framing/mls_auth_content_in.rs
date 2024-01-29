@@ -9,7 +9,7 @@
 
 use std::io::Read;
 
-use openmls_traits::{crypto::OpenMlsCrypto, types::Ciphersuite};
+use openmls_traits::{types::Ciphersuite, OpenMlsCryptoProvider};
 use tls_codec::Serialize as TlsSerializeTrait;
 
 use super::{mls_auth_content::*, mls_content_in::*, *};
@@ -50,7 +50,7 @@ impl AuthenticatedContentIn {
     pub fn validate(
         self,
         ciphersuite: Ciphersuite,
-        crypto: &impl OpenMlsCrypto,
+        backend: &impl OpenMlsCryptoProvider,
         sender_context: Option<SenderContext>,
         protocol_version: ProtocolVersion,
         group: &PublicGroup,
@@ -59,7 +59,7 @@ impl AuthenticatedContentIn {
             wire_format: self.wire_format,
             content: self.content.validate(
                 ciphersuite,
-                crypto,
+                backend,
                 sender_context,
                 protocol_version,
                 group,

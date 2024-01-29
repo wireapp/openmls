@@ -24,7 +24,6 @@
 // TODO #106/#151: Update the above diagram
 
 use openmls_traits::{
-    crypto::OpenMlsCrypto,
     types::{Ciphersuite, CryptoError},
     OpenMlsCryptoProvider,
 };
@@ -276,14 +275,14 @@ impl UnverifiedMessage {
     pub(crate) fn verify(
         self,
         ciphersuite: Ciphersuite,
-        crypto: &impl OpenMlsCrypto,
+        backend: &impl OpenMlsCryptoProvider,
         protocol_version: ProtocolVersion,
         group: &PublicGroup,
     ) -> Result<(AuthenticatedContent, Credential), ProcessMessageError> {
         let content: AuthenticatedContentIn = match self.credential.mls_credential() {
             MlsCredentialType::Basic(_) => self
                 .verifiable_content
-                .verify(crypto, &self.sender_pk)
+                .verify(backend.crypto(), &self.sender_pk)
                 .map_err(|_| ProcessMessageError::InvalidSignature)?,
             MlsCredentialType::X509(certificate_chain) => {
                 certificate_chain
@@ -300,7 +299,7 @@ impl UnverifiedMessage {
                             child_cert.is_valid()?;
 
                             // verify that child is signed by parent
-                            child_cert.is_signed_by(crypto, parent_cert)?;
+                            child_cert.is_signed_by(backend.crypto(), parent_cert)?;
 
                             Ok((parent_idx, parent_cert))
                         },
@@ -312,13 +311,13 @@ impl UnverifiedMessage {
                     })??;
                 self.verifiable_content
                     // sender pk should be the leaf certificate
-                    .verify(crypto, &self.sender_pk)
+                    .verify(backend.crypto(), &self.sender_pk)
                     .map_err(|_| ProcessMessageError::InvalidSignature)?
             }
         };
         let content = content.validate(
             ciphersuite,
-            crypto,
+            backend,
             self.sender_context,
             protocol_version,
             group,

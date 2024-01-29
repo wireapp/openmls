@@ -154,7 +154,7 @@ impl CoreGroup {
         )?;
 
         KeyPackageIn::from(key_package.clone()).validate(
-            backend.crypto(),
+            backend,
             ProtocolVersion::Mls10,
             &public_group,
         )?;

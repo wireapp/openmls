@@ -49,7 +49,7 @@ impl MlsGroup {
             .into_iter()
             .map(|key_package| {
                 let key_package = key_package.validate(
-                    backend.crypto(),
+                    backend,
                     ProtocolVersion::Mls10,
                     self.group().public_group(),
                 )?;

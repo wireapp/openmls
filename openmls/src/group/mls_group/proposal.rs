@@ -106,7 +106,7 @@ impl MlsGroup {
         self.is_operational()?;
 
         let key_package = joiner_key_package.validate(
-            backend.crypto(),
+            backend,
             ProtocolVersion::Mls10,
             self.group().public_group(),
         )?;
@@ -249,7 +249,7 @@ impl MlsGroup {
         self.is_operational()?;
 
         let key_package = joiner_key_package.validate(
-            backend.crypto(),
+            backend,
             ProtocolVersion::Mls10,
             self.group().public_group(),
         )?;

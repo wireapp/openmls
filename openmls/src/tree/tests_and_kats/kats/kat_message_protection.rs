@@ -419,7 +419,7 @@ pub async fn run_test_vector(
             let processed_message: AuthenticatedContent = processed_unverified_message
                 .verify(
                     ciphersuite,
-                    backend.crypto(),
+                    backend,
                     ProtocolVersion::Mls10,
                     group.public_group(),
                 )
@@ -564,7 +564,7 @@ pub async fn run_test_vector(
             let processed_message: AuthenticatedContent = processed_unverified_message
                 .verify(
                     ciphersuite,
-                    backend.crypto(),
+                    backend,
                     ProtocolVersion::Mls10,
                     group.public_group(),
                 )
@@ -612,7 +612,7 @@ pub async fn run_test_vector(
             let processed_message: AuthenticatedContent = processed_unverified_message
                 .verify(
                     ciphersuite,
-                    backend.crypto(),
+                    backend,
                     ProtocolVersion::Mls10,
                     group.public_group(),
                 )
