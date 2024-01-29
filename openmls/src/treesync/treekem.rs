@@ -7,7 +7,6 @@
 use std::collections::HashSet;
 
 use openmls_traits::{
-    crypto::OpenMlsCrypto,
     types::{Ciphersuite, HpkeCiphertext},
     OpenMlsCryptoProvider,
 };
@@ -379,9 +378,9 @@ impl UpdatePathIn {
     }
 
     /// Return a verified [`UpdatePath`].
-    pub(crate) fn into_verified(
+    pub(crate) async fn into_verified(
         self,
-        crypto: &impl OpenMlsCrypto,
+        backend: &impl OpenMlsCryptoProvider,
         tree_position: TreePosition,
         group: &PublicGroup,
     ) -> Result<UpdatePath, UpdatePathError> {
@@ -390,7 +389,7 @@ impl UpdatePathIn {
             leaf_node_in.try_into_verifiable_leaf_node(Some(tree_position))?;
         match verifiable_leaf_node {
             VerifiableLeafNode::Commit(commit_leaf_node) => {
-                let leaf_node = commit_leaf_node.validate(group, crypto)?;
+                let leaf_node = commit_leaf_node.validate(group, backend).await?;
                 Ok(UpdatePath {
                     leaf_node,
                     nodes: self.nodes,

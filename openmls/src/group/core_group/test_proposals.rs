@@ -51,6 +51,7 @@ async fn proposal_queue_functions(ciphersuite: Ciphersuite, backend: &impl OpenM
 
     assert!(kpi
         .standalone_validate(backend, ProtocolVersion::Mls10)
+        .await
         .is_ok());
 
     let group_context = GroupContext::new(
@@ -197,6 +198,7 @@ async fn proposal_queue_order(ciphersuite: Ciphersuite, backend: &impl OpenMlsCr
 
     assert!(kpi
         .standalone_validate(backend, ProtocolVersion::Mls10)
+        .await
         .is_ok());
 
     let group_context = GroupContext::new(

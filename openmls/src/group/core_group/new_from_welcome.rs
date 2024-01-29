@@ -153,11 +153,9 @@ impl CoreGroup {
             ProposalStore::new(),
         )?;
 
-        KeyPackageIn::from(key_package.clone()).validate(
-            backend,
-            ProtocolVersion::Mls10,
-            &public_group,
-        )?;
+        KeyPackageIn::from(key_package.clone())
+            .validate(backend, ProtocolVersion::Mls10, &public_group)
+            .await?;
 
         // Find our own leaf in the tree.
         let own_leaf_index = public_group

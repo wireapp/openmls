@@ -846,6 +846,7 @@ async fn book_operations(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoP
             &alice_signature_keys,
             bob_key_package.clone().into(),
         )
+        .await
         .expect("Could not create proposal to add Bob");
     alice_group
         .remove_pending_proposal(backend.key_store(), &proposal_ref)
@@ -861,6 +862,7 @@ async fn book_operations(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoP
             &alice_signature_keys,
             bob_key_package.clone().into(),
         )
+        .await
         .expect("Could not create proposal to add Bob");
     // ANCHOR_END: propose_add
 

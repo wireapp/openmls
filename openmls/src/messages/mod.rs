@@ -189,7 +189,7 @@ impl CommitIn {
     }
 
     /// Returns a [`Commit`] after successful validation.
-    pub fn validate(
+    pub async fn validate(
         self,
         ciphersuite: Ciphersuite,
         backend: &impl OpenMlsCryptoProvider,
@@ -197,11 +197,14 @@ impl CommitIn {
         protocol_version: ProtocolVersion,
         group: &PublicGroup,
     ) -> Result<Commit, ValidationError> {
-        let proposals = self
-            .proposals
-            .into_iter()
-            .map(|p| p.validate(backend, ciphersuite, protocol_version, group))
-            .collect::<Result<Vec<_>, _>>()?;
+        let mut proposals = Vec::with_capacity(self.proposals.len());
+        for proposal in self.proposals.into_iter() {
+            proposals.push(
+                proposal
+                    .validate(backend, ciphersuite, protocol_version, group)
+                    .await?,
+            );
+        }
 
         let path = if let Some(path) = self.path {
             let tree_position = match sender_context {
@@ -234,7 +237,7 @@ impl CommitIn {
                     TreePosition::new(group_id, new_leaf_index)
                 }
             };
-            Some(path.into_verified(backend.crypto(), tree_position, group)?)
+            Some(path.into_verified(backend, tree_position, group).await?)
         } else {
             None
         };

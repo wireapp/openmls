@@ -50,7 +50,7 @@ pub struct FramedContentIn {
 
 impl FramedContentIn {
     /// Returns a [`FramedContent`] after successful validation.
-    pub fn validate(
+    pub async fn validate(
         self,
         ciphersuite: Ciphersuite,
         backend: &impl OpenMlsCryptoProvider,
@@ -63,13 +63,16 @@ impl FramedContentIn {
             epoch: self.epoch,
             sender: self.sender,
             authenticated_data: self.authenticated_data,
-            body: self.body.validate(
-                ciphersuite,
-                backend,
-                sender_context,
-                protocol_version,
-                group,
-            )?,
+            body: self
+                .body
+                .validate(
+                    ciphersuite,
+                    backend,
+                    sender_context,
+                    protocol_version,
+                    group,
+                )
+                .await?,
         })
     }
 }
@@ -135,7 +138,7 @@ impl FramedContentBodyIn {
     }
 
     /// Returns a [`FramedContentBody`] after successful validation.
-    pub fn validate(
+    pub async fn validate(
         self,
         ciphersuite: Ciphersuite,
         backend: &impl OpenMlsCryptoProvider,
@@ -145,25 +148,31 @@ impl FramedContentBodyIn {
     ) -> Result<FramedContentBody, ValidationError> {
         Ok(match self {
             FramedContentBodyIn::Application(bytes) => FramedContentBody::Application(bytes),
-            FramedContentBodyIn::Proposal(proposal_in) => {
-                FramedContentBody::Proposal(proposal_in.validate(
-                    backend,
-                    ciphersuite,
-                    sender_context,
-                    protocol_version,
-                    group,
-                )?)
-            }
+            FramedContentBodyIn::Proposal(proposal_in) => FramedContentBody::Proposal(
+                proposal_in
+                    .validate(
+                        backend,
+                        ciphersuite,
+                        sender_context,
+                        protocol_version,
+                        group,
+                    )
+                    .await?,
+            ),
             FramedContentBodyIn::Commit(commit_in) => {
                 let sender_context = sender_context
                     .ok_or(LibraryError::custom("Forgot the commit sender context"))?;
-                FramedContentBody::Commit(commit_in.validate(
-                    ciphersuite,
-                    backend,
-                    sender_context,
-                    protocol_version,
-                    group,
-                )?)
+                FramedContentBody::Commit(
+                    commit_in
+                        .validate(
+                            ciphersuite,
+                            backend,
+                            sender_context,
+                            protocol_version,
+                            group,
+                        )
+                        .await?,
+                )
             }
         })
     }
