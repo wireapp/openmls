@@ -1085,6 +1085,7 @@ async fn test_valsem105(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoPr
 
         let kpi: KeyPackageIn = charlie_key_package.clone().into();
         kpi.standalone_validate(backend, ProtocolVersion::Mls10)
+            .await
             .unwrap();
 
         // Let's just pick a ciphersuite that's not the one we're testing right now.
@@ -1165,11 +1166,13 @@ async fn test_valsem105(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoPr
         for proposal_inclusion in [ProposalInclusion::ByReference, ProposalInclusion::ByValue] {
             match proposal_inclusion {
                 ProposalInclusion::ByReference => {
-                    let proposal_result = alice_group.propose_add_member(
-                        backend,
-                        &alice_credential_with_key_and_signer.signer,
-                        test_kp.clone().into(),
-                    );
+                    let proposal_result = alice_group
+                        .propose_add_member(
+                            backend,
+                            &alice_credential_with_key_and_signer.signer,
+                            test_kp.clone().into(),
+                        )
+                        .await;
 
                     match key_package_version {
                         KeyPackageTestVersion::WrongCiphersuite => {

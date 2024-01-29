@@ -131,7 +131,7 @@ impl PublicGroup {
     ///  - ValSem244
     ///  - ValSem245
     ///  - ValSem246 (as part of ValSem010)
-    pub fn process_message(
+    pub async fn process_message(
         &self,
         backend: &impl OpenMlsCryptoProvider,
         message: impl Into<ProtocolMessage>,
@@ -162,6 +162,7 @@ impl PublicGroup {
             .parse_message(decrypted_message, None)
             .map_err(ProcessMessageError::from)?;
         self.process_unverified_message(backend, unverified_message, &self.proposal_store, self)
+            .await
     }
 }
 
@@ -193,7 +194,7 @@ impl PublicGroup {
     ///  - ValSem243
     ///  - ValSem244
     ///  - ValSem246 (as part of ValSem010)
-    pub(crate) fn process_unverified_message(
+    pub(crate) async fn process_unverified_message(
         &self,
         backend: &impl OpenMlsCryptoProvider,
         unverified_message: UnverifiedMessage,
@@ -203,8 +204,9 @@ impl PublicGroup {
         // Checks the following semantic validation:
         //  - ValSem010
         //  - ValSem246 (as part of ValSem010)
-        let (content, credential) =
-            unverified_message.verify(self.ciphersuite(), backend, self.version(), group)?;
+        let (content, credential) = unverified_message
+            .verify(self.ciphersuite(), backend, self.version(), group)
+            .await?;
 
         match content.sender() {
             Sender::Member(_) | Sender::NewMemberCommit | Sender::NewMemberProposal => {

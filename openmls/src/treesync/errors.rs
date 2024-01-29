@@ -7,7 +7,7 @@ use thiserror::Error;
 use super::*;
 use crate::{
     binary_tree::MlsBinaryTreeDiffError, ciphersuite::signable::SignatureError,
-    error::LibraryError, extensions::errors::ExtensionError,
+    credentials::errors::CredentialError, error::LibraryError, extensions::errors::ExtensionError,
 };
 
 // === Public errors ===
@@ -262,6 +262,8 @@ pub enum LeafNodeValidationError {
     /// The credential used by a member is not supported by this leaf node.
     #[error("The credential used by a member is not supported by this leaf node.")]
     MemberCredentialNotSupportedByLeafNode,
+    #[error(transparent)]
+    InvalidCredential(#[from] CredentialError),
     /// A library error occurred.
     #[error(transparent)]
     LibraryError(#[from] LibraryError),

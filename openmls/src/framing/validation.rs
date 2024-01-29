@@ -272,7 +272,7 @@ impl UnverifiedMessage {
 
     /// Verify the [`UnverifiedMessage`]. Returns the [`AuthenticatedContent`]
     /// and the internal [`Credential`].
-    pub(crate) fn verify(
+    pub(crate) async fn verify(
         self,
         ciphersuite: Ciphersuite,
         backend: &impl OpenMlsCryptoProvider,
@@ -315,13 +315,15 @@ impl UnverifiedMessage {
                     .map_err(|_| ProcessMessageError::InvalidSignature)?
             }
         };
-        let content = content.validate(
-            ciphersuite,
-            backend,
-            self.sender_context,
-            protocol_version,
-            group,
-        )?;
+        let content = content
+            .validate(
+                ciphersuite,
+                backend,
+                self.sender_context,
+                protocol_version,
+                group,
+            )
+            .await?;
         Ok((content, self.credential))
     }
 

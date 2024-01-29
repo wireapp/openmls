@@ -84,6 +84,7 @@ async fn public_group(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProv
     };
     let processed_message = public_group
         .process_message(backend, public_message)
+        .await
         .unwrap();
 
     // Further inspection of the message can take place here ...
@@ -145,6 +146,7 @@ async fn public_group(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProv
     // The public group processes
     let ppm = public_group
         .process_message(backend, into_public_message(queued_messages))
+        .await
         .unwrap();
     public_group.merge_commit(extract_staged_commit(ppm));
 
@@ -183,6 +185,7 @@ async fn public_group(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProv
     // The public group processes
     let ppm = public_group
         .process_message(backend, into_public_message(queued_messages))
+        .await
         .unwrap();
     // We have to add the proposal to the public group's proposal store.
     match ppm.into_content() {
@@ -229,6 +232,7 @@ async fn public_group(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProv
     // The public group processes
     let ppm = public_group
         .process_message(backend, into_public_message(queued_messages.clone()))
+        .await
         .unwrap();
     public_group.merge_commit(extract_staged_commit(ppm));
 

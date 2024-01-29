@@ -49,12 +49,14 @@ impl CoreGroup {
         // Checks the following semantic validation:
         //  - ValSem010
         //  - ValSem246 (as part of ValSem010)
-        let (content, credential) = unverified_message.verify(
-            self.ciphersuite(),
-            backend,
-            self.version(),
-            self.public_group(),
-        )?;
+        let (content, credential) = unverified_message
+            .verify(
+                self.ciphersuite(),
+                backend,
+                self.version(),
+                self.public_group(),
+            )
+            .await?;
 
         match content.sender() {
             Sender::Member(_) | Sender::NewMemberCommit | Sender::NewMemberProposal => {

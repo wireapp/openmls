@@ -47,7 +47,7 @@ pub struct AuthenticatedContentIn {
 
 impl AuthenticatedContentIn {
     /// Returns a [`AuthenticatedContent`] after successful validation.
-    pub fn validate(
+    pub async fn validate(
         self,
         ciphersuite: Ciphersuite,
         backend: &impl OpenMlsCryptoProvider,
@@ -57,13 +57,16 @@ impl AuthenticatedContentIn {
     ) -> Result<AuthenticatedContent, ValidationError> {
         Ok(AuthenticatedContent {
             wire_format: self.wire_format,
-            content: self.content.validate(
-                ciphersuite,
-                backend,
-                sender_context,
-                protocol_version,
-                group,
-            )?,
+            content: self
+                .content
+                .validate(
+                    ciphersuite,
+                    backend,
+                    sender_context,
+                    protocol_version,
+                    group,
+                )
+                .await?,
             auth: self.auth,
         })
     }

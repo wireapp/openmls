@@ -312,7 +312,10 @@ impl Credential {
             .validate_credential(credential_ref)
             .await;
 
-        if credential_authentication != CredentialAuthenticationStatus::Valid {
+        if !matches!(
+            credential_authentication,
+            CredentialAuthenticationStatus::Valid | CredentialAuthenticationStatus::Expired
+        ) {
             return Err(CredentialError::AuthenticationServiceValidationFailure(
                 credential_authentication,
             ));

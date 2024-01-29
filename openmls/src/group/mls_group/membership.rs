@@ -45,17 +45,13 @@ impl MlsGroup {
         self.is_operational()?;
 
         // Create inline add proposals from key packages
-        let inline_proposals = key_packages
-            .into_iter()
-            .map(|key_package| {
-                let key_package = key_package.validate(
-                    backend,
-                    ProtocolVersion::Mls10,
-                    self.group().public_group(),
-                )?;
-                Ok(Proposal::Add(AddProposal { key_package }))
-            })
-            .collect::<Result<Vec<_>, AddMembersError<KeyStore::Error>>>()?;
+        let mut inline_proposals = Vec::with_capacity(key_packages.len());
+        for key_package in key_packages.into_iter() {
+            let key_package = key_package
+                .validate(backend, ProtocolVersion::Mls10, self.group().public_group())
+                .await?;
+            inline_proposals.push(Proposal::Add(AddProposal { key_package }));
+        }
 
         // Create Commit over all proposals
         // TODO #751

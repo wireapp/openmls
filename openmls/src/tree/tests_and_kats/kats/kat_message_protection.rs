@@ -423,6 +423,7 @@ pub async fn run_test_vector(
                     ProtocolVersion::Mls10,
                     group.public_group(),
                 )
+                .await
                 .unwrap()
                 .0;
             match processed_message.content().to_owned() {
@@ -538,7 +539,7 @@ pub async fn run_test_vector(
         let commit_priv =
             MlsMessageIn::tls_deserialize_exact(hex_to_bytes(&test.commit_priv)).unwrap();
 
-        fn test_commit_pub(
+        async fn test_commit_pub(
             mut group: CoreGroup,
             backend: &impl OpenMlsCryptoProvider,
             ciphersuite: Ciphersuite,
@@ -568,6 +569,7 @@ pub async fn run_test_vector(
                     ProtocolVersion::Mls10,
                     group.public_group(),
                 )
+                .await
                 .unwrap()
                 .0;
             match processed_message.content().to_owned() {
@@ -584,9 +586,10 @@ pub async fn run_test_vector(
             ciphersuite,
             commit.clone(),
             commit_pub,
-        );
+        )
+        .await;
 
-        fn test_commit_priv(
+        async fn test_commit_priv(
             mut group: CoreGroup,
             backend: &impl OpenMlsCryptoProvider,
             ciphersuite: Ciphersuite,
@@ -616,6 +619,7 @@ pub async fn run_test_vector(
                     ProtocolVersion::Mls10,
                     group.public_group(),
                 )
+                .await
                 .unwrap()
                 .0;
             match processed_message.content().to_owned() {
@@ -632,7 +636,8 @@ pub async fn run_test_vector(
             ciphersuite,
             commit.clone(),
             commit_priv,
-        );
+        )
+        .await;
 
         // Wrap `commit` into a `PrivateMessage`.
         let group = setup_group(backend, ciphersuite, &test, false).await;
@@ -660,7 +665,8 @@ pub async fn run_test_vector(
             ciphersuite,
             commit.clone(),
             my_commit_priv_out.into(),
-        );
+        )
+        .await;
 
         // Wrap `commit` into a `PublicMessage`.
         let group = setup_group(backend, ciphersuite, &test, false).await;
@@ -692,7 +698,8 @@ pub async fn run_test_vector(
             ciphersuite,
             commit,
             my_commit_pub_out.into(),
-        );
+        )
+        .await;
     }
 
     // Application

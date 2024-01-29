@@ -97,7 +97,7 @@ impl MlsGroup {
     ///   Creates proposals to add an external PSK to the key schedule.
     ///
     ///   Returns an error if there is a pending commit.
-    pub fn propose_add_member_by_value<KeyStore: OpenMlsKeyStore>(
+    pub async fn propose_add_member_by_value<KeyStore: OpenMlsKeyStore>(
         &mut self,
         backend: &impl OpenMlsCryptoProvider<KeyStoreProvider = KeyStore>,
         signer: &impl Signer,
@@ -105,11 +105,9 @@ impl MlsGroup {
     ) -> Result<(MlsMessageOut, ProposalRef), ProposalError<KeyStore::Error>> {
         self.is_operational()?;
 
-        let key_package = joiner_key_package.validate(
-            backend,
-            ProtocolVersion::Mls10,
-            self.group().public_group(),
-        )?;
+        let key_package = joiner_key_package
+            .validate(backend, ProtocolVersion::Mls10, self.group().public_group())
+            .await?;
         let proposal =
             self.group
                 .create_add_proposal(self.framing_parameters(), key_package, signer)?;
@@ -161,12 +159,12 @@ impl MlsGroup {
     ) -> Result<(MlsMessageOut, ProposalRef), ProposalError<KeyStore::Error>> {
         match propose {
             Propose::Add(key_package) => match ref_or_value {
-                ProposalOrRefType::Proposal => {
-                    self.propose_add_member_by_value(backend, signer, key_package.into())
-                }
-                ProposalOrRefType::Reference => self
+                ProposalOrRefType::Proposal => Ok(self
+                    .propose_add_member_by_value(backend, signer, key_package.into())
+                    .await?),
+                ProposalOrRefType::Reference => Ok(self
                     .propose_add_member(backend, signer, key_package.into())
-                    .map_err(|e| e.into()),
+                    .await?),
             },
 
             Propose::Update(leaf_node) => match ref_or_value {
@@ -240,7 +238,7 @@ impl MlsGroup {
     /// Creates proposals to add members to the group.
     ///
     /// Returns an error if there is a pending commit.
-    pub fn propose_add_member(
+    pub async fn propose_add_member(
         &mut self,
         backend: &impl OpenMlsCryptoProvider,
         signer: &impl Signer,
@@ -248,11 +246,9 @@ impl MlsGroup {
     ) -> Result<(MlsMessageOut, ProposalRef), ProposeAddMemberError> {
         self.is_operational()?;
 
-        let key_package = joiner_key_package.validate(
-            backend,
-            ProtocolVersion::Mls10,
-            self.group().public_group(),
-        )?;
+        let key_package = joiner_key_package
+            .validate(backend, ProtocolVersion::Mls10, self.group().public_group())
+            .await?;
         let add_proposal =
             self.group
                 .create_add_proposal(self.framing_parameters(), key_package, signer)?;

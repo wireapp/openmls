@@ -114,25 +114,25 @@ impl KeyPackageIn {
     ///
     /// Returns a [`KeyPackage`] after having verified the signature or a
     /// [`KeyPackageVerifyError`] otherwise.
-    pub fn validate(
+    pub async fn validate(
         self,
         backend: &impl OpenMlsCryptoProvider,
         protocol_version: ProtocolVersion,
         group: &PublicGroup,
     ) -> Result<KeyPackage, KeyPackageVerifyError> {
-        self._validate(backend, protocol_version, Some(group))
+        self._validate(backend, protocol_version, Some(group)).await
     }
 
     /// Verify that this key package is valid disregarding the group it is supposed to be used with.
-    pub fn standalone_validate(
+    pub async fn standalone_validate(
         self,
         backend: &impl OpenMlsCryptoProvider,
         protocol_version: ProtocolVersion,
     ) -> Result<KeyPackage, KeyPackageVerifyError> {
-        self._validate(backend, protocol_version, None)
+        self._validate(backend, protocol_version, None).await
     }
 
-    fn _validate(
+    async fn _validate(
         self,
         backend: &impl OpenMlsCryptoProvider,
         protocol_version: ProtocolVersion,
@@ -154,9 +154,11 @@ impl KeyPackageIn {
         let leaf_node = match verifiable_leaf_node {
             VerifiableLeafNode::KeyPackage(leaf_node) => {
                 if let Some(group) = group {
-                    leaf_node.validate(group, backend.crypto())?
+                    leaf_node.validate(group, backend).await?
                 } else {
-                    leaf_node.standalone_validate(backend.crypto(), signature_scheme)?
+                    leaf_node
+                        .standalone_validate(backend, signature_scheme)
+                        .await?
                 }
             }
             _ => return Err(KeyPackageVerifyError::InvalidLeafNodeSourceType),

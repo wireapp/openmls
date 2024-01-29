@@ -7,7 +7,7 @@ use openmls_traits::authentication_service::CredentialAuthenticationStatus;
 use thiserror::Error;
 
 /// An error that occurs in methods of a [`super::Credential`].
-#[derive(Error, Debug, PartialEq, Clone)]
+#[derive(Error, Debug, PartialEq, Eq, Clone)]
 pub enum CredentialError {
     /// A library error occurred.
     #[error(transparent)]
