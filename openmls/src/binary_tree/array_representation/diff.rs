@@ -222,7 +222,7 @@ impl<'a, L: Clone + Debug + Default, P: Clone + Debug + Default> AbDiff<'a, L, P
     }
 
     /// Returns the copath of a leaf node.
-    pub(crate) fn copath(&self, leaf_index: LeafNodeIndex) -> Vec<TreeNodeIndex> {
+    pub(crate) fn copath(&self, leaf_index: LeafNodeIndex) -> impl Iterator<Item = TreeNodeIndex> {
         copath(leaf_index, self.size())
     }
 
