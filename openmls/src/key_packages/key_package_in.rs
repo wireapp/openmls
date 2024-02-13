@@ -74,7 +74,7 @@ mod private_mod {
 /// } KeyPackageTBS;
 /// ```
 #[derive(
-Debug, Clone, PartialEq, TlsSize, TlsSerialize, TlsDeserialize, Serialize, Deserialize,
+    Debug, Clone, PartialEq, TlsSize, TlsSerialize, TlsDeserialize, Serialize, Deserialize,
 )]
 struct KeyPackageTbsIn {
     protocol_version: ProtocolVersion,
@@ -86,7 +86,7 @@ struct KeyPackageTbsIn {
 
 /// The key package struct.
 #[derive(
-Debug, PartialEq, Clone, Serialize, Deserialize, TlsSerialize, TlsDeserialize, TlsSize,
+    Debug, PartialEq, Clone, Serialize, Deserialize, TlsSerialize, TlsDeserialize, TlsSize,
 )]
 pub struct KeyPackageIn {
     payload: KeyPackageTbsIn,
