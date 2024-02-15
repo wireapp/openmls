@@ -229,9 +229,9 @@ impl MlsGroup {
             Propose::ExternalInit(_) => Err(ProposalError::LibraryError(LibraryError::custom(
                 "Unsupported proposal type ExternalInit",
             ))),
-            Propose::GroupContextExtensions(_) => Err(ProposalError::LibraryError(
-                LibraryError::custom("Unsupported proposal type GroupContextExtensions"),
-            )),
+            Propose::GroupContextExtensions(new_extensions) => {
+                self.propose_group_context_extensions(backend, signer, new_extensions, ref_or_value)
+            }
         }
     }
 
@@ -352,5 +352,40 @@ impl MlsGroup {
                 ProposeRemoveMemberError::UnknownMember,
             ))
         }
+    }
+
+    /// Creates a proposal to wholesale replace extensions in a group
+    /// Returns an error if it contains a RequiredCapabilities extension and any group member doesn't support any of the new extensions required
+    pub fn propose_group_context_extensions<KeyStore: OpenMlsKeyStore>(
+        &mut self,
+        backend: &impl OpenMlsCryptoProvider<KeyStoreProvider = KeyStore>,
+        signer: &impl Signer,
+        new_extensions: Extensions,
+        proposal_type: ProposalOrRefType,
+    ) -> Result<(MlsMessageOut, ProposalRef), ProposalError<KeyStore::Error>> {
+        self.is_operational()?;
+
+        let gce_proposal = self.group.create_group_context_ext_proposal(
+            self.framing_parameters(),
+            new_extensions,
+            self.pending_proposals(),
+            signer,
+        )?;
+
+        let queued_proposal = QueuedProposal::from_authenticated_content(
+            self.ciphersuite(),
+            backend,
+            gce_proposal.clone(),
+            proposal_type,
+        )?;
+
+        let proposal_ref = queued_proposal.proposal_reference().clone();
+        self.proposal_store.add(queued_proposal);
+
+        let mls_message = self.content_to_mls_message(gce_proposal, backend)?;
+
+        self.flag_state_change();
+
+        Ok((mls_message, proposal_ref))
     }
 }

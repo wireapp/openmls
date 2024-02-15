@@ -6,10 +6,7 @@ use openmls_traits::signatures::Signer;
 
 use crate::{
     messages::group_info::GroupInfo,
-    prelude::{
-        create_commit_params::CreateCommitParams, hash_ref::ProposalRef,
-        ProposeGroupContextExtensionError,
-    },
+    prelude::{create_commit_params::CreateCommitParams, hash_ref::ProposalRef},
 };
 
 use super::*;
@@ -19,36 +16,19 @@ impl MlsGroup {
     /// of the group but does not merge them yet.
     ///
     /// Returns an error if there is a pending commit.
-    pub fn propose_extensions(
+    #[inline]
+    pub fn propose_extensions<KeyStore: OpenMlsKeyStore>(
         &mut self,
-        backend: &impl OpenMlsCryptoProvider,
+        backend: &impl OpenMlsCryptoProvider<KeyStoreProvider = KeyStore>,
         signer: &impl Signer,
         extensions: Extensions,
-    ) -> Result<(MlsMessageOut, ProposalRef), ProposeGroupContextExtensionError> {
-        self.is_operational()?;
-
-        let gce_proposal = self.group.create_group_context_ext_proposal(
-            self.framing_parameters(),
-            extensions,
-            self.pending_proposals(),
-            signer,
-        )?;
-        let proposal = QueuedProposal::from_authenticated_content(
-            self.ciphersuite(),
+    ) -> Result<(MlsMessageOut, ProposalRef), ProposalError<KeyStore::Error>> {
+        self.propose_group_context_extensions(
             backend,
-            gce_proposal.clone(),
+            signer,
+            extensions,
             ProposalOrRefType::Proposal,
-        )?;
-        let reference = proposal.proposal_reference().clone();
-
-        self.proposal_store.add(proposal);
-
-        let mls_message = self.content_to_mls_message(gce_proposal, backend)?;
-
-        // Since the state of the group might be changed, arm the state flag
-        self.flag_state_change();
-
-        Ok((mls_message, reference))
+        )
     }
 
     /// Updates the extensions of the group
