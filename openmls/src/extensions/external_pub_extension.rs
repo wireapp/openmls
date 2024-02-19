@@ -19,7 +19,7 @@ pub struct ExternalPubExtension {
 
 impl std::fmt::Debug for ExternalPubExtension {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", std::str::from_utf8(self.external_pub.as_slice()).unwrap_or_default())
+        write!(f, "{:x?}", self.external_pub.as_slice())
     }
 }
 

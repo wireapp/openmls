@@ -13,7 +13,7 @@ pub struct Mac {
 
 impl std::fmt::Debug for Mac {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", std::str::from_utf8(self.mac_value.as_slice()).unwrap_or_default())
+        write!(f, "{:x?}", self.mac_value.as_slice())
     }
 }
 

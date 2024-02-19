@@ -17,7 +17,7 @@ pub struct Signature {
 
 impl std::fmt::Debug for Signature {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", std::str::from_utf8(self.value.as_slice()).unwrap_or_default())
+        write!(f, "{:x?}", self.value.as_slice())
     }
 }
 
