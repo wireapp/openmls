@@ -169,7 +169,7 @@ impl std::fmt::Debug for Certificate {
                 .write(ee.as_slice()).map_err(|_| std::fmt::Error)?;
 
             let out = process.wait_with_output().map_err(|_| std::fmt::Error)?.stdout;
-            String::from_utf8(out).map_err(|_| std::fmt::Error)?
+            String::from_utf8(out).map_err(|_| std::fmt::Error)?.trim().to_string()
         } else { "".to_string() };
         write!(f, "id: {id}\nx509: {x509}")?;
         Ok(())

@@ -229,7 +229,7 @@ pub struct Extensions {
 
 impl std::fmt::Debug for Extensions {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{:?}", self.unique)
+        write!(f, "{:#?}", self.unique)
     }
 }
 
