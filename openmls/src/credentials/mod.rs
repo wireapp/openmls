@@ -229,7 +229,7 @@ impl Certificate {
 ///
 /// This enum contains variants containing the different available credentials.
 #[derive(
-Debug, PartialEq, Eq, Clone, Serialize, Deserialize, TlsSerialize, TlsDeserialize, TlsSize,
+PartialEq, Eq, Clone, Serialize, Deserialize, TlsSerialize, TlsDeserialize, TlsSize,
 )]
 #[repr(u8)]
 pub enum MlsCredentialType {
@@ -237,6 +237,15 @@ pub enum MlsCredentialType {
     Basic(BasicCredential),
     /// An X.509 [`Certificate`]
     X509(Certificate),
+}
+
+impl std::fmt::Debug for MlsCredentialType {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            MlsCredentialType::Basic(c) => write!(f, "{c:?}"),
+            MlsCredentialType::X509(c) => write!(f, "{c:?}"),
+        }
+    }
 }
 
 /// Credential.

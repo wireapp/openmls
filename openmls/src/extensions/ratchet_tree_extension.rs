@@ -1,3 +1,4 @@
+use std::fmt::Formatter;
 use tls_codec::{TlsDeserialize, TlsSerialize, TlsSize};
 
 use super::{Deserialize, Serialize};
@@ -13,10 +14,16 @@ use crate::treesync::{RatchetTree, RatchetTreeIn};
 /// optional<Node> ratchet_tree<V>;
 /// ```
 #[derive(
-    PartialEq, Eq, Clone, Debug, Serialize, Deserialize, TlsSerialize, TlsDeserialize, TlsSize,
+    PartialEq, Eq, Clone, Serialize, Deserialize, TlsSerialize, TlsDeserialize, TlsSize,
 )]
 pub struct RatchetTreeExtension {
     pub(crate) ratchet_tree: RatchetTreeIn,
+}
+
+impl std::fmt::Debug for RatchetTreeExtension {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{:?}", self.ratchet_tree)
+    }
 }
 
 impl RatchetTreeExtension {

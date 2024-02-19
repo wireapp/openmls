@@ -23,6 +23,7 @@ use std::{
     fmt::Debug,
     io::{Read, Write},
 };
+use std::fmt::Formatter;
 
 use serde::{Deserialize, Serialize};
 
@@ -221,9 +222,15 @@ pub enum Extension {
 pub struct UnknownExtension(pub Vec<u8>);
 
 /// A list of extensions with unique extension types.
-#[derive(Default, Debug, Clone, PartialEq, Eq, Serialize, Deserialize, tls_codec::TlsSize)]
+#[derive(Default, Clone, PartialEq, Eq, Serialize, Deserialize, tls_codec::TlsSize)]
 pub struct Extensions {
     pub(crate) unique: Vec<Extension>,
+}
+
+impl std::fmt::Debug for Extensions {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{:?}", self.unique)
+    }
 }
 
 impl tls_codec::Serialize for Extensions {

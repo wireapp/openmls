@@ -1,6 +1,7 @@
 //! This module contains the [`ParentNode`] struct, its implementation, as well
 //! as the [`PlainUpdatePathNode`], a helper struct for the creation of
 //! [`UpdatePathNode`] instances.
+use std::fmt::Formatter;
 use openmls_traits::{
     types::{Ciphersuite, HpkeCiphertext},
     OpenMlsCryptoProvider,
@@ -208,9 +209,15 @@ impl ParentNode {
 }
 
 /// A helper struct that maintains a sorted list of unmerged leaves.
-#[derive(Debug, Eq, PartialEq, Clone, Serialize, Deserialize, TlsSize, TlsSerialize)]
+#[derive(Eq, PartialEq, Clone, Serialize, Deserialize, TlsSize, TlsSerialize)]
 pub(in crate::treesync) struct UnmergedLeaves {
     list: Vec<LeafNodeIndex>,
+}
+
+impl std::fmt::Debug for UnmergedLeaves {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{:?}", self.list)
+    }
 }
 
 impl UnmergedLeaves {

@@ -62,7 +62,10 @@ pub struct GroupId {
 
 impl std::fmt::Debug for GroupId {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", hex::encode(self.value.as_slice()))
+        match std::str::from_utf8(self.value.as_slice()) {
+            Ok(id) => write!(f, "{id}"),
+            Err(_) => write!(f, "0x{}", hex::encode(self.value.as_slice())),
+        }
     }
 }
 
