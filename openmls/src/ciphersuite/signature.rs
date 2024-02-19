@@ -2,16 +2,23 @@
 //!
 //! This module contains structs for creating signature keys, issuing signatures and verifying them.
 
+use std::fmt::Formatter;
 use tls_codec::Serialize;
 
 use super::{LABEL_PREFIX, *};
 
 /// Signature.
 #[derive(
-    Debug, PartialEq, Eq, Clone, Serialize, Deserialize, TlsDeserialize, TlsSerialize, TlsSize,
+    PartialEq, Eq, Clone, Serialize, Deserialize, TlsDeserialize, TlsSerialize, TlsSize,
 )]
 pub struct Signature {
     value: VLBytes,
+}
+
+impl std::fmt::Debug for Signature {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", std::str::from_utf8(self.value.as_slice()).unwrap_or_default())
+    }
 }
 
 impl From<Vec<u8>> for Signature {
@@ -53,10 +60,16 @@ impl From<(&str, &[u8])> for SignContent {
 
 /// A public signature key.
 #[derive(
-    Eq, PartialEq, Hash, Debug, Clone, Serialize, Deserialize, TlsSerialize, TlsDeserialize, TlsSize,
+    Eq, PartialEq, Hash, Clone, Serialize, Deserialize, TlsSerialize, TlsDeserialize, TlsSize,
 )]
 pub struct SignaturePublicKey {
     pub(in crate::ciphersuite) value: VLBytes,
+}
+
+impl std::fmt::Debug for SignaturePublicKey {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{:x?}", self.value.as_slice())
+    }
 }
 
 impl From<Vec<u8>> for SignaturePublicKey {

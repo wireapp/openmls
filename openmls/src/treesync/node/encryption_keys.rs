@@ -1,29 +1,36 @@
-use std::fmt::Debug;
+use std::fmt::{Debug, Formatter};
+
+use serde::{Deserialize, Serialize};
+use tls_codec::{TlsDeserialize, TlsSerialize, TlsSize, VLBytes};
 
 use openmls_traits::{
     crypto::OpenMlsCrypto,
     key_store::{MlsEntity, MlsEntityId, OpenMlsKeyStore},
-    types::{Ciphersuite, HpkeCiphertext, HpkeKeyPair},
     OpenMlsCryptoProvider,
+    types::{Ciphersuite, HpkeCiphertext, HpkeKeyPair},
 };
-use serde::{Deserialize, Serialize};
-use tls_codec::{TlsDeserialize, TlsSerialize, TlsSize, VLBytes};
 
-use crate::prelude::{GroupEpoch, GroupId, LeafNodeIndex};
 use crate::{
     ciphersuite::{hpke, HpkePrivateKey, HpkePublicKey, Secret},
     error::LibraryError,
     group::config::CryptoConfig,
     versions::ProtocolVersion,
 };
+use crate::prelude::{GroupEpoch, GroupId, LeafNodeIndex};
 
 /// [`EncryptionKey`] contains an HPKE public key that allows the encryption of
 /// path secrets in MLS commits.
 #[derive(
-    Debug, Clone, Serialize, Deserialize, TlsSerialize, TlsDeserialize, TlsSize, PartialEq, Eq, Hash,
+    Clone, Serialize, Deserialize, TlsSerialize, TlsDeserialize, TlsSize, PartialEq, Eq, Hash,
 )]
 pub struct EncryptionKey {
     key: HpkePublicKey,
+}
+
+impl std::fmt::Debug for EncryptionKey {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{:x?}", self.key.as_slice().to_vec())
+    }
 }
 
 impl EncryptionKey {

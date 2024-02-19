@@ -19,6 +19,7 @@
 // Finally, this module contains the [`treekem`] module, which allows the
 // encryption and decryption of updates to the tree.
 
+use std::fmt::Formatter;
 #[cfg(test)]
 use openmls_rust_crypto::OpenMlsRustCrypto;
 #[cfg(test)]
@@ -229,7 +230,6 @@ impl RatchetTree {
     PartialEq,
     Eq,
     Clone,
-    Debug,
     Serialize,
     Deserialize,
     TlsDeserialize,
@@ -237,6 +237,12 @@ impl RatchetTree {
     TlsSize,
 )]
 pub struct RatchetTreeIn(Vec<Option<NodeIn>>);
+
+impl std::fmt::Debug for RatchetTreeIn {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{:#?}", self.0.iter().filter_map(|n| n.clone()).collect::<Vec<_>>())
+    }
+}
 
 impl RatchetTreeIn {
     /// Create a new [`RatchetTreeIn`] from a vector of nodes after verifying

@@ -22,7 +22,9 @@
 //! There are multiple [`CredentialType`]s, although OpenMLS currently only
 //! supports the [`BasicCredential`].
 
+use std::fmt::Formatter;
 use std::io::{Read, Write};
+use std::process::Stdio;
 
 use openmls_traits::{
     authentication_service::{AuthenticationServiceDelegate, CredentialAuthenticationStatus},
@@ -96,8 +98,8 @@ impl tls_codec::Size for CredentialType {
 
 impl tls_codec::Deserialize for CredentialType {
     fn tls_deserialize<R: Read>(bytes: &mut R) -> Result<Self, tls_codec::Error>
-    where
-        Self: Sized,
+        where
+            Self: Sized,
     {
         let mut extension_type = [0u8; 2];
         bytes.read_exact(&mut extension_type)?;
@@ -144,11 +146,34 @@ impl From<CredentialType> for u16 {
 ///     opaque cert_data<V>;
 /// } Certificate;
 /// ```
-#[derive(Debug, PartialEq, Eq, Clone, Serialize, Deserialize)]
+#[derive(PartialEq, Eq, Clone, Serialize, Deserialize)]
 pub struct Certificate {
     // TLS transient
     pub identity: Vec<u8>,
     pub certificates: Vec<VLBytes>,
+}
+
+impl std::fmt::Debug for Certificate {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let id = String::from_utf8(self.identity.clone()).unwrap_or_default();
+        let x509 = if let Some(ee) = self.certificates.first() {
+            let process = std::process::Command::new("openssl")
+                .args(&["x509", "-text", "-noout"])
+                .stdin(Stdio::piped())
+                .stdout(Stdio::piped())
+                .stderr(Stdio::null())
+                .spawn()
+                .map_err(|_| std::fmt::Error)?;
+
+            process.stdin.as_ref().ok_or(std::fmt::Error)?
+                .write(ee.as_slice()).map_err(|_| std::fmt::Error)?;
+
+            let out = process.wait_with_output().map_err(|_| std::fmt::Error)?.stdout;
+            String::from_utf8(out).map_err(|_| std::fmt::Error)?
+        } else { "".to_string() };
+        write!(f, "id: {id}\nx509: {x509}")?;
+        Ok(())
+    }
 }
 
 impl tls_codec::Size for Certificate {
@@ -165,8 +190,8 @@ impl tls_codec::Serialize for Certificate {
 
 impl tls_codec::Deserialize for Certificate {
     fn tls_deserialize<R: Read>(bytes: &mut R) -> Result<Self, tls_codec::Error>
-    where
-        Self: Sized,
+        where
+            Self: Sized,
     {
         let certificates = Vec::<Vec<u8>>::tls_deserialize(bytes)?;
         // we should not do this in a deserializer but otherwise we have to deal with a `identity: Option<Vec<u8>>` everywhere
@@ -204,7 +229,7 @@ impl Certificate {
 ///
 /// This enum contains variants containing the different available credentials.
 #[derive(
-    Debug, PartialEq, Eq, Clone, Serialize, Deserialize, TlsSerialize, TlsDeserialize, TlsSize,
+Debug, PartialEq, Eq, Clone, Serialize, Deserialize, TlsSerialize, TlsDeserialize, TlsSize,
 )]
 #[repr(u8)]
 pub enum MlsCredentialType {
@@ -351,10 +376,16 @@ impl From<MlsCredentialType> for Credential {
 /// OpenMLS provides an implementation of signature keys for convenience in the
 /// `openmls_basic_credential` crate.
 #[derive(
-    Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TlsSerialize, TlsDeserialize, TlsSize,
+Clone, PartialEq, Eq, Serialize, Deserialize, TlsSerialize, TlsDeserialize, TlsSize,
 )]
 pub struct BasicCredential {
     identity: VLBytes,
+}
+
+impl std::fmt::Debug for BasicCredential {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", std::str::from_utf8(self.identity.as_slice()).unwrap_or_default())
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -401,7 +432,7 @@ pub mod test_utils {
             signature_scheme,
             Some(cert_data),
         )
-        .await
+            .await
     }
 
     /// Convenience function that generates a new credential and a key pair for
@@ -421,7 +452,7 @@ pub mod test_utils {
             signature_scheme,
             None,
         )
-        .await
+            .await
     }
 
     async fn build_credential(
@@ -440,7 +471,7 @@ pub mod test_utils {
             signature_scheme,
             &mut *backend.rand().borrow_rand().unwrap(),
         )
-        .unwrap();
+            .unwrap();
         signature_keys.store(backend.key_store()).await.unwrap();
 
         (

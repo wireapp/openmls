@@ -4,7 +4,7 @@
 
 pub mod group_context;
 
-use std::fmt::Display;
+use std::fmt::{Display, Formatter};
 
 #[cfg(test)]
 use crate::ciphersuite::*;
@@ -17,7 +17,9 @@ use tls_codec::*;
 // Crate
 pub(crate) mod core_group;
 pub(crate) mod public_group;
+
 pub(crate) use core_group::*;
+
 pub(crate) mod mls_group;
 
 // Public
@@ -34,27 +36,34 @@ pub use public_group::*;
 // Tests
 #[cfg(test)]
 pub(crate) use core_group::create_commit_params::*;
+
 #[cfg(any(feature = "test-utils", test))]
 pub(crate) mod tests;
+
 use openmls_traits::random::OpenMlsRand;
 
 /// A group ID. The group ID is chosen by the creator of the group and should be globally unique.
 #[derive(
-    Clone,
-    Debug,
-    PartialEq,
-    Eq,
-    PartialOrd,
-    Ord,
-    Hash,
-    Deserialize,
-    Serialize,
-    TlsDeserialize,
-    TlsSerialize,
-    TlsSize,
+Clone,
+PartialEq,
+Eq,
+PartialOrd,
+Ord,
+Hash,
+Deserialize,
+Serialize,
+TlsDeserialize,
+TlsSerialize,
+TlsSize,
 )]
 pub struct GroupId {
     value: VLBytes,
+}
+
+impl std::fmt::Debug for GroupId {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", std::str::from_utf8(self.value.as_slice()).unwrap_or_default())
+    }
 }
 
 impl GroupId {
@@ -94,21 +103,26 @@ impl GroupId {
 /// Group epoch. Internally this is stored as a `u64`.
 /// The group epoch is incremented with every valid Commit that is merged into the group state.
 #[derive(
-    Clone,
-    Copy,
-    Debug,
-    PartialEq,
-    Eq,
-    PartialOrd,
-    Ord,
-    Hash,
-    Deserialize,
-    Serialize,
-    TlsDeserialize,
-    TlsSerialize,
-    TlsSize,
+Clone,
+Copy,
+PartialEq,
+Eq,
+PartialOrd,
+Ord,
+Hash,
+Deserialize,
+Serialize,
+TlsDeserialize,
+TlsSerialize,
+TlsSize,
 )]
 pub struct GroupEpoch(u64);
+
+impl std::fmt::Debug for GroupEpoch {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.0)
+    }
+}
 
 impl GroupEpoch {
     /// Increment the group epoch by 1.

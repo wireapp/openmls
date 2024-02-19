@@ -1,4 +1,5 @@
 use std::cmp::Ordering;
+use std::fmt::Formatter;
 
 use serde::{Deserialize, Serialize};
 use tls_codec::{TlsDeserialize, TlsSerialize, TlsSize};
@@ -8,7 +9,6 @@ pub(crate) const MIN_TREE_SIZE: u32 = 1;
 
 /// LeafNodeIndex references a leaf node in a tree.
 #[derive(
-    Debug,
     Clone,
     Copy,
     PartialEq,
@@ -23,6 +23,12 @@ pub(crate) const MIN_TREE_SIZE: u32 = 1;
     TlsSize,
 )]
 pub struct LeafNodeIndex(u32);
+
+impl std::fmt::Debug for LeafNodeIndex {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.0)
+    }
+}
 
 impl std::fmt::Display for LeafNodeIndex {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {

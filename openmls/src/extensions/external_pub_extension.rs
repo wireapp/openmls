@@ -1,3 +1,4 @@
+use std::fmt::Formatter;
 use tls_codec::{TlsDeserialize, TlsSerialize, TlsSize};
 
 use super::{Deserialize, Serialize};
@@ -10,10 +11,16 @@ use crate::ciphersuite::HpkePublicKey;
 /// } ExternalPub;
 /// ```
 #[derive(
-    PartialEq, Eq, Clone, Debug, Serialize, Deserialize, TlsSerialize, TlsDeserialize, TlsSize,
+PartialEq, Eq, Clone, Serialize, Deserialize, TlsSerialize, TlsDeserialize, TlsSize,
 )]
 pub struct ExternalPubExtension {
     external_pub: HpkePublicKey,
+}
+
+impl std::fmt::Debug for ExternalPubExtension {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", std::str::from_utf8(self.external_pub.as_slice()).unwrap_or_default())
+    }
 }
 
 impl ExternalPubExtension {
@@ -52,13 +59,13 @@ mod test {
                             &backend,
                             ProtocolVersion::default(),
                         )
-                        .unwrap();
+                            .unwrap();
                         let init_key = backend.crypto().derive_hpke_keypair(
-                        Ciphersuite::hpke_config(
-                            &Ciphersuite::MLS_128_DHKEMX25519_CHACHA20POLY1305_SHA256_Ed25519,
-                        ),
-                        ikm.as_slice(),
-                    ).unwrap();
+                            Ciphersuite::hpke_config(
+                                &Ciphersuite::MLS_128_DHKEMX25519_CHACHA20POLY1305_SHA256_Ed25519,
+                            ),
+                            ikm.as_slice(),
+                        ).unwrap();
                         init_key.public
                     };
 

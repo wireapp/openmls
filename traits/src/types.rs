@@ -3,6 +3,7 @@
 //! This module holds a number of types that are needed by the traits.
 
 use std::{convert::TryFrom, ops::Deref};
+use std::fmt::Formatter;
 
 use serde::{Deserialize, Serialize};
 use tls_codec::{SecretVLBytes, TlsDeserialize, TlsSerialize, TlsSize, VLBytes};
@@ -307,9 +308,17 @@ impl From<Vec<u8>> for ExporterSecret {
 ///
 /// Used to accept unknown values, e.g., in Capabilities.
 #[derive(
-    Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, TlsSerialize, TlsDeserialize, TlsSize,
+    Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TlsSerialize, TlsDeserialize, TlsSize,
 )]
 pub struct VerifiableCiphersuite(u16);
+
+impl std::fmt::Debug for VerifiableCiphersuite {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        let cs: Ciphersuite = self.clone().try_into().map_err(|_| std::fmt::Error)?;
+        write!(f, "{cs:?}")?;
+        Ok(())
+    }
+}
 
 impl VerifiableCiphersuite {
     pub fn new(value: u16) -> Self {

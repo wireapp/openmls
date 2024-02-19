@@ -1,3 +1,4 @@
+use std::fmt::Formatter;
 use super::*;
 
 /// 7.1 Content Authentication
@@ -5,9 +6,15 @@ use super::*;
 /// ```ignore
 /// opaque MAC<V>;
 /// ```
-#[derive(Debug, Clone, Serialize, Deserialize, TlsDeserialize, TlsSerialize, TlsSize)]
+#[derive( Clone, Serialize, Deserialize, TlsDeserialize, TlsSerialize, TlsSize)]
 pub struct Mac {
     pub(crate) mac_value: VLBytes,
+}
+
+impl std::fmt::Debug for Mac {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", std::str::from_utf8(self.mac_value.as_slice()).unwrap_or_default())
+    }
 }
 
 impl PartialEq for Mac {
