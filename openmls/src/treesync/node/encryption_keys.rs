@@ -29,7 +29,7 @@ pub struct EncryptionKey {
 
 impl std::fmt::Debug for EncryptionKey {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{:x?}", self.key.as_slice().to_vec())
+        write!(f, "{}", hex::encode(self.key.as_slice().to_vec()))
     }
 }
 

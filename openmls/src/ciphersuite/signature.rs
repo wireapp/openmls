@@ -9,7 +9,7 @@ use super::{LABEL_PREFIX, *};
 
 /// Signature.
 #[derive(
-    PartialEq, Eq, Clone, Serialize, Deserialize, TlsDeserialize, TlsSerialize, TlsSize,
+PartialEq, Eq, Clone, Serialize, Deserialize, TlsDeserialize, TlsSerialize, TlsSize,
 )]
 pub struct Signature {
     value: VLBytes,
@@ -17,7 +17,7 @@ pub struct Signature {
 
 impl std::fmt::Debug for Signature {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{:x?}", self.value.as_slice())
+        write!(f, "{}", hex::encode(self.value.as_slice()))
     }
 }
 
@@ -60,7 +60,7 @@ impl From<(&str, &[u8])> for SignContent {
 
 /// A public signature key.
 #[derive(
-    Eq, PartialEq, Hash, Clone, Serialize, Deserialize, TlsSerialize, TlsDeserialize, TlsSize,
+Eq, PartialEq, Hash, Clone, Serialize, Deserialize, TlsSerialize, TlsDeserialize, TlsSize,
 )]
 pub struct SignaturePublicKey {
     pub(in crate::ciphersuite) value: VLBytes,
@@ -68,7 +68,7 @@ pub struct SignaturePublicKey {
 
 impl std::fmt::Debug for SignaturePublicKey {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{:x?}", self.value.as_slice())
+        write!(f, "{}", hex::encode(self.value.as_slice()))
     }
 }
 
