@@ -109,10 +109,16 @@ async fn run_test_vector(
         .into_verified(ciphersuite, backend.crypto(), group_id)
         .unwrap();
 
-    let treesync =
-        TreeSync::from_ratchet_tree(backend, ciphersuite, ratchet_tree.clone(), group_id, true)
-            .await
-            .map_err(|e| format!("Error while creating tree sync: {e:?}"))?;
+    let treesync = TreeSync::from_ratchet_tree(
+        backend,
+        ciphersuite,
+        ratchet_tree.clone(),
+        group_id,
+        true,
+        false,
+    )
+    .await
+    .map_err(|e| format!("Error while creating tree sync: {e:?}"))?;
 
     let diff = treesync.empty_diff();
 

@@ -106,7 +106,12 @@ impl MlsGroup {
         self.is_operational()?;
 
         let key_package = joiner_key_package
-            .validate(backend, ProtocolVersion::Mls10, self.group().public_group())
+            .validate(
+                backend,
+                ProtocolVersion::Mls10,
+                self.group().public_group(),
+                true,
+            )
             .await?;
         let proposal =
             self.group
@@ -247,7 +252,12 @@ impl MlsGroup {
         self.is_operational()?;
 
         let key_package = joiner_key_package
-            .validate(backend, ProtocolVersion::Mls10, self.group().public_group())
+            .validate(
+                backend,
+                ProtocolVersion::Mls10,
+                self.group().public_group(),
+                true,
+            )
             .await?;
         let add_proposal =
             self.group

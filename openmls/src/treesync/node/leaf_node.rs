@@ -785,14 +785,27 @@ impl VerifiableLeafNode {
         backend: &impl OpenMlsCryptoProvider,
         sc: SignatureScheme,
         group: Option<&PublicGroup>,
+        sender: bool,
     ) -> Result<LeafNode, LeafNodeValidationError> {
         match (self, group) {
-            (VerifiableLeafNode::KeyPackage(ln), None) => ln.standalone_validate(backend, sc).await,
-            (VerifiableLeafNode::KeyPackage(ln), Some(group)) => ln.validate(group, backend).await,
-            (VerifiableLeafNode::Update(ln), None) => ln.standalone_validate(backend, sc).await,
-            (VerifiableLeafNode::Update(ln), Some(group)) => ln.validate(group, backend).await,
-            (VerifiableLeafNode::Commit(ln), None) => ln.standalone_validate(backend, sc).await,
-            (VerifiableLeafNode::Commit(ln), Some(group)) => ln.validate(group, backend).await,
+            (VerifiableLeafNode::KeyPackage(ln), None) => {
+                ln.standalone_validate(backend, sc, sender).await
+            }
+            (VerifiableLeafNode::KeyPackage(ln), Some(group)) => {
+                ln.validate(group, backend, sender).await
+            }
+            (VerifiableLeafNode::Update(ln), None) => {
+                ln.standalone_validate(backend, sc, sender).await
+            }
+            (VerifiableLeafNode::Update(ln), Some(group)) => {
+                ln.validate(group, backend, sender).await
+            }
+            (VerifiableLeafNode::Commit(ln), None) => {
+                ln.standalone_validate(backend, sc, sender).await
+            }
+            (VerifiableLeafNode::Commit(ln), Some(group)) => {
+                ln.validate(group, backend, sender).await
+            }
         }
     }
 }

@@ -196,12 +196,13 @@ impl CommitIn {
         sender_context: SenderContext,
         protocol_version: ProtocolVersion,
         group: &PublicGroup,
+        sender: bool,
     ) -> Result<Commit, ValidationError> {
         let mut proposals = Vec::with_capacity(self.proposals.len());
         for proposal in self.proposals.into_iter() {
             proposals.push(
                 proposal
-                    .validate(backend, ciphersuite, protocol_version, group)
+                    .validate(backend, ciphersuite, protocol_version, group, sender)
                     .await?,
             );
         }
@@ -237,7 +238,10 @@ impl CommitIn {
                     TreePosition::new(group_id, new_leaf_index)
                 }
             };
-            Some(path.into_verified(backend, tree_position, group).await?)
+            Some(
+                path.into_verified(backend, tree_position, group, sender)
+                    .await?,
+            )
         } else {
             None
         };

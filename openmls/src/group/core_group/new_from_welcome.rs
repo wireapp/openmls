@@ -151,11 +151,12 @@ impl CoreGroup {
             ratchet_tree,
             verifiable_group_info,
             ProposalStore::new(),
+            false,
         )
         .await?;
 
         KeyPackageIn::from(key_package.clone())
-            .validate(backend, ProtocolVersion::Mls10, &public_group)
+            .validate(backend, ProtocolVersion::Mls10, &public_group, false)
             .await?;
 
         // Find our own leaf in the tree.

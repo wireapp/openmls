@@ -123,6 +123,7 @@ impl VerifiableGroupInfo {
     pub async fn take_ratchet_tree(
         mut self,
         backend: &impl OpenMlsCryptoProvider,
+        sender: bool,
     ) -> Result<RatchetTree, GroupInfoError> {
         let cs = self.ciphersuite();
 
@@ -144,7 +145,8 @@ impl VerifiableGroupInfo {
         // although it clones the ratchet tree here...
         let group_id = self.group_id();
         let treesync =
-            TreeSync::from_ratchet_tree(backend, cs, ratchet_tree.clone(), group_id, true).await?;
+            TreeSync::from_ratchet_tree(backend, cs, ratchet_tree.clone(), group_id, true, sender)
+                .await?;
 
         let signer_signature_key = treesync
             .leaf(self.signer())

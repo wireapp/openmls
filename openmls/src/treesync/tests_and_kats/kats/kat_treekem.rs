@@ -98,7 +98,7 @@ pub async fn run_test_vector(test: TreeKemTest, backend: &impl OpenMlsCryptoProv
             .into_verified(ciphersuite, backend.crypto(), group_id)
             .unwrap();
 
-        TreeSync::from_ratchet_tree(backend, ciphersuite, ratchet_tree, group_id, true)
+        TreeSync::from_ratchet_tree(backend, ciphersuite, ratchet_tree, group_id, true, true)
             .await
             .unwrap()
     };

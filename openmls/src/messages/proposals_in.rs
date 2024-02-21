@@ -102,16 +102,21 @@ impl ProposalIn {
         sender_context: Option<SenderContext>,
         protocol_version: ProtocolVersion,
         group: &PublicGroup,
+        sender: bool,
     ) -> Result<Proposal, ValidationError> {
         Ok(match self {
             ProposalIn::Add(add) => Proposal::Add(
-                add.validate(backend, protocol_version, ciphersuite, group)
+                add.validate(backend, protocol_version, ciphersuite, group, sender)
                     .await?,
             ),
             ProposalIn::Update(update) => {
                 let sender_context =
                     sender_context.ok_or(ValidationError::CommitterIncludedOwnUpdate)?;
-                Proposal::Update(update.validate(backend, sender_context, group).await?)
+                Proposal::Update(
+                    update
+                        .validate(backend, sender_context, group, sender)
+                        .await?,
+                )
             }
             ProposalIn::Remove(remove) => Proposal::Remove(remove),
             ProposalIn::PreSharedKey(psk) => Proposal::PreSharedKey(psk),
@@ -154,10 +159,11 @@ impl AddProposalIn {
         protocol_version: ProtocolVersion,
         ciphersuite: Ciphersuite,
         group: &PublicGroup,
+        sender: bool,
     ) -> Result<AddProposal, ValidationError> {
         let key_package = self
             .key_package
-            .validate(backend, protocol_version, group)
+            .validate(backend, protocol_version, group, sender)
             .await?;
         // Verify that the ciphersuite is valid
         if key_package.ciphersuite() != ciphersuite {
@@ -192,6 +198,7 @@ impl UpdateProposalIn {
         backend: &impl OpenMlsCryptoProvider,
         sender_context: SenderContext,
         group: &PublicGroup,
+        sender: bool,
     ) -> Result<UpdateProposal, ValidationError> {
         let tree_position = match sender_context {
             SenderContext::Member((group_id, leaf_index)) => {
@@ -203,7 +210,9 @@ impl UpdateProposalIn {
             .leaf_node
             .try_into_verifiable_leaf_node(Some(tree_position))?;
         let leaf_node = match verifiable_leaf_node {
-            VerifiableLeafNode::Update(leaf_node) => leaf_node.validate(group, backend).await?,
+            VerifiableLeafNode::Update(leaf_node) => {
+                leaf_node.validate(group, backend, sender).await?
+            }
             _ => return Err(ValidationError::InvalidLeafNodeSourceType),
         };
 
@@ -234,11 +243,12 @@ impl ProposalOrRefIn {
         ciphersuite: Ciphersuite,
         protocol_version: ProtocolVersion,
         group: &PublicGroup,
+        sender: bool,
     ) -> Result<ProposalOrRef, ValidationError> {
         Ok(match self {
             ProposalOrRefIn::Proposal(proposal_in) => ProposalOrRef::Proposal(
                 proposal_in
-                    .validate(backend, ciphersuite, None, protocol_version, group)
+                    .validate(backend, ciphersuite, None, protocol_version, group, sender)
                     .await?,
             ),
             ProposalOrRefIn::Reference(reference) => ProposalOrRef::Reference(reference),

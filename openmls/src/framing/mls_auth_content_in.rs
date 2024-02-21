@@ -54,6 +54,7 @@ impl AuthenticatedContentIn {
         sender_context: Option<SenderContext>,
         protocol_version: ProtocolVersion,
         group: &PublicGroup,
+        sender: bool,
     ) -> Result<AuthenticatedContent, ValidationError> {
         Ok(AuthenticatedContent {
             wire_format: self.wire_format,
@@ -65,6 +66,7 @@ impl AuthenticatedContentIn {
                     sender_context,
                     protocol_version,
                     group,
+                    sender,
                 )
                 .await?,
             auth: self.auth,

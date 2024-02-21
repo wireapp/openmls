@@ -57,6 +57,7 @@ impl FramedContentIn {
         sender_context: Option<SenderContext>,
         protocol_version: ProtocolVersion,
         group: &PublicGroup,
+        sender: bool,
     ) -> Result<FramedContent, ValidationError> {
         Ok(FramedContent {
             group_id: self.group_id,
@@ -71,6 +72,7 @@ impl FramedContentIn {
                     sender_context,
                     protocol_version,
                     group,
+                    sender,
                 )
                 .await?,
         })
@@ -145,6 +147,7 @@ impl FramedContentBodyIn {
         sender_context: Option<SenderContext>,
         protocol_version: ProtocolVersion,
         group: &PublicGroup,
+        sender: bool,
     ) -> Result<FramedContentBody, ValidationError> {
         Ok(match self {
             FramedContentBodyIn::Application(bytes) => FramedContentBody::Application(bytes),
@@ -156,6 +159,7 @@ impl FramedContentBodyIn {
                         sender_context,
                         protocol_version,
                         group,
+                        sender,
                     )
                     .await?,
             ),
@@ -170,6 +174,7 @@ impl FramedContentBodyIn {
                             sender_context,
                             protocol_version,
                             group,
+                            sender,
                         )
                         .await?,
                 )
