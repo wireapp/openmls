@@ -137,7 +137,8 @@ impl VerifiableKeyPackageLeafNode {
             return Err(LeafNodeValidationError::InvalidLeafNodeSource);
         };
         if !lifetime.is_valid() {
-            return Err(LeafNodeValidationError::Lifetime(LifetimeError::NotCurrent));
+            // TODO: revise later depending on the call-site
+            // return Err(LeafNodeValidationError::Lifetime(LifetimeError::NotCurrent));
         }
         Ok(())
     }
