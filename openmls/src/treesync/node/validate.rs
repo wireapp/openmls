@@ -45,9 +45,10 @@ impl ValidatableLeafNode for VerifiableUpdateLeafNode {
         self,
         group: &PublicGroup,
         backend: &impl OpenMlsCryptoProvider,
+        sender: bool,
     ) -> Result<LeafNode, LeafNodeValidationError> {
         self.validate_replaced_encryption_key(group)?;
-        self.validate_default(group, backend).await
+        self.validate_default(group, backend, sender).await
     }
 
     fn signature_key(&self) -> &SignaturePublicKey {
@@ -95,8 +96,9 @@ impl ValidatableLeafNode for VerifiableKeyPackageLeafNode {
         self,
         backend: &impl OpenMlsCryptoProvider,
         signature_scheme: SignatureScheme,
+        sender: bool,
     ) -> Result<LeafNode, LeafNodeValidationError> {
-        self.validate_lifetime()?;
+        self.validate_lifetime(sender)?;
         self.standalone_validate_default(backend, signature_scheme)
             .await
     }
@@ -105,9 +107,10 @@ impl ValidatableLeafNode for VerifiableKeyPackageLeafNode {
         self,
         group: &PublicGroup,
         backend: &impl OpenMlsCryptoProvider,
+        sender: bool,
     ) -> Result<LeafNode, LeafNodeValidationError> {
-        self.validate_lifetime()?;
-        self.validate_default(group, backend).await
+        self.validate_lifetime(sender)?;
+        self.validate_default(group, backend, sender).await
     }
 
     fn signature_key(&self) -> &SignaturePublicKey {
@@ -132,11 +135,13 @@ impl ValidatableLeafNode for VerifiableKeyPackageLeafNode {
 }
 
 impl VerifiableKeyPackageLeafNode {
-    fn validate_lifetime(&self) -> Result<(), LeafNodeValidationError> {
+    /// about `sender` see https://www.rfc-editor.org/rfc/rfc9420.html#section-7.3-4.5.1
+    /// We only validate the lifetime if we are the message sender
+    fn validate_lifetime(&self, sender: bool) -> Result<(), LeafNodeValidationError> {
         let LeafNodeSource::KeyPackage(lifetime) = self.payload.leaf_node_source else {
             return Err(LeafNodeValidationError::InvalidLeafNodeSource);
         };
-        if !lifetime.is_valid() {
+        if sender && !lifetime.is_valid() {
             return Err(LeafNodeValidationError::Lifetime(LifetimeError::NotCurrent));
         }
         Ok(())
@@ -153,6 +158,7 @@ where
         self,
         backend: &impl OpenMlsCryptoProvider,
         signature_scheme: SignatureScheme,
+        _sender: bool,
     ) -> Result<LeafNode, LeafNodeValidationError> {
         self.standalone_validate_default(backend, signature_scheme)
             .await
@@ -177,21 +183,24 @@ where
         self,
         group: &PublicGroup,
         backend: &impl OpenMlsCryptoProvider,
+        sender: bool,
     ) -> Result<LeafNode, LeafNodeValidationError> {
-        self.validate_default(group, backend).await
+        self.validate_default(group, backend, sender).await
     }
 
     async fn validate_default(
         self,
         group: &PublicGroup,
         backend: &impl OpenMlsCryptoProvider,
+        sender: bool,
     ) -> Result<LeafNode, LeafNodeValidationError> {
         self.validate_capabilities(group)?;
         self.validate_credential_type(group)?;
         let tree = group.treesync();
         self.validate_signature_encryption_key_unique(tree)?;
         let signature_scheme = group.ciphersuite().signature_algorithm();
-        self.standalone_validate(backend, signature_scheme).await
+        self.standalone_validate(backend, signature_scheme, sender)
+            .await
     }
 
     fn signature_key(&self) -> &SignaturePublicKey;

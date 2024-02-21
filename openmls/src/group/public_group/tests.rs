@@ -60,6 +60,7 @@ async fn public_group(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProv
         ratchet_tree.into(),
         verifiable_group_info,
         ProposalStore::new(),
+        true,
     )
     .await
     .unwrap();

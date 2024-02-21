@@ -446,6 +446,7 @@ impl TreeSync {
         ratchet_tree: RatchetTree,
         group_id: &GroupId,
         validate_leaf_node: bool,
+        sender: bool,
     ) -> Result<Self, TreeSyncFromNodesError> {
         // TODO #800: Unmerged leaves should be checked
         let mut ts_nodes: Vec<TreeNode<TreeSyncLeafNode, TreeSyncParentNode>> =
@@ -463,7 +464,7 @@ impl TreeSync {
                         let tree_position = TreePosition::new(group_id.clone(), index);
                         let ln = LeafNodeIn::from(ln)
                             .try_into_verifiable_leaf_node(Some(tree_position))?;
-                        ln.validate(backend, ciphersuite.signature_algorithm(), None)
+                        ln.validate(backend, ciphersuite.signature_algorithm(), None, sender)
                             .await?
                     } else {
                         ln

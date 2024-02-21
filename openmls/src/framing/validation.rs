@@ -322,6 +322,7 @@ impl UnverifiedMessage {
                 self.sender_context,
                 protocol_version,
                 group,
+                false,
             )
             .await?;
         Ok((content, self.credential))

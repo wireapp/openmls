@@ -383,13 +383,14 @@ impl UpdatePathIn {
         backend: &impl OpenMlsCryptoProvider,
         tree_position: TreePosition,
         group: &PublicGroup,
+        sender: bool,
     ) -> Result<UpdatePath, UpdatePathError> {
         let leaf_node_in = self.leaf_node().clone();
         let verifiable_leaf_node =
             leaf_node_in.try_into_verifiable_leaf_node(Some(tree_position))?;
         match verifiable_leaf_node {
             VerifiableLeafNode::Commit(commit_leaf_node) => {
-                let leaf_node = commit_leaf_node.validate(group, backend).await?;
+                let leaf_node = commit_leaf_node.validate(group, backend, sender).await?;
                 Ok(UpdatePath {
                     leaf_node,
                     nodes: self.nodes,

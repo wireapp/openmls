@@ -38,9 +38,10 @@ async fn test_free_leaf_computation(
 
     // Get the encryption key pair from the leaf.
     let group_id = GroupId::random(backend);
-    let tree = TreeSync::from_ratchet_tree(backend, ciphersuite, ratchet_tree, &group_id, true)
-        .await
-        .expect("error generating tree");
+    let tree =
+        TreeSync::from_ratchet_tree(backend, ciphersuite, ratchet_tree, &group_id, true, true)
+            .await
+            .expect("error generating tree");
 
     // Create and add a new leaf. It should go to leaf index 1
 

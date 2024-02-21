@@ -48,7 +48,12 @@ impl MlsGroup {
         let mut inline_proposals = Vec::with_capacity(key_packages.len());
         for key_package in key_packages.into_iter() {
             let key_package = key_package
-                .validate(backend, ProtocolVersion::Mls10, self.group().public_group())
+                .validate(
+                    backend,
+                    ProtocolVersion::Mls10,
+                    self.group().public_group(),
+                    true,
+                )
                 .await?;
             inline_proposals.push(Proposal::Add(AddProposal { key_package }));
         }

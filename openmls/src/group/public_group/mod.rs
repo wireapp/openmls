@@ -107,6 +107,7 @@ impl PublicGroup {
         ratchet_tree: RatchetTreeIn,
         verifiable_group_info: VerifiableGroupInfo,
         proposal_store: ProposalStore,
+        sender: bool,
     ) -> Result<(Self, GroupInfo), CreationFromExternalError> {
         let ciphersuite = verifiable_group_info.ciphersuite();
 
@@ -123,7 +124,8 @@ impl PublicGroup {
         // verifying the group info, since we need to find the Credential to verify the
         // signature against.
         let treesync =
-            TreeSync::from_ratchet_tree(backend, ciphersuite, ratchet_tree, group_id, true).await?;
+            TreeSync::from_ratchet_tree(backend, ciphersuite, ratchet_tree, group_id, true, sender)
+                .await?;
 
         let group_info: GroupInfo = {
             let signer_signature_key = treesync

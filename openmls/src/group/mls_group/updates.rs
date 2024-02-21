@@ -189,7 +189,7 @@ impl MlsGroup {
             .into());
         };
         let own_leaf = own_leaf
-            .validate(self.group().public_group(), backend)
+            .validate(self.group().public_group(), backend, true)
             .await?;
 
         let update_proposal = self.group.create_update_proposal(
@@ -272,7 +272,7 @@ impl MlsGroup {
             .into());
         };
         let own_leaf = own_leaf
-            .validate(self.group().public_group(), backend)
+            .validate(self.group().public_group(), backend, true)
             .await?;
 
         let update_proposal = self.group.create_update_proposal(
