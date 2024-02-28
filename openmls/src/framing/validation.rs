@@ -295,8 +295,6 @@ impl UnverifiedMessage {
                             use openmls_x509_credential::X509Ext;
                             let (_, child_cert) = a?;
                             let (parent_idx, parent_cert) = b?;
-                            // verify not expired
-                            child_cert.is_valid()?;
 
                             // verify that child is signed by parent
                             child_cert.is_signed_by(backend.crypto(), parent_cert)?;
