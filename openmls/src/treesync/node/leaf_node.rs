@@ -358,6 +358,13 @@ impl LeafNode {
     pub fn credential(&self) -> &Credential {
         &self.payload.credential
     }
+    /// Returns the `signature_key` as byte slice.
+    pub fn to_credential_with_key(&self) -> CredentialWithKey {
+        CredentialWithKey {
+            credential: self.credential().clone(),
+            signature_key: self.signature_key().clone(),
+        }
+    }
 
     /// Returns the `parent_hash` as byte slice or `None`.
     pub fn parent_hash(&self) -> Option<&[u8]> {
