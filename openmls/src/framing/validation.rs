@@ -249,7 +249,7 @@ pub enum SenderContext {
 #[derive(Debug, Clone)]
 pub(crate) struct UnverifiedMessage {
     verifiable_content: VerifiableAuthenticatedContentIn,
-    credential: Credential,
+    credential: CredentialWithKey,
     sender_pk: OpenMlsSignaturePublicKey,
     sender_context: Option<SenderContext>,
 }
@@ -258,7 +258,7 @@ impl UnverifiedMessage {
     /// Construct an [UnverifiedMessage] from a [DecryptedMessage] and an optional [Credential].
     pub(crate) fn from_decrypted_message(
         decrypted_message: DecryptedMessage,
-        credential: Credential,
+        credential: CredentialWithKey,
         sender_pk: OpenMlsSignaturePublicKey,
         sender_context: Option<SenderContext>,
     ) -> Self {
@@ -278,8 +278,8 @@ impl UnverifiedMessage {
         backend: &impl OpenMlsCryptoProvider,
         protocol_version: ProtocolVersion,
         group: &PublicGroup,
-    ) -> Result<(AuthenticatedContent, Credential), ProcessMessageError> {
-        let content: AuthenticatedContentIn = match self.credential.mls_credential() {
+    ) -> Result<(AuthenticatedContent, CredentialWithKey), ProcessMessageError> {
+        let content: AuthenticatedContentIn = match self.credential.credential.mls_credential() {
             MlsCredentialType::Basic(_) => self
                 .verifiable_content
                 .verify(backend.crypto(), &self.sender_pk)
@@ -340,7 +340,7 @@ pub struct ProcessedMessage {
     sender: Sender,
     authenticated_data: Vec<u8>,
     content: ProcessedMessageContent,
-    credential: Credential,
+    credential: CredentialWithKey,
 }
 
 impl ProcessedMessage {
@@ -351,7 +351,7 @@ impl ProcessedMessage {
         sender: Sender,
         authenticated_data: Vec<u8>,
         content: ProcessedMessageContent,
-        credential: Credential,
+        credential: CredentialWithKey,
     ) -> Self {
         Self {
             group_id,
@@ -394,7 +394,7 @@ impl ProcessedMessage {
     }
 
     /// Returns the credential of the message.
-    pub fn credential(&self) -> &Credential {
+    pub fn credential(&self) -> &CredentialWithKey {
         &self.credential
     }
 }

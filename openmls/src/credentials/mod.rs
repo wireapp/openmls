@@ -357,7 +357,7 @@ pub struct BasicCredential {
     identity: VLBytes,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Eq, PartialEq)]
 /// A wrapper around a credential with a corresponding public key.
 pub struct CredentialWithKey {
     /// The [`Credential`].
