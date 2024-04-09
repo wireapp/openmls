@@ -15,23 +15,23 @@ openmls_traits = { version = "0.2.0", path = "../traits" }
 openmls_memory_keystore = { version = "0.2.0", path = "../memory_keystore" }
 # Rust Crypto dependencies
 sha2 = { version = "0.10" }
-aes-gcm = { version = "0.9" }
-chacha20poly1305 = { version = "0.9" }
+aes-gcm = { version = "0.10" }
+chacha20poly1305 = { version = "0.10" }
 hmac = { version = "0.12" }
-ed25519-dalek = { version = "2.0.0-rc.3", features = ["rand_core"] }
+ed25519-dalek = { version = "2.1", features = ["rand_core"] }
 p256 = { version = "0.13" }
 p384 = { version = "0.13" }
-p521 = "0.13"
+p521 = { version = "0.13" }
 hkdf = { version = "0.12" }
 rand_core = "0.6"
 rand_chacha = { version = "0.3" }
 tls_codec = { workspace = true }
-zeroize = { version = "1.6", features = ["derive"] }
+zeroize = { version = "1.7", features = ["derive"] }
 signature = "2.1"
 thiserror = "1.0"
 generic-array = "0.14"
 
 [dependencies.hpke]
 git = "https://github.com/wireapp/rust-hpke.git"
-branch = "wire/unstable-pq-xyber"
-features = ["x25519", "p256", "p384", "xyber768d00", "serde_impls"]
+branch = "wire/unstable-pq-xyber-p521"
+features = ["x25519", "p256", "p384", "p521", "xyber768d00"]

@@ -27,16 +27,23 @@ impl<T: DefaultSigner> Signer for T {
         use signature::Signer;
         match self.signature_scheme() {
             SignatureScheme::ECDSA_SECP256R1_SHA256 => {
-                let k = p256::ecdsa::SigningKey::from_bytes(self.private_key().into())
+                let k = p256::ecdsa::SigningKey::from_slice(self.private_key())
                     .map_err(|_| Error::SigningError)?;
                 let signature: p256::ecdsa::Signature =
                     k.try_sign(payload).map_err(|_| Error::SigningError)?;
                 Ok(signature.to_der().to_bytes().into())
             }
             SignatureScheme::ECDSA_SECP384R1_SHA384 => {
-                let k = p384::ecdsa::SigningKey::from_bytes(self.private_key().into())
+                let k = p384::ecdsa::SigningKey::from_slice(self.private_key())
                     .map_err(|_| Error::SigningError)?;
                 let signature: p384::ecdsa::Signature =
+                    k.try_sign(payload).map_err(|_| Error::SigningError)?;
+                Ok(signature.to_der().to_bytes().into())
+            }
+            SignatureScheme::ECDSA_SECP521R1_SHA512 => {
+                let k = p521::ecdsa::SigningKey::from_slice(self.private_key())
+                    .map_err(|_| Error::SigningError)?;
+                let signature: p521::ecdsa::Signature =
                     k.try_sign(payload).map_err(|_| Error::SigningError)?;
                 Ok(signature.to_der().to_bytes().into())
             }

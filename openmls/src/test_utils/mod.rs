@@ -229,6 +229,9 @@ pub async fn backends(backend: &impl OpenMlsCryptoProvider) {}
     case::MLS_256_DHKEMP384_AES256GCM_SHA384_P384(
         Ciphersuite::MLS_256_DHKEMP384_AES256GCM_SHA384_P384
     ),
+    case::MLS_256_DHKEMP521_AES256GCM_SHA512_P521(
+        Ciphersuite::MLS_256_DHKEMP521_AES256GCM_SHA512_P521
+    ),
     case::MLS_128_DHKEMX25519_CHACHA20POLY1305_SHA256_Ed25519(
         Ciphersuite::MLS_128_DHKEMX25519_CHACHA20POLY1305_SHA256_Ed25519
     ),
@@ -247,6 +250,7 @@ pub async fn ciphersuites(ciphersuite: Ciphersuite) {}
     case::rust_crypto_MLS_128_DHKEMX25519_AES128GCM_SHA256_Ed25519(Ciphersuite::MLS_128_DHKEMX25519_AES128GCM_SHA256_Ed25519, &OpenMlsRustCrypto::default()),
     case::rust_crypto_MLS_128_DHKEMP256_AES128GCM_SHA256_P256(Ciphersuite::MLS_128_DHKEMP256_AES128GCM_SHA256_P256, &OpenMlsRustCrypto::default()),
     case::rust_crypto_MLS_256_DHKEMP384_AES256GCM_SHA384_P384(Ciphersuite::MLS_256_DHKEMP384_AES256GCM_SHA384_P384, &OpenMlsRustCrypto::default()),
+    case::rust_crypto_MLS_256_DHKEMP521_AES256GCM_SHA512_P521(Ciphersuite::MLS_256_DHKEMP521_AES256GCM_SHA512_P521, &OpenMlsRustCrypto::default()),
     case::rust_crypto_MLS_128_DHKEMX25519_CHACHA20POLY1305_SHA256_Ed25519(Ciphersuite::MLS_128_DHKEMX25519_CHACHA20POLY1305_SHA256_Ed25519, &OpenMlsRustCrypto::default()),
     case::rust_crypto_MLS_128_X25519KYBER768DRAFT00_AES128GCM_SHA256_Ed25519(Ciphersuite::MLS_128_X25519KYBER768DRAFT00_AES128GCM_SHA256_Ed25519, &OpenMlsRustCrypto::default()),
   )
