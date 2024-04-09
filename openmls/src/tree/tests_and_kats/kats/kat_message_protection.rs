@@ -82,28 +82,44 @@ use crate::{
 pub struct MessageProtectionTest {
     cipher_suite: u16,
 
-    group_id: String,
+    #[serde(with = "hex::serde")]
+    group_id: Vec<u8>,
     epoch: u64,
-    tree_hash: String,
-    confirmed_transcript_hash: String,
+    #[serde(with = "hex::serde")]
+    tree_hash: Vec<u8>,
+    #[serde(with = "hex::serde")]
+    confirmed_transcript_hash: Vec<u8>,
 
-    signature_priv: String,
-    signature_pub: String,
+    #[serde(with = "hex::serde")]
+    signature_priv: Vec<u8>,
+    #[serde(with = "hex::serde")]
+    signature_pub: Vec<u8>,
 
-    encryption_secret: String,
-    sender_data_secret: String,
-    membership_key: String,
+    #[serde(with = "hex::serde")]
+    encryption_secret: Vec<u8>,
+    #[serde(with = "hex::serde")]
+    sender_data_secret: Vec<u8>,
+    #[serde(with = "hex::serde")]
+    membership_key: Vec<u8>,
 
-    proposal: String,
-    proposal_pub: String,
-    proposal_priv: String,
+    #[serde(with = "hex::serde")]
+    proposal: Vec<u8>,
+    #[serde(with = "hex::serde")]
+    proposal_pub: Vec<u8>,
+    #[serde(with = "hex::serde")]
+    proposal_priv: Vec<u8>,
 
-    commit: String,
-    commit_pub: String,
-    commit_priv: String,
+    #[serde(with = "hex::serde")]
+    commit: Vec<u8>,
+    #[serde(with = "hex::serde")]
+    commit_pub: Vec<u8>,
+    #[serde(with = "hex::serde")]
+    commit_priv: Vec<u8>,
 
-    application: String,
-    application_priv: String,
+    #[serde(with = "hex::serde")]
+    application: Vec<u8>,
+    #[serde(with = "hex::serde")]
+    application_priv: Vec<u8>,
 }
 
 async fn generate_credential(
@@ -200,36 +216,24 @@ pub async fn run_test_vector(
         .supported_ciphersuites()
         .contains(&ciphersuite)
     {
-        log::debug!("Skipping unsupported ciphersuite {:?}", ciphersuite);
+        log::warn!("Skipping unsupported ciphersuite {:?}", ciphersuite);
         return Ok(());
     }
-    log::debug!("Testing tv with ciphersuite {:?}", ciphersuite);
+    log::info!("Testing tv with ciphersuite {:?}", ciphersuite);
 
     let group_context = GroupContext::new(
         ciphersuite,
-        GroupId::from_slice(&hex_to_bytes(&test.group_id)),
+        GroupId::from_slice(&test.group_id),
         test.epoch,
-        hex_to_bytes(&test.tree_hash),
-        hex_to_bytes(&test.confirmed_transcript_hash),
+        test.tree_hash.clone(),
+        test.confirmed_transcript_hash.clone(),
         Extensions::empty(),
     );
 
     let sender_index = LeafNodeIndex::new(1);
 
     // Set up the group, unfortunately we can't do without.
-    let signature_private_key = match ciphersuite {
-        Ciphersuite::MLS_128_DHKEMX25519_AES128GCM_SHA256_Ed25519
-        | Ciphersuite::MLS_128_DHKEMX25519_CHACHA20POLY1305_SHA256_Ed25519 => {
-            let mut private = hex_to_bytes(&test.signature_priv);
-            private.append(&mut hex_to_bytes(&test.signature_pub));
-            private
-        }
-        Ciphersuite::MLS_128_DHKEMP256_AES128GCM_SHA256_P256
-        | Ciphersuite::MLS_256_DHKEMP384_AES256GCM_SHA384_P384 => {
-            hex_to_bytes(&test.signature_priv)
-        }
-        _ => unimplemented!(),
-    };
+    let signature_private_key = test.signature_priv.clone();
     let random_own_signature_key = SignatureKeyPair::new(
         ciphersuite.signature_algorithm(),
         &mut *backend.rand().borrow_rand().unwrap(),
@@ -251,28 +255,16 @@ pub async fn run_test_vector(
     ) -> CoreGroup {
         let group_context = GroupContext::new(
             ciphersuite,
-            GroupId::from_slice(&hex_to_bytes(&test.group_id)),
+            GroupId::from_slice(&test.group_id),
             test.epoch,
-            hex_to_bytes(&test.tree_hash),
-            hex_to_bytes(&test.confirmed_transcript_hash),
+            test.tree_hash.clone(),
+            test.confirmed_transcript_hash.clone(),
             Extensions::empty(),
         );
 
         // Set up the group, unfortunately we can't do without.
         let credential = Credential::new_basic(b"This is not needed".to_vec());
-        let signature_private_key = match ciphersuite {
-            Ciphersuite::MLS_128_DHKEMX25519_AES128GCM_SHA256_Ed25519
-            | Ciphersuite::MLS_128_DHKEMX25519_CHACHA20POLY1305_SHA256_Ed25519 => {
-                let mut private = hex_to_bytes(&test.signature_priv);
-                private.append(&mut hex_to_bytes(&test.signature_pub));
-                private
-            }
-            Ciphersuite::MLS_128_DHKEMP256_AES128GCM_SHA256_P256
-            | Ciphersuite::MLS_256_DHKEMP384_AES256GCM_SHA384_P384 => {
-                hex_to_bytes(&test.signature_priv)
-            }
-            _ => unimplemented!(),
-        };
+
         let random_own_signature_key = SignatureKeyPair::new(
             ciphersuite.signature_algorithm(),
             &mut *backend.rand().borrow_rand().unwrap(),
@@ -281,7 +273,7 @@ pub async fn run_test_vector(
         let random_own_signature_key = random_own_signature_key.public();
         let signer = SignatureKeyPair::from_raw(
             ciphersuite.signature_algorithm(),
-            signature_private_key,
+            test.signature_priv.clone(),
             random_own_signature_key.to_vec(),
         );
 
@@ -309,7 +301,7 @@ pub async fn run_test_vector(
             ciphersuite,
             CredentialWithKey {
                 credential,
-                signature_key: hex_to_bytes(&test.signature_pub).into(),
+                signature_key: test.signature_pub.clone().into(),
             },
         )
         .await;
@@ -347,7 +339,7 @@ pub async fn run_test_vector(
         // Inject the test values into the group
 
         let encryption_secret = EncryptionSecret::from_slice(
-            &hex_to_bytes(&test.encryption_secret),
+            &test.encryption_secret,
             group_context.protocol_version(),
             ciphersuite,
         );
@@ -372,12 +364,12 @@ pub async fn run_test_vector(
         }
         message_secrets.set_serialized_context(serialized_group_context);
         *message_secrets.sender_data_secret_mut() = SenderDataSecret::from_slice(
-            &hex_to_bytes(&test.sender_data_secret),
+            &test.sender_data_secret,
             ProtocolVersion::Mls10,
             ciphersuite,
         );
         message_secrets.set_membership_key(Secret::from_slice(
-            &hex_to_bytes(&test.membership_key),
+            &test.membership_key,
             ProtocolVersion::Mls10,
             ciphersuite,
         ));
@@ -387,11 +379,9 @@ pub async fn run_test_vector(
 
     // Proposal
     {
-        let proposal = ProposalIn::tls_deserialize_exact(hex_to_bytes(&test.proposal)).unwrap();
-        let proposal_pub =
-            MlsMessageIn::tls_deserialize_exact(hex_to_bytes(&test.proposal_pub)).unwrap();
-        let proposal_priv =
-            MlsMessageIn::tls_deserialize_exact(hex_to_bytes(&test.proposal_priv)).unwrap();
+        let proposal = ProposalIn::tls_deserialize_exact(&test.proposal).unwrap();
+        let proposal_pub = MlsMessageIn::tls_deserialize_exact(&test.proposal_pub).unwrap();
+        let proposal_priv = MlsMessageIn::tls_deserialize_exact(&test.proposal_priv).unwrap();
 
         async fn test_proposal_pub(
             mut group: CoreGroup,
@@ -533,11 +523,9 @@ pub async fn run_test_vector(
 
     // Commit
     {
-        let commit = CommitIn::tls_deserialize_exact(hex_to_bytes(&test.commit)).unwrap();
-        let commit_pub =
-            MlsMessageIn::tls_deserialize_exact(hex_to_bytes(&test.commit_pub)).unwrap();
-        let commit_priv =
-            MlsMessageIn::tls_deserialize_exact(hex_to_bytes(&test.commit_priv)).unwrap();
+        let commit = CommitIn::tls_deserialize_exact(&test.commit).unwrap();
+        let commit_pub = MlsMessageIn::tls_deserialize_exact(&test.commit_pub).unwrap();
+        let commit_priv = MlsMessageIn::tls_deserialize_exact(&test.commit_priv).unwrap();
 
         async fn test_commit_pub(
             mut group: CoreGroup,
@@ -704,9 +692,8 @@ pub async fn run_test_vector(
 
     // Application
     {
-        let application = hex_to_bytes(&test.application);
-        let application_priv =
-            MlsMessageIn::tls_deserialize_exact(hex_to_bytes(&test.application_priv)).unwrap();
+        let application = &test.application;
+        let application_priv = MlsMessageIn::tls_deserialize_exact(&test.application_priv).unwrap();
 
         async fn test_application_priv(
             mut group: CoreGroup,
@@ -748,7 +735,7 @@ pub async fn run_test_vector(
         // Wrap `application` into a `PrivateMessage`.
         let mut sender_group = setup_group(backend, ciphersuite, &test, true).await;
         let private_message = sender_group
-            .create_application_message(&[], &application, 0, backend, &signer)
+            .create_application_message(&[], application, 0, backend, &signer)
             .unwrap();
         let my_application_priv_out =
             MlsMessageOut::from_private_message(private_message, sender_group.version());
@@ -762,7 +749,7 @@ pub async fn run_test_vector(
         .await;
     }
 
-    log::trace!("Finished test verification");
+    log::info!("Finished test verification");
 
     Ok(())
 }
@@ -770,15 +757,12 @@ pub async fn run_test_vector(
 #[apply(backends)]
 async fn read_test_vectors_mp(backend: &impl OpenMlsCryptoProvider) {
     let _ = pretty_env_logger::try_init();
-    log::debug!("Reading test vectors ...");
+    log::info!("Reading test vectors ...");
 
     let tests: Vec<MessageProtectionTest> = read("test_vectors/message-protection.json");
 
-    for test_vector in tests {
-        match run_test_vector(test_vector, backend).await {
-            Ok(_) => {}
-            Err(e) => panic!("Error while checking message protection test vector.\n{e:?}"),
-        }
+    for test_vector in tests.into_iter() {
+        run_test_vector(test_vector, backend).await.unwrap();
     }
-    log::trace!("Finished test vector verification");
+    log::info!("Finished test vector verification");
 }

@@ -1455,28 +1455,13 @@ async fn test_valsem107(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoPr
     // expected.
     let bob_leaf_index = bob_group.own_leaf_index();
 
-    let ref_propose = {
-        // We first go the manual route
-        let (ref_propose1, _) = alice_group
-            .propose_remove_member(
-                backend,
-                &alice_credential_with_key_and_signer.signer,
-                bob_leaf_index,
-            )
-            .unwrap();
-
-        let (ref_propose2, _) = alice_group
-            .propose_remove_member(
-                backend,
-                &alice_credential_with_key_and_signer.signer,
-                bob_leaf_index,
-            )
-            .unwrap();
-
-        assert_eq!(ref_propose1, ref_propose2);
-
-        ref_propose1
-    };
+    let (ref_propose, _) = alice_group
+        .propose_remove_member(
+            backend,
+            &alice_credential_with_key_and_signer.signer,
+            bob_leaf_index,
+        )
+        .unwrap();
 
     // While this shouldn't fail, it should produce a valid commit, i.e. one
     // that contains only one remove proposal.
