@@ -274,6 +274,23 @@ impl OpenMlsCrypto for RustCrypto {
         }
     }
 
+    fn signature_public_key_len(&self, alg: SignatureScheme) -> usize {
+        use generic_array::typenum::Unsigned;
+        match alg {
+            SignatureScheme::ECDSA_SECP256R1_SHA256 => {
+                <p256::NistP256 as p256::elliptic_curve::Curve>::FieldBytesSize::to_usize()
+            }
+            SignatureScheme::ECDSA_SECP384R1_SHA384 => {
+                <p384::NistP384 as p384::elliptic_curve::Curve>::FieldBytesSize::to_usize()
+            }
+            SignatureScheme::ECDSA_SECP521R1_SHA512 => {
+                <p521::NistP521 as p521::elliptic_curve::Curve>::FieldBytesSize::to_usize()
+            }
+            SignatureScheme::ED25519 => ed25519_dalek::PUBLIC_KEY_LENGTH,
+            SignatureScheme::ED448 => 57,
+        }
+    }
+
     fn verify_signature(
         &self,
         alg: openmls_traits::types::SignatureScheme,
