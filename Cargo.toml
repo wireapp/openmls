@@ -5,7 +5,7 @@ members = [
     "openmls_rust_crypto",
     "fuzz",
     # "interop_client",
-    "memory_keystore",
+    "memory_storage",
     "basic_credential",
     "x509_credential"
 ]
