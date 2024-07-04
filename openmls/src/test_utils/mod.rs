@@ -234,9 +234,6 @@ pub async fn backends(backend: &impl OpenMlsCryptoProvider) {}
     ),
     case::MLS_128_DHKEMX25519_CHACHA20POLY1305_SHA256_Ed25519(
         Ciphersuite::MLS_128_DHKEMX25519_CHACHA20POLY1305_SHA256_Ed25519
-    ),
-    case::MLS_128_X25519KYBER768DRAFT00_AES128GCM_SHA256_Ed25519(
-        Ciphersuite::MLS_128_X25519KYBER768DRAFT00_AES128GCM_SHA256_Ed25519
     )
 )]
 #[allow(non_snake_case)]
@@ -252,7 +249,6 @@ pub async fn ciphersuites(ciphersuite: Ciphersuite) {}
     case::rust_crypto_MLS_256_DHKEMP384_AES256GCM_SHA384_P384(Ciphersuite::MLS_256_DHKEMP384_AES256GCM_SHA384_P384, &OpenMlsRustCrypto::default()),
     case::rust_crypto_MLS_256_DHKEMP521_AES256GCM_SHA512_P521(Ciphersuite::MLS_256_DHKEMP521_AES256GCM_SHA512_P521, &OpenMlsRustCrypto::default()),
     case::rust_crypto_MLS_128_DHKEMX25519_CHACHA20POLY1305_SHA256_Ed25519(Ciphersuite::MLS_128_DHKEMX25519_CHACHA20POLY1305_SHA256_Ed25519, &OpenMlsRustCrypto::default()),
-    case::rust_crypto_MLS_128_X25519KYBER768DRAFT00_AES128GCM_SHA256_Ed25519(Ciphersuite::MLS_128_X25519KYBER768DRAFT00_AES128GCM_SHA256_Ed25519, &OpenMlsRustCrypto::default()),
   )
 ]
 #[allow(non_snake_case)]
