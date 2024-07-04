@@ -30,8 +30,4 @@ zeroize = { version = "1.7", features = ["derive"] }
 signature = "2.1"
 thiserror = "1.0"
 generic-array = "0.14"
-
-[dependencies.hpke]
-git = "https://github.com/wireapp/rust-hpke.git"
-branch = "wire/unstable-pq-xyber-p521"
-features = ["x25519", "p256", "p384", "p521", "xyber768d00"]
+hpke = { version = "0.12", features = ["x25519", "p256", "p384", "p521"] }
