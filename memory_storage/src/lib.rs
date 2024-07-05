@@ -1,6 +1,8 @@
 use openmls_traits::key_store::*;
 use serde::{Deserialize, Serialize};
 use std::{collections::HashMap, sync::RwLock};
+use std::sync::{PoisonError, RwLockWriteGuard};
+use openmls_traits::types::CryptoError;
 
 /// A storage for the V_TEST version.
 #[cfg(any(test, feature = "test-utils"))]
@@ -26,7 +28,7 @@ impl OpenMlsKeyStore for MemoryStorage {
 
     fn read<V: MlsEntity>(&self, k: &[u8]) -> Option<V> where Self: Sized {
         // TODO(SimonThormeyer) handle unsupported entity types
-        let values = self.values.read()?;
+        let values = self.values.read().ok()?;
         let value = values.get(k)?;
         serde_json::from_slice(value).ok()
     }
@@ -206,6 +208,14 @@ pub enum MemoryStorageError {
     SerializationError,
     #[error("Value does not exist.")]
     None,
+    #[error("Mutable key store is poisoned.")]
+    Poisoned,
+}
+
+impl<T> From<PoisonError<T>> for MemoryStorageError {
+    fn from(_: PoisonError<T>) -> Self {
+        Self::Poisoned
+    }
 }
 
 const KEY_PACKAGE_LABEL: &[u8] = b"KeyPackage";
