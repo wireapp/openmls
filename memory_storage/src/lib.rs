@@ -1,4 +1,4 @@
-use openmls_traits::storage::*;
+use openmls_traits::key_store::*;
 use serde::{Deserialize, Serialize};
 use std::{collections::HashMap, sync::RwLock};
 
@@ -14,7 +14,32 @@ pub struct MemoryStorage {
     values: RwLock<HashMap<Vec<u8>, Vec<u8>>>,
 }
 
-impl MemoryStorage {
+impl OpenMlsKeyStore for MemoryStorage {
+    type Error = MemoryStorageError;
+
+    async fn store<V: MlsEntity + Sync>(&self, k: &[u8], v: &V) -> Result<(), Self::Error> where Self: Sized {
+        // TODO(SimonThormeyer) handle unsupported entity types
+        let mut values = self.values.write()?;
+        values.insert(k.to_vec(), serde_json::to_vec(v)?);
+        Ok(())
+    }
+
+    async fn read<V: MlsEntity>(&self, k: &[u8]) -> Option<V> where Self: Sized {
+        // TODO(SimonThormeyer) handle unsupported entity types
+        let values = self.values.read()?;
+        let value = values.get(k)?;
+        serde_json::from_slice(value).ok()
+    }
+
+    async fn delete<V: MlsEntity>(&self, k: &[u8]) -> Result<(), Self::Error> {
+        // TODO(SimonThormeyer) handle unsupported entity types
+        let mut values = self.values.write()?;
+        values.remove(k);
+        Ok(())
+    }
+}
+
+/*impl MemoryStorage {
     /// Internal helper to abstract write operations.
     #[inline(always)]
     fn write<const VERSION: u16>(
@@ -168,7 +193,7 @@ impl MemoryStorage {
 
         Ok(())
     }
-}
+}*/
 
 /// Errors thrown by the key store.
 #[derive(thiserror::Error, Debug, Copy, Clone, PartialEq, Eq)]
@@ -210,7 +235,7 @@ const GROUP_STATE_LABEL: &[u8] = b"GroupState";
 const QUEUED_PROPOSAL_LABEL: &[u8] = b"QueuedProposal";
 const PROPOSAL_QUEUE_REFS_LABEL: &[u8] = b"ProposalQueueRefs";
 
-impl StorageProvider<CURRENT_VERSION> for MemoryStorage {
+/*impl StorageProvider<CURRENT_VERSION> for MemoryStorage {
     type Error = MemoryStorageError;
 
     fn queue_proposal<
@@ -959,32 +984,7 @@ impl StorageProvider<CURRENT_VERSION> for MemoryStorage {
         let key = serde_json::to_vec(&(group_id, proposal_ref)).unwrap();
         self.delete::<CURRENT_VERSION>(QUEUED_PROPOSAL_LABEL, &key)
     }
-}
-
-/// Build a key with version and label.
-fn build_key_from_vec<const V: u16>(label: &[u8], key: Vec<u8>) -> Vec<u8> {
-    let mut key_out = label.to_vec();
-    key_out.extend_from_slice(&key);
-    key_out.extend_from_slice(&u16::to_be_bytes(V));
-    key_out
-}
-
-/// Build a key with version and label.
-fn build_key<const V: u16, K: Serialize>(label: &[u8], key: K) -> Vec<u8> {
-    build_key_from_vec::<V>(label, serde_json::to_vec(&key).unwrap())
-}
-
-fn epoch_key_pairs_id(
-    group_id: &impl traits::GroupId<CURRENT_VERSION>,
-    epoch: &impl traits::EpochKey<CURRENT_VERSION>,
-    leaf_index: u32,
-) -> Result<Vec<u8>, <MemoryStorage as StorageProvider<CURRENT_VERSION>>::Error> {
-    let mut key = serde_json::to_vec(group_id)?;
-    key.extend_from_slice(&serde_json::to_vec(epoch)?);
-    key.extend_from_slice(&serde_json::to_vec(&leaf_index)?);
-    Ok(key)
-}
-
+}*/
 impl From<serde_json::Error> for MemoryStorageError {
     fn from(_: serde_json::Error) -> Self {
         Self::SerializationError
