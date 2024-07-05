@@ -17,7 +17,7 @@ pub struct DummyAuthenticationService;
 impl openmls_traits::authentication_service::AuthenticationServiceDelegate
     for DummyAuthenticationService
 {
-    async fn validate_credential<'a>(
+    fn validate_credential<'a>(
         &'a self,
         _credential: openmls_traits::authentication_service::CredentialRef<'a>,
     ) -> openmls_traits::authentication_service::CredentialAuthenticationStatus {

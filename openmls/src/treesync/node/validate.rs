@@ -89,10 +89,8 @@ impl VerifiableUpdateLeafNode {
     }
 }
 
-#[cfg_attr(target_family = "wasm", async_trait::async_trait(?Send))]
-#[cfg_attr(not(target_family = "wasm"), async_trait::async_trait)]
 impl ValidatableLeafNode for VerifiableKeyPackageLeafNode {
-    async fn standalone_validate(
+    fn standalone_validate(
         self,
         backend: &impl OpenMlsCryptoProvider,
         signature_scheme: SignatureScheme,
@@ -100,17 +98,16 @@ impl ValidatableLeafNode for VerifiableKeyPackageLeafNode {
     ) -> Result<LeafNode, LeafNodeValidationError> {
         self.validate_lifetime(sender)?;
         self.standalone_validate_default(backend, signature_scheme)
-            .await
     }
 
-    async fn validate(
+    fn validate(
         self,
         group: &PublicGroup,
         backend: &impl OpenMlsCryptoProvider,
         sender: bool,
     ) -> Result<LeafNode, LeafNodeValidationError> {
         self.validate_lifetime(sender)?;
-        self.validate_default(group, backend, sender).await
+        self.validate_default(group, backend, sender)
     }
 
     fn signature_key(&self) -> &SignaturePublicKey {
@@ -148,28 +145,25 @@ impl VerifiableKeyPackageLeafNode {
     }
 }
 
-#[cfg_attr(target_family = "wasm", async_trait::async_trait(?Send))]
-#[cfg_attr(not(target_family = "wasm"), async_trait::async_trait)]
 pub(crate) trait ValidatableLeafNode: Verifiable + Send + Sync + Sized
 where
     LeafNode: VerifiedStruct<Self>,
 {
-    async fn standalone_validate(
+    fn standalone_validate(
         self,
         backend: &impl OpenMlsCryptoProvider,
         signature_scheme: SignatureScheme,
         _sender: bool,
     ) -> Result<LeafNode, LeafNodeValidationError> {
         self.standalone_validate_default(backend, signature_scheme)
-            .await
     }
 
-    async fn standalone_validate_default(
+    fn standalone_validate_default(
         self,
         backend: &impl OpenMlsCryptoProvider,
         signature_scheme: SignatureScheme,
     ) -> Result<LeafNode, LeafNodeValidationError> {
-        self.validate_credential(backend).await?;
+        self.validate_credential(backend)?;
 
         let extension_types = self.extension_types();
         let leaf_node = self.verify_signature(backend.crypto(), signature_scheme)?;
@@ -179,16 +173,16 @@ where
     }
 
     /// Validate a LeafNode as per https://www.rfc-editor.org/rfc/rfc9420.html#name-leaf-node-validation
-    async fn validate(
+    fn validate(
         self,
         group: &PublicGroup,
         backend: &impl OpenMlsCryptoProvider,
         sender: bool,
     ) -> Result<LeafNode, LeafNodeValidationError> {
-        self.validate_default(group, backend, sender).await
+        self.validate_default(group, backend, sender)
     }
 
-    async fn validate_default(
+    fn validate_default(
         self,
         group: &PublicGroup,
         backend: &impl OpenMlsCryptoProvider,
@@ -200,7 +194,6 @@ where
         self.validate_signature_encryption_key_unique(tree)?;
         let signature_scheme = group.ciphersuite().signature_algorithm();
         self.standalone_validate(backend, signature_scheme, sender)
-            .await
     }
 
     fn signature_key(&self) -> &SignaturePublicKey;
@@ -246,11 +239,11 @@ where
         Ok(())
     }
 
-    async fn validate_credential(
+    fn validate_credential(
         &self,
         backend: &impl OpenMlsCryptoProvider,
     ) -> Result<(), LeafNodeValidationError> {
-        Ok(self.credential().validate(backend).await?)
+        Ok(self.credential().validate(backend)?)
     }
 
     /// Verify that the following fields are unique among the members of the group: signature_key

@@ -33,7 +33,7 @@ impl std::fmt::Display for CredentialAuthenticationStatus {
 #[cfg_attr(target_family = "wasm", async_trait::async_trait(?Send))]
 #[cfg_attr(not(target_family = "wasm"), async_trait::async_trait)]
 pub trait AuthenticationServiceDelegate: std::fmt::Debug + Send + Sync {
-    async fn validate_credential<'a>(
+    fn validate_credential<'a>(
         &'a self,
         credential: CredentialRef<'a>,
     ) -> CredentialAuthenticationStatus;

@@ -277,7 +277,7 @@ impl Credential {
         }
     }
 
-    pub async fn validate(
+    pub fn validate(
         &self,
         backend: &impl OpenMlsCryptoProvider,
     ) -> Result<(), CredentialError> {
@@ -310,8 +310,7 @@ impl Credential {
 
         let credential_authentication = backend
             .authentication_service()
-            .validate_credential(credential_ref)
-            .await;
+            .validate_credential(credential_ref);
 
         if !matches!(
             credential_authentication,
