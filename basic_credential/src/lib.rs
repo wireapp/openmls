@@ -221,12 +221,12 @@ impl SignatureKeyPair {
     where
         T: OpenMlsKeyStore,
     {
-        key_store.store(&self.public, self).await
+        key_store.store(&self.public, self)
     }
 
     /// Read a signature key pair from the key store.
     pub async fn read(key_store: &impl OpenMlsKeyStore, public_key: &[u8]) -> Option<Self> {
-        key_store.read(public_key).await
+        key_store.read(public_key)
     }
 
     /// Get the public key as byte slice.

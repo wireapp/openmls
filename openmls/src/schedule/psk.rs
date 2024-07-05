@@ -497,7 +497,7 @@ pub(crate) async fn load_psks<'p>(
                 }
             }
             Psk::External(_) => {
-                if let Some(psk_bundle) = key_store.read::<PskBundle>(&psk_id.keystore_id()?).await
+                if let Some(psk_bundle) = key_store.read::<PskBundle>(&psk_id.keystore_id()?)
                 {
                     psk_bundles.push((psk_id, psk_bundle.secret));
                 } else {

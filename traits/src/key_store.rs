@@ -27,8 +27,6 @@ pub trait MlsEntity: serde::Serialize + serde::de::DeserializeOwned {
     }
 }
 
-#[cfg_attr(target_family = "wasm", async_trait::async_trait(?Send))]
-#[cfg_attr(not(target_family = "wasm"), async_trait::async_trait)]
 /// The Key Store trait
 pub trait OpenMlsKeyStore: Send + Sync {
     /// The error type returned by the [`OpenMlsKeyStore`].
@@ -38,7 +36,7 @@ pub trait OpenMlsKeyStore: Send + Sync {
     /// serialization for ID `k`.
     ///
     /// Returns an error if storing fails.
-    async fn store<V: MlsEntity + Sync>(&self, k: &[u8], v: &V) -> Result<(), Self::Error>
+    fn store<V: MlsEntity + Sync>(&self, k: &[u8], v: &V) -> Result<(), Self::Error>
     where
         Self: Sized;
 
@@ -46,12 +44,12 @@ pub trait OpenMlsKeyStore: Send + Sync {
     /// [`MlsEntity`] trait for deserialization.
     ///
     /// Returns [`None`] if no value is stored for `k` or reading fails.
-    async fn read<V: MlsEntity>(&self, k: &[u8]) -> Option<V>
+    fn read<V: MlsEntity>(&self, k: &[u8]) -> Option<V>
     where
         Self: Sized;
 
     /// Delete a value stored for ID `k`.
     ///
     /// Returns an error if storing fails.
-    async fn delete<V: MlsEntity>(&self, k: &[u8]) -> Result<(), Self::Error>;
+    fn delete<V: MlsEntity>(&self, k: &[u8]) -> Result<(), Self::Error>;
 }

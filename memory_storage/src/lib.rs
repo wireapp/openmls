@@ -17,21 +17,21 @@ pub struct MemoryStorage {
 impl OpenMlsKeyStore for MemoryStorage {
     type Error = MemoryStorageError;
 
-    async fn store<V: MlsEntity + Sync>(&self, k: &[u8], v: &V) -> Result<(), Self::Error> where Self: Sized {
+    fn store<V: MlsEntity + Sync>(&self, k: &[u8], v: &V) -> Result<(), Self::Error> where Self: Sized {
         // TODO(SimonThormeyer) handle unsupported entity types
         let mut values = self.values.write()?;
         values.insert(k.to_vec(), serde_json::to_vec(v)?);
         Ok(())
     }
 
-    async fn read<V: MlsEntity>(&self, k: &[u8]) -> Option<V> where Self: Sized {
+    fn read<V: MlsEntity>(&self, k: &[u8]) -> Option<V> where Self: Sized {
         // TODO(SimonThormeyer) handle unsupported entity types
         let values = self.values.read()?;
         let value = values.get(k)?;
         serde_json::from_slice(value).ok()
     }
 
-    async fn delete<V: MlsEntity>(&self, k: &[u8]) -> Result<(), Self::Error> {
+    fn delete<V: MlsEntity>(&self, k: &[u8]) -> Result<(), Self::Error> {
         // TODO(SimonThormeyer) handle unsupported entity types
         let mut values = self.values.write()?;
         values.remove(k);
