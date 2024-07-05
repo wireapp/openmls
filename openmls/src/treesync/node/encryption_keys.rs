@@ -149,7 +149,6 @@ impl EncryptionKeyPair {
         backend
             .key_store()
             .store(self.public_key().as_slice(), self)
-            .await
     }
 
     /// Read the [`EncryptionKeyPair`] from the key store of the `backend`. This
@@ -176,7 +175,6 @@ impl EncryptionKeyPair {
         backend
             .key_store()
             .delete::<Self>(self.public_key().as_slice())
-            .await
     }
 
     pub(crate) fn public_key(&self) -> &EncryptionKey {

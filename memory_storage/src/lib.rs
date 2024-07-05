@@ -1,8 +1,7 @@
 use openmls_traits::key_store::*;
 use serde::{Deserialize, Serialize};
 use std::{collections::HashMap, sync::RwLock};
-use std::sync::{PoisonError, RwLockWriteGuard};
-use openmls_traits::types::CryptoError;
+use std::sync::{PoisonError};
 
 /// A storage for the V_TEST version.
 #[cfg(any(test, feature = "test-utils"))]

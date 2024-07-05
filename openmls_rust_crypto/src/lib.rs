@@ -3,7 +3,7 @@
 //! This is an implementation of the [`OpenMlsCryptoProvider`] trait to use with
 //! OpenMLS.
 
-pub use openmls_memory_keystore::{MemoryKeyStore, MemoryKeyStoreError};
+pub use openmls_memory_storage::{MemoryStorage, MemoryStorageError};
 use openmls_traits::OpenMlsCryptoProvider;
 
 mod provider;
@@ -28,13 +28,13 @@ impl openmls_traits::authentication_service::AuthenticationServiceDelegate
 #[derive(Default, Debug)]
 pub struct OpenMlsRustCrypto {
     crypto: RustCrypto,
-    key_store: MemoryKeyStore,
+    key_store: MemoryStorage,
 }
 
 impl OpenMlsCryptoProvider for OpenMlsRustCrypto {
     type CryptoProvider = RustCrypto;
     type RandProvider = RustCrypto;
-    type KeyStoreProvider = MemoryKeyStore;
+    type KeyStoreProvider = MemoryStorage;
     type AuthenticationServiceProvider = DummyAuthenticationService;
 
     fn crypto(&self) -> &Self::CryptoProvider {
