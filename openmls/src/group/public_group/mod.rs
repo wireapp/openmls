@@ -344,7 +344,7 @@ impl PublicGroup {
     }
 
     #[cfg(test)]
-    pub(crate) fn encrypt_path(
+    pub(crate) async fn encrypt_path(
         &self,
         backend: &impl OpenMlsCryptoProvider,
         ciphersuite: Ciphersuite,
@@ -353,13 +353,16 @@ impl PublicGroup {
         exclusion_list: &std::collections::HashSet<&LeafNodeIndex>,
         own_leaf_index: LeafNodeIndex,
     ) -> Result<Vec<UpdatePathNode>, LibraryError> {
-        self.treesync().empty_diff().encrypt_path(
-            backend,
-            ciphersuite,
-            path,
-            group_context,
-            exclusion_list,
-            own_leaf_index,
-        )
+        self.treesync()
+            .empty_diff()
+            .encrypt_path(
+                backend,
+                ciphersuite,
+                path,
+                group_context,
+                exclusion_list,
+                own_leaf_index,
+            )
+            .await
     }
 }

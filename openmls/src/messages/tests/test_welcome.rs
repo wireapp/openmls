@@ -54,7 +54,7 @@ async fn test_welcome_context_mismatch(
         _ => Ciphersuite::MLS_128_DHKEMX25519_AES128GCM_SHA256_Ed25519,
     };
 
-    let group_id = GroupId::random(backend);
+    let group_id = GroupId::random(backend).await;
     let mls_group_config = MlsGroupConfigBuilder::new()
         .crypto_config(CryptoConfig::with_default_version(ciphersuite))
         .build();
@@ -215,15 +215,15 @@ async fn test_welcome_context_mismatch(
 #[apply(ciphersuites_and_backends)]
 #[wasm_bindgen_test::wasm_bindgen_test]
 async fn test_welcome_msg(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider) {
-    test_welcome_message(ciphersuite, backend);
+    test_welcome_message(ciphersuite, backend).await;
 }
 
-fn test_welcome_message(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider) {
+async fn test_welcome_message(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider) {
     // We use this dummy group info in all test cases.
     let group_info_tbs = {
         let group_context = GroupContext::new(
             ciphersuite,
-            GroupId::random(backend),
+            GroupId::random(backend).await,
             123,
             vec![1, 2, 3, 4, 5, 6, 7, 8, 9],
             vec![1, 1, 1],
@@ -243,7 +243,7 @@ fn test_welcome_message(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoPr
     // We need a signer
     let signer = SignatureKeyPair::new(
         ciphersuite.signature_algorithm(),
-        &mut *backend.rand().borrow_rand().unwrap(),
+        &mut *backend.rand().borrow_rand().await,
     )
     .unwrap();
 
@@ -252,8 +252,8 @@ fn test_welcome_message(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoPr
         .expect("Error signing GroupInfo");
 
     // Generate key and nonce for the symmetric cipher.
-    let welcome_key = AeadKey::random(ciphersuite, backend.rand());
-    let welcome_nonce = AeadNonce::random(backend);
+    let welcome_key = AeadKey::random(ciphersuite, backend.rand()).await;
+    let welcome_nonce = AeadNonce::random(backend).await;
 
     // Generate receiver key pair.
     let receiver_key_pair = backend
@@ -261,6 +261,7 @@ fn test_welcome_message(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoPr
         .derive_hpke_keypair(
             ciphersuite.hpke_config(),
             Secret::random(ciphersuite, backend, None)
+                .await
                 .expect("Not enough randomness.")
                 .as_slice(),
         )
@@ -278,6 +279,7 @@ fn test_welcome_message(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoPr
             ciphersuite,
             backend.crypto(),
         )
+        .await
         .unwrap(),
     }];
 

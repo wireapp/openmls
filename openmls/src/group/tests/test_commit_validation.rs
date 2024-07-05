@@ -1,6 +1,7 @@
 //! This module tests the validation of commits as defined in
 //! https://openmls.tech/book/message_validation.html#commit-message-validation
 
+use futures::{stream, StreamExt};
 use openmls_rust_crypto::OpenMlsRustCrypto;
 use openmls_traits::{signatures::Signer, types::Ciphersuite};
 use rstest::*;
@@ -147,6 +148,7 @@ async fn test_valsem200(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoPr
             &alice_credential.signer,
             alice_group.own_leaf_index(),
         )
+        .await
         .expect("error creating commit")
         .tls_serialize_detached()
         .expect("serialization error");
@@ -285,16 +287,18 @@ async fn test_valsem201(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoPr
     };
 
     let psk_proposal = || async {
-        let secret = Secret::random(ciphersuite, backend, None).unwrap();
+        let secret = Secret::random(ciphersuite, backend, None).await.unwrap();
         let rand = backend
             .rand()
             .random_vec(ciphersuite.hash_length())
+            .await
             .unwrap();
         let psk_id = PreSharedKeyId::new(
             ciphersuite,
             backend.rand(),
             Psk::External(ExternalPsk::new(rand)),
         )
+        .await
         .unwrap();
         psk_id
             .write_to_key_store(backend, ciphersuite, secret.as_slice())
@@ -649,18 +653,18 @@ async fn test_valsem204(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoPr
     // public keys derived from those secrets will then differ from the public
     // keys in the update path, thus causing the error.
     if let Some(ref mut path) = commit_content.path {
-        let new_plain_path: Vec<PlainUpdatePathNode> = path
-            .nodes()
-            .iter()
-            .map(|upn| {
+        let new_plain_path = stream::iter(path.nodes())
+            .then(|upn| async move {
                 PlainUpdatePathNode::new(
                     upn.encryption_key().clone(),
                     Secret::random(ciphersuite, backend, ProtocolVersion::default())
+                        .await
                         .unwrap()
                         .into(),
                 )
             })
-            .collect();
+            .collect::<Vec<_>>()
+            .await;
         let new_nodes = alice_group
             .group()
             .public_group()
@@ -672,6 +676,7 @@ async fn test_valsem204(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoPr
                 &[].into(),
                 LeafNodeIndex::new(0),
             )
+            .await
             .unwrap();
         let new_path = UpdatePath::new(path.leaf_node().clone(), new_nodes);
         commit_content.path = Some(new_path);
@@ -806,6 +811,7 @@ async fn test_partial_proposal_commit(
     // Create first proposal in Alice's group
     let proposal_1 = alice_group
         .propose_remove_member(backend, &alice_credential.signer, charlie_index)
+        .await
         .map(|(out, _)| MlsMessageIn::from(out))
         .unwrap();
     let proposal_1 = bob_group

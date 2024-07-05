@@ -57,7 +57,7 @@ async fn run_test_vector(
 ) -> Result<(), String> {
     let ciphersuite = Ciphersuite::MLS_128_DHKEMX25519_AES128GCM_SHA256_Ed25519;
 
-    let group_id = GroupId::random(backend);
+    let group_id = GroupId::random(backend).await;
 
     let nodes = Vec::<Option<NodeIn>>::tls_deserialize_exact(test.tree_before).unwrap();
 
@@ -79,7 +79,9 @@ async fn run_test_vector(
     let initial_confirmation_tag = ConfirmationTag(
         Mac::new(
             backend,
-            &Secret::random(ciphersuite, backend, ProtocolVersion::Mls10).unwrap(),
+            &Secret::random(ciphersuite, backend, ProtocolVersion::Mls10)
+                .await
+                .unwrap(),
             &[],
         )
         .unwrap(),

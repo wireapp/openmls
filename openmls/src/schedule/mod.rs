@@ -236,9 +236,10 @@ impl CommitSecret {
     }
 
     #[cfg(any(feature = "test-utils", test))]
-    pub(crate) fn random(ciphersuite: Ciphersuite, rng: &impl OpenMlsCryptoProvider) -> Self {
+    pub(crate) async fn random(ciphersuite: Ciphersuite, rng: &impl OpenMlsCryptoProvider) -> Self {
         Self {
             secret: Secret::random(ciphersuite, rng, None /* MLS version */)
+                .await
                 .expect("Not enough randomness."),
         }
     }
@@ -284,31 +285,34 @@ impl InitSecret {
     }
 
     /// Sample a fresh, random `InitSecret` for the creation of a new group.
-    pub(crate) fn random(
+    pub(crate) async fn random(
         ciphersuite: Ciphersuite,
         backend: &impl OpenMlsCryptoProvider,
         version: ProtocolVersion,
     ) -> Result<Self, CryptoError> {
         Ok(InitSecret {
-            secret: Secret::random(ciphersuite, backend, version)?,
+            secret: Secret::random(ciphersuite, backend, version).await?,
         })
     }
 
     /// Create an `InitSecret` and the corresponding `kem_output` from a group info.
-    pub(crate) fn from_group_context(
+    pub(crate) async fn from_group_context(
         backend: &impl OpenMlsCryptoProvider,
         group_context: &GroupContext,
         external_pub: &[u8],
     ) -> Result<(Self, Vec<u8>), KeyScheduleError> {
         let ciphersuite = group_context.ciphersuite();
         let version = group_context.protocol_version();
-        let (kem_output, raw_init_secret) = backend.crypto().hpke_setup_sender_and_export(
-            ciphersuite.hpke_config(),
-            external_pub,
-            &[],
-            hpke_info_from_version(version).as_bytes(),
-            ciphersuite.hash_length(),
-        )?;
+        let (kem_output, raw_init_secret) = backend
+            .crypto()
+            .hpke_setup_sender_and_export(
+                ciphersuite.hpke_config(),
+                external_pub,
+                &[],
+                hpke_info_from_version(version).as_bytes(),
+                ciphersuite.hash_length(),
+            )
+            .await?;
         Ok((
             InitSecret {
                 secret: Secret::from_slice(&raw_init_secret, version, ciphersuite),
@@ -395,13 +399,15 @@ impl JoinerSecret {
     }
 
     #[cfg(test)]
-    pub(crate) fn random(
+    pub(crate) async fn random(
         ciphersuite: Ciphersuite,
         backend: &impl OpenMlsCryptoProvider,
         version: ProtocolVersion,
     ) -> Self {
         Self {
-            secret: Secret::random(ciphersuite, backend, version).expect("Not enough randomness."),
+            secret: Secret::random(ciphersuite, backend, version)
+                .await
+                .expect("Not enough randomness."),
         }
     }
 }
@@ -674,9 +680,10 @@ impl EncryptionSecret {
 
     /// Create a random `EncryptionSecret`. For testing purposes only.
     #[cfg(test)]
-    pub(crate) fn random(ciphersuite: Ciphersuite, rng: &impl OpenMlsCryptoProvider) -> Self {
+    pub(crate) async fn random(ciphersuite: Ciphersuite, rng: &impl OpenMlsCryptoProvider) -> Self {
         EncryptionSecret {
             secret: Secret::random(ciphersuite, rng, None /* MLS version */)
+                .await
                 .expect("Not enough randomness."),
         }
     }
@@ -831,9 +838,10 @@ impl ConfirmationKey {
 
 #[cfg(any(feature = "test-utils", test))]
 impl ConfirmationKey {
-    pub(crate) fn random(ciphersuite: Ciphersuite, rng: &impl OpenMlsCryptoProvider) -> Self {
+    pub(crate) async fn random(ciphersuite: Ciphersuite, rng: &impl OpenMlsCryptoProvider) -> Self {
         Self {
             secret: Secret::random(ciphersuite, rng, None /* MLS version */)
+                .await
                 .expect("Not enough randomness."),
         }
     }
@@ -895,9 +903,10 @@ impl MembershipKey {
     }
 
     #[cfg(any(feature = "test-utils", test))]
-    pub(crate) fn random(ciphersuite: Ciphersuite, rng: &impl OpenMlsCryptoProvider) -> Self {
+    pub(crate) async fn random(ciphersuite: Ciphersuite, rng: &impl OpenMlsCryptoProvider) -> Self {
         Self {
             secret: Secret::random(ciphersuite, rng, None /* MLS version */)
+                .await
                 .expect("Not enough randomness."),
         }
     }
@@ -974,9 +983,10 @@ impl SenderDataSecret {
     }
 
     #[cfg(any(feature = "test-utils", test))]
-    pub(crate) fn random(ciphersuite: Ciphersuite, rng: &impl OpenMlsCryptoProvider) -> Self {
+    pub(crate) async fn random(ciphersuite: Ciphersuite, rng: &impl OpenMlsCryptoProvider) -> Self {
         Self {
             secret: Secret::random(ciphersuite, rng, None /* MLS version */)
+                .await
                 .expect("Not enough randomness."),
         }
     }

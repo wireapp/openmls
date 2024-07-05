@@ -378,7 +378,7 @@ impl TreeSync {
     ///
     /// Returns the resulting [`TreeSync`] instance, as well as the
     /// corresponding [`CommitSecret`].
-    pub(crate) fn new(
+    pub(crate) async fn new(
         backend: &impl OpenMlsCryptoProvider,
         signer: &impl Signer,
         config: CryptoConfig,
@@ -396,10 +396,12 @@ impl TreeSync {
             extensions,
             tree_info_tbs: TreeInfoTbs::KeyPackage,
         };
-        let (leaf, encryption_key_pair) = LeafNode::new(backend, signer, new_leaf_node_params)?;
+        let (leaf, encryption_key_pair) =
+            LeafNode::new(backend, signer, new_leaf_node_params).await?;
 
         let node = Node::LeafNode(leaf);
         let path_secret: PathSecret = Secret::random(config.ciphersuite, backend, None)
+            .await
             .map_err(LibraryError::unexpected_crypto_error)?
             .into();
         let commit_secret: CommitSecret = path_secret
@@ -802,7 +804,7 @@ mod test {
                 ciphersuite,
                 backend.crypto(),
                 test,
-                &GroupId::random(backend),
+                &GroupId::random(backend).await,
             )
             .is_ok();
             assert_eq!(got, expected);

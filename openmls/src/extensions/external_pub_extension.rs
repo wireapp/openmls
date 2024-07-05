@@ -30,6 +30,7 @@ impl ExternalPubExtension {
 
 #[cfg(test)]
 mod test {
+    use async_std::task::block_on;
     use openmls_rust_crypto::OpenMlsRustCrypto;
     use openmls_traits::{crypto::OpenMlsCrypto, types::Ciphersuite, OpenMlsCryptoProvider};
     use tls_codec::{Deserialize, Serialize};
@@ -47,11 +48,14 @@ mod test {
             for _ in 0..8 {
                 let hpke_public_key =
                     {
-                        let ikm = Secret::random(
-                            Ciphersuite::MLS_128_DHKEMX25519_CHACHA20POLY1305_SHA256_Ed25519,
-                            &backend,
-                            ProtocolVersion::default(),
-                        )
+                        let ikm = block_on(async {
+                            Secret::random(
+                                Ciphersuite::MLS_128_DHKEMX25519_CHACHA20POLY1305_SHA256_Ed25519,
+                                &backend,
+                                ProtocolVersion::default(),
+                            )
+                            .await
+                        })
                         .unwrap();
                         let init_key = backend.crypto().derive_hpke_keypair(
                         Ciphersuite::hpke_config(

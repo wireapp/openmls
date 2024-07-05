@@ -16,7 +16,7 @@ pub(crate) async fn key_package(
     let credential = Credential::new_basic(b"Sasha".to_vec());
     let signer = SignatureKeyPair::new(
         ciphersuite.signature_algorithm(),
-        &mut *backend.rand().borrow_rand().unwrap(),
+        &mut *backend.rand().borrow_rand().await,
     )
     .unwrap();
 
@@ -74,7 +74,7 @@ async fn application_id_extension(ciphersuite: Ciphersuite, backend: &impl OpenM
     let credential = Credential::new_basic(b"Sasha".to_vec());
     let signature_keys = SignatureKeyPair::new(
         ciphersuite.signature_algorithm(),
-        &mut *backend.rand().borrow_rand().unwrap(),
+        &mut *backend.rand().borrow_rand().await,
     )
     .unwrap();
 

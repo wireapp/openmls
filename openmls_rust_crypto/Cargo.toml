@@ -31,3 +31,4 @@ signature = "2.1"
 thiserror = "1.0"
 generic-array = "0.14"
 hpke = { version = "0.12", features = ["x25519", "p256", "p384", "p521"] }
+async-lock = "2.8.0"

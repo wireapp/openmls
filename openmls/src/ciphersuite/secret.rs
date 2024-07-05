@@ -73,7 +73,7 @@ impl Secret {
     /// Randomly sample a fresh `Secret`.
     /// This default random initialiser uses the default Secret length of `hash_length`.
     /// The function can return a [`CryptoError`] if there is insufficient randomness.
-    pub(crate) fn random(
+    pub(crate) async fn random(
         ciphersuite: Ciphersuite,
         crypto: &impl OpenMlsCryptoProvider,
         version: impl Into<Option<ProtocolVersion>>,
@@ -88,6 +88,7 @@ impl Secret {
             value: crypto
                 .rand()
                 .random_vec(ciphersuite.hash_length())
+                .await
                 .map_err(|_| CryptoError::InsufficientRandomness)?
                 .into(),
             mls_version,

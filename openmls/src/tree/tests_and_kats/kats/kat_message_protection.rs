@@ -130,7 +130,7 @@ async fn generate_credential(
     let credential = Credential::new_basic(identity);
     let signature_keys = SignatureKeyPair::new(
         signature_algorithm,
-        &mut *backend.rand().borrow_rand().unwrap(),
+        &mut *backend.rand().borrow_rand().await,
     )
     .unwrap();
     signature_keys.store(backend.key_store()).await.unwrap();
@@ -155,7 +155,7 @@ async fn group(
         generate_credential("Kreator".into(), ciphersuite.signature_algorithm(), backend).await;
 
     let group = CoreGroup::builder(
-        GroupId::random(backend),
+        GroupId::random(backend).await,
         CryptoConfig::with_default_version(ciphersuite),
         credential_with_key.clone(),
     )
@@ -236,7 +236,7 @@ pub async fn run_test_vector(
     let signature_private_key = test.signature_priv.clone();
     let random_own_signature_key = SignatureKeyPair::new(
         ciphersuite.signature_algorithm(),
-        &mut *backend.rand().borrow_rand().unwrap(),
+        &mut *backend.rand().borrow_rand().await,
     )
     .unwrap();
     let random_own_signature_key = random_own_signature_key.public();
@@ -267,7 +267,7 @@ pub async fn run_test_vector(
 
         let random_own_signature_key = SignatureKeyPair::new(
             ciphersuite.signature_algorithm(),
-            &mut *backend.rand().borrow_rand().unwrap(),
+            &mut *backend.rand().borrow_rand().await,
         )
         .unwrap();
         let random_own_signature_key = random_own_signature_key.public();
@@ -292,7 +292,7 @@ pub async fn run_test_vector(
         let credential = Credential::new_basic("Fake user".into());
         let signature_keys = SignatureKeyPair::new(
             ciphersuite.signature_algorithm(),
-            &mut *backend.rand().borrow_rand().unwrap(),
+            &mut *backend.rand().borrow_rand().await,
         )
         .unwrap();
         let bob_key_package_bundle = KeyPackageBundle::new(
@@ -478,6 +478,7 @@ pub async fn run_test_vector(
         .unwrap();
         let my_proposal_priv = sender_group
             .encrypt(proposal_authenticated_content, 0, backend)
+            .await
             .unwrap();
         let my_proposal_priv_out =
             MlsMessageOut::from_private_message(my_proposal_priv, group.version());
@@ -643,6 +644,7 @@ pub async fn run_test_vector(
         }));
         let my_commit_pub = sender_group
             .encrypt(commit_authenticated_content, 0, backend)
+            .await
             .unwrap();
         let my_commit_priv_out =
             MlsMessageOut::from_private_message(my_commit_pub, group.version());
@@ -736,6 +738,7 @@ pub async fn run_test_vector(
         let mut sender_group = setup_group(backend, ciphersuite, &test, true).await;
         let private_message = sender_group
             .create_application_message(&[], application, 0, backend, &signer)
+            .await
             .unwrap();
         let my_application_priv_out =
             MlsMessageOut::from_private_message(private_message, sender_group.version());

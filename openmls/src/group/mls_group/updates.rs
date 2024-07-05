@@ -82,7 +82,9 @@ impl MlsGroup {
 
         // Convert PublicMessage messages to MLSMessage and encrypt them if required by
         // the configuration
-        let mls_message = self.content_to_mls_message(create_commit_result.commit, backend)?;
+        let mls_message = self
+            .content_to_mls_message(create_commit_result.commit, backend)
+            .await?;
 
         // Set the current group state to [`MlsGroupState::PendingCommit`],
         // storing the current [`StagedCommit`] from the commit results
@@ -117,7 +119,9 @@ impl MlsGroup {
         let proposal_ref = proposal.proposal_reference().clone();
         self.proposal_store.add(proposal);
 
-        let mls_message = self.content_to_mls_message(update_proposal, backend)?;
+        let mls_message = self
+            .content_to_mls_message(update_proposal, backend)
+            .await?;
 
         // Since the state of the group might be changed, arm the state flag
         self.flag_state_change();
@@ -140,7 +144,9 @@ impl MlsGroup {
         let proposal_ref = proposal.proposal_reference().clone();
         self.proposal_store.add(proposal);
 
-        let mls_message = self.content_to_mls_message(update_proposal, backend)?;
+        let mls_message = self
+            .content_to_mls_message(update_proposal, backend)
+            .await?;
 
         // Since the state of the group might be changed, arm the state flag
         self.flag_state_change();
@@ -164,15 +170,17 @@ impl MlsGroup {
             .own_leaf()
             .ok_or_else(|| LibraryError::custom("The tree is broken. Couldn't find own leaf."))?
             .clone();
-        let keypair = own_leaf.rekey(
-            self.group_id(),
-            self.own_leaf_index(),
-            None,
-            self.ciphersuite(),
-            ProtocolVersion::default(), // XXX: openmls/openmls#1065
-            backend,
-            signer,
-        )?;
+        let keypair = own_leaf
+            .rekey(
+                self.group_id(),
+                self.own_leaf_index(),
+                None,
+                self.ciphersuite(),
+                ProtocolVersion::default(), // XXX: openmls/openmls#1065
+                backend,
+                signer,
+            )
+            .await?;
 
         keypair
             .write_to_key_store(backend)
@@ -222,7 +230,9 @@ impl MlsGroup {
         let proposal_ref = proposal.proposal_reference().clone();
         self.proposal_store.add(proposal);
 
-        let mls_message = self.content_to_mls_message(update_proposal, backend)?;
+        let mls_message = self
+            .content_to_mls_message(update_proposal, backend)
+            .await?;
 
         // Since the state of the group might be changed, arm the state flag
         self.flag_state_change();
@@ -247,15 +257,17 @@ impl MlsGroup {
             .ok_or_else(|| LibraryError::custom("The tree is broken. Couldn't find own leaf."))?
             .clone();
 
-        let keypair = own_leaf.rekey(
-            self.group_id(),
-            self.own_leaf_index(),
-            Some(leaf_node),
-            self.ciphersuite(),
-            ProtocolVersion::Mls10,
-            backend,
-            leaf_node_signer,
-        )?;
+        let keypair = own_leaf
+            .rekey(
+                self.group_id(),
+                self.own_leaf_index(),
+                Some(leaf_node),
+                self.ciphersuite(),
+                ProtocolVersion::Mls10,
+                backend,
+                leaf_node_signer,
+            )
+            .await?;
 
         keypair
             .write_to_key_store(backend)

@@ -29,7 +29,7 @@ async fn generate_credential(
     // ANCHOR: create_credential_keys
     let signature_keys = SignatureKeyPair::new(
         signature_algorithm,
-        &mut *backend.rand().borrow_rand().unwrap(),
+        &mut *backend.rand().borrow_rand().await,
     )
     .unwrap();
     signature_keys.store(backend.key_store()).await.unwrap();
@@ -259,6 +259,7 @@ async fn book_operations(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoP
     let message_alice = b"Hi, I'm Alice!";
     let mls_message_out = alice_group
         .create_message(backend, &alice_signature_keys, message_alice)
+        .await
         .expect("Error creating application message.");
     // ANCHOR_END: create_application_message
 
@@ -513,6 +514,7 @@ async fn book_operations(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoP
     let message_charlie = b"Hi, I'm Charlie!";
     let queued_message = charlie_group
         .create_message(backend, &charlie_signature_keys, message_charlie)
+        .await
         .expect("Error creating application message");
 
     let _alice_processed_message = alice_group
@@ -781,6 +783,7 @@ async fn book_operations(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoP
     // Check that Bob can no longer send messages
     assert!(bob_group
         .create_message(backend, &bob_signature_keys, b"Should not go through")
+        .await
         .is_err());
 
     // === Alice removes Charlie and re-adds Bob ===
@@ -803,6 +806,7 @@ async fn book_operations(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoP
             &alice_signature_keys,
             charlie_group.own_leaf_index(),
         )
+        .await
         .expect("Could not create proposal to remove Charlie.");
     // ANCHOR_END: propose_remove
 
@@ -980,6 +984,7 @@ async fn book_operations(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoP
     let message_alice = b"Hi, I'm Alice!";
     let queued_message = alice_group
         .create_message(backend, &alice_signature_keys, message_alice)
+        .await
         .expect("Error creating application message");
 
     let bob_processed_message = bob_group
@@ -1030,6 +1035,7 @@ async fn book_operations(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoP
     // ANCHOR: leaving
     let queued_message = bob_group
         .leave_group(backend, &bob_signature_keys)
+        .await
         .expect("Could not leave group");
     // ANCHOR_END: leaving
 

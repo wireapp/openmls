@@ -263,7 +263,7 @@ impl<'a> TreeSyncDiff<'a> {
     /// Derive a new direct path for the leaf with the given index.
     ///
     /// Returns an error if the leaf is not in the tree
-    fn derive_path(
+    async fn derive_path(
         &self,
         backend: &impl OpenMlsCryptoProvider,
         ciphersuite: Ciphersuite,
@@ -271,6 +271,7 @@ impl<'a> TreeSyncDiff<'a> {
     ) -> Result<PathDerivationResult, LibraryError> {
         let path_secret = PathSecret::from(
             Secret::random(ciphersuite, backend, None)
+                .await
                 .map_err(LibraryError::unexpected_crypto_error)?,
         );
 
@@ -287,7 +288,7 @@ impl<'a> TreeSyncDiff<'a> {
     /// derivation, as well as the newly derived [`EncryptionKeyPair`]s.
     ///
     /// Returns an error if the target leaf is not in the tree.
-    pub(crate) fn apply_own_update_path(
+    pub(crate) async fn apply_own_update_path(
         &mut self,
         backend: &impl OpenMlsCryptoProvider,
         signer: &impl Signer,
@@ -301,7 +302,7 @@ impl<'a> TreeSyncDiff<'a> {
         );
 
         let (path, update_path_nodes, keypairs, commit_secret) =
-            self.derive_path(backend, ciphersuite, leaf_index)?;
+            self.derive_path(backend, ciphersuite, leaf_index).await?;
 
         let parent_hash = self.process_update_path(backend, ciphersuite, leaf_index, path)?;
 

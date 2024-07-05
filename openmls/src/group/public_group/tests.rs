@@ -171,6 +171,7 @@ async fn public_group(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProv
 
     let (queued_messages, _) = alice_group
         .propose_remove_member(backend, &alice_signer, LeafNodeIndex::new(1))
+        .await
         .expect("Could not propose removal");
 
     let charlie_processed_message = charlie_group

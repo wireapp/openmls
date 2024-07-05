@@ -151,7 +151,7 @@ impl MlsGroupTestSetup {
                 let credential = Credential::new_basic(identity.clone());
                 let signature_keys = SignatureKeyPair::new(
                     ciphersuite.signature_algorithm(),
-                    &mut *crypto.rand().borrow_rand().unwrap(),
+                    &mut *crypto.rand().borrow_rand().await,
                 )
                 .unwrap();
                 signature_keys.store(crypto.key_store()).await.unwrap();
@@ -381,6 +381,7 @@ impl MlsGroupTestSetup {
                     .unwrap();
                 let message = group_state
                     .create_message(&m.crypto, &signer, "Hello World!".as_bytes())
+                    .await
                     .expect("Error composing message while checking group states.");
                 messages.push((m_id.to_vec(), message));
             }

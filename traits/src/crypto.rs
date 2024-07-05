@@ -9,6 +9,8 @@ use crate::types::{
     HpkeKeyPair, KemOutput, SignatureScheme,
 };
 
+#[cfg_attr(target_family = "wasm", async_trait::async_trait(?Send))]
+#[cfg_attr(not(target_family = "wasm"), async_trait::async_trait)]
 pub trait OpenMlsCrypto {
     /// Check whether the [`Ciphersuite`] is supported by the backend or not.
     ///
@@ -75,7 +77,10 @@ pub trait OpenMlsCrypto {
     ///
     /// Returns an error if the [`SignatureScheme`] is not supported or the key
     /// generation fails.
-    fn signature_key_gen(&self, alg: SignatureScheme) -> Result<(Vec<u8>, Vec<u8>), CryptoError>;
+    async fn signature_key_gen(
+        &self,
+        alg: SignatureScheme,
+    ) -> Result<(Vec<u8>, Vec<u8>), CryptoError>;
 
     /// Gives the length of a signature public key, in bytes
     fn signature_public_key_len(&self, alg: SignatureScheme) -> usize;
@@ -109,7 +114,7 @@ pub trait OpenMlsCrypto {
     // === HPKE === //
 
     /// HPKE single-shot encryption of `ptxt` to `pk_r`, using `info` and `aad`.
-    fn hpke_seal(
+    async fn hpke_seal(
         &self,
         config: HpkeConfig,
         pk_r: &[u8],
@@ -132,7 +137,7 @@ pub trait OpenMlsCrypto {
     /// HPKE single-shot setup of a sender and immediate export a secret.
     ///
     /// The encapsulated secret is returned together with the exported secret.
-    fn hpke_setup_sender_and_export(
+    async fn hpke_setup_sender_and_export(
         &self,
         config: HpkeConfig,
         pk_r: &[u8],

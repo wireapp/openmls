@@ -65,7 +65,7 @@ async fn ratchet_tree_extension(ciphersuite: Ciphersuite, backend: &impl OpenMls
 
     // === Alice creates a group with the ratchet tree extension ===
     let mut alice_group = CoreGroup::builder(
-        GroupId::random(backend),
+        GroupId::random(backend).await,
         config::CryptoConfig::with_default_version(ciphersuite),
         alice_credential_with_key.clone(),
     )
@@ -146,7 +146,7 @@ async fn ratchet_tree_extension(ciphersuite: Ciphersuite, backend: &impl OpenMls
     };
 
     let mut alice_group = CoreGroup::builder(
-        GroupId::random(backend),
+        GroupId::random(backend).await,
         config::CryptoConfig::with_default_version(ciphersuite),
         alice_credential_with_key,
     )

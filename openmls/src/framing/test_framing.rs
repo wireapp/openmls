@@ -37,7 +37,7 @@ async fn codec_plaintext(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoP
     let sender = Sender::build_member(LeafNodeIndex::new(987543210));
     let group_context = GroupContext::new(
         ciphersuite,
-        GroupId::random(backend),
+        GroupId::random(backend).await,
         1,
         vec![],
         vec![],
@@ -49,7 +49,7 @@ async fn codec_plaintext(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoP
         .expect("An unexpected error occurred.");
     let signature_input = FramedContentTbs::new(
         WireFormat::PublicMessage,
-        GroupId::random(backend),
+        GroupId::random(backend).await,
         1,
         sender,
         vec![1, 2, 3].into(),
@@ -63,6 +63,7 @@ async fn codec_plaintext(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoP
 
     let membership_key = MembershipKey::from_secret(
         Secret::random(ciphersuite, backend, None /* MLS version */)
+            .await
             .expect("Not enough randomness."),
     );
     orig.set_membership_tag(backend, &membership_key, &serialized_context)
@@ -98,7 +99,7 @@ async fn codec_ciphertext(ciphersuite: Ciphersuite, backend: &impl OpenMlsCrypto
         .expect("An unexpected error occurred.");
     let signature_input = FramedContentTbs::new(
         WireFormat::PrivateMessage,
-        GroupId::random(backend),
+        GroupId::random(backend).await,
         1,
         sender,
         vec![1, 2, 3].into(),
@@ -112,7 +113,7 @@ async fn codec_ciphertext(ciphersuite: Ciphersuite, backend: &impl OpenMlsCrypto
     let mut key_schedule = KeySchedule::init(
         ciphersuite,
         backend,
-        &JoinerSecret::random(ciphersuite, backend, ProtocolVersion::default()),
+        &JoinerSecret::random(ciphersuite, backend, ProtocolVersion::default()).await,
         PskSecret::from(Secret::zero(ciphersuite, ProtocolVersion::Mls10)),
     )
     .expect("Could not create KeySchedule.");
@@ -125,7 +126,8 @@ async fn codec_ciphertext(ciphersuite: Ciphersuite, backend: &impl OpenMlsCrypto
         .add_context(backend, &serialized_group_context)
         .expect("Could not add context to key schedule");
 
-    let mut message_secrets = MessageSecrets::random(ciphersuite, backend, LeafNodeIndex::new(0));
+    let mut message_secrets =
+        MessageSecrets::random(ciphersuite, backend, LeafNodeIndex::new(0)).await;
 
     let orig = PrivateMessage::encrypt_with_different_header(
         &plaintext,
@@ -139,6 +141,7 @@ async fn codec_ciphertext(ciphersuite: Ciphersuite, backend: &impl OpenMlsCrypto
         &mut message_secrets,
         0,
     )
+    .await
     .expect("Could not encrypt PublicMessage.");
 
     let enc = orig
@@ -159,10 +162,12 @@ async fn wire_format_checks(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryp
     let (plaintext, _credential, _keys) =
         create_content(ciphersuite, WireFormat::PrivateMessage, backend).await;
 
-    let mut message_secrets = MessageSecrets::random(ciphersuite, backend, LeafNodeIndex::new(0));
+    let mut message_secrets =
+        MessageSecrets::random(ciphersuite, backend, LeafNodeIndex::new(0)).await;
     let encryption_secret_bytes = backend
         .rand()
         .random_vec(ciphersuite.hash_length())
+        .await
         .expect("An unexpected error occurred.");
     let sender_encryption_secret = EncryptionSecret::from_slice(
         &encryption_secret_bytes[..],
@@ -200,6 +205,7 @@ async fn wire_format_checks(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryp
         &mut message_secrets,
         0,
     )
+    .await
     .expect("Could not encrypt PublicMessage.")
     .into();
 
@@ -244,6 +250,7 @@ async fn wire_format_checks(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryp
         &mut message_secrets,
         0,
     )
+    .await
     .expect("Could not encrypt PublicMessage.")
     .into();
 
@@ -284,6 +291,7 @@ async fn wire_format_checks(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryp
             &mut message_secrets,
             0,
         )
+        .await
         .expect_err("Could encrypt despite wrong wire format."),
         MessageEncryptionError::WrongWireFormat
     );
@@ -310,7 +318,7 @@ async fn create_content(
         .expect("An unexpected error occurred.");
     let signature_input = FramedContentTbs::new(
         wire_format,
-        GroupId::random(backend),
+        GroupId::random(backend).await,
         1,
         sender,
         vec![1, 2, 3].into(),
@@ -331,7 +339,7 @@ async fn membership_tag(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoPr
         test_utils::new_credential(backend, b"Creator", ciphersuite.signature_algorithm()).await;
     let group_context = GroupContext::new(
         ciphersuite,
-        GroupId::random(backend),
+        GroupId::random(backend).await,
         1,
         vec![],
         vec![],
@@ -339,6 +347,7 @@ async fn membership_tag(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoPr
     );
     let membership_key = MembershipKey::from_secret(
         Secret::random(ciphersuite, backend, None /* MLS version */)
+            .await
             .expect("Not enough randomness."),
     );
     let public_message: PublicMessage = AuthenticatedContent::new_application(
@@ -408,7 +417,7 @@ async fn unknown_sender(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoPr
 
     // Alice creates a group
     let mut group_alice = CoreGroup::builder(
-        GroupId::random(backend),
+        GroupId::random(backend).await,
         config::CryptoConfig::with_default_version(ciphersuite),
         alice_credential,
     )
@@ -575,6 +584,7 @@ async fn unknown_sender(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoPr
         group_alice.message_secrets_test_mut(),
         0,
     )
+    .await
     .expect("Encryption error");
 
     let received_message = group_charlie.decrypt(&enc_message.into(), backend, configuration);
@@ -645,7 +655,7 @@ pub(crate) async fn setup_alice_bob_group(
 
     // Alice creates a group
     let mut group_alice = CoreGroup::builder(
-        GroupId::random(backend),
+        GroupId::random(backend).await,
         config::CryptoConfig::with_default_version(ciphersuite),
         alice_credential,
     )

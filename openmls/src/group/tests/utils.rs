@@ -348,11 +348,9 @@ pub(crate) async fn generate_credential_with_key(
 ) -> CredentialWithKeyAndSigner {
     let (credential, signer) = {
         let credential = Credential::new_basic(identity);
-        let signature_keys = SignatureKeyPair::new(
-            signature_scheme,
-            &mut *backend.rand().borrow_rand().unwrap(),
-        )
-        .unwrap();
+        let signature_keys =
+            SignatureKeyPair::new(signature_scheme, &mut *backend.rand().borrow_rand().await)
+                .unwrap();
         signature_keys.store(backend.key_store()).await.unwrap();
 
         (credential, signature_keys)

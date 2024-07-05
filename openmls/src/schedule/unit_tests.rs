@@ -10,6 +10,7 @@ use crate::{
     test_utils::*,
     versions::ProtocolVersion,
 };
+use futures::{stream, StreamExt};
 
 wasm_bindgen_test::wasm_bindgen_test_configure!(run_in_browser);
 
@@ -19,28 +20,37 @@ async fn test_psks(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvide
     // Create a new PSK secret from multiple PSKs.
     let prng = backend.rand();
 
-    let psk_ids = (0..33)
-        .map(|_| {
-            let id = prng.random_vec(12).expect("An unexpected error occurred.");
+    let psk_ids = stream::iter(0..33)
+        .then(|_| async {
+            let id = prng
+                .random_vec(12)
+                .await
+                .expect("An unexpected error occurred.");
             PreSharedKeyId::new(
                 ciphersuite,
                 backend.rand(),
                 Psk::External(ExternalPsk::new(id)),
             )
+            .await
             .expect("An unexpected error occurred.")
         })
-        .collect::<Vec<PreSharedKeyId>>();
-
-    for (secret, psk_id) in (0..33)
-        .map(|_| {
+        .collect::<Vec<PreSharedKeyId>>()
+        .await;
+    let secrets_with_psk_ids = stream::iter(0..33)
+        .then(|_| async {
             Secret::from_slice(
-                &prng.random_vec(55).expect("An unexpected error occurred."),
+                &prng
+                    .random_vec(55)
+                    .await
+                    .expect("An unexpected error occurred."),
                 ProtocolVersion::Mls10,
                 ciphersuite,
             )
         })
-        .zip(psk_ids.clone())
-    {
+        .zip(stream::iter(psk_ids.clone()))
+        .collect::<Vec<(Secret, PreSharedKeyId)>>()
+        .await;
+    for (secret, psk_id) in secrets_with_psk_ids.iter() {
         psk_id
             .write_to_key_store(backend, ciphersuite, secret.as_slice())
             .await

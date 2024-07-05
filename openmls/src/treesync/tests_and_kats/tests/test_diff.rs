@@ -37,7 +37,7 @@ async fn test_free_leaf_computation(
     ]);
 
     // Get the encryption key pair from the leaf.
-    let group_id = GroupId::random(backend);
+    let group_id = GroupId::random(backend).await;
     let tree =
         TreeSync::from_ratchet_tree(backend, ciphersuite, ratchet_tree, &group_id, true, true)
             .await

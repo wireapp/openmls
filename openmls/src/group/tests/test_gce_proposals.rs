@@ -97,6 +97,7 @@ async fn gce_fails_when_it_contains_unsupported_extensions(
         &[],
     ));
     let e = alice_group.propose_extensions(backend, &alice_signer, Extensions::single(required_key_id.clone()))
+        .await
         .expect_err("Alice was able to create a gce proposal with a required extensions she doesn't support.");
     assert_eq!(
         e,
@@ -108,6 +109,7 @@ async fn gce_fails_when_it_contains_unsupported_extensions(
     // This should fail because Alice doesn't support it.
     let e = bob_group
         .propose_extensions(backend, &bob_signer, Extensions::single(required_key_id))
+        .await
         .expect_err("Bob was able to create a gce proposal for an extension not supported by all other parties.");
     assert_eq!(
         e,
@@ -153,6 +155,7 @@ async fn gce_proposal_should_overwrite_previous(
     .unwrap();
     alice_group
         .propose_extensions(backend, &alice_signer, new_extensions.clone())
+        .await
         .unwrap();
     alice_group
         .commit_to_pending_proposals(backend, &alice_signer)
@@ -186,6 +189,7 @@ async fn gce_proposal_can_roundtrip(
     )));
     let (gce_proposal, _) = alice_group
         .propose_extensions(backend, &alice_signer, new_extensions.clone())
+        .await
         .unwrap();
     let processed_message = bob_group
         .process_message(backend, MlsMessageIn::from(gce_proposal))
@@ -238,10 +242,12 @@ async fn creating_commit_with_more_than_one_gce_proposal_should_fail(
     let application_id = Extension::ApplicationId(ApplicationIdExtension::new(b"mls_test"));
     alice_group
         .propose_extensions(backend, &alice_signer, Extensions::single(application_id))
+        .await
         .unwrap();
     let external_senders = Extension::ExternalSenders(ExternalSendersExtension::default());
     alice_group
         .propose_extensions(backend, &alice_signer, Extensions::single(external_senders))
+        .await
         .unwrap();
     assert_eq!(alice_group.pending_proposals().count(), 2);
     let commit = alice_group
@@ -279,6 +285,7 @@ async fn validating_commit_with_more_than_one_gce_proposal_should_fail(
     let application_id = Extension::ApplicationId(ApplicationIdExtension::new(b"test_mls"));
     let (first_gce_proposal, _) = alice_group
         .propose_extensions(backend, &alice_signer, Extensions::single(application_id))
+        .await
         .unwrap();
     let processed_message = bob_group
         .process_message(backend, MlsMessageIn::from(first_gce_proposal))
@@ -360,6 +367,7 @@ async fn gce_proposal_must_be_applied_first_then_used_to_validate_other_add_prop
             &alice_signer,
             Extensions::single(new_required_capabilities),
         )
+        .await
         .unwrap();
 
     // Charlie does not have ExternalSenders in its extensions, hence it should fail to be added to the group
@@ -449,6 +457,7 @@ async fn gce_proposal_must_be_applied_first_then_used_to_validate_other_external
             &alice_signer,
             Extensions::single(new_required_capabilities),
         )
+        .await
         .unwrap();
 
     // Charlie does not have ExternalSenders in its extensions, hence it should fail to be added to the group
@@ -544,11 +553,13 @@ async fn gce_proposal_must_be_applied_first_but_ignored_for_remove_proposals(
         RequiredCapabilitiesExtension::new(&[], &[ProposalType::AppAck], &DEFAULT_CREDENTIAL_TYPES),
     );
 
-    let extension_proposal = alice_group.propose_extensions(
-        backend,
-        &alice_signer,
-        Extensions::single(new_required_capabilities.clone()),
-    );
+    let extension_proposal = alice_group
+        .propose_extensions(
+            backend,
+            &alice_signer,
+            Extensions::single(new_required_capabilities.clone()),
+        )
+        .await;
     // because group contains Charlie which is incompatible with new extensions
     assert!(extension_proposal.is_err());
     alice_group.clear_pending_proposals();
@@ -560,6 +571,7 @@ async fn gce_proposal_must_be_applied_first_but_ignored_for_remove_proposals(
         .unwrap();
     let (charlie_remove_proposal, _) = alice_group
         .propose_remove_member(backend, &alice_signer, charlie_index)
+        .await
         .unwrap();
 
     // Bob is able to process remove proposal
@@ -574,6 +586,7 @@ async fn gce_proposal_must_be_applied_first_but_ignored_for_remove_proposals(
             &alice_signer,
             Extensions::single(new_required_capabilities),
         )
+        .await
         .unwrap();
     assert_eq!(alice_group.pending_proposals().count(), 2);
 
@@ -673,6 +686,7 @@ async fn gce_proposal_must_be_applied_first_but_ignored_for_external_remove_prop
             &alice_signer,
             Extensions::single(new_required_capabilities),
         )
+        .await
         .unwrap();
     // Once validating proposals, it should not fail as even though Charlie does not support the new
     // required extensions, he is going to be removed from the group

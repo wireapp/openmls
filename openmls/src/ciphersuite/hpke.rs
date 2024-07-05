@@ -90,7 +90,7 @@ impl From<(&str, &[u8])> for EncryptContext {
 }
 
 /// Encrypt to an HPKE key with a label.
-pub(crate) fn encrypt_with_label(
+pub(crate) async fn encrypt_with_label(
     public_key: &[u8],
     label: &str,
     context: &[u8],
@@ -109,13 +109,15 @@ pub(crate) fn encrypt_with_label(
     log_crypto!(debug, "* public key:  {public_key:x?}");
     log_crypto!(debug, "* plaintext:   {plaintext:x?}");
 
-    let cipher = crypto.hpke_seal(
-        ciphersuite.hpke_config(),
-        public_key,
-        &context,
-        &[],
-        plaintext,
-    )?;
+    let cipher = crypto
+        .hpke_seal(
+            ciphersuite.hpke_config(),
+            public_key,
+            &context,
+            &[],
+            plaintext,
+        )
+        .await?;
 
     log_crypto!(debug, "* ciphertext:  {:x?}", cipher);
 

@@ -69,7 +69,7 @@ impl PrivateMessage {
     ///
     /// TODO #1148: Refactor theses constructors to avoid test code in main and
     /// to avoid validation using a special feature flag.
-    pub(crate) fn try_from_authenticated_content(
+    pub(crate) async fn try_from_authenticated_content(
         public_message: &AuthenticatedContent,
         ciphersuite: Ciphersuite,
         backend: &impl OpenMlsCryptoProvider,
@@ -90,10 +90,11 @@ impl PrivateMessage {
             message_secrets,
             padding_size,
         )
+        .await
     }
 
     #[cfg(any(feature = "test-utils", test))]
-    pub(crate) fn encrypt_without_check(
+    pub(crate) async fn encrypt_without_check(
         public_message: &AuthenticatedContent,
         ciphersuite: Ciphersuite,
         backend: &impl OpenMlsCryptoProvider,
@@ -108,10 +109,11 @@ impl PrivateMessage {
             message_secrets,
             padding_size,
         )
+        .await
     }
 
     #[cfg(test)]
-    pub(crate) fn encrypt_with_different_header(
+    pub(crate) async fn encrypt_with_different_header(
         public_message: &AuthenticatedContent,
         ciphersuite: Ciphersuite,
         backend: &impl OpenMlsCryptoProvider,
@@ -127,11 +129,12 @@ impl PrivateMessage {
             message_secrets,
             padding_size,
         )
+        .await
     }
 
     /// Internal function to encrypt content. The extra message header is only used
     /// for tests. Otherwise, the data from the given `AuthenticatedContent` is used.
-    fn encrypt_content(
+    async fn encrypt_content(
         test_header: Option<MlsMessageHeader>,
         public_message: &AuthenticatedContent,
         ciphersuite: Ciphersuite,
@@ -170,8 +173,9 @@ impl PrivateMessage {
             // Even in tests we want to use the real sender index, so we have a key to encrypt.
             .secret_for_encryption(ciphersuite, backend, sender_index, secret_type)?;
         // Sample reuse guard uniformly at random.
-        let reuse_guard: ReuseGuard =
-            ReuseGuard::try_from_random(backend).map_err(LibraryError::unexpected_crypto_error)?;
+        let reuse_guard: ReuseGuard = ReuseGuard::try_from_random(backend)
+            .await
+            .map_err(LibraryError::unexpected_crypto_error)?;
         // Prepare the nonce by xoring with the reuse guard.
         let prepared_nonce = ratchet_nonce.xor_with_reuse_guard(&reuse_guard);
         // Encrypt the payload
@@ -320,6 +324,7 @@ impl PrivateMessage {
 ///     opaque padding[length_of_padding];
 /// } PrivateMessageContent;
 /// ```
+#[allow(dead_code)]
 #[derive(Debug, Clone)]
 pub(crate) struct PrivateMessageContent {
     // The `content` field is serialized and deserialized manually without the

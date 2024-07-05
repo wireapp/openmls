@@ -596,28 +596,28 @@ async fn test_valsem101b(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoP
         KeyUniqueness::PositiveSameKeyWithRemove,
     ] {
         // 0. Initialize Alice and Bob
-        let new_kp = || {
+        let new_kp = || async {
             openmls_basic_credential::SignatureKeyPair::new(
                 ciphersuite.signature_algorithm(),
-                &mut *backend.rand().borrow_rand().unwrap(),
+                &mut *backend.rand().borrow_rand().await,
             )
             .unwrap()
         };
-        let shared_signature_keypair = new_kp();
+        let shared_signature_keypair = new_kp().await;
         let [alice_credential_with_key, bob_credential_with_key, target_credential_with_key] =
             match alice_and_bob_share_keys {
                 KeyUniqueness::NegativeSameKey => [
                     ("Alice", shared_signature_keypair.clone()),
-                    ("Bob", new_kp()),
+                    ("Bob", new_kp().await),
                     ("Charlie", shared_signature_keypair.clone()),
                 ],
                 KeyUniqueness::PositiveDifferentKey => [
-                    ("Alice", new_kp()),
-                    ("Bob", new_kp()),
-                    ("Charlie", new_kp()),
+                    ("Alice", new_kp().await),
+                    ("Bob", new_kp().await),
+                    ("Charlie", new_kp().await),
                 ],
                 KeyUniqueness::PositiveSameKeyWithRemove => [
-                    ("Alice", new_kp()),
+                    ("Alice", new_kp().await),
                     ("Bob", shared_signature_keypair.clone()),
                     ("Charlie", shared_signature_keypair.clone()),
                 ],
@@ -707,6 +707,7 @@ async fn test_valsem101b(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoP
                     .unwrap();
                 alice_group
                     .propose_remove_member(backend, &alice_credential_with_key.signer, bob_index)
+                    .await
                     .unwrap();
                 alice_group
                     .add_members(backend, &alice_credential_with_key.signer, vec![target_key_package.into()])
@@ -1461,6 +1462,7 @@ async fn test_valsem107(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoPr
             &alice_credential_with_key_and_signer.signer,
             bob_leaf_index,
         )
+        .await
         .unwrap();
 
     // While this shouldn't fail, it should produce a valid commit, i.e. one
@@ -1575,6 +1577,7 @@ async fn test_valsem108(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoPr
             &alice_credential_with_key_and_signer.signer,
             fake_leaf_index,
         )
+        .await
         .expect_err("Successfully created remove proposal for leaf not in the tree");
     let _ = alice_group
         .commit_to_pending_proposals(backend, &alice_credential_with_key_and_signer.signer)
@@ -1590,6 +1593,7 @@ async fn test_valsem108(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoPr
             &alice_credential_with_key_and_signer.signer,
             fake_leaf_index,
         )
+        .await
         .expect_err("Successfully created remove proposal for unknown member");
 
     assert_eq!(err, ProposeRemoveMemberError::UnknownMember);
@@ -2172,6 +2176,7 @@ async fn test_valsem401_valsem402(ciphersuite: Ciphersuite, backend: &impl OpenM
                     &alice_credential_with_key_and_signer.signer,
                     psk_id,
                 )
+                .await
                 .unwrap();
 
             proposals.push(psk_proposal);

@@ -176,6 +176,7 @@ async fn test_group_info(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoP
     // bob sends a message to alice
     let message: MlsMessageIn = bob_group
         .create_message(backend, &bob_signature_keys, b"Hello Alice")
+        .await
         .unwrap()
         .into();
 
