@@ -288,7 +288,7 @@ impl KeyPackage {
     }
 
     /// Delete this key package and its private key from the key store.
-    pub async fn delete<KeyStore: OpenMlsKeyStore>(
+    pub fn delete<KeyStore: OpenMlsKeyStore>(
         &self,
         backend: &impl OpenMlsCryptoProvider<KeyStoreProvider = KeyStore>,
     ) -> Result<(), KeyPackageDeleteError<KeyStore::Error>> {
@@ -296,12 +296,10 @@ impl KeyPackage {
         backend
             .key_store()
             .delete::<Self>(kp_ref.as_slice())
-            .await
             .map_err(KeyPackageDeleteError::KeyStoreError)?;
         backend
             .key_store()
             .delete::<HpkePrivateKey>(self.hpke_init_key().as_slice())
-            .await
             .map_err(KeyPackageDeleteError::KeyStoreError)?;
         Ok(())
     }
@@ -369,7 +367,7 @@ impl KeyPackage {
 #[allow(clippy::too_many_arguments)]
 impl KeyPackage {
     /// Generate a new key package with a given init key
-    pub async fn new_from_init_key<KeyStore: OpenMlsKeyStore>(
+    pub fn new_from_init_key<KeyStore: OpenMlsKeyStore>(
         config: CryptoConfig,
         backend: &impl OpenMlsCryptoProvider<KeyStoreProvider = KeyStore>,
         signer: &impl Signer,
@@ -399,13 +397,11 @@ impl KeyPackage {
                 key_package.hash_ref(backend.crypto())?.as_slice(),
                 &key_package,
             )
-            .await
             .map_err(KeyPackageNewError::KeyStoreError)?;
 
         // Store the encryption key pair in the key store.
         encryption_key_pair
             .write_to_key_store(backend)
-            .await
             .map_err(KeyPackageNewError::KeyStoreError)?;
 
         Ok(key_package)

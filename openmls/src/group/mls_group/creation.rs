@@ -113,7 +113,7 @@ impl MlsGroup {
     /// ([`WelcomeError::NoMatchingKeyPackage`]) if no [`KeyPackage`]
     /// can be found.
     // TODO: #1326 This should take an MlsMessage rather than a Welcome message.
-    pub async fn new_from_welcome<KeyStore: OpenMlsKeyStore>(
+    pub fn new_from_welcome<KeyStore: OpenMlsKeyStore>(
         backend: &impl OpenMlsCryptoProvider<KeyStoreProvider = KeyStore>,
         mls_group_config: &MlsGroupConfig,
         welcome: Welcome,
@@ -124,7 +124,7 @@ impl MlsGroup {
 
         let mut key_package: Option<KeyPackage> = None;
         for egs in welcome.secrets() {
-            if let Some(kp) = backend.key_store().read(egs.new_member().as_slice()).await {
+            if let Some(kp) = backend.key_store().read(egs.new_member().as_slice()) {
                 key_package.replace(kp);
                 break;
             }
@@ -138,7 +138,6 @@ impl MlsGroup {
         let private_key = backend
             .key_store()
             .read::<HpkePrivateKey>(key_package.hpke_init_key().as_slice())
-            .await
             .ok_or(WelcomeError::NoMatchingKeyPackage)?;
 
         let mut group = CoreGroup::new_from_welcome(
@@ -148,8 +147,7 @@ impl MlsGroup {
             private_key,
             backend,
             resumption_psk_store,
-        )
-        .await?;
+        )?;
         group.set_max_past_epochs(mls_group_config.max_past_epochs);
 
         let mls_group = MlsGroup {
@@ -163,7 +161,7 @@ impl MlsGroup {
         };
 
         // Delete the [`KeyPackage`] and the corresponding private key from the key store
-        key_package.delete(backend).await?;
+        key_package.delete(backend)?;
 
         Ok(mls_group)
     }

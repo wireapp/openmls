@@ -176,7 +176,6 @@ impl MlsGroup {
 
         keypair
             .write_to_key_store(backend)
-            .await
             .map_err(ProposeSelfUpdateError::KeyStoreError)?;
 
         let tree_position = TreePosition::new(self.group_id().clone(), self.own_leaf_index());
@@ -259,7 +258,6 @@ impl MlsGroup {
 
         keypair
             .write_to_key_store(backend)
-            .await
             .map_err(ProposeSelfUpdateError::KeyStoreError)?;
 
         let tree_position = TreePosition::new(self.group_id().clone(), self.own_leaf_index());

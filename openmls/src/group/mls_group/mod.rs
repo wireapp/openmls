@@ -308,14 +308,13 @@ impl MlsGroup {
     }
 
     /// Persists the state.
-    pub async fn save<KeyStore: OpenMlsKeyStore>(
+    pub fn save<KeyStore: OpenMlsKeyStore>(
         &mut self,
         backend: &impl OpenMlsCryptoProvider<KeyStoreProvider = KeyStore>,
     ) -> Result<(), KeyStore::Error> {
         backend
             .key_store()
-            .store(self.group_id().as_slice(), &*self)
-            .await?;
+            .store(self.group_id().as_slice(), &*self)?;
 
         self.state_changed = InnerState::Persisted;
         Ok(())
@@ -432,7 +431,7 @@ impl MlsGroup {
     }
 
     /// Removes a specific proposal from the store.
-    pub async fn remove_pending_proposal(
+    pub fn remove_pending_proposal(
         &mut self,
         keystore: &impl OpenMlsKeyStore,
         proposal_ref: &ProposalRef,
@@ -447,7 +446,6 @@ impl MlsGroup {
                 let key = leaf_node.encryption_key().as_slice();
                 keystore
                     .delete::<EncryptionKeyPair>(key)
-                    .await
                     .map_err(|_| MlsGroupStateError::EncryptionKeyNotFound)?
             }
 

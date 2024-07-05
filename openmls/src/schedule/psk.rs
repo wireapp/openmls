@@ -410,7 +410,7 @@ impl PskSecret {
     /// psk_secret_[i] = KDF.Extract(psk_input[i-1], psk_secret_[i-1])
     /// psk_secret     = psk_secret[n]
     /// ```
-    pub(crate) async fn new(
+    pub(crate) fn new(
         backend: &impl OpenMlsCryptoProvider,
         ciphersuite: Ciphersuite,
         psks: Vec<(&PreSharedKeyId, Secret)>,
@@ -477,7 +477,7 @@ impl From<Secret> for PskSecret {
     }
 }
 
-pub(crate) async fn load_psks<'p>(
+pub(crate) fn load_psks<'p>(
     key_store: &impl OpenMlsKeyStore,
     resumption_psk_store: &ResumptionPskStore,
     psk_ids: &'p [PreSharedKeyId],

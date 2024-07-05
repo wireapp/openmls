@@ -440,7 +440,7 @@ impl TreeSync {
     /// A helper function that generates a [`TreeSync`] instance from the given
     /// slice of nodes. It verifies that the provided encryption key is present
     /// in the tree and that the invariants documented in [`TreeSync`] hold.
-    pub(crate) async fn from_ratchet_tree(
+    pub(crate) fn from_ratchet_tree(
         backend: &impl OpenMlsCryptoProvider,
         ciphersuite: Ciphersuite,
         ratchet_tree: RatchetTree,
