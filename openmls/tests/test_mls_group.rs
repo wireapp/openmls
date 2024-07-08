@@ -43,6 +43,7 @@ async fn generate_key_package<KeyStore: OpenMlsKeyStore>(
 ///  - Test saving the group state
 #[apply(ciphersuites_and_backends)]
 async fn mls_group_operations(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider) {
+    Box::pin(async {
     for wire_format_policy in WIRE_FORMAT_POLICIES.iter() {
         let group_id = GroupId::from_slice(b"Test Group");
 
@@ -978,6 +979,8 @@ async fn mls_group_operations(ciphersuite: Ciphersuite, backend: &impl OpenMlsCr
             bob_group.export_secret(backend, "after load", &[], 32)
         );
     }
+})
+.await;
 }
 
 #[apply(ciphersuites_and_backends)]
