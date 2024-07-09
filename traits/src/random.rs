@@ -3,8 +3,7 @@
 //! The [`OpenMlsRand`] trait defines the functionality required by OpenMLS to
 //! source randomness.
 
-#[cfg_attr(target_family = "wasm", async_trait::async_trait(?Send))]
-#[cfg_attr(not(target_family = "wasm"), async_trait::async_trait)]
+#[async_trait::async_trait(?Send)]
 pub trait OpenMlsRand {
     type Error: std::error::Error + std::fmt::Debug;
     type RandImpl: rand_core::CryptoRngCore;

@@ -89,8 +89,7 @@ fn normalize_p521_secret_key(sk: &[u8]) -> zeroize::Zeroizing<[u8; 66]> {
     sk_buf
 }
 
-#[cfg_attr(target_family = "wasm", async_trait::async_trait(?Send))]
-#[cfg_attr(not(target_family = "wasm"), async_trait::async_trait)]
+#[async_trait::async_trait(?Send)]
 impl OpenMlsCrypto for RustCrypto {
     fn supports(&self, ciphersuite: Ciphersuite) -> Result<(), CryptoError> {
         match ciphersuite {
@@ -425,7 +424,7 @@ impl OpenMlsCrypto for RustCrypto {
         info: &[u8],
         aad: &[u8],
         ptxt: &[u8],
-    ) -> Result<types::HpkeCiphertext, CryptoError> {
+    ) -> Result<types::HpkeCiphertext, CryptoError> where Self: Sized {
         let mut rng = self.rng.write().await;
 
         match config {
@@ -849,8 +848,7 @@ mod hpke_core {
     }
 }
 
-#[cfg_attr(target_family = "wasm", async_trait::async_trait(?Send))]
-#[cfg_attr(not(target_family = "wasm"), async_trait::async_trait)]
+#[async_trait::async_trait(?Send)]
 impl OpenMlsRand for RustCrypto {
     type Error = RandError;
 

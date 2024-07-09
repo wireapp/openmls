@@ -9,8 +9,7 @@ use crate::types::{
     HpkeKeyPair, KemOutput, SignatureScheme,
 };
 
-#[cfg_attr(target_family = "wasm", async_trait::async_trait(?Send))]
-#[cfg_attr(not(target_family = "wasm"), async_trait::async_trait)]
+#[async_trait::async_trait(?Send)]
 pub trait OpenMlsCrypto {
     /// Check whether the [`Ciphersuite`] is supported by the backend or not.
     ///
