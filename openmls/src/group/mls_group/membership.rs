@@ -109,7 +109,6 @@ impl MlsGroup {
     /// The [Welcome] is [Some] when the queue of pending proposals contained
     /// add proposals
     /// The [GroupInfo] is [Some] if the group has the `use_ratchet_tree_extension` flag set.
-
     ///
     /// Returns an error if there is a pending commit.
     // FIXME: #1217
