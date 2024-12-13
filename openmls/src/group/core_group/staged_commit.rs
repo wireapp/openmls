@@ -111,8 +111,8 @@ impl CoreGroup {
     ///  - ValSem242
     ///  - ValSem243
     ///  - ValSem244
-    /// Returns an error if the given commit was sent by the owner of this
-    /// group.
+    ///
+    /// Returns an error if the given commit was sent by the owner of this group.
     pub(crate) async fn stage_commit(
         &self,
         mls_content: &AuthenticatedContent,

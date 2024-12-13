@@ -177,6 +177,7 @@ impl PublicGroup {
     ///  - ValSem242
     ///  - ValSem243
     ///  - ValSem244
+    ///
     /// Returns an error if the given commit was sent by the owner of this
     /// group.
     /// TODO #1255: This will be used by the `process_message` function of the

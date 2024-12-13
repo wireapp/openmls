@@ -320,6 +320,7 @@ impl PrivateMessage {
 ///     opaque padding[length_of_padding];
 /// } PrivateMessageContent;
 /// ```
+#[allow(dead_code)]
 #[derive(Debug, Clone)]
 pub(crate) struct PrivateMessageContent {
     // The `content` field is serialized and deserialized manually without the
