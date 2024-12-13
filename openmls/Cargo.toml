@@ -22,7 +22,7 @@ openmls_basic_credential = { version = "0.2.0", path = "../basic_credential", fe
 openmls_x509_credential = { version = "0.2.0", path = "../x509_credential" }
 x509-cert = "0.2"
 subtle = "2.5"
-fluvio-wasm-timer = "0.2"
+web-time = "1.1.0"
 indexmap = "2.0"
 itertools = "0.12"
 

@@ -12,7 +12,7 @@ tls_codec = { workspace = true }
 async-trait = { workspace = true }
 serde = "1.0"
 openmls_basic_credential = { version = "0.2.0", path = "../basic_credential" }
-fluvio-wasm-timer = "0.2"
+web-time = "1.1.0"
 base64 = "0.21"
 uuid = "1.4"
 percent-encoding = "2.3"
