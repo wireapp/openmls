@@ -58,7 +58,7 @@ impl LeafNodeIndex {
     }
 
     /// Warning: Only use when the node index represents a leaf node
-    fn from_tree_index(node_index: u32) -> Self {
+    pub fn from_tree_index(node_index: u32) -> Self {
         debug_assert!(node_index % 2 == 0);
         LeafNodeIndex(node_index / 2)
     }

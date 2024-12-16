@@ -47,7 +47,8 @@ async fn generate_key_package(ciphersuite: Ciphersuite, backend: &impl OpenMlsCr
 
     let kpi = KeyPackageIn::from(key_package);
     assert!(kpi
-        .standalone_validate(backend.crypto(), ProtocolVersion::Mls10)
+        .standalone_validate(backend, ProtocolVersion::Mls10, true)
+        .await
         .is_ok());
 }
 
@@ -100,7 +101,8 @@ async fn application_id_extension(ciphersuite: Ciphersuite, backend: &impl OpenM
 
     let kpi = KeyPackageIn::from(key_package.clone());
     assert!(kpi
-        .standalone_validate(backend.crypto(), ProtocolVersion::Mls10)
+        .standalone_validate(backend, ProtocolVersion::Mls10, true)
+        .await
         .is_ok());
 
     // Check ID
@@ -136,7 +138,8 @@ async fn key_package_validation(ciphersuite: Ciphersuite, backend: &impl OpenMls
     let kpi = KeyPackageIn::tls_deserialize(&mut encoded.as_slice()).unwrap();
 
     let err = kpi
-        .standalone_validate(backend.crypto(), ProtocolVersion::Mls10)
+        .standalone_validate(backend, ProtocolVersion::Mls10, true)
+        .await
         .unwrap_err();
     // Expect an invalid protocol version error
     assert_eq!(err, KeyPackageVerifyError::InvalidProtocolVersion);
@@ -155,7 +158,8 @@ async fn key_package_validation(ciphersuite: Ciphersuite, backend: &impl OpenMls
     let kpi = KeyPackageIn::tls_deserialize(&mut encoded.as_slice()).unwrap();
 
     let err = kpi
-        .standalone_validate(backend.crypto(), ProtocolVersion::Mls10)
+        .standalone_validate(backend, ProtocolVersion::Mls10, true)
+        .await
         .unwrap_err();
     // Expect an invalid init/encryption key error
     assert_eq!(err, KeyPackageVerifyError::InitKeyEqualsEncryptionKey);

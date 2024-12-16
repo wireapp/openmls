@@ -1084,7 +1084,8 @@ async fn test_valsem105(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoPr
                 .await;
 
         let kpi: KeyPackageIn = charlie_key_package.clone().into();
-        kpi.standalone_validate(backend.crypto(), ProtocolVersion::Mls10)
+        kpi.standalone_validate(backend, ProtocolVersion::Mls10, true)
+            .await
             .unwrap();
 
         // Let's just pick a ciphersuite that's not the one we're testing right now.
@@ -1165,11 +1166,13 @@ async fn test_valsem105(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoPr
         for proposal_inclusion in [ProposalInclusion::ByReference, ProposalInclusion::ByValue] {
             match proposal_inclusion {
                 ProposalInclusion::ByReference => {
-                    let proposal_result = alice_group.propose_add_member(
-                        backend,
-                        &alice_credential_with_key_and_signer.signer,
-                        test_kp.clone().into(),
-                    );
+                    let proposal_result = alice_group
+                        .propose_add_member(
+                            backend,
+                            &alice_credential_with_key_and_signer.signer,
+                            test_kp.clone().into(),
+                        )
+                        .await;
 
                     match key_package_version {
                         KeyPackageTestVersion::WrongCiphersuite => {
@@ -1452,28 +1455,13 @@ async fn test_valsem107(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoPr
     // expected.
     let bob_leaf_index = bob_group.own_leaf_index();
 
-    let ref_propose = {
-        // We first go the manual route
-        let (ref_propose1, _) = alice_group
-            .propose_remove_member(
-                backend,
-                &alice_credential_with_key_and_signer.signer,
-                bob_leaf_index,
-            )
-            .unwrap();
-
-        let (ref_propose2, _) = alice_group
-            .propose_remove_member(
-                backend,
-                &alice_credential_with_key_and_signer.signer,
-                bob_leaf_index,
-            )
-            .unwrap();
-
-        assert_eq!(ref_propose1, ref_propose2);
-
-        ref_propose1
-    };
+    let (ref_propose, _) = alice_group
+        .propose_remove_member(
+            backend,
+            &alice_credential_with_key_and_signer.signer,
+            bob_leaf_index,
+        )
+        .unwrap();
 
     // While this shouldn't fail, it should produce a valid commit, i.e. one
     // that contains only one remove proposal.

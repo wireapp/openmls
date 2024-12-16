@@ -169,7 +169,7 @@ async fn mls_group_operations(ciphersuite: Ciphersuite, backend: &impl OpenMlsCr
             assert_eq!(application_message.into_bytes(), message_alice);
             // Check that Alice sent the message
             assert_eq!(
-                &sender,
+                &sender.credential,
                 alice_group
                     .credential()
                     .expect("An unexpected error occurred.")
@@ -648,6 +648,7 @@ async fn mls_group_operations(ciphersuite: Ciphersuite, backend: &impl OpenMlsCr
         // Create AddProposal and process it
         let (queued_message, _) = alice_group
             .propose_add_member(backend, &alice_signer, bob_key_package.into())
+            .await
             .expect("Could not create proposal to add Bob");
 
         let charlie_processed_message = charlie_group
@@ -784,7 +785,7 @@ async fn mls_group_operations(ciphersuite: Ciphersuite, backend: &impl OpenMlsCr
             assert_eq!(application_message.into_bytes(), message_alice);
             // Check that Alice sent the message
             assert_eq!(
-                &sender,
+                &sender.credential,
                 alice_group.credential().expect("Expected a credential")
             );
         } else {

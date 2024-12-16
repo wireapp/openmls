@@ -52,11 +52,20 @@ impl From<(&str, &[u8])> for SignContent {
 }
 
 /// A public signature key.
-#[derive(
-    Eq, PartialEq, Hash, Debug, Clone, Serialize, Deserialize, TlsSerialize, TlsDeserialize, TlsSize,
-)]
+#[allow(clippy::derived_hash_with_manual_eq)]
+// because the manual PartialEq impl just turns it const time, it does not change the content of the operation
+#[derive(Hash, Debug, Clone, Serialize, Deserialize, TlsSerialize, TlsDeserialize, TlsSize)]
 pub struct SignaturePublicKey {
     pub(in crate::ciphersuite) value: VLBytes,
+}
+
+impl Eq for SignaturePublicKey {}
+
+impl PartialEq for SignaturePublicKey {
+    fn eq(&self, other: &Self) -> bool {
+        use subtle::ConstantTimeEq as _;
+        self.value.as_slice().ct_eq(other.value.as_slice()).into()
+    }
 }
 
 impl From<Vec<u8>> for SignaturePublicKey {

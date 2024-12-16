@@ -9,7 +9,7 @@
 
 use std::io::Read;
 
-use openmls_traits::{crypto::OpenMlsCrypto, types::Ciphersuite};
+use openmls_traits::{types::Ciphersuite, OpenMlsCryptoProvider};
 use tls_codec::Serialize as TlsSerializeTrait;
 
 use super::{mls_auth_content::*, mls_content_in::*, *};
@@ -47,23 +47,28 @@ pub struct AuthenticatedContentIn {
 
 impl AuthenticatedContentIn {
     /// Returns a [`AuthenticatedContent`] after successful validation.
-    pub fn validate(
+    pub async fn validate(
         self,
         ciphersuite: Ciphersuite,
-        crypto: &impl OpenMlsCrypto,
+        backend: &impl OpenMlsCryptoProvider,
         sender_context: Option<SenderContext>,
         protocol_version: ProtocolVersion,
         group: &PublicGroup,
+        sender: bool,
     ) -> Result<AuthenticatedContent, ValidationError> {
         Ok(AuthenticatedContent {
             wire_format: self.wire_format,
-            content: self.content.validate(
-                ciphersuite,
-                crypto,
-                sender_context,
-                protocol_version,
-                group,
-            )?,
+            content: self
+                .content
+                .validate(
+                    ciphersuite,
+                    backend,
+                    sender_context,
+                    protocol_version,
+                    group,
+                    sender,
+                )
+                .await?,
             auth: self.auth,
         })
     }

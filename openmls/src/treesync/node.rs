@@ -26,6 +26,7 @@ pub(crate) mod validate;
 ///     };
 /// } Node;
 /// ```
+#[allow(clippy::large_enum_variant)]
 #[derive(Debug, PartialEq, Eq, Clone, Serialize, Deserialize, TlsSize, TlsSerialize)]
 #[repr(u8)]
 pub enum Node {
@@ -37,6 +38,7 @@ pub enum Node {
     ParentNode(ParentNode),
 }
 
+#[allow(clippy::large_enum_variant)]
 #[derive(
     Debug, PartialEq, Eq, Clone, Serialize, Deserialize, TlsSize, TlsDeserialize, TlsSerialize,
 )]

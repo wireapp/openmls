@@ -7,7 +7,7 @@ use thiserror::Error;
 use super::*;
 use crate::{
     binary_tree::MlsBinaryTreeDiffError, ciphersuite::signable::SignatureError,
-    error::LibraryError, extensions::errors::ExtensionError,
+    credentials::errors::CredentialError, error::LibraryError, extensions::errors::ExtensionError,
 };
 
 // === Public errors ===
@@ -152,6 +152,9 @@ pub enum TreeSyncFromNodesError {
     /// See [`RatchetTreeError`] for more details.
     #[error(transparent)]
     RatchetTreeError(#[from] RatchetTreeError),
+    /// See [`LeafNodeValidationError`] for more details.
+    #[error(transparent)]
+    LeafNodeValidationError(#[from] LeafNodeValidationError),
 }
 
 /// TreeSync parent hash error
@@ -268,6 +271,9 @@ pub enum LeafNodeValidationError {
     /// See [`SignatureError`] for more details.
     #[error(transparent)]
     SignatureError(#[from] SignatureError),
+    /// See [`CredentialError`] for more details.
+    #[error(transparent)]
+    InvalidCredential(#[from] CredentialError),
 }
 
 /// Errors that can happen during lifetime validation.

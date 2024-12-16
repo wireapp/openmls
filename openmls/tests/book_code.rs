@@ -669,7 +669,7 @@ async fn book_operations(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoP
     assert!(alice_members.any(|Member { index, .. }| index == *sender_leaf_index));
     drop(alice_members);
 
-    assert_eq!(sender_credential, &charlie_credential.credential);
+    assert_eq!(sender_credential, &charlie_credential);
 
     let bob_processed_message = bob_group
         .process_message(
@@ -846,6 +846,7 @@ async fn book_operations(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoP
             &alice_signature_keys,
             bob_key_package.clone().into(),
         )
+        .await
         .expect("Could not create proposal to add Bob");
     alice_group
         .remove_pending_proposal(backend.key_store(), &proposal_ref)
@@ -861,6 +862,7 @@ async fn book_operations(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoP
             &alice_signature_keys,
             bob_key_package.clone().into(),
         )
+        .await
         .expect("Could not create proposal to add Bob");
     // ANCHOR_END: propose_add
 
@@ -1014,9 +1016,9 @@ async fn book_operations(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoP
         // Check the message
         assert_eq!(application_message.into_bytes(), message_alice);
         // Check that Alice sent the message
-        assert_eq!(sender_cred_from_msg, sender_cred_from_group);
+        assert_eq!(sender_cred_from_msg.credential, sender_cred_from_group);
         assert_eq!(
-            &sender_cred_from_msg,
+            &sender_cred_from_msg.credential,
             alice_group.credential().expect("Expected a credential.")
         );
     } else {
