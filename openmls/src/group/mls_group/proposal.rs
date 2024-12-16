@@ -61,7 +61,7 @@ macro_rules! impl_propose_fun {
         /// Creates proposals to add an external PSK to the key schedule.
         ///
         /// Returns an error if there is a pending commit.
-        pub fn $name<KeyStore: OpenMlsKeyStore>(
+        pub async fn $name<KeyStore: OpenMlsKeyStore>(
             &mut self,
             backend: &impl OpenMlsCryptoProvider<KeyStoreProvider = KeyStore>,
             signer: &impl Signer,
@@ -83,7 +83,7 @@ macro_rules! impl_propose_fun {
             log::trace!("Storing proposal in queue {:?}", queued_proposal);
             self.proposal_store.add(queued_proposal);
 
-            let mls_message = self.content_to_mls_message(proposal, backend)?;
+            let mls_message = self.content_to_mls_message(proposal, backend).await?;
 
             // Since the state of the group might be changed, arm the state flag
             self.flag_state_change();
@@ -126,7 +126,7 @@ impl MlsGroup {
         let proposal_ref = queued_proposal.proposal_reference().clone();
         self.proposal_store.add(queued_proposal);
 
-        let mls_message = self.content_to_mls_message(proposal, backend)?;
+        let mls_message = self.content_to_mls_message(proposal, backend).await?;
 
         self.flag_state_change();
 
@@ -192,31 +192,38 @@ impl MlsGroup {
             },
 
             Propose::Remove(leaf_index) => match ref_or_value {
-                ProposalOrRefType::Proposal => self.propose_remove_member_by_value(
-                    backend,
-                    signer,
-                    LeafNodeIndex::new(leaf_index),
-                ),
+                ProposalOrRefType::Proposal => {
+                    self.propose_remove_member_by_value(
+                        backend,
+                        signer,
+                        LeafNodeIndex::new(leaf_index),
+                    )
+                    .await
+                }
                 ProposalOrRefType::Reference => self
                     .propose_remove_member(backend, signer, LeafNodeIndex::new(leaf_index))
+                    .await
                     .map_err(|e| e.into()),
             },
 
             Propose::RemoveCredential(credential) => match ref_or_value {
                 ProposalOrRefType::Proposal => {
                     self.propose_remove_member_by_credential_by_value(backend, signer, &credential)
+                        .await
                 }
                 ProposalOrRefType::Reference => self
                     .propose_remove_member_by_credential(backend, signer, &credential)
+                    .await
                     .map_err(|e| e.into()),
             },
             Propose::PreSharedKey(psk_id) => match psk_id.psk() {
                 crate::schedule::Psk::External(_) => match ref_or_value {
                     ProposalOrRefType::Proposal => {
                         self.propose_external_psk_by_value(backend, signer, psk_id)
+                            .await
                     }
                     ProposalOrRefType::Reference => {
-                        self.propose_external_psk(backend, signer, psk_id)
+                        self.propose_external_psk(backend, signer, psk_id).await
                     }
                 },
                 crate::schedule::Psk::Resumption(_) => Err(ProposalError::LibraryError(
@@ -271,7 +278,7 @@ impl MlsGroup {
         let proposal_ref = proposal.proposal_reference().clone();
         self.proposal_store.add(proposal);
 
-        let mls_message = self.content_to_mls_message(add_proposal, backend)?;
+        let mls_message = self.content_to_mls_message(add_proposal, backend).await?;
 
         // Since the state of the group might be changed, arm the state flag
         self.flag_state_change();
@@ -283,7 +290,7 @@ impl MlsGroup {
     /// The `member` has to be the member's leaf index.
     ///
     /// Returns an error if there is a pending commit.
-    pub fn propose_remove_member(
+    pub async fn propose_remove_member(
         &mut self,
         backend: &impl OpenMlsCryptoProvider,
         signer: &impl Signer,
@@ -304,7 +311,9 @@ impl MlsGroup {
         let proposal_ref = proposal.proposal_reference().clone();
         self.proposal_store.add(proposal);
 
-        let mls_message = self.content_to_mls_message(remove_proposal, backend)?;
+        let mls_message = self
+            .content_to_mls_message(remove_proposal, backend)
+            .await?;
 
         // Since the state of the group might be changed, arm the state flag
         self.flag_state_change();
@@ -316,7 +325,7 @@ impl MlsGroup {
     /// The `member` has to be the member's credential.
     ///
     /// Returns an error if there is a pending commit.
-    pub fn propose_remove_member_by_credential(
+    pub async fn propose_remove_member_by_credential(
         &mut self,
         backend: &impl OpenMlsCryptoProvider,
         signer: &impl Signer,
@@ -332,6 +341,7 @@ impl MlsGroup {
 
         if let Some(member_index) = member_index {
             self.propose_remove_member(backend, signer, member_index)
+                .await
         } else {
             Err(ProposeRemoveMemberError::UnknownMember)
         }
@@ -341,7 +351,7 @@ impl MlsGroup {
     /// The `member` has to be the member's credential.
     ///
     /// Returns an error if there is a pending commit.
-    pub fn propose_remove_member_by_credential_by_value<KeyStore: OpenMlsKeyStore>(
+    pub async fn propose_remove_member_by_credential_by_value<KeyStore: OpenMlsKeyStore>(
         &mut self,
         backend: &impl OpenMlsCryptoProvider<KeyStoreProvider = KeyStore>,
         signer: &impl Signer,
@@ -357,6 +367,7 @@ impl MlsGroup {
 
         if let Some(member_index) = member_index {
             self.propose_remove_member_by_value(backend, signer, member_index)
+                .await
         } else {
             Err(ProposalError::ProposeRemoveMemberError(
                 ProposeRemoveMemberError::UnknownMember,

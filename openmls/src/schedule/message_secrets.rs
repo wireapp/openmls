@@ -91,7 +91,7 @@ impl MessageSecrets {
     }
 
     #[cfg(test)]
-    pub(crate) fn random(
+    pub(crate) async fn random(
         ciphersuite: Ciphersuite,
         backend: &impl OpenMlsCryptoProvider,
         own_index: LeafNodeIndex,
@@ -99,15 +99,16 @@ impl MessageSecrets {
         use openmls_traits::random::OpenMlsRand;
 
         Self {
-            sender_data_secret: SenderDataSecret::random(ciphersuite, backend),
-            membership_key: MembershipKey::random(ciphersuite, backend),
-            confirmation_key: ConfirmationKey::random(ciphersuite, backend),
+            sender_data_secret: SenderDataSecret::random(ciphersuite, backend).await,
+            membership_key: MembershipKey::random(ciphersuite, backend).await,
+            confirmation_key: ConfirmationKey::random(ciphersuite, backend).await,
             serialized_context: backend
                 .rand()
                 .random_vec(10)
+                .await
                 .expect("Not enough randomness."),
             secret_tree: SecretTree::new(
-                EncryptionSecret::random(ciphersuite, backend),
+                EncryptionSecret::random(ciphersuite, backend).await,
                 TreeSize::new(10),
                 own_index,
             ),

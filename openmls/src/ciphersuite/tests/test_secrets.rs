@@ -12,9 +12,11 @@ wasm_bindgen_test::wasm_bindgen_test_configure!(run_in_browser);
 #[wasm_bindgen_test::wasm_bindgen_test]
 async fn secret_init(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider) {
     // These two secrets must be incompatible
-    let default_secret =
-        Secret::random(ciphersuite, backend, None).expect("Not enough randomness.");
+    let default_secret = Secret::random(ciphersuite, backend, None)
+        .await
+        .expect("Not enough randomness.");
     let draft_secret = Secret::random(ciphersuite, backend, ProtocolVersion::Mls10Draft11)
+        .await
         .expect("Not enough randomness.");
 
     let derived_default_secret = default_secret.derive_secret(backend, "my_test_label");
@@ -26,9 +28,11 @@ async fn secret_init(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvi
 #[wasm_bindgen_test::wasm_bindgen_test]
 pub async fn secret_incompatible(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider) {
     // These two secrets must be incompatible
-    let default_secret =
-        Secret::random(ciphersuite, backend, None).expect("Not enough randomness.");
+    let default_secret = Secret::random(ciphersuite, backend, None)
+        .await
+        .expect("Not enough randomness.");
     let draft_secret = Secret::random(ciphersuite, backend, ProtocolVersion::Mls10Draft11)
+        .await
         .expect("Not enough randomness.");
 
     // This must panic because the two secrets have incompatible MLS versions.

@@ -331,19 +331,21 @@ impl PathSecret {
 
     /// Encrypt the path secret under the given `HpkePublicKey` using the given
     /// `group_context`.
-    pub fn encrypt(
+    pub async fn encrypt(
         &self,
         backend: &impl OpenMlsCryptoProvider,
         ciphersuite: Ciphersuite,
         public_key: &EncryptionKey,
         group_context: &[u8],
     ) -> Result<HpkeCiphertext, LibraryError> {
-        public_key.encrypt(
-            backend,
-            ciphersuite,
-            group_context,
-            self.path_secret.as_slice(),
-        )
+        public_key
+            .encrypt(
+                backend,
+                ciphersuite,
+                group_context,
+                self.path_secret.as_slice(),
+            )
+            .await
     }
 
     /// Consume the `PathSecret`, returning the internal `Secret` value.
@@ -469,7 +471,7 @@ impl GroupSecrets {
 #[cfg(test)]
 impl GroupSecrets {
     #[allow(dead_code)]
-    pub fn random_encoded(
+    pub async fn random_encoded(
         ciphersuite: Ciphersuite,
         backend: &impl OpenMlsCryptoProvider,
         version: ProtocolVersion,
@@ -483,16 +485,19 @@ impl GroupSecrets {
                 backend
                     .rand()
                     .random_vec(ciphersuite.hash_length())
+                    .await
                     .expect("Not enough randomness."),
             )),
         )
+        .await
         .expect("An unexpected error occurred.");
         let psks = vec![psk_id];
 
         GroupSecrets::new_encoded(
-            &JoinerSecret::random(ciphersuite, backend, version),
+            &JoinerSecret::random(ciphersuite, backend, version).await,
             Some(&PathSecret {
                 path_secret: Secret::random(ciphersuite, backend, version)
+                    .await
                     .expect("Not enough randomness."),
             }),
             &psks,

@@ -174,5 +174,6 @@ async fn that_commit_secret_is_derived_from_end_of_update_path_not_root(
             &charlie.credential_with_key_and_signer.signer,
             b"Hello, World!".as_slice(),
         )
+        .await
         .unwrap();
 }

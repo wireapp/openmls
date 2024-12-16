@@ -341,14 +341,17 @@ pub fn run_test_vector(
         assert_eq!(plaintext, decrypted_plaintext);
 
         // Check that encryption works.
-        let my_ciphertext = hpke::encrypt_with_label(
-            &public,
-            &label,
-            &context,
-            &plaintext,
-            ciphersuite,
-            backend.crypto(),
-        )
+        let my_ciphertext = async_std::task::block_on(async {
+            hpke::encrypt_with_label(
+                &public,
+                &label,
+                &context,
+                &plaintext,
+                ciphersuite,
+                backend.crypto(),
+            )
+            .await
+        })
         .unwrap();
         let decrypted_plaintext = hpke::decrypt_with_label(
             &private,

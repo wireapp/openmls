@@ -41,7 +41,7 @@ pub(crate) async fn setup_alice_group(
 
     // Alice creates a group
     let group = CoreGroup::builder(
-        GroupId::random(backend),
+        GroupId::random(backend).await,
         config::CryptoConfig::with_default_version(ciphersuite),
         alice_credential_with_key.clone(),
     )
@@ -90,7 +90,7 @@ async fn test_failed_groupinfo_decryption(
     backend: &impl OpenMlsCryptoProvider,
 ) {
     let epoch = 123;
-    let group_id = GroupId::random(backend);
+    let group_id = GroupId::random(backend).await;
     let tree_hash = vec![1, 2, 3, 4, 5, 6, 7, 8, 9];
     let confirmed_transcript_hash = vec![1, 1, 1];
     let extensions = Extensions::empty();
@@ -129,8 +129,8 @@ async fn test_failed_groupinfo_decryption(
     };
 
     // Generate key and nonce for the symmetric cipher.
-    let welcome_key = AeadKey::random(ciphersuite, backend.rand());
-    let welcome_nonce = AeadNonce::random(backend);
+    let welcome_key = AeadKey::random(ciphersuite, backend.rand()).await;
+    let welcome_nonce = AeadNonce::random(backend).await;
 
     // Generate receiver key pair.
     let receiver_key_pair = backend
@@ -138,6 +138,7 @@ async fn test_failed_groupinfo_decryption(
         .derive_hpke_keypair(
             ciphersuite.hpke_config(),
             Secret::random(ciphersuite, backend, None)
+                .await
                 .expect("Not enough randomness.")
                 .as_slice(),
         )
@@ -152,6 +153,7 @@ async fn test_failed_groupinfo_decryption(
         ciphersuite,
         backend.crypto(),
     )
+    .await
     .unwrap();
 
     let group_info = group_info_tbs
@@ -347,17 +349,19 @@ async fn test_psks(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvide
     let psk_id = vec![1u8, 2, 3];
 
     let secret = Secret::random(ciphersuite, backend, None /* MLS version */)
+        .await
         .expect("Not enough randomness.");
     let external_psk = ExternalPsk::new(psk_id);
     let preshared_key_id =
         PreSharedKeyId::new(ciphersuite, backend.rand(), Psk::External(external_psk))
+            .await
             .expect("An unexpected error occured.");
     preshared_key_id
         .write_to_key_store(backend, ciphersuite, secret.as_slice())
         .await
         .unwrap();
     let mut alice_group = CoreGroup::builder(
-        GroupId::random(backend),
+        GroupId::random(backend).await,
         config::CryptoConfig::with_default_version(ciphersuite),
         alice_credential_with_key,
     )
@@ -475,7 +479,7 @@ async fn test_staged_commit_creation(
 
     // === Alice creates a group ===
     let mut alice_group = CoreGroup::builder(
-        GroupId::random(backend),
+        GroupId::random(backend).await,
         config::CryptoConfig::with_default_version(ciphersuite),
         alice_credential_with_key,
     )
@@ -553,7 +557,7 @@ async fn test_own_commit_processing(
 
     // === Alice creates a group ===
     let alice_group = CoreGroup::builder(
-        GroupId::random(backend),
+        GroupId::random(backend).await,
         config::CryptoConfig::with_default_version(ciphersuite),
         alice_credential_with_key,
     )
@@ -656,7 +660,7 @@ async fn test_proposal_application_after_self_was_removed(
     let (_, charlie_kpb, _, _) = setup_client("Charlie", ciphersuite, backend).await;
 
     let mut alice_group = CoreGroup::builder(
-        GroupId::random(backend),
+        GroupId::random(backend).await,
         config::CryptoConfig::with_default_version(ciphersuite),
         alice_credential_with_key,
     )

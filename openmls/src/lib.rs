@@ -24,7 +24,7 @@
 //! ) -> (CredentialWithKey, SignatureKeyPair) {
 //!     let credential = Credential::new_basic(identity);
 //!     let signature_keys =
-//!         SignatureKeyPair::new(signature_algorithm, &mut *backend.rand().borrow_rand().unwrap())
+//!         SignatureKeyPair::new(signature_algorithm, &mut *backend.rand().borrow_rand().await)
 //!             .expect("Error generating a signature key pair.");
 //!
 //!     // Store the signature key into the key store so OpenMLS has access

@@ -82,6 +82,7 @@ async fn test_application_message_encoding(backend: &impl OpenMlsCryptoProvider)
                     backend,
                     &credential_with_key_and_signer.signer,
                 )
+                .await
                 .expect("An unexpected error occurred.");
             let encrypted_message_bytes = encrypted_message
                 .tls_serialize_detached()

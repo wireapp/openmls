@@ -39,7 +39,7 @@ pub(crate) struct PathComputationResult {
 
 impl PublicGroupDiff<'_> {
     #[allow(clippy::too_many_arguments)]
-    pub(crate) fn compute_path<KeyStore: OpenMlsKeyStore>(
+    pub(crate) async fn compute_path<KeyStore: OpenMlsKeyStore>(
         &mut self,
         backend: &impl OpenMlsCryptoProvider<KeyStoreProvider = KeyStore>,
         leaf_index: LeafNodeIndex,
@@ -89,7 +89,8 @@ impl PublicGroupDiff<'_> {
                     backend,
                     signer,
                     credential_with_key.ok_or(CreateCommitError::MissingCredential)?,
-                )?;
+                )
+                .await?;
 
             let leaf_node: LeafNode = key_package.into();
             self.diff
@@ -108,15 +109,17 @@ impl PublicGroupDiff<'_> {
                 .leaf_mut(leaf_index)
                 .ok_or_else(|| LibraryError::custom("Unable to get own leaf from diff"))?;
 
-            let encryption_keypair = own_diff_leaf.rekey(
-                &group_id,
-                leaf_index,
-                None,
-                ciphersuite,
-                version,
-                backend,
-                signer,
-            )?;
+            let encryption_keypair = own_diff_leaf
+                .rekey(
+                    &group_id,
+                    leaf_index,
+                    None,
+                    ciphersuite,
+                    version,
+                    backend,
+                    signer,
+                )
+                .await?;
             vec![encryption_keypair]
         };
 
@@ -124,7 +127,8 @@ impl PublicGroupDiff<'_> {
         // generated new leaf.
         let (plain_path, mut new_parent_keypairs, commit_secret) = self
             .diff
-            .apply_own_update_path(backend, signer, ciphersuite, group_id, leaf_index)?;
+            .apply_own_update_path(backend, signer, ciphersuite, group_id, leaf_index)
+            .await?;
 
         new_keypairs.append(&mut new_parent_keypairs);
 
@@ -139,14 +143,17 @@ impl PublicGroupDiff<'_> {
             .map_err(LibraryError::missing_bound_check)?;
 
         // Encrypt the path to the correct recipient nodes.
-        let encrypted_path = self.diff.encrypt_path(
-            backend,
-            ciphersuite,
-            &plain_path,
-            &serialized_group_context,
-            &exclusion_list,
-            leaf_index,
-        )?;
+        let encrypted_path = self
+            .diff
+            .encrypt_path(
+                backend,
+                ciphersuite,
+                &plain_path,
+                &serialized_group_context,
+                &exclusion_list,
+                leaf_index,
+            )
+            .await?;
         let leaf_node = self
             .diff
             .leaf(leaf_index)

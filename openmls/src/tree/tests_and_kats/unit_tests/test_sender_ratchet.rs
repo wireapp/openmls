@@ -1,3 +1,4 @@
+use async_std::task::block_on;
 use openmls_rust_crypto::OpenMlsRustCrypto;
 
 use crate::{
@@ -13,6 +14,7 @@ wasm_bindgen_test::wasm_bindgen_test_configure!(run_in_browser);
 async fn test_max_forward_distance(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider) {
     let configuration = &SenderRatchetConfiguration::default();
     let secret = Secret::random(ciphersuite, backend, ProtocolVersion::Mls10)
+        .await
         .expect("Not enough randomness.");
     let mut ratchet1 = DecryptionRatchet::new(secret.clone());
     let mut ratchet2 = DecryptionRatchet::new(secret);
@@ -55,6 +57,7 @@ async fn test_out_of_order_generations(
 ) {
     let configuration = &SenderRatchetConfiguration::default();
     let secret = Secret::random(ciphersuite, backend, ProtocolVersion::Mls10)
+        .await
         .expect("Not enough randomness.");
     let mut ratchet1 = DecryptionRatchet::new(secret);
 
@@ -96,6 +99,7 @@ async fn test_forward_secrecy(ciphersuite: Ciphersuite, backend: &impl OpenMlsCr
     // any keys. Thus, we can only test FS on Decryption Ratchets.
     let configuration = &SenderRatchetConfiguration::default();
     let secret = Secret::random(ciphersuite, backend, ProtocolVersion::Mls10)
+        .await
         .expect("Not enough randomness.");
     let mut ratchet = DecryptionRatchet::new(secret);
 
@@ -141,8 +145,9 @@ async fn test_forward_secrecy(ciphersuite: Ciphersuite, backend: &impl OpenMlsCr
 fn sender_ratchet_generation_overflow() {
     let backend = OpenMlsRustCrypto::default();
     let ciphersuite = Ciphersuite::MLS_128_DHKEMX25519_AES128GCM_SHA256_Ed25519;
-    let secret = Secret::random(ciphersuite, &backend, ProtocolVersion::Mls10)
-        .expect("Not enough randomness.");
+    let secret =
+        block_on(async { Secret::random(ciphersuite, &backend, ProtocolVersion::Mls10).await })
+            .expect("Not enough randomness.");
     let mut ratchet = RatchetSecret::initial_ratchet_secret(secret);
     ratchet.set_generation(u32::MAX - 1);
     let _ = ratchet

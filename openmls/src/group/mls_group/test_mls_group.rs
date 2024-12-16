@@ -167,6 +167,7 @@ async fn remover(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider)
 
     let (queued_messages, _) = alice_group
         .propose_remove_member(backend, &alice_signer, LeafNodeIndex::new(1))
+        .await
         .expect("Could not propose removal");
 
     let charlie_processed_message = charlie_group
@@ -462,6 +463,7 @@ async fn test_pending_commit_logic(ciphersuite: Ciphersuite, backend: &impl Open
     ));
     let error = alice_group
         .propose_remove_member(backend, &alice_signer, LeafNodeIndex::new(1))
+        .await
         .expect_err("no error creating a proposal while a commit is pending");
     assert!(matches!(
         error,

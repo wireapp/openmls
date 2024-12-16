@@ -96,6 +96,7 @@ async fn test_past_secrets_in_group(
         for _ in 0..max_epochs {
             let application_message = alice_group
                 .create_message(backend, &alice_credential_with_keys.signer, &[1, 2, 3])
+                .await
                 .expect("An unexpected error occurred.");
 
             application_messages.push(application_message.into_protocol_message().unwrap());

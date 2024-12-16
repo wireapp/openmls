@@ -142,6 +142,7 @@ async fn test_remove_operation_variants(
                 // Bob leaves the group
                 let message = bob_group
                     .leave_group(&bob_backend, &bob_credential_with_key_and_signer.signer)
+                    .await
                     .expect("Could not leave group.");
 
                 // Alice & Charlie store the pending proposal

@@ -149,7 +149,7 @@ async fn generate_credential(
     let credential = Credential::new_basic(identity);
     let signature_keys = SignatureKeyPair::new(
         signature_algorithm,
-        &mut *backend.rand().borrow_rand().unwrap(),
+        &mut *backend.rand().borrow_rand().await,
     )
     .unwrap();
     signature_keys.store(backend.key_store()).await.unwrap();
@@ -174,7 +174,7 @@ async fn group(
         generate_credential("Kreator".into(), ciphersuite.signature_algorithm(), backend).await;
 
     let group = CoreGroup::builder(
-        GroupId::random(backend),
+        GroupId::random(backend).await,
         CryptoConfig::with_default_version(ciphersuite),
         credential_with_key.clone(),
     )
@@ -214,7 +214,7 @@ async fn receiver_group(
 
 // XXX: we could be more creative in generating these messages.
 #[cfg(any(feature = "test-utils", test))]
-fn build_handshake_messages(
+async fn build_handshake_messages(
     sender_index: LeafNodeIndex,
     group: &mut CoreGroup,
     signer: &impl Signer,
@@ -229,6 +229,7 @@ fn build_handshake_messages(
     let framing_parameters = FramingParameters::new(&[1, 2, 3, 4], WireFormat::PrivateMessage);
     let membership_key = MembershipKey::from_secret(
         Secret::random(group.ciphersuite(), backend, None /* MLS version */)
+            .await
             .expect("Not enough randomness."),
     );
     let content = AuthenticatedContentIn::from(
@@ -259,6 +260,7 @@ fn build_handshake_messages(
         group.message_secrets_test_mut(),
         0,
     )
+    .await
     .expect("Could not create PrivateMessage");
     (
         plaintext
@@ -271,7 +273,7 @@ fn build_handshake_messages(
 }
 
 #[cfg(any(feature = "test-utils", test))]
-fn build_application_messages(
+async fn build_application_messages(
     sender_index: LeafNodeIndex,
     group: &mut CoreGroup,
     signer: &impl Signer,
@@ -285,6 +287,7 @@ fn build_application_messages(
     group.context_mut().set_epoch(epoch.into());
     let membership_key = MembershipKey::from_secret(
         Secret::random(group.ciphersuite(), backend, None /* MLS version */)
+            .await
             .expect("Not enough randomness."),
     );
     let content = AuthenticatedContent::new_application(
@@ -309,7 +312,9 @@ fn build_application_messages(
         backend,
         group.message_secrets_test_mut(),
         0,
-    ) {
+    )
+    .await
+    {
         Ok(c) => c,
         Err(e) => panic!("Could not create PrivateMessage {e}"),
     };
@@ -336,14 +341,16 @@ pub async fn generate_test_vector(
     let encryption_secret_bytes = crypto
         .rand()
         .random_vec(ciphersuite.hash_length())
+        .await
         .expect("An unexpected error occurred.");
-    let sender_data_secret = SenderDataSecret::random(ciphersuite, &crypto);
+    let sender_data_secret = SenderDataSecret::random(ciphersuite, &crypto).await;
     let sender_data_secret_bytes = sender_data_secret.as_slice();
 
     // Create sender_data_key/secret
     let ciphertext = crypto
         .rand()
         .random_vec(77)
+        .await
         .expect("An unexpected error occurred.");
     let sender_data_key = sender_data_secret
         .derive_aead_key(&crypto, &ciphertext)
@@ -404,7 +411,7 @@ pub async fn generate_test_vector(
             let application_key_string = bytes_to_hex(application_secret_key.as_slice());
             let application_nonce_string = bytes_to_hex(application_secret_nonce.as_slice());
             let (application_plaintext, application_ciphertext) =
-                build_application_messages(sender_leaf, &mut group, &signer, &crypto);
+                build_application_messages(sender_leaf, &mut group, &signer, &crypto).await;
             println!("Sender Group: {group:?}");
             application.push(RatchetStep {
                 key: application_key_string,
@@ -428,7 +435,7 @@ pub async fn generate_test_vector(
             let handshake_nonce_string = bytes_to_hex(handshake_secret_nonce.as_slice());
 
             let (handshake_plaintext, handshake_ciphertext) =
-                build_handshake_messages(sender_leaf, &mut group, &signer, &crypto);
+                build_handshake_messages(sender_leaf, &mut group, &signer, &crypto).await;
 
             handshake.push(RatchetStep {
                 key: handshake_key_string,
@@ -626,8 +633,8 @@ pub async fn run_test_vector(
             // above ratcheted the tree forward.
             let mut message_secrets = MessageSecrets::new(
                 sender_data_secret.clone(),
-                MembershipKey::random(ciphersuite, backend), // we don't care about this value
-                ConfirmationKey::random(ciphersuite, backend), // we don't care about this value
+                MembershipKey::random(ciphersuite, backend).await, // we don't care about this value
+                ConfirmationKey::random(ciphersuite, backend).await, // we don't care about this value
                 group.context().tls_serialize_detached().unwrap(),
                 fresh_secret_tree.clone(),
             );

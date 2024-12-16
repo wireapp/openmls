@@ -91,7 +91,7 @@ impl LeafNode {
     /// This function generates a fresh HPKE key pair for the leaf node and
     /// returns the HPKE key pair along with the new leaf node.
     /// The caller is responsible for storing the private key.
-    pub(crate) fn new(
+    pub(crate) async fn new(
         backend: &impl OpenMlsCryptoProvider,
         signer: &impl Signer,
         new_leaf_node_params: NewLeafNodeParams,
@@ -106,7 +106,7 @@ impl LeafNode {
         } = new_leaf_node_params;
 
         // Create a new encryption key pair.
-        let encryption_key_pair = EncryptionKeyPair::random(backend, config)?;
+        let encryption_key_pair = EncryptionKeyPair::random(backend, config).await?;
 
         let leaf_node = Self::new_with_key(
             encryption_key_pair.public_key().clone(),
@@ -232,7 +232,8 @@ impl LeafNode {
             tree_info_tbs,
         };
 
-        let (leaf_node, encryption_key_pair) = Self::new(backend, signer, new_leaf_node_params)?;
+        let (leaf_node, encryption_key_pair) =
+            Self::new(backend, signer, new_leaf_node_params).await?;
 
         // Store the encryption key pair in the key store.
         encryption_key_pair
@@ -291,7 +292,7 @@ impl LeafNode {
     ///
     /// This signs the new leaf node as well.
     #[allow(clippy::too_many_arguments)]
-    pub fn rekey(
+    pub async fn rekey(
         &mut self,
         group_id: &GroupId,
         leaf_index: LeafNodeIndex,
@@ -326,7 +327,8 @@ impl LeafNode {
                 ciphersuite,
                 version: protocol_version,
             },
-        )?;
+        )
+        .await?;
 
         if let Some(mut leaf_node) = leaf_node {
             leaf_node.payload.encryption_key = keypair.public_key().clone();

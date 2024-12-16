@@ -280,7 +280,7 @@ impl MlsClient for MlsClientImpl {
 
         let signature_keys = SignatureKeyPair::new(
             ciphersuite.signature_algorithm(),
-            &mut *backend.rand().borrow_rand().unwrap(),
+            &mut *backend.rand().borrow_rand().await,
         )
         .unwrap();
         signature_keys.store(backend.key_store()).await.unwrap();
@@ -353,7 +353,7 @@ impl MlsClient for MlsClientImpl {
         let credential = Credential::new(identity, CredentialType::Basic).unwrap();
         let signature_keys = SignatureKeyPair::new(
             ciphersuite.signature_algorithm(),
-            &mut *crypto_provider.rand().borrow_rand().unwrap(),
+            &mut *crypto_provider.rand().borrow_rand().await,
         )
         .unwrap();
 

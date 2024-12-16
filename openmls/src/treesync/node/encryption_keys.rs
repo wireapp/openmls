@@ -38,7 +38,7 @@ impl EncryptionKey {
     }
 
     /// Encrypt to this HPKE public key.
-    pub(crate) fn encrypt(
+    pub(crate) async fn encrypt(
         &self,
         backend: &impl OpenMlsCryptoProvider,
         ciphersuite: Ciphersuite,
@@ -53,6 +53,7 @@ impl EncryptionKey {
             ciphersuite,
             backend.crypto(),
         )
+        .await
         .map_err(|_| LibraryError::custom("Encryption failed. A serialization issue really"))
     }
 }
@@ -187,11 +188,12 @@ impl EncryptionKeyPair {
         &self.private_key
     }
 
-    pub(crate) fn random(
+    pub(crate) async fn random(
         backend: &impl OpenMlsCryptoProvider,
         config: CryptoConfig,
     ) -> Result<Self, LibraryError> {
         let ikm = Secret::random(config.ciphersuite, backend, config.version)
+            .await
             .map_err(LibraryError::unexpected_crypto_error)?;
         let kp: Self = backend
             .crypto()

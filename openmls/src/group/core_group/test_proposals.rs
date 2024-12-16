@@ -56,7 +56,7 @@ async fn proposal_queue_functions(ciphersuite: Ciphersuite, backend: &impl OpenM
 
     let group_context = GroupContext::new(
         ciphersuite,
-        GroupId::random(backend),
+        GroupId::random(backend).await,
         0,
         vec![],
         vec![],
@@ -203,7 +203,7 @@ async fn proposal_queue_order(ciphersuite: Ciphersuite, backend: &impl OpenMlsCr
 
     let group_context = GroupContext::new(
         ciphersuite,
-        GroupId::random(backend),
+        GroupId::random(backend).await,
         0,
         vec![],
         vec![],
@@ -308,7 +308,7 @@ async fn test_required_unsupported_proposals(
 
     // This must fail because we don't actually support AppAck proposals
     let e = CoreGroup::builder(
-        GroupId::random(backend),
+        GroupId::random(backend).await,
         CryptoConfig::with_default_version(ciphersuite),
         alice_credential,
     )
@@ -357,7 +357,7 @@ async fn test_group_context_extensions(
     let bob_key_package = bob_kpb.key_package();
 
     let mut alice_group = CoreGroup::builder(
-        GroupId::random(backend),
+        GroupId::random(backend).await,
         CryptoConfig::with_default_version(ciphersuite),
         alice_credential,
     )
@@ -431,7 +431,7 @@ async fn test_group_context_extension_proposal_fails(
     let required_capabilities = RequiredCapabilitiesExtension::new(&[], proposals, credentials);
 
     let mut alice_group = CoreGroup::builder(
-        GroupId::random(backend),
+        GroupId::random(backend).await,
         CryptoConfig::with_default_version(ciphersuite),
         alice_credential,
     )
@@ -539,7 +539,7 @@ async fn test_group_context_extension_proposal(
     let bob_key_package = bob_kpb.key_package();
 
     let mut alice_group = CoreGroup::builder(
-        GroupId::random(backend),
+        GroupId::random(backend).await,
         CryptoConfig::with_default_version(ciphersuite),
         alice_credential,
     )

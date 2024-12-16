@@ -11,13 +11,14 @@ pub struct ReuseGuard {
 
 impl ReuseGuard {
     /// Samples a fresh reuse guard uniformly at random.
-    pub(crate) fn try_from_random(
+    pub(crate) async fn try_from_random(
         crypto: &impl OpenMlsCryptoProvider,
     ) -> Result<Self, CryptoError> {
         Ok(Self {
             value: crypto
                 .rand()
                 .random_array()
+                .await
                 .map_err(|_| CryptoError::InsufficientRandomness)?,
         })
     }

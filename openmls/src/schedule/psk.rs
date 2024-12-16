@@ -235,13 +235,14 @@ pub struct PreSharedKeyId {
 
 impl PreSharedKeyId {
     /// Construct a `PreSharedKeyID` with a random nonce.
-    pub fn new(
+    pub async fn new(
         ciphersuite: Ciphersuite,
         rand: &impl OpenMlsRand,
         psk: Psk,
     ) -> Result<Self, CryptoError> {
         let psk_nonce = rand
             .random_vec(ciphersuite.hash_length())
+            .await
             .map_err(|_| CryptoError::InsufficientRandomness)?
             .into();
 

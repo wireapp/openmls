@@ -80,6 +80,7 @@ async fn padding(backend: &impl OpenMlsCryptoProvider) {
                         backend,
                         &credential.signer,
                     )
+                    .await
                     .expect("An unexpected error occurred.");
                 let ciphertext = private_message.ciphertext();
                 let length = ciphertext.len();
@@ -130,7 +131,7 @@ async fn bad_padding(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvi
 
         let group_context = group_context::GroupContext::new(
             ciphersuite,
-            GroupId::random(backend),
+            GroupId::random(backend).await,
             1,
             vec![],
             vec![],
@@ -140,7 +141,7 @@ async fn bad_padding(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvi
         let plaintext = {
             let plaintext_tbs = FramedContentTbs::new(
                 WireFormat::PrivateMessage,
-                GroupId::random(backend),
+                GroupId::random(backend).await,
                 1,
                 sender,
                 vec![1, 2, 3].into(),
@@ -154,11 +155,12 @@ async fn bad_padding(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvi
         };
 
         let mut message_secrets =
-            MessageSecrets::random(ciphersuite, backend, LeafNodeIndex::new(0));
+            MessageSecrets::random(ciphersuite, backend, LeafNodeIndex::new(0)).await;
 
         let encryption_secret_bytes = backend
             .rand()
             .random_vec(ciphersuite.hash_length())
+            .await
             .unwrap();
 
         let sender_secret_tree = {
@@ -222,7 +224,7 @@ async fn bad_padding(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvi
                 .unwrap();
 
             // Sample reuse guard uniformly at random.
-            let reuse_guard: ReuseGuard = ReuseGuard::try_from_random(backend).unwrap();
+            let reuse_guard: ReuseGuard = ReuseGuard::try_from_random(backend).await.unwrap();
 
             // Prepare the nonce by xoring with the reuse guard.
             let prepared_nonce = ratchet_nonce.xor_with_reuse_guard(&reuse_guard);

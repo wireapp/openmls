@@ -49,7 +49,7 @@ async fn create_commit_optional_path(
 
     // Alice creates a group
     let mut group_alice = CoreGroup::builder(
-        GroupId::random(backend),
+        GroupId::random(backend).await,
         CryptoConfig::with_default_version(ciphersuite),
         alice_credential_with_keys.credential_with_key,
     )
@@ -253,7 +253,7 @@ async fn basic_group_setup(ciphersuite: Ciphersuite, backend: &impl OpenMlsCrypt
 
     // Alice creates a group
     let group_alice = CoreGroup::builder(
-        GroupId::random(backend),
+        GroupId::random(backend).await,
         CryptoConfig::with_default_version(ciphersuite),
         alice_credential_with_keys.credential_with_key,
     )
@@ -335,7 +335,7 @@ async fn group_operations(ciphersuite: Ciphersuite, backend: &impl OpenMlsCrypto
 
     // === Alice creates a group ===
     let mut group_alice = CoreGroup::builder(
-        GroupId::random(backend),
+        GroupId::random(backend).await,
         CryptoConfig::with_default_version(ciphersuite),
         alice_credential_with_keys.credential_with_key.clone(),
     )
@@ -417,6 +417,7 @@ async fn group_operations(ciphersuite: Ciphersuite, backend: &impl OpenMlsCrypto
             backend,
             &alice_credential_with_keys.signer,
         )
+        .await
         .expect("An unexpected error occurred.")
         .into();
 
@@ -775,6 +776,7 @@ async fn group_operations(ciphersuite: Ciphersuite, backend: &impl OpenMlsCrypto
             backend,
             &charlie_credential_with_keys.signer,
         )
+        .await
         .expect("An unexpected error occurred.")
         .into();
 

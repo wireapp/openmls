@@ -76,7 +76,9 @@ impl MlsGroup {
 
         // Convert PublicMessage messages to MLSMessage and encrypt them if required by
         // the configuration
-        let mls_messages = self.content_to_mls_message(create_commit_result.commit, backend)?;
+        let mls_messages = self
+            .content_to_mls_message(create_commit_result.commit, backend)
+            .await?;
 
         // Set the current group state to [`MlsGroupState::PendingCommit`],
         // storing the current [`StagedCommit`] from the commit results
@@ -148,7 +150,9 @@ impl MlsGroup {
 
         // Convert PublicMessage messages to MLSMessage and encrypt them if required by
         // the configuration
-        let mls_message = self.content_to_mls_message(create_commit_result.commit, backend)?;
+        let mls_message = self
+            .content_to_mls_message(create_commit_result.commit, backend)
+            .await?;
 
         // Set the current group state to [`MlsGroupState::PendingCommit`],
         // storing the current [`StagedCommit`] from the commit results
@@ -174,7 +178,7 @@ impl MlsGroup {
     /// The Remove Proposal is returned as a [`MlsMessageOut`].
     ///
     /// Returns an error if there is a pending commit.
-    pub fn leave_group(
+    pub async fn leave_group(
         &mut self,
         backend: &impl OpenMlsCryptoProvider,
         signer: &impl Signer,
@@ -194,7 +198,9 @@ impl MlsGroup {
                 remove_proposal.clone(),
             )?);
 
-        Ok(self.content_to_mls_message(remove_proposal, backend)?)
+        Ok(self
+            .content_to_mls_message(remove_proposal, backend)
+            .await?)
     }
 
     /// Returns a list of [`Member`]s in the group.

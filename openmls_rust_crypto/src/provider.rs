@@ -1,5 +1,5 @@
+use async_lock::RwLock;
 use rand_core::{RngCore, SeedableRng};
-use std::sync::RwLock;
 
 use aes_gcm::{
     aead::{Aead, Payload},
@@ -89,6 +89,8 @@ fn normalize_p521_secret_key(sk: &[u8]) -> zeroize::Zeroizing<[u8; 66]> {
     sk_buf
 }
 
+#[cfg_attr(target_family = "wasm", async_trait::async_trait(?Send))]
+#[cfg_attr(not(target_family = "wasm"), async_trait::async_trait)]
 impl OpenMlsCrypto for RustCrypto {
     fn supports(&self, ciphersuite: Ciphersuite) -> Result<(), CryptoError> {
         match ciphersuite {
@@ -248,14 +250,11 @@ impl OpenMlsCrypto for RustCrypto {
         }
     }
 
-    fn signature_key_gen(
+    async fn signature_key_gen(
         &self,
         alg: openmls_traits::types::SignatureScheme,
     ) -> Result<(Vec<u8>, Vec<u8>), openmls_traits::types::CryptoError> {
-        let mut rng = self
-            .rng
-            .write()
-            .map_err(|_| CryptoError::InsufficientRandomness)?;
+        let mut rng = self.rng.write().await;
 
         match alg {
             SignatureScheme::ECDSA_SECP256R1_SHA256 => {
@@ -277,10 +276,7 @@ impl OpenMlsCrypto for RustCrypto {
                 Ok((sk.to_bytes().to_vec(), pk))
             }
             SignatureScheme::ED25519 => {
-                let mut rng = self
-                    .rng
-                    .write()
-                    .map_err(|_| CryptoError::InsufficientRandomness)?;
+                let mut rng = self.rng.write().await;
                 let k = ed25519_dalek::SigningKey::generate(&mut *rng);
                 let pk = k.verifying_key();
                 Ok((k.to_bytes().into(), pk.to_bytes().into()))
@@ -422,7 +418,7 @@ impl OpenMlsCrypto for RustCrypto {
         }
     }
 
-    fn hpke_seal(
+    async fn hpke_seal(
         &self,
         config: HpkeConfig,
         pk_r: &[u8],
@@ -430,10 +426,7 @@ impl OpenMlsCrypto for RustCrypto {
         aad: &[u8],
         ptxt: &[u8],
     ) -> Result<types::HpkeCiphertext, CryptoError> {
-        let mut rng = self
-            .rng
-            .write()
-            .map_err(|_| CryptoError::InsufficientRandomness)?;
+        let mut rng = self.rng.write().await;
 
         match config {
             HpkeConfig(
@@ -575,7 +568,7 @@ impl OpenMlsCrypto for RustCrypto {
         Ok(plaintext)
     }
 
-    fn hpke_setup_sender_and_export(
+    async fn hpke_setup_sender_and_export(
         &self,
         config: HpkeConfig,
         pk_r: &[u8],
@@ -583,10 +576,7 @@ impl OpenMlsCrypto for RustCrypto {
         exporter_context: &[u8],
         exporter_length: usize,
     ) -> Result<(Vec<u8>, ExporterSecret), CryptoError> {
-        let mut rng = self
-            .rng
-            .write()
-            .map_err(|_| CryptoError::InsufficientRandomness)?;
+        let mut rng = self.rng.write().await;
 
         let (kem_output, export) = match config {
             HpkeConfig(
@@ -859,26 +849,28 @@ mod hpke_core {
     }
 }
 
+#[cfg_attr(target_family = "wasm", async_trait::async_trait(?Send))]
+#[cfg_attr(not(target_family = "wasm"), async_trait::async_trait)]
 impl OpenMlsRand for RustCrypto {
     type Error = RandError;
 
     type RandImpl = rand_chacha::ChaCha20Rng;
-    type BorrowTarget<'a> = std::sync::RwLockWriteGuard<'a, Self::RandImpl>;
+    type BorrowTarget<'a> = async_lock::RwLockWriteGuard<'a, Self::RandImpl>;
 
-    fn borrow_rand(&self) -> Result<Self::BorrowTarget<'_>, Self::Error> {
-        self.rng.write().map_err(|_| Self::Error::LockPoisoned)
+    async fn borrow_rand(&self) -> Self::BorrowTarget<'_> {
+        self.rng.write().await
     }
 
-    fn random_array<const N: usize>(&self) -> Result<[u8; N], Self::Error> {
-        let mut rng = self.borrow_rand()?;
+    async fn random_array<const N: usize>(&self) -> Result<[u8; N], Self::Error> {
+        let mut rng = self.borrow_rand().await;
         let mut out = [0u8; N];
         rng.try_fill_bytes(&mut out)
             .map_err(|_| Self::Error::NotEnoughRandomness)?;
         Ok(out)
     }
 
-    fn random_vec(&self, len: usize) -> Result<Vec<u8>, Self::Error> {
-        let mut rng = self.borrow_rand()?;
+    async fn random_vec(&self, len: usize) -> Result<Vec<u8>, Self::Error> {
+        let mut rng = self.borrow_rand().await;
         let mut out = vec![0u8; len];
         rng.try_fill_bytes(&mut out)
             .map_err(|_| Self::Error::NotEnoughRandomness)?;

@@ -43,6 +43,7 @@ async fn generate_key_package<KeyStore: OpenMlsKeyStore>(
 ///  - Test saving the group state
 #[apply(ciphersuites_and_backends)]
 async fn mls_group_operations(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider) {
+    Box::pin(async {
     for wire_format_policy in WIRE_FORMAT_POLICIES.iter() {
         let group_id = GroupId::from_slice(b"Test Group");
 
@@ -147,6 +148,7 @@ async fn mls_group_operations(ciphersuite: Ciphersuite, backend: &impl OpenMlsCr
         let message_alice = b"Hi, I'm Alice!";
         let queued_message = alice_group
             .create_message(backend, &alice_signer, message_alice)
+            .await
             .expect("Error creating application message");
 
         let processed_message = bob_group
@@ -386,6 +388,7 @@ async fn mls_group_operations(ciphersuite: Ciphersuite, backend: &impl OpenMlsCr
         let message_charlie = b"Hi, I'm Charlie!";
         let queued_message = charlie_group
             .create_message(backend, &charlie_signer, message_charlie)
+            .await
             .expect("Error creating application message");
 
         let _alice_processed_message = alice_group
@@ -593,6 +596,7 @@ async fn mls_group_operations(ciphersuite: Ciphersuite, backend: &impl OpenMlsCr
         // Check that Bob can no longer send messages
         assert!(bob_group
             .create_message(backend, &bob_signer, b"Should not go through")
+            .await
             .is_err());
 
         // === Alice removes Charlie and re-adds Bob ===
@@ -610,6 +614,7 @@ async fn mls_group_operations(ciphersuite: Ciphersuite, backend: &impl OpenMlsCr
         // Create RemoveProposal and process it
         let (queued_message, _) = alice_group
             .propose_remove_member(backend, &alice_signer, charlie_group.own_leaf_index())
+            .await
             .expect("Could not create proposal to remove Charlie");
 
         let charlie_processed_message = charlie_group
@@ -763,6 +768,7 @@ async fn mls_group_operations(ciphersuite: Ciphersuite, backend: &impl OpenMlsCr
         let message_alice = b"Hi, I'm Alice!";
         let queued_message = alice_group
             .create_message(backend, &alice_signer, message_alice)
+            .await
             .expect("Error creating application message");
 
         let bob_processed_message = bob_group
@@ -796,6 +802,7 @@ async fn mls_group_operations(ciphersuite: Ciphersuite, backend: &impl OpenMlsCr
 
         let queued_message = bob_group
             .leave_group(backend, &bob_signer)
+            .await
             .expect("Could not leave group");
 
         let alice_processed_message = alice_group
@@ -972,6 +979,8 @@ async fn mls_group_operations(ciphersuite: Ciphersuite, backend: &impl OpenMlsCr
             bob_group.export_secret(backend, "after load", &[], 32)
         );
     }
+})
+.await;
 }
 
 #[apply(ciphersuites_and_backends)]

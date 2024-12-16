@@ -1,6 +1,7 @@
 //! This module contains the [`ParentNode`] struct, its implementation, as well
 //! as the [`PlainUpdatePathNode`], a helper struct for the creation of
 //! [`UpdatePathNode`] instances.
+use futures::{stream, StreamExt, TryStreamExt};
 use openmls_traits::{
     types::{Ciphersuite, HpkeCiphertext},
     OpenMlsCryptoProvider,
@@ -52,24 +53,25 @@ pub(crate) struct PlainUpdatePathNode {
 
 impl PlainUpdatePathNode {
     /// Encrypt this node and return the resulting [`UpdatePathNode`].
-    pub(in crate::treesync) fn encrypt(
+    pub(in crate::treesync) async fn encrypt(
         &self,
         backend: &impl OpenMlsCryptoProvider,
         ciphersuite: Ciphersuite,
         public_keys: &[EncryptionKey],
         group_context: &[u8],
     ) -> Result<UpdatePathNode, LibraryError> {
-        public_keys
-            .iter()
-            .map(|pk| {
+        let encrypted_path_secrets = stream::iter(public_keys)
+            .then(|pk| async {
                 self.path_secret
                     .encrypt(backend, ciphersuite, pk, group_context)
+                    .await
             })
-            .collect::<Result<Vec<HpkeCiphertext>, LibraryError>>()
-            .map(|encrypted_path_secrets| UpdatePathNode {
-                public_key: self.public_key.clone(),
-                encrypted_path_secrets,
-            })
+            .try_collect::<Vec<HpkeCiphertext>>()
+            .await?;
+        Ok(UpdatePathNode {
+            public_key: self.public_key.clone(),
+            encrypted_path_secrets,
+        })
     }
 
     /// Return a reference to the `path_secret` of this node.

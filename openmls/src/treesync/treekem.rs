@@ -4,6 +4,8 @@
 //!
 //! This module contains structs and functions to encrypt and decrypt path
 //! updates for a [`TreeSyncDiff`] instance.
+use futures::StreamExt;
+use futures::{stream, TryStreamExt};
 use std::collections::HashSet;
 
 use openmls_traits::{
@@ -43,7 +45,7 @@ impl TreeSyncDiff<'_> {
     /// included in the resulting [`UpdatePath`].
     ///
     /// Returns the encrypted path (i.e. an [`UpdatePath`] instance).
-    pub(crate) fn encrypt_path(
+    pub(crate) async fn encrypt_path(
         &self,
         backend: &impl OpenMlsCryptoProvider,
         ciphersuite: Ciphersuite,
@@ -71,10 +73,14 @@ impl TreeSyncDiff<'_> {
         debug_assert_eq!(copath_resolutions.len(), path.len());
 
         // Encrypt the secrets
-        path.iter()
-            .zip(copath_resolutions.iter())
-            .map(|(node, resolution)| node.encrypt(backend, ciphersuite, resolution, group_context))
-            .collect::<Result<Vec<UpdatePathNode>, LibraryError>>()
+        stream::iter(path)
+            .zip(stream::iter(copath_resolutions))
+            .then(|(node, resolution)| async move {
+                node.encrypt(backend, ciphersuite, resolution.as_slice(), group_context)
+                    .await
+            })
+            .try_collect::<Vec<UpdatePathNode>>()
+            .await
     }
 
     /// Decrypt an [`UpdatePath`] originating from the given
@@ -165,7 +171,7 @@ impl TreeSyncDiff<'_> {
     ///  - the leaf index of a new member is identical to the own leaf index
     ///  - the plain path does not contain the correct secrets
     #[allow(clippy::too_many_arguments)]
-    pub(crate) fn encrypt_group_secrets(
+    pub(crate) async fn encrypt_group_secrets(
         &self,
         joiner_secret: &JoinerSecret,
         invited_members: Vec<(LeafNodeIndex, AddProposal)>,
@@ -209,6 +215,7 @@ impl TreeSyncDiff<'_> {
                 key_package.ciphersuite(),
                 backend.crypto(),
             )
+            .await
             .map_err(|_| {
                 LibraryError::custom(
                     "Error while encrypting group secrets. \

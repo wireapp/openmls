@@ -77,7 +77,7 @@ impl<'a> PublicGroupDiff<'a> {
     ///  - the leaf index of a new member is identical to the own leaf index
     ///  - the plain path does not contain the correct secrets
     #[allow(clippy::too_many_arguments)]
-    pub(crate) fn encrypt_group_secrets(
+    pub(crate) async fn encrypt_group_secrets(
         &self,
         joiner_secret: &JoinerSecret,
         invited_members: Vec<(LeafNodeIndex, AddProposal)>,
@@ -87,15 +87,17 @@ impl<'a> PublicGroupDiff<'a> {
         backend: &impl OpenMlsCryptoProvider,
         leaf_index: LeafNodeIndex,
     ) -> Result<Vec<EncryptedGroupSecrets>, LibraryError> {
-        self.diff.encrypt_group_secrets(
-            joiner_secret,
-            invited_members,
-            plain_path_option,
-            presharedkeys,
-            encrypted_group_info,
-            backend,
-            leaf_index,
-        )
+        self.diff
+            .encrypt_group_secrets(
+                joiner_secret,
+                invited_members,
+                plain_path_option,
+                presharedkeys,
+                encrypted_group_info,
+                backend,
+                leaf_index,
+            )
+            .await
     }
 
     /// Returns the tree size

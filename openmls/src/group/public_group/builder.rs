@@ -76,7 +76,7 @@ impl TempBuilderPG1 {
         self
     }
 
-    pub(crate) fn get_secrets(
+    pub(crate) async fn get_secrets(
         self,
         backend: &impl OpenMlsCryptoProvider,
         signer: &impl Signer,
@@ -89,7 +89,8 @@ impl TempBuilderPG1 {
             self.lifetime.unwrap_or_default(),
             self.leaf_capabilities.unwrap_or_default(),
             self.leaf_extensions.unwrap_or_default(),
-        )?;
+        )
+        .await?;
         let required_capabilities = self.required_capabilities.unwrap_or_default();
         required_capabilities.check_support().map_err(|e| match e {
             ExtensionError::UnsupportedProposalType => {

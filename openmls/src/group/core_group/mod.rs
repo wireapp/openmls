@@ -246,8 +246,10 @@ impl CoreGroupBuilder {
         backend: &impl OpenMlsCryptoProvider<KeyStoreProvider = KeyStore>,
         signer: &impl Signer,
     ) -> Result<CoreGroup, CoreGroupBuildError<KeyStore::Error>> {
-        let (public_group_builder, commit_secret, leaf_keypair) =
-            self.public_group_builder.get_secrets(backend, signer)?;
+        let (public_group_builder, commit_secret, leaf_keypair) = self
+            .public_group_builder
+            .get_secrets(backend, signer)
+            .await?;
 
         let ciphersuite = public_group_builder.crypto_config().ciphersuite;
         let config = self.config.unwrap_or_default();
@@ -267,6 +269,7 @@ impl CoreGroupBuilder {
             backend,
             commit_secret,
             &InitSecret::random(ciphersuite, backend, version)
+                .await
                 .map_err(LibraryError::unexpected_crypto_error)?,
             &serialized_group_context,
         )
@@ -515,7 +518,7 @@ impl CoreGroup {
         .map_err(|e| e.into())
     }
     // Create application message
-    pub(crate) fn create_application_message(
+    pub(crate) async fn create_application_message(
         &mut self,
         aad: &[u8],
         msg: &[u8],
@@ -530,11 +533,11 @@ impl CoreGroup {
             self.context(),
             signer,
         )?;
-        self.encrypt(public_message, padding_size, backend)
+        self.encrypt(public_message, padding_size, backend).await
     }
 
     // Encrypt an PublicMessage into an PrivateMessage
-    pub(crate) fn encrypt(
+    pub(crate) async fn encrypt(
         &mut self,
         public_message: AuthenticatedContent,
         padding_size: usize,
@@ -547,6 +550,7 @@ impl CoreGroup {
             self.message_secrets_store.message_secrets_mut(),
             padding_size,
         )
+        .await
     }
 
     /// Decrypt an PrivateMessage into an PublicMessage
@@ -986,7 +990,7 @@ impl CoreGroup {
                     signer,
                     params.take_credential_with_key(),
                     apply_proposals_values.extensions,
-                )?
+                ).await?
             } else {
                 // If path is not needed, update the group context and return
                 // empty path processing results
@@ -1127,15 +1131,17 @@ impl CoreGroup {
 
             // Create group secrets for later use, so we can afterwards consume the
             // `joiner_secret`.
-            let encrypted_secrets = diff.encrypt_group_secrets(
-                &joiner_secret,
-                apply_proposals_values.invitation_list,
-                path_computation_result.plain_path.as_deref(),
-                &apply_proposals_values.presharedkeys,
-                &encrypted_group_info,
-                backend,
-                self.own_leaf_index(),
-            )?;
+            let encrypted_secrets = diff
+                .encrypt_group_secrets(
+                    &joiner_secret,
+                    apply_proposals_values.invitation_list,
+                    path_computation_result.plain_path.as_deref(),
+                    &apply_proposals_values.presharedkeys,
+                    &encrypted_group_info,
+                    backend,
+                    self.own_leaf_index(),
+                )
+                .await?;
 
             // Create welcome message
             let welcome = Welcome::new(self.ciphersuite(), encrypted_secrets, encrypted_group_info);

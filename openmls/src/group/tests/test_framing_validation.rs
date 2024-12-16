@@ -405,6 +405,7 @@ async fn test_valsem006(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoPr
 
     let message = alice_group
         .create_message(backend, &_alice_credential.signer, &[1, 2, 3])
+        .await
         .expect("An unexpected error occurred.");
 
     let serialized_message = message

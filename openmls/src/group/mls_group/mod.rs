@@ -357,7 +357,7 @@ impl MlsGroup {
     /// Converts PublicMessage to MlsMessage. Depending on whether handshake
     /// message should be encrypted, PublicMessage messages are encrypted to
     /// PrivateMessage first.
-    fn content_to_mls_message(
+    async fn content_to_mls_message(
         &mut self,
         mls_auth_content: AuthenticatedContent,
         backend: &impl OpenMlsCryptoProvider,
@@ -383,6 +383,7 @@ impl MlsGroup {
                         self.configuration().padding_size(),
                         backend,
                     )
+                    .await
                     // We can be sure the encryption will work because the plaintext was created by us
                     .map_err(|_| LibraryError::custom("Malformed plaintext"))?;
                 MlsMessageOut::from_private_message(ciphertext, self.group.version())

@@ -17,7 +17,7 @@ wasm_bindgen_test::wasm_bindgen_test_configure!(run_in_browser);
 #[wasm_bindgen_test::wasm_bindgen_test]
 async fn test_boundaries(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider) {
     let configuration = &SenderRatchetConfiguration::default();
-    let encryption_secret = EncryptionSecret::random(ciphersuite, backend);
+    let encryption_secret = EncryptionSecret::random(ciphersuite, backend).await;
     let mut secret_tree = SecretTree::new(
         encryption_secret,
         TreeSize::from_leaf_count(3u32),
@@ -108,7 +108,7 @@ async fn test_boundaries(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoP
         ),
         Err(SecretTreeError::IndexOutOfBounds)
     );
-    let encryption_secret = EncryptionSecret::random(ciphersuite, backend);
+    let encryption_secret = EncryptionSecret::random(ciphersuite, backend).await;
     let mut largetree = SecretTree::new(
         encryption_secret,
         TreeSize::from_leaf_count(100_000u32),
@@ -166,7 +166,7 @@ async fn increment_generation(ciphersuite: Ciphersuite, backend: &impl OpenMlsCr
     const MAX_GENERATIONS: usize = 10;
 
     let mut unique_values: HashMap<Vec<u8>, bool> = HashMap::new();
-    let encryption_secret = EncryptionSecret::random(ciphersuite, backend);
+    let encryption_secret = EncryptionSecret::random(ciphersuite, backend).await;
     let mut secret_tree = SecretTree::new(
         encryption_secret,
         TreeSize::from_leaf_count(SIZE as u32),
@@ -239,6 +239,7 @@ async fn secret_tree(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvi
             &backend
                 .rand()
                 .random_vec(ciphersuite.hash_length())
+                .await
                 .expect("An unexpected error occurred.")[..],
             ProtocolVersion::default(),
             ciphersuite,

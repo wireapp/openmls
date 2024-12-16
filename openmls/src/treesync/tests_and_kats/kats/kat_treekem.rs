@@ -259,6 +259,7 @@ pub async fn run_test_vector(test: TreeKemTest, backend: &impl OpenMlsCryptoProv
                     group_context.group_id().clone(),
                     LeafNodeIndex::new(path_test.sender),
                 )
+                .await
                 .unwrap();
 
             // TODO(#1279): Update GroupContext.
@@ -274,6 +275,7 @@ pub async fn run_test_vector(test: TreeKemTest, backend: &impl OpenMlsCryptoProv
                     &HashSet::new(),
                     LeafNodeIndex::new(path_test.sender),
                 )
+                .await
                 .unwrap();
 
             (

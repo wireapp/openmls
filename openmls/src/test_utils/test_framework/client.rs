@@ -328,6 +328,7 @@ impl Client {
                 for target in targets {
                     let message = group
                         .propose_remove_member(&self.crypto, &signer, *target)
+                        .await
                         .map(|(out, _)| out)?;
                     messages.push(message);
                 }

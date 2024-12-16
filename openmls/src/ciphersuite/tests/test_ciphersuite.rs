@@ -16,6 +16,7 @@ async fn test_hpke_seal_open(ciphersuite: Ciphersuite, backend: &impl OpenMlsCry
         .derive_hpke_keypair(
             ciphersuite.hpke_config(),
             Secret::random(ciphersuite, backend, None)
+                .await
                 .expect("Not enough randomness.")
                 .as_slice(),
         )
@@ -28,6 +29,7 @@ async fn test_hpke_seal_open(ciphersuite: Ciphersuite, backend: &impl OpenMlsCry
         ciphersuite,
         backend.crypto(),
     )
+    .await
     .unwrap();
     let decrypted_payload = hpke::decrypt_with_label(
         &kp.private,

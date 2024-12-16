@@ -436,11 +436,9 @@ pub mod test_utils {
             CredentialType::X509 => Credential::new_x509(cert_data.unwrap()).unwrap(),
             CredentialType::Unknown(_) => unimplemented!(),
         };
-        let signature_keys = SignatureKeyPair::new(
-            signature_scheme,
-            &mut *backend.rand().borrow_rand().unwrap(),
-        )
-        .unwrap();
+        let signature_keys =
+            SignatureKeyPair::new(signature_scheme, &mut *backend.rand().borrow_rand().await)
+                .unwrap();
         signature_keys.store(backend.key_store()).await.unwrap();
 
         (

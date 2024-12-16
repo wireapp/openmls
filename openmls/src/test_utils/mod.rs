@@ -98,7 +98,7 @@ pub(crate) async fn generate_group_candidate(
 
         let signature_keypair = SignatureKeyPair::new(
             ciphersuite.signature_algorithm(),
-            &mut *backend.rand().borrow_rand().unwrap(),
+            &mut *backend.rand().borrow_rand().await,
         )
         .unwrap();
 
@@ -167,6 +167,7 @@ pub(crate) async fn generate_group_candidate(
                     &credential_with_key_and_signer.signer,
                     credential_with_key_and_signer.credential_with_key.clone(),
                 )
+                .await
                 .unwrap();
 
             let init_keypair = HpkeKeyPair {

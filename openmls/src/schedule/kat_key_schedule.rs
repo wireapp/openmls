@@ -60,7 +60,7 @@ pub struct KeyScheduleTestVector {
 
 // Ignore clippy warning since this just used for testing
 #[allow(clippy::type_complexity)]
-fn generate(
+async fn generate(
     ciphersuite: Ciphersuite,
     init_secret: &InitSecret,
     group_id: &[u8],
@@ -80,18 +80,24 @@ fn generate(
     let tree_hash = crypto
         .rand()
         .random_vec(ciphersuite.hash_length())
+        .await
         .expect("An unexpected error occurred.");
-    let commit_secret = CommitSecret::random(ciphersuite, &crypto);
+    let commit_secret = CommitSecret::random(ciphersuite, &crypto).await;
 
     let confirmed_transcript_hash = crypto
         .rand()
         .random_vec(ciphersuite.hash_length())
+        .await
         .expect("An unexpected error occurred.");
 
     // PSK secret can sometimes be the all zero vector
-    let a: [u8; 1] = crypto.rand().random_array().unwrap();
+    let a: [u8; 1] = crypto.rand().random_array().await.unwrap();
     let psk_secret = if a[0] > 127 {
-        PskSecret::from(Secret::random(ciphersuite, &crypto, ProtocolVersion::Mls10).unwrap())
+        PskSecret::from(
+            Secret::random(ciphersuite, &crypto, ProtocolVersion::Mls10)
+                .await
+                .unwrap(),
+        )
     } else {
         PskSecret::from(Secret::zero(ciphersuite, ProtocolVersion::Mls10))
     };
@@ -150,7 +156,7 @@ fn generate(
 }
 
 #[cfg(any(feature = "test-utils", test))]
-pub fn generate_test_vector(
+pub async fn generate_test_vector(
     n_epochs: u64,
     ciphersuite: Ciphersuite,
     backend: &impl OpenMlsCryptoProvider,
@@ -159,11 +165,13 @@ pub fn generate_test_vector(
 
     // Set up setting.
     let mut init_secret = InitSecret::random(ciphersuite, backend, ProtocolVersion::default())
+        .await
         .expect("Not enough randomness.");
     let initial_init_secret = init_secret.clone();
     let group_id = backend
         .rand()
         .random_vec(16)
+        .await
         .expect("An unexpected error occurred.");
 
     let mut epochs = Vec::new();
@@ -181,7 +189,7 @@ pub fn generate_test_vector(
             tree_hash,
             group_context,
             external_key_pair,
-        ) = generate(ciphersuite, &init_secret, &group_id, epoch);
+        ) = generate(ciphersuite, &init_secret, &group_id, epoch).await;
 
         // exporter
         let exporter_label = "exporter label";

@@ -19,7 +19,7 @@ impl MlsGroup {
     /// of the group but does not merge them yet.
     ///
     /// Returns an error if there is a pending commit.
-    pub fn propose_extensions(
+    pub async fn propose_extensions(
         &mut self,
         backend: &impl OpenMlsCryptoProvider,
         signer: &impl Signer,
@@ -43,7 +43,7 @@ impl MlsGroup {
 
         self.proposal_store.add(proposal);
 
-        let mls_message = self.content_to_mls_message(gce_proposal, backend)?;
+        let mls_message = self.content_to_mls_message(gce_proposal, backend).await?;
 
         // Since the state of the group might be changed, arm the state flag
         self.flag_state_change();
@@ -84,7 +84,9 @@ impl MlsGroup {
 
         // Convert PublicMessage messages to MLSMessage and encrypt them if required by
         // the configuration
-        let mls_messages = self.content_to_mls_message(create_commit_result.commit, backend)?;
+        let mls_messages = self
+            .content_to_mls_message(create_commit_result.commit, backend)
+            .await?;
 
         // Set the current group state to [`MlsGroupState::PendingCommit`],
         // storing the current [`StagedCommit`] from the commit results
