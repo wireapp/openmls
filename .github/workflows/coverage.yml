@@ -12,23 +12,28 @@ jobs:
         uses: actions/checkout@v3
         with:
           submodules: true
-
-      - uses: dtolnay/rust-toolchain@master
+      - uses: dtolnay/rust-toolchain@nightly
         with:
-          toolchain: nightly
+          components: rustc, rust-std, cargo, llvm-tools, llvm-tools-preview
+          run:
       - uses: Swatinem/rust-cache@v2
+      - name: Install grcov
+        run: cargo install grcov
       - name: Run profiling tests
-        run: cargo test --no-fail-fast -p openmls
+        run: |
+          mkdir -p target/debug/coverage
+          cargo test --no-fail-fast -p openmls
         env:
           CARGO_INCREMENTAL: '0'
-          RUSTFLAGS: '-Cinstrument-coverage -Ccodegen-units=1 -Cinline-threshold=0 -Clink-dead-code -Coverflow-checks=off -Cpanic=abort -Zpanic_abort_tests'
-          RUSTDOCFLAGS: '-Cinstrument-coverage -Ccodegen-units=1 -Cinline-threshold=0 -Clink-dead-code -Coverflow-checks=off -Cpanic=abort -Zpanic_abort_tests'
+          LLVM_PROFILE_FILE: 'target/debug/coverage/openmls-%p-%m.profraw'
+          RUSTFLAGS: '-Cinstrument-coverage -Ccodegen-units=1 -Clink-dead-code -Coverflow-checks=off -Cpanic=abort -Zpanic_abort_tests'
+          RUSTDOCFLAGS: '-Cinstrument-coverage -Ccodegen-units=1 -Clink-dead-code -Coverflow-checks=off -Cpanic=abort -Zpanic_abort_tests'
 
       - name: Run grcov
         id: coverage
-        uses: actions-rs/grcov@v0.1
+        run: grcov . -s . --binary-path ./target/debug/ -t lcov --branch --ignore-not-existing -o ./target/debug/coverage/
 
       - name: Upload to codecov.io
         uses: codecov/codecov-action@v3
         with:
-          files: ${{ steps.coverage.outputs.report }}
+          files: target/debug/coverage/lcov
