@@ -98,23 +98,31 @@ async fn gce_fails_when_it_contains_unsupported_extensions(
     ));
     let e = alice_group.propose_extensions(backend, &alice_signer, Extensions::single(required_key_id.clone()))
         .expect_err("Alice was able to create a gce proposal with a required extensions she doesn't support.");
-    assert_eq!(
+    assert!(matches!(
         e,
-        ProposeGroupContextExtensionError::MemberExtensionValidationError(
-            MemberExtensionValidationError::ExtensionError(ExtensionError::UnsupportedProposalType)
+        ProposalError::ProposeGroupContextExtensionError(
+            ProposeGroupContextExtensionError::MemberExtensionValidationError(
+                MemberExtensionValidationError::ExtensionError(
+                    ExtensionError::UnsupportedProposalType
+                )
+            )
         )
-    );
+    ));
     // Now Bob wants the ExternalSenders extension to be required.
     // This should fail because Alice doesn't support it.
     let e = bob_group
         .propose_extensions(backend, &bob_signer, Extensions::single(required_key_id))
         .expect_err("Bob was able to create a gce proposal for an extension not supported by all other parties.");
-    assert_eq!(
+    assert!(matches!(
         e,
-        ProposeGroupContextExtensionError::MemberExtensionValidationError(
-            MemberExtensionValidationError::ExtensionError(ExtensionError::UnsupportedProposalType)
+        ProposalError::ProposeGroupContextExtensionError(
+            ProposeGroupContextExtensionError::MemberExtensionValidationError(
+                MemberExtensionValidationError::ExtensionError(
+                    ExtensionError::UnsupportedProposalType
+                )
+            )
         )
-    );
+    ));
 }
 
 #[apply(ciphersuites_and_backends)]
