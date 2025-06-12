@@ -5,8 +5,8 @@ use crate::schedule::message_secrets::MessageSecrets;
 use super::*;
 
 // Internal helper struct
-#[derive(Serialize, Deserialize)]
-#[cfg_attr(test, derive(PartialEq, Clone))]
+#[derive(Serialize, Deserialize, Clone)]
+#[cfg_attr(test, derive(PartialEq))]
 #[cfg_attr(feature = "crypto-debug", derive(Debug))]
 struct EpochTree {
     epoch: u64,
@@ -16,8 +16,8 @@ struct EpochTree {
 
 /// Can store message secrets for up to `max_epochs`. The trees are added with [`self::add()`] and can be queried
 /// with [`Self::get_epoch()`].
-#[derive(Serialize, Deserialize)]
-#[cfg_attr(test, derive(PartialEq, Clone))]
+#[derive(Serialize, Deserialize, Clone)]
+#[cfg_attr(test, derive(PartialEq,))]
 #[cfg_attr(feature = "crypto-debug", derive(Debug))]
 pub(crate) struct MessageSecretsStore {
     // Maximum size of the `past_epoch_trees` list.

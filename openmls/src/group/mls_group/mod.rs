@@ -45,7 +45,7 @@ mod test_mls_group;
 
 /// Pending Commit state. Differentiates between Commits issued by group members
 /// and External Commits.
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub enum PendingCommitState {
     /// Commit from a group member
     Member(StagedCommit),
@@ -117,7 +117,7 @@ impl From<PendingCommitState> for StagedCommit {
 ///     state to [`MlsGroupState::PendingCommit`]. For more information on the
 ///     external commit process, see [`MlsGroup::join_by_external_commit()`] or
 ///     Section 11.2.1 of the MLS specification.
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub enum MlsGroupState {
     /// There is currently a pending Commit that hasn't been merged yet.
     PendingCommit(Box<PendingCommitState>),
@@ -151,7 +151,7 @@ pub enum MlsGroupState {
 /// An `MlsGroup` has an internal state variable determining if it is active or
 /// inactive, as well as if it has a pending commit. See [`MlsGroupState`] for
 /// more information.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct MlsGroup {
     // The group configuration. See `MlsGroupCongig` for more information.
     mls_group_config: MlsGroupConfig,

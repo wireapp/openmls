@@ -20,8 +20,7 @@ use crate::{
 
 /// A [ProposalStore] can store the standalone proposals that are received from the DS
 /// in between two commit messages.
-#[derive(Debug, Default, Serialize, Deserialize, PartialEq)]
-#[cfg_attr(test, derive(Clone))]
+#[derive(Debug, Default, Serialize, Deserialize, PartialEq, Clone)]
 pub struct ProposalStore {
     queued_proposals: Vec<QueuedProposal>,
 }
