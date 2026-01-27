@@ -22,11 +22,11 @@ p384 = "0.13"
 p521 = "0.13"
 secrecy = { version = "0.8", features = ["serde"] }
 rand_core = "0.6"
-getrandom = { version = "0.2", features = ["js"] }
+getrandom = { version = "0.3", features = ["wasm_js"] }
 
 [dev-dependencies]
-rand = "0.8"
+rand = "0.9"
 
 [features]
-clonable = [] # Make the keys clonable
+clonable = []   # Make the keys clonable
 test-utils = [] # Only use for tests!
