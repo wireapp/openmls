@@ -1,5 +1,28 @@
 use crate::types::{Error, SignatureScheme};
 
+/// Length of the 32-byte FIPS-204 seed used as the stored ML-DSA private key (xi)
+const MLDSA_SEED_LEN: usize = 32;
+
+/// Sign payload with ML-DSA parameter set P using the deterministic,
+/// empty-context FIPS-204 variant required by MLS. private is the 32-byte
+/// seed produced at keygen. Mirrors openmls_rust_crypto's mldsa_sign so
+/// the produced signatures verify via the provider's verify_signature.
+fn mldsa_sign<P: ml_dsa::MlDsaParams>(payload: &[u8], private: &[u8]) -> Result<Vec<u8>, Error> {
+    use ml_dsa::SignatureEncoding;
+    if private.len() != MLDSA_SEED_LEN {
+        return Err(Error::SigningError);
+    }
+    // The reconstructed seed is secret key material; scrub it on drop.
+    let seed =
+        zeroize::Zeroizing::new(ml_dsa::B32::try_from(private).map_err(|_| Error::SigningError)?);
+    let signing_key = ml_dsa::SigningKey::<P>::from_seed(&seed);
+    let signature = signing_key
+        .expanded_key()
+        .sign_deterministic(payload, b"")
+        .map_err(|_| Error::SigningError)?;
+    Ok(signature.to_vec())
+}
+
 /// Sign the provided payload and return a signature.
 pub trait Signer {
     /// Sign the provided payload.
@@ -68,6 +91,8 @@ impl<T: DefaultSigner> Signer for T {
                 let signature = k.try_sign(payload).map_err(|_| Error::SigningError)?;
                 Ok(signature.to_bytes().into())
             }
+            SignatureScheme::MLDSA65 => mldsa_sign::<ml_dsa::MlDsa65>(payload, self.private_key()),
+            SignatureScheme::MLDSA87 => mldsa_sign::<ml_dsa::MlDsa87>(payload, self.private_key()),
             _ => Err(Error::SigningError),
         }
     }

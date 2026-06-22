@@ -40,6 +40,18 @@ pub trait OpenMlsCrypto {
         okm_len: usize,
     ) -> Result<SecretVLBytes, CryptoError>;
 
+    /// One-shot SHAKE256 XOF derive: `SHAKE256(input, d = 8 * out_len)`.
+    ///
+    /// The single-stage KDF `Derive` from draft-ietf-hpke-pq-04 section 5. Used to
+    /// drive the MLS key schedule for the official PQ suites; the Extract/Expand
+    /// construction that calls this lives in openmls's `pq_kdf`, not here. Returns
+    /// `SecretVLBytes` because the output is key material.
+    fn shake256_kdf_derive(
+        &self,
+        input: &[u8],
+        out_len: usize,
+    ) -> Result<SecretVLBytes, CryptoError>;
+
     /// Hash the `data`.
     ///
     /// Returns an error if the [`HashType`] is not supported.
