@@ -32,4 +32,4 @@ zeroize = { version = "1.9", features = ["derive"] }
 signature = "3.0"
 thiserror = "1.0"
 generic-array = "0.14"
-hpke = { version = "0.14", features = ["x25519", "nistp", "aes"] }
+hpke = { version = "0.14.0", default-features = false, features = ["alloc", "getrandom", "x25519", "nistp", "aes", "chacha", "mlkem"] }
