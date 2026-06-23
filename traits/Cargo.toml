@@ -28,3 +28,4 @@ p384 = "0.14"
 p521 = "0.14"
 zeroize = "1.9"
 signature = "3.0"
+ml-dsa = { version = "0.1.1", default-features = false, features = ["alloc"] }
