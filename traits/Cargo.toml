@@ -29,3 +29,6 @@ p521 = "0.14"
 zeroize = "1.9"
 signature = "3.0"
 ml-dsa = { version = "0.1", default-features = false, features = ["zeroize"] }
+
+[dev-dependencies]
+rand = "0.10"
