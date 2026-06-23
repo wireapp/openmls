@@ -15,6 +15,8 @@ openmls_traits = { version = "0.2.0", path = "../traits" }
 openmls_memory_keystore = { version = "0.2.0", path = "../memory_keystore" }
 # Rust Crypto dependencies
 sha2 = { version = "0.10" }
+# 0.11 to share one Keccak impl with the PQ stack (ml-dsa, ml-kem, hpke), not a duplicate
+sha3 = "0.11"
 aes-gcm = { version = "0.10" }
 chacha20poly1305 = { version = "0.10" }
 hmac = { version = "0.12" }
@@ -30,4 +32,9 @@ zeroize = { version = "1.7", features = ["derive"] }
 signature = "2.1"
 thiserror = "1.0"
 generic-array = "0.14"
-hpke = { version = "0.12", features = ["x25519", "p256", "p384", "p521"] }
+# `rev`-pinned (not `branch = "main"`) for reproducible builds; temporary fork pin until upstreamed into rozbb/rust-hpke.
+hpke = { git = "https://github.com/emil-wire/rust-hpke", rev = "082ea16b5340ad6a025af07f2c620ca315a239d1", default-features = false, features = ["alloc", "getrandom", "x25519", "p256", "p384", "p521", "aes", "chacha", "xwing", "mlkem768p256", "mlkem1024p384", "mlkem768", "mlkem1024"] }
+ml-dsa = "0.1.1"
+
+[dev-dependencies]
+hex = "0.4"
