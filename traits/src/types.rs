@@ -100,6 +100,12 @@ pub enum SignatureScheme {
     ED25519 = 0x0807,
     /// ED448
     ED448 = 0x0808,
+    /// ML-DSA-44.
+    MLDSA44 = 0x0904,
+    /// ML-DSA-65.
+    MLDSA65 = 0x0905,
+    /// ML-DSA-87.
+    MLDSA87 = 0x0906,
 }
 
 impl TryFrom<u16> for SignatureScheme {
@@ -112,6 +118,9 @@ impl TryFrom<u16> for SignatureScheme {
             0x0603 => Ok(SignatureScheme::ECDSA_SECP521R1_SHA512),
             0x0807 => Ok(SignatureScheme::ED25519),
             0x0808 => Ok(SignatureScheme::ED448),
+            0x0904 => Ok(SignatureScheme::MLDSA44),
+            0x0905 => Ok(SignatureScheme::MLDSA65),
+            0x0906 => Ok(SignatureScheme::MLDSA87),
             _ => Err(format!("Unsupported SignatureScheme: {value}")),
         }
     }
@@ -194,6 +203,21 @@ pub enum HpkeKemType {
 
     /// DH KEM on x448
     DhKem448 = 0x0021,
+
+    /// ML-KEM-768.
+    MlKem768 = 0x0041,
+
+    /// ML-KEM-1024.
+    MlKem1024 = 0x0042,
+
+    /// ML-KEM-768 + P-256.
+    MlKem768P256 = 0x0050,
+
+    /// ML-KEM-1024 + P-384.
+    MlKem1024P384 = 0x0051,
+
+    /// X-Wing (ML-KEM-768 + X25519).
+    MlKem768X25519 = 0x647a,
 }
 
 /// KDF Types for HPKE
@@ -208,6 +232,12 @@ pub enum HpkeKdfType {
 
     /// HKDF SHA 512
     HkdfSha512 = 0x0003,
+
+    /// SHAKE-128.
+    Shake128 = 0x0010,
+
+    /// SHAKE-256.
+    Shake256 = 0x0011,
 }
 
 /// AEAD Types for HPKE.
