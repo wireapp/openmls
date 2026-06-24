@@ -12,6 +12,43 @@ use openmls_traits::{
     types::{CryptoError, SignatureScheme},
 };
 
+/// Generate an ML-DSA key pair for parameter set P.
+///
+/// The private key is stored as the 32-byte FIPS-204 seed (xi); the public key
+/// is the raw FIPS-204 verifying-key encoding. This mirrors
+/// openmls_rust_crypto's mldsa_key_gen so that signatures produced from the
+/// stored seed verify via the provider's verify_signature.
+fn mldsa_key_gen<P: ml_dsa::MlDsaParams>(
+    csprng: &mut impl rand_core::CryptoRngCore,
+) -> Result<(SecretVec<u8>, Vec<u8>), CryptoError> {
+    let mut seed = zeroize::Zeroizing::new(ml_dsa::B32::default());
+    csprng
+        .try_fill_bytes(&mut seed)
+        .map_err(|_| CryptoError::InsufficientRandomness)?;
+    let signing_key = ml_dsa::SigningKey::<P>::from_seed(&seed);
+    let public = signing_key.expanded_key().verifying_key().encode().to_vec();
+    let private: Vec<u8> = seed.to_vec();
+    Ok((private.into(), public))
+}
+
+/// Confirm a stored ML-DSA private seed (FIPS-204 xi) actually derives the given
+/// public verifying key, mirroring `mldsa_key_gen`'s seed-to-public mapping. The
+/// reconstructed seed is a secret, so it is scrubbed on drop.
+fn mldsa_keypair_matches<P: ml_dsa::MlDsaParams>(
+    private: &[u8],
+    public: &[u8],
+) -> Result<(), CryptoError> {
+    let seed = zeroize::Zeroizing::new(
+        ml_dsa::B32::try_from(private).map_err(|_| CryptoError::InvalidKey)?,
+    );
+    let signing_key = ml_dsa::SigningKey::<P>::from_seed(&seed);
+    let derived = signing_key.expanded_key().verifying_key().encode();
+    if derived.as_slice() != public {
+        return Err(CryptoError::MismatchKeypair);
+    }
+    Ok(())
+}
+
 fn expose_sk<S: serde::Serializer>(data: &SecretVec<u8>, ser: S) -> Result<S::Ok, S::Error> {
     use serde::ser::SerializeSeq as _;
     let exposed = data.expose_secret();
@@ -136,6 +173,8 @@ impl SignatureKeyPair {
                 let sk_pk: Vec<u8> = sk.to_bytes().into();
                 (sk_pk.into(), pk.to_bytes().into())
             }
+            SignatureScheme::MLDSA65 => mldsa_key_gen::<ml_dsa::MlDsa65>(csprng)?,
+            SignatureScheme::MLDSA87 => mldsa_key_gen::<ml_dsa::MlDsa87>(csprng)?,
             _ => return Err(CryptoError::UnsupportedSignatureScheme),
         };
 
@@ -206,6 +245,12 @@ impl SignatureKeyPair {
                     return Err(CryptoError::MismatchKeypair);
                 }
             }
+            SignatureScheme::MLDSA65 => {
+                mldsa_keypair_matches::<ml_dsa::MlDsa65>(&private, &public)?
+            }
+            SignatureScheme::MLDSA87 => {
+                mldsa_keypair_matches::<ml_dsa::MlDsa87>(&private, &public)?
+            }
             _ => {}
         };
 
@@ -253,6 +298,63 @@ impl SignatureKeyPair {
 #[cfg(test)]
 pub mod tests {
     use super::*;
+    use openmls_traits::{crypto::OpenMlsCrypto, signatures::Signer};
+
+    /// A SignatureKeyPair ML-DSA signature MUST verify via the provider's
+    /// verify_signature. This proves sign<->verify interop and that the
+    /// private (32-byte seed) / public (raw FIPS-204) representations match
+    /// what the provider expects.
+    #[test]
+    fn mldsa_sign_verifies_via_provider() {
+        let provider = openmls_rust_crypto::RustCrypto::default();
+        let schemes = [SignatureScheme::MLDSA65, SignatureScheme::MLDSA87];
+        let expected_pk_len = [1952usize, 2592usize];
+
+        for (scheme, pk_len) in schemes.into_iter().zip(expected_pk_len) {
+            let kp = SignatureKeyPair::new(scheme, &mut rand::thread_rng()).unwrap();
+
+            // Private key is the 32-byte FIPS-204 seed
+            assert_eq!(
+                kp.private.expose_secret().len(),
+                32,
+                "{scheme:?} private key must be the 32-byte seed"
+            );
+            // Public key is the raw FIPS-204 verifying-key encoding
+            assert_eq!(
+                kp.public.len(),
+                pk_len,
+                "{scheme:?} public key must be the raw FIPS-204 encoding"
+            );
+
+            let msg = b"ml-dsa sign<->provider-verify interop";
+            let sig = kp.sign(msg).expect("ML-DSA signing must succeed");
+
+            // The signature MUST verify via the provider
+            provider
+                .verify_signature(scheme, msg, kp.public(), &sig)
+                .unwrap_or_else(|e| panic!("{scheme:?} provider verify must succeed: {e:?}"));
+
+            // Tampering with the message must fail verification
+            let mut bad_msg = msg.to_vec();
+            bad_msg[0] ^= 0xFF;
+            assert!(
+                provider
+                    .verify_signature(scheme, &bad_msg, kp.public(), &sig)
+                    .is_err(),
+                "{scheme:?} verify must fail on a tampered message"
+            );
+
+            // Tampering with the signature must fail verification
+            let mut bad_sig = sig.clone();
+            bad_sig[0] ^= 0xFF;
+            assert!(
+                provider
+                    .verify_signature(scheme, msg, kp.public(), &bad_sig)
+                    .is_err(),
+                "{scheme:?} verify must fail on a tampered signature"
+            );
+        }
+    }
 
     #[test]
     fn signature_keypair_try_from_raw_should_work() {
@@ -261,12 +363,34 @@ pub mod tests {
             SignatureScheme::ECDSA_SECP256R1_SHA256,
             SignatureScheme::ECDSA_SECP384R1_SHA384,
             SignatureScheme::ECDSA_SECP521R1_SHA512,
+            SignatureScheme::MLDSA65,
+            SignatureScheme::MLDSA87,
         ];
         for scheme in schemes {
             let kp = SignatureKeyPair::new(scheme, &mut rand::thread_rng()).unwrap();
             let sk = kp.private.expose_secret().clone();
             let pk = kp.public.clone();
             SignatureKeyPair::try_from_raw(scheme, sk, pk).unwrap();
+        }
+    }
+
+    /// `try_from_raw` must reject a private/public pair that does not belong
+    /// together - including for the ML-DSA schemes, which previously fell into
+    /// the no-op `_ => {}` arm and were accepted without any check.
+    #[test]
+    fn signature_keypair_try_from_raw_rejects_mismatched_mldsa() {
+        for scheme in [SignatureScheme::MLDSA65, SignatureScheme::MLDSA87] {
+            let kp1 = SignatureKeyPair::new(scheme, &mut rand::thread_rng()).unwrap();
+            let kp2 = SignatureKeyPair::new(scheme, &mut rand::thread_rng()).unwrap();
+            let mismatched = SignatureKeyPair::try_from_raw(
+                scheme,
+                kp1.private.expose_secret().clone(),
+                kp2.public.clone(),
+            );
+            assert!(
+                matches!(mismatched, Err(CryptoError::MismatchKeypair)),
+                "{scheme:?} try_from_raw must reject a mismatched ML-DSA keypair, got {mismatched:?}"
+            );
         }
     }
 }
