@@ -20,6 +20,7 @@ mod codec;
 pub mod hpke;
 mod kdf_label;
 mod mac;
+mod pq_kdf;
 mod reuse_guard;
 mod secret;
 
