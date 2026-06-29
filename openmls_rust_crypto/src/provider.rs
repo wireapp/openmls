@@ -569,6 +569,15 @@ impl OpenMlsCrypto for RustCrypto {
                     hpke::kem::MlKem768,
                 >(pk_r, info, aad, ptxt, &mut rng)
             }
+            HpkeConfig(
+                HpkeKemType::MlKem1024,
+                HpkeKdfType::HkdfSha384,
+                HpkeAeadType::AesGcm256,
+            ) => hpke_core::hpke_seal::<
+                hpke::aead::AesGcm256,
+                hpke::kdf::HkdfSha384,
+                hpke::kem::MlKem1024,
+            >(pk_r, info, aad, ptxt, &mut rng),
             _ => Err(CryptoError::UnsupportedKem),
         }
     }
@@ -760,6 +769,21 @@ impl OpenMlsCrypto for RustCrypto {
                     input.ciphertext.as_slice(),
                 )?
             }
+            HpkeConfig(
+                HpkeKemType::MlKem1024,
+                HpkeKdfType::HkdfSha384,
+                HpkeAeadType::AesGcm256,
+            ) => hpke_core::hpke_open::<
+                hpke::aead::AesGcm256,
+                hpke::kdf::HkdfSha384,
+                hpke::kem::MlKem1024,
+            >(
+                sk_r,
+                input.kem_output.as_slice(),
+                info,
+                aad,
+                input.ciphertext.as_slice(),
+            )?,
             _ => return Err(CryptoError::UnsupportedKem),
         };
 
@@ -886,6 +910,15 @@ impl OpenMlsCrypto for RustCrypto {
                     hpke::kem::MlKem768,
                 >(pk_r, info, exporter_context, exporter_length, &mut rng)?
             }
+            HpkeConfig(
+                HpkeKemType::MlKem1024,
+                HpkeKdfType::HkdfSha384,
+                HpkeAeadType::AesGcm256,
+            ) => hpke_core::hpke_export_tx::<
+                hpke::aead::AesGcm256,
+                hpke::kdf::HkdfSha384,
+                hpke::kem::MlKem1024,
+            >(pk_r, info, exporter_context, exporter_length, &mut rng)?,
             _ => return Err(CryptoError::UnsupportedKem),
         };
 
@@ -1010,6 +1043,15 @@ impl OpenMlsCrypto for RustCrypto {
                     hpke::kem::MlKem768,
                 >(enc, sk_r, info, exporter_context, exporter_length)?
             }
+            HpkeConfig(
+                HpkeKemType::MlKem1024,
+                HpkeKdfType::HkdfSha384,
+                HpkeAeadType::AesGcm256,
+            ) => hpke_core::hpke_export_rx::<
+                hpke::aead::AesGcm256,
+                hpke::kdf::HkdfSha384,
+                hpke::kem::MlKem1024,
+            >(enc, sk_r, info, exporter_context, exporter_length)?,
             _ => return Err(CryptoError::UnsupportedKem),
         };
 
@@ -1044,6 +1086,7 @@ impl OpenMlsCrypto for RustCrypto {
                 hpke_core::hpke_derive_keypair::<hpke::kem::MlKem1024P384>(ikm)
             }
             HpkeKemType::MlKem768 => hpke_core::hpke_derive_keypair::<hpke::kem::MlKem768>(ikm),
+            HpkeKemType::MlKem1024 => hpke_core::hpke_derive_keypair::<hpke::kem::MlKem1024>(ikm),
             _ => Err(CryptoError::UnsupportedKem),
         }
     }
