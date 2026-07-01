@@ -137,6 +137,18 @@ impl SignatureKeyPair {
                 let sk_pk: Vec<u8> = sk.to_bytes().into();
                 (sk_pk.into(), pk.to_bytes().into())
             }
+            SignatureScheme::MLDSA44 => {
+                let (sk, pk) = openmls_traits::mldsa::key_gen::<ml_dsa::MlDsa44>(csprng)?;
+                (sk.into(), pk)
+            }
+            SignatureScheme::MLDSA65 => {
+                let (sk, pk) = openmls_traits::mldsa::key_gen::<ml_dsa::MlDsa65>(csprng)?;
+                (sk.into(), pk)
+            }
+            SignatureScheme::MLDSA87 => {
+                let (sk, pk) = openmls_traits::mldsa::key_gen::<ml_dsa::MlDsa87>(csprng)?;
+                (sk.into(), pk)
+            }
             _ => return Err(CryptoError::UnsupportedSignatureScheme),
         };
 
@@ -207,6 +219,15 @@ impl SignatureKeyPair {
                     return Err(CryptoError::MismatchKeypair);
                 }
             }
+            SignatureScheme::MLDSA44 => {
+                openmls_traits::mldsa::keypair_matches::<ml_dsa::MlDsa44>(&private, &public)?
+            }
+            SignatureScheme::MLDSA65 => {
+                openmls_traits::mldsa::keypair_matches::<ml_dsa::MlDsa65>(&private, &public)?
+            }
+            SignatureScheme::MLDSA87 => {
+                openmls_traits::mldsa::keypair_matches::<ml_dsa::MlDsa87>(&private, &public)?
+            }
             _ => {}
         };
 
@@ -262,6 +283,9 @@ pub mod tests {
             SignatureScheme::ECDSA_SECP256R1_SHA256,
             SignatureScheme::ECDSA_SECP384R1_SHA384,
             SignatureScheme::ECDSA_SECP521R1_SHA512,
+            SignatureScheme::MLDSA44,
+            SignatureScheme::MLDSA65,
+            SignatureScheme::MLDSA87,
         ];
         for scheme in schemes {
             let kp = SignatureKeyPair::new(scheme, &mut rand::rng()).unwrap();
