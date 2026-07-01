@@ -137,6 +137,18 @@ impl SignatureKeyPair {
                 let sk_pk: Vec<u8> = sk.to_bytes().into();
                 (sk_pk.into(), pk.to_bytes().into())
             }
+            SignatureScheme::MLDSA44 => {
+                let (sk, pk) = openmls_traits::mldsa::key_gen::<ml_dsa::MlDsa44>(csprng)?;
+                (sk.to_vec().into(), pk)
+            }
+            SignatureScheme::MLDSA65 => {
+                let (sk, pk) = openmls_traits::mldsa::key_gen::<ml_dsa::MlDsa65>(csprng)?;
+                (sk.to_vec().into(), pk)
+            }
+            SignatureScheme::MLDSA87 => {
+                let (sk, pk) = openmls_traits::mldsa::key_gen::<ml_dsa::MlDsa87>(csprng)?;
+                (sk.to_vec().into(), pk)
+            }
             _ => return Err(CryptoError::UnsupportedSignatureScheme),
         };
 
@@ -207,6 +219,15 @@ impl SignatureKeyPair {
                     return Err(CryptoError::MismatchKeypair);
                 }
             }
+            SignatureScheme::MLDSA44 => {
+                openmls_traits::mldsa::keypair_matches::<ml_dsa::MlDsa44>(&private, &public)?
+            }
+            SignatureScheme::MLDSA65 => {
+                openmls_traits::mldsa::keypair_matches::<ml_dsa::MlDsa65>(&private, &public)?
+            }
+            SignatureScheme::MLDSA87 => {
+                openmls_traits::mldsa::keypair_matches::<ml_dsa::MlDsa87>(&private, &public)?
+            }
             _ => {}
         };
 
@@ -254,6 +275,40 @@ impl SignatureKeyPair {
 #[cfg(test)]
 pub mod tests {
     use super::*;
+    use openmls_traits::{crypto::OpenMlsCrypto, signatures::Signer};
+
+    #[test]
+    fn mldsa_sign_verifies_via_provider() {
+        let provider = openmls_rust_crypto::RustCrypto::default();
+        let schemes = [
+            SignatureScheme::MLDSA44,
+            SignatureScheme::MLDSA65,
+            SignatureScheme::MLDSA87,
+        ];
+        let expected_pk_len = [1312usize, 1952usize, 2592usize];
+
+        for (scheme, pk_len) in schemes.into_iter().zip(expected_pk_len) {
+            let kp = SignatureKeyPair::new(scheme, &mut rand::rng()).unwrap();
+
+            assert_eq!(
+                kp.private.expose_secret().len(),
+                32,
+                "{scheme:?} private key must be the 32-byte seed"
+            );
+            assert_eq!(
+                kp.public.len(),
+                pk_len,
+                "{scheme:?} public key must be the raw FIPS-204 encoding"
+            );
+
+            let msg = b"ml-dsa sign<->provider-verify interop";
+            let sig = kp.sign(msg).expect("ML-DSA signing must succeed");
+
+            provider
+                .verify_signature(scheme, msg, kp.public(), &sig)
+                .unwrap_or_else(|e| panic!("{scheme:?} provider verify must succeed: {e:?}"));
+        }
+    }
 
     #[test]
     fn signature_keypair_try_from_raw_should_work() {
@@ -262,12 +317,36 @@ pub mod tests {
             SignatureScheme::ECDSA_SECP256R1_SHA256,
             SignatureScheme::ECDSA_SECP384R1_SHA384,
             SignatureScheme::ECDSA_SECP521R1_SHA512,
+            SignatureScheme::MLDSA44,
+            SignatureScheme::MLDSA65,
+            SignatureScheme::MLDSA87,
         ];
         for scheme in schemes {
             let kp = SignatureKeyPair::new(scheme, &mut rand::rng()).unwrap();
             let sk = kp.private.expose_secret().clone();
             let pk = kp.public.clone();
             SignatureKeyPair::try_from_raw(scheme, sk, pk).unwrap();
+        }
+    }
+
+    #[test]
+    fn signature_keypair_try_from_raw_rejects_mismatched_mldsa() {
+        for scheme in [
+            SignatureScheme::MLDSA44,
+            SignatureScheme::MLDSA65,
+            SignatureScheme::MLDSA87,
+        ] {
+            let kp1 = SignatureKeyPair::new(scheme, &mut rand::rng()).unwrap();
+            let kp2 = SignatureKeyPair::new(scheme, &mut rand::rng()).unwrap();
+            let mismatched = SignatureKeyPair::try_from_raw(
+                scheme,
+                kp1.private.expose_secret().clone(),
+                kp2.public.clone(),
+            );
+            assert!(
+                matches!(mismatched, Err(CryptoError::MismatchKeypair)),
+                "{scheme:?} try_from_raw must reject a mismatched ML-DSA keypair, got {mismatched:?}"
+            );
         }
     }
 }
