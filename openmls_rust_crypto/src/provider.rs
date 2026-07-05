@@ -591,6 +591,15 @@ impl OpenMlsCrypto for RustCrypto {
                 )
             }
             HpkeConfig(
+                HpkeKemType::MlKem768X25519,
+                HpkeKdfType::HkdfSha384,
+                HpkeAeadType::ChaCha20Poly1305,
+            ) => hpke_core::hpke_seal::<
+                hpke::aead::ChaCha20Poly1305,
+                hpke::kdf::HkdfSha384,
+                hpke::kem::XWing,
+            >(pk_r, info, aad, ptxt, &mut rng),
+            HpkeConfig(
                 HpkeKemType::MlKem768P256,
                 HpkeKdfType::HkdfSha256,
                 HpkeAeadType::AesGcm128,
@@ -742,6 +751,21 @@ impl OpenMlsCrypto for RustCrypto {
                 HpkeAeadType::AesGcm256,
             ) => hpke_core::hpke_open::<
                 hpke::aead::AesGcm256,
+                hpke::kdf::HkdfSha384,
+                hpke::kem::XWing,
+            >(
+                sk_r,
+                input.kem_output.as_slice(),
+                info,
+                aad,
+                input.ciphertext.as_slice(),
+            )?,
+            HpkeConfig(
+                HpkeKemType::MlKem768X25519,
+                HpkeKdfType::HkdfSha384,
+                HpkeAeadType::ChaCha20Poly1305,
+            ) => hpke_core::hpke_open::<
+                hpke::aead::ChaCha20Poly1305,
                 hpke::kdf::HkdfSha384,
                 hpke::kem::XWing,
             >(
@@ -907,6 +931,15 @@ impl OpenMlsCrypto for RustCrypto {
                 hpke::kem::XWing,
             >(pk_r, info, exporter_context, exporter_length, &mut rng)?,
             HpkeConfig(
+                HpkeKemType::MlKem768X25519,
+                HpkeKdfType::HkdfSha384,
+                HpkeAeadType::ChaCha20Poly1305,
+            ) => hpke_core::hpke_export_tx::<
+                hpke::aead::ChaCha20Poly1305,
+                hpke::kdf::HkdfSha384,
+                hpke::kem::XWing,
+            >(pk_r, info, exporter_context, exporter_length, &mut rng)?,
+            HpkeConfig(
                 HpkeKemType::MlKem768P256,
                 HpkeKdfType::HkdfSha256,
                 HpkeAeadType::AesGcm128,
@@ -1027,6 +1060,15 @@ impl OpenMlsCrypto for RustCrypto {
                 HpkeAeadType::AesGcm256,
             ) => hpke_core::hpke_export_rx::<
                 hpke::aead::AesGcm256,
+                hpke::kdf::HkdfSha384,
+                hpke::kem::XWing,
+            >(enc, sk_r, info, exporter_context, exporter_length)?,
+            HpkeConfig(
+                HpkeKemType::MlKem768X25519,
+                HpkeKdfType::HkdfSha384,
+                HpkeAeadType::ChaCha20Poly1305,
+            ) => hpke_core::hpke_export_rx::<
+                hpke::aead::ChaCha20Poly1305,
                 hpke::kdf::HkdfSha384,
                 hpke::kem::XWing,
             >(enc, sk_r, info, exporter_context, exporter_length)?,
