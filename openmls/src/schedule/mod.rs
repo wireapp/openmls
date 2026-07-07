@@ -307,7 +307,7 @@ impl InitSecret {
             external_pub,
             &[],
             hpke_info_from_version(version).as_bytes(),
-            ciphersuite.hash_length(),
+            ciphersuite.key_schedule_nh(),
         )?;
         Ok((
             InitSecret {
@@ -333,7 +333,7 @@ impl InitSecret {
                 external_priv,
                 &[],
                 hpke_info_from_version(version).as_bytes(),
-                ciphersuite.hash_length(),
+                ciphersuite.key_schedule_nh(),
             )
             .map_err(LibraryError::unexpected_crypto_error)?;
         Ok(InitSecret {
@@ -378,7 +378,7 @@ impl JoinerSecret {
             backend,
             "joiner",
             serialized_group_context,
-            intermediate_secret.ciphersuite().hash_length(),
+            intermediate_secret.ciphersuite().key_schedule_nh(),
         )?;
         log_crypto!(trace, "Joiner secret: {:x?}", secret);
         Ok(JoinerSecret { secret })
@@ -634,7 +634,7 @@ impl EpochSecret {
             backend,
             "epoch",
             serialized_group_context,
-            ciphersuite.hash_length(),
+            ciphersuite.key_schedule_nh(),
         )?;
         log_crypto!(trace, "Epoch secret: {:x?}", secret);
         Ok(EpochSecret { secret })
@@ -903,9 +903,9 @@ impl MembershipKey {
     }
 }
 
-// Get a ciphertext sample of `hash_length` from the ciphertext.
+// ciphertext sample sized at KDF.Nh
 fn ciphertext_sample(ciphersuite: Ciphersuite, ciphertext: &[u8]) -> &[u8] {
-    let sample_length = ciphersuite.hash_length();
+    let sample_length = ciphersuite.key_schedule_nh();
     log::debug!("Getting ciphertext sample of length {:?}", sample_length);
     if ciphertext.len() <= sample_length {
         ciphertext

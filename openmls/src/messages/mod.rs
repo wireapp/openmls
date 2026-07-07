@@ -306,7 +306,7 @@ impl PathSecret {
     ) -> Result<EncryptionKeyPair, LibraryError> {
         let node_secret = self
             .path_secret
-            .kdf_expand_label(backend, "node", &[], ciphersuite.hash_length())
+            .kdf_expand_label(backend, "node", &[], ciphersuite.key_schedule_nh())
             .map_err(LibraryError::unexpected_crypto_error)?;
         let HpkeKeyPair { public, private } = backend
             .crypto()
@@ -324,7 +324,7 @@ impl PathSecret {
     ) -> Result<Self, LibraryError> {
         let path_secret = self
             .path_secret
-            .kdf_expand_label(backend, "path", &[], ciphersuite.hash_length())
+            .kdf_expand_label(backend, "path", &[], ciphersuite.key_schedule_nh())
             .map_err(LibraryError::unexpected_crypto_error)?;
         Ok(Self { path_secret })
     }

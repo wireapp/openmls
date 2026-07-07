@@ -228,10 +228,18 @@ impl SecretTree {
 
         log::trace!("Deriving leaf node secrets for leaf {index:?}");
 
-        let handshake_ratchet_secret =
-            node_secret.kdf_expand_label(backend, "handshake", b"", ciphersuite.hash_length())?;
-        let application_ratchet_secret =
-            node_secret.kdf_expand_label(backend, "application", b"", ciphersuite.hash_length())?;
+        let handshake_ratchet_secret = node_secret.kdf_expand_label(
+            backend,
+            "handshake",
+            b"",
+            ciphersuite.key_schedule_nh(),
+        )?;
+        let application_ratchet_secret = node_secret.kdf_expand_label(
+            backend,
+            "application",
+            b"",
+            ciphersuite.key_schedule_nh(),
+        )?;
 
         log_crypto!(
             trace,
@@ -385,7 +393,7 @@ impl SecretTree {
             index_in_tree.u32(),
             ciphersuite
         );
-        let hash_len = ciphersuite.hash_length();
+        let hash_len = ciphersuite.key_schedule_nh();
         let node_secret = match &self.get_node(index_in_tree.into())? {
             Some(node) => &node.secret,
             // This function only gets called top to bottom, so this should not happen

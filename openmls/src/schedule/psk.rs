@@ -241,7 +241,7 @@ impl PreSharedKeyId {
         psk: Psk,
     ) -> Result<Self, CryptoError> {
         let psk_nonce = rand
-            .random_vec(ciphersuite.hash_length())
+            .random_vec(ciphersuite.key_schedule_nh())
             .map_err(|_| CryptoError::InsufficientRandomness)?
             .into();
 
@@ -343,7 +343,7 @@ impl PreSharedKeyId {
 
         // ValSem401
         {
-            let expected_nonce_length = ciphersuite.hash_length();
+            let expected_nonce_length = ciphersuite.key_schedule_nh();
             let got_nonce_length = self.psk_nonce().len();
 
             if expected_nonce_length != got_nonce_length {
@@ -446,7 +446,7 @@ impl PskSecret {
                         backend,
                         "derived psk",
                         &psk_label,
-                        ciphersuite.hash_length(),
+                        ciphersuite.key_schedule_nh(),
                     )
                     .map_err(LibraryError::unexpected_crypto_error)?
             };

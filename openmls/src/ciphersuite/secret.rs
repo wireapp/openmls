@@ -87,7 +87,7 @@ impl Secret {
         Ok(Secret {
             value: crypto
                 .rand()
-                .random_vec(ciphersuite.hash_length())
+                .random_vec(ciphersuite.key_schedule_nh())
                 .map_err(|_| CryptoError::InsufficientRandomness)?
                 .into(),
             mls_version,
@@ -98,7 +98,7 @@ impl Secret {
     /// Create an all zero secret.
     pub(crate) fn zero(ciphersuite: Ciphersuite, mls_version: ProtocolVersion) -> Self {
         Self {
-            value: vec![0u8; ciphersuite.hash_length()].into(),
+            value: vec![0u8; ciphersuite.key_schedule_nh()].into(),
             mls_version,
             ciphersuite,
         }
@@ -135,12 +135,21 @@ impl Secret {
             return Err(CryptoError::CryptoLibraryError);
         }
 
-        Ok(Self {
-            value: backend.crypto().hkdf_extract(
-                self.ciphersuite.hash_algorithm(),
+        use openmls_traits::types::KeyScheduleKdf;
+        let value = match self.ciphersuite.key_schedule_kdf() {
+            KeyScheduleKdf::Hkdf(hash) => backend.crypto().hkdf_extract(
+                hash,
                 self.value.as_slice(),
                 ikm.value.as_slice(),
             )?,
+            KeyScheduleKdf::Shake256 => super::pq_kdf::shake256_extract(
+                backend.crypto(),
+                self.value.as_slice(),
+                ikm.value.as_slice(),
+            )?,
+        };
+        Ok(Self {
+            value,
             mls_version: self.mls_version,
             ciphersuite: self.ciphersuite,
         })
@@ -153,15 +162,17 @@ impl Secret {
         info: &[u8],
         okm_len: usize,
     ) -> Result<Self, CryptoError> {
-        let key = backend
-            .crypto()
-            .hkdf_expand(
-                self.ciphersuite.hash_algorithm(),
-                self.value.as_slice(),
-                info,
-                okm_len,
-            )
-            .map_err(|_| CryptoError::CryptoLibraryError)?;
+        use openmls_traits::types::KeyScheduleKdf;
+        let key = match self.ciphersuite.key_schedule_kdf() {
+            KeyScheduleKdf::Hkdf(hash) => backend
+                .crypto()
+                .hkdf_expand(hash, self.value.as_slice(), info, okm_len)
+                .map_err(|_| CryptoError::CryptoLibraryError)?,
+            KeyScheduleKdf::Shake256 => {
+                super::pq_kdf::shake256_expand(backend.crypto(), self.value.as_slice(), info, okm_len)
+                    .map_err(|_| CryptoError::CryptoLibraryError)?
+            }
+        };
         if key.as_slice().is_empty() {
             return Err(CryptoError::InvalidLength);
         }
@@ -208,7 +219,7 @@ impl Secret {
             label,
             self.ciphersuite
         );
-        self.kdf_expand_label(backend, label, &[], self.ciphersuite.hash_length())
+        self.kdf_expand_label(backend, label, &[], self.ciphersuite.key_schedule_nh())
     }
 
     /// Update the ciphersuite and MLS version of this secret.
@@ -245,5 +256,31 @@ impl From<&[u8]> for Secret {
             mls_version: ProtocolVersion::default(),
             ciphersuite: Ciphersuite::MLS_128_DHKEMX25519_AES128GCM_SHA256_Ed25519,
         }
+    }
+}
+
+#[cfg(test)]
+mod key_schedule_nh_tests {
+    use super::*;
+    use openmls_rust_crypto::OpenMlsRustCrypto;
+
+    #[test]
+    fn shake256_secrets_are_nh_64_classic_unchanged() {
+        let backend = OpenMlsRustCrypto::default();
+        // Official SHAKE256 suite: every key-schedule Secret is KDF.Nh = 64 bytes
+        let shake = Ciphersuite::MLS_128_MLKEM768X25519_AES128GCM_SHA256_Ed25519;
+        let s = Secret::random(shake, &backend, None).unwrap();
+        assert_eq!(s.as_slice().len(), 64, "SHAKE256 Secret must be KDF.Nh = 64");
+        let d = s.derive_secret(&backend, "test").unwrap();
+        assert_eq!(
+            d.as_slice().len(),
+            64,
+            "SHAKE256 derive_secret must be KDF.Nh = 64"
+        );
+        // Classic SHA-256 suite is unchanged: KDF.Nh = hash length = 32
+        let classic = Ciphersuite::MLS_128_DHKEMX25519_AES128GCM_SHA256_Ed25519;
+        let c = Secret::random(classic, &backend, None).unwrap();
+        assert_eq!(c.as_slice().len(), 32);
+        assert_eq!(c.derive_secret(&backend, "test").unwrap().as_slice().len(), 32);
     }
 }

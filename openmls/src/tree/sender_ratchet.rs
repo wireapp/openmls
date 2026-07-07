@@ -145,7 +145,7 @@ impl RatchetSecret {
             &self.secret,
             "secret",
             self.generation,
-            ciphersuite.hash_length(),
+            ciphersuite.key_schedule_nh(),
             backend,
         )?;
         let generation = self.generation;
