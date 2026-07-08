@@ -740,3 +740,232 @@ impl Ciphersuite {
         self.aead_algorithm().nonce_size()
     }
 }
+
+#[cfg(test)]
+mod pq_enum_tests {
+    use super::*;
+    use std::convert::TryFrom;
+
+    #[test]
+    fn hpke_kem_type_tryfrom_pq_variants() {
+        let _ = HpkeKemType::MlKem768X25519;
+        let _ = HpkeKemType::MlKem768P256;
+        let _ = HpkeKemType::MlKem1024P384;
+        let _ = HpkeKemType::MlKem768;
+        let _ = HpkeKemType::MlKem1024;
+    }
+
+    #[test]
+    fn hpke_kdf_type_pq_variants_exist() {
+        let _ = HpkeKdfType::Shake128;
+        let _ = HpkeKdfType::Shake256;
+    }
+
+    #[test]
+    fn signature_scheme_tryfrom_pq_variants() {
+        assert_eq!(
+            SignatureScheme::try_from(0x0904u16),
+            Ok(SignatureScheme::MLDSA44)
+        );
+        assert_eq!(
+            SignatureScheme::try_from(0x0905u16),
+            Ok(SignatureScheme::MLDSA65)
+        );
+        assert_eq!(
+            SignatureScheme::try_from(0x0906u16),
+            Ok(SignatureScheme::MLDSA87)
+        );
+        assert_eq!(SignatureScheme::MLDSA44 as u16, 0x0904u16);
+        assert_eq!(SignatureScheme::MLDSA65 as u16, 0x0905u16);
+        assert_eq!(SignatureScheme::MLDSA87 as u16, 0x0906u16);
+    }
+
+    #[test]
+    fn pq_ciphersuite_tryfrom_u16_round_trip() {
+        let cases: &[(u16, Ciphersuite)] = &[
+            (
+                0xF001,
+                Ciphersuite::MLS_128_MLKEM768X25519_AES128GCM_SHA256_Ed25519,
+            ),
+            (
+                0xF002,
+                Ciphersuite::MLS_128_MLKEM768X25519_AES256GCM_SHA384_Ed25519,
+            ),
+            (
+                0xF003,
+                Ciphersuite::MLS_128_MLKEM768P256_AES128GCM_SHA256_P256,
+            ),
+            (
+                0xF004,
+                Ciphersuite::MLS_128_MLKEM768P256_AES256GCM_SHA384_P256,
+            ),
+            (
+                0xF005,
+                Ciphersuite::MLS_192_MLKEM1024P384_AES256GCM_SHA384_P384,
+            ),
+            (0xF006, Ciphersuite::MLS_128_MLKEM768_AES256GCM_SHA384_P256),
+            (0xF007, Ciphersuite::MLS_192_MLKEM1024_AES256GCM_SHA384_P384),
+            (
+                0xF008,
+                Ciphersuite::MLS_192_MLKEM768_AES256GCM_SHA384_MLDSA65,
+            ),
+            (
+                0xF009,
+                Ciphersuite::MLS_256_MLKEM1024_AES256GCM_SHA384_MLDSA87,
+            ),
+            (
+                0xF00A,
+                Ciphersuite::MLS_128_MLKEM768_AES256GCM_SHA384_Ed25519,
+            ),
+            (
+                0xF00B,
+                Ciphersuite::MLS_128_MLKEM768X25519_CHACHA20POLY1305_SHA384_MLDSA44,
+            ),
+        ];
+        for &(value, expected) in cases {
+            let got = Ciphersuite::try_from(value).expect("should parse");
+            assert_eq!(got, expected, "try_from({value:#06X})");
+            assert_eq!(u16::from(got), value, "u16::from({value:#06X})");
+        }
+    }
+
+    #[test]
+    fn pq_ciphersuite_algorithm_maps() {
+        use Ciphersuite::*;
+
+        let cases: &[(
+            Ciphersuite,
+            HashType,
+            SignatureScheme,
+            AeadType,
+            HpkeKemType,
+            HpkeKdfType,
+            HpkeAeadType,
+        )] = &[
+            (
+                MLS_128_MLKEM768X25519_AES128GCM_SHA256_Ed25519,
+                HashType::Sha2_256,
+                SignatureScheme::ED25519,
+                AeadType::Aes128Gcm,
+                HpkeKemType::MlKem768X25519,
+                HpkeKdfType::HkdfSha256,
+                HpkeAeadType::AesGcm128,
+            ),
+            (
+                MLS_128_MLKEM768X25519_AES256GCM_SHA384_Ed25519,
+                HashType::Sha2_384,
+                SignatureScheme::ED25519,
+                AeadType::Aes256Gcm,
+                HpkeKemType::MlKem768X25519,
+                HpkeKdfType::HkdfSha384,
+                HpkeAeadType::AesGcm256,
+            ),
+            (
+                MLS_128_MLKEM768P256_AES128GCM_SHA256_P256,
+                HashType::Sha2_256,
+                SignatureScheme::ECDSA_SECP256R1_SHA256,
+                AeadType::Aes128Gcm,
+                HpkeKemType::MlKem768P256,
+                HpkeKdfType::HkdfSha256,
+                HpkeAeadType::AesGcm128,
+            ),
+            (
+                MLS_128_MLKEM768P256_AES256GCM_SHA384_P256,
+                HashType::Sha2_384,
+                SignatureScheme::ECDSA_SECP256R1_SHA256,
+                AeadType::Aes256Gcm,
+                HpkeKemType::MlKem768P256,
+                HpkeKdfType::HkdfSha384,
+                HpkeAeadType::AesGcm256,
+            ),
+            (
+                MLS_192_MLKEM1024P384_AES256GCM_SHA384_P384,
+                HashType::Sha2_384,
+                SignatureScheme::ECDSA_SECP384R1_SHA384,
+                AeadType::Aes256Gcm,
+                HpkeKemType::MlKem1024P384,
+                HpkeKdfType::HkdfSha384,
+                HpkeAeadType::AesGcm256,
+            ),
+            (
+                MLS_128_MLKEM768_AES256GCM_SHA384_P256,
+                HashType::Sha2_384,
+                SignatureScheme::ECDSA_SECP256R1_SHA256,
+                AeadType::Aes256Gcm,
+                HpkeKemType::MlKem768,
+                HpkeKdfType::HkdfSha384,
+                HpkeAeadType::AesGcm256,
+            ),
+            (
+                MLS_192_MLKEM1024_AES256GCM_SHA384_P384,
+                HashType::Sha2_384,
+                SignatureScheme::ECDSA_SECP384R1_SHA384,
+                AeadType::Aes256Gcm,
+                HpkeKemType::MlKem1024,
+                HpkeKdfType::HkdfSha384,
+                HpkeAeadType::AesGcm256,
+            ),
+            (
+                MLS_192_MLKEM768_AES256GCM_SHA384_MLDSA65,
+                HashType::Sha2_384,
+                SignatureScheme::MLDSA65,
+                AeadType::Aes256Gcm,
+                HpkeKemType::MlKem768,
+                HpkeKdfType::HkdfSha384,
+                HpkeAeadType::AesGcm256,
+            ),
+            (
+                MLS_256_MLKEM1024_AES256GCM_SHA384_MLDSA87,
+                HashType::Sha2_384,
+                SignatureScheme::MLDSA87,
+                AeadType::Aes256Gcm,
+                HpkeKemType::MlKem1024,
+                HpkeKdfType::HkdfSha384,
+                HpkeAeadType::AesGcm256,
+            ),
+            (
+                MLS_128_MLKEM768_AES256GCM_SHA384_Ed25519,
+                HashType::Sha2_384,
+                SignatureScheme::ED25519,
+                AeadType::Aes256Gcm,
+                HpkeKemType::MlKem768,
+                HpkeKdfType::HkdfSha384,
+                HpkeAeadType::AesGcm256,
+            ),
+            (
+                MLS_128_MLKEM768X25519_CHACHA20POLY1305_SHA384_MLDSA44,
+                HashType::Sha2_384,
+                SignatureScheme::MLDSA44,
+                AeadType::ChaCha20Poly1305,
+                HpkeKemType::MlKem768X25519,
+                HpkeKdfType::HkdfSha384,
+                HpkeAeadType::ChaCha20Poly1305,
+            ),
+        ];
+
+        for &(suite, hash, sig, aead, kem, kdf, hpke_aead) in cases {
+            assert_eq!(suite.hash_algorithm(), hash, "{suite:?}.hash_algorithm()");
+            assert_eq!(
+                suite.signature_algorithm(),
+                sig,
+                "{suite:?}.signature_algorithm()"
+            );
+            assert_eq!(suite.aead_algorithm(), aead, "{suite:?}.aead_algorithm()");
+            assert_eq!(
+                suite.hpke_kem_algorithm(),
+                kem,
+                "{suite:?}.hpke_kem_algorithm()"
+            );
+            assert_eq!(
+                suite.hpke_kdf_algorithm(),
+                kdf,
+                "{suite:?}.hpke_kdf_algorithm()"
+            );
+            assert_eq!(
+                suite.hpke_aead_algorithm(),
+                hpke_aead,
+                "{suite:?}.hpke_aead_algorithm()"
+            );
+        }
+    }
+}
