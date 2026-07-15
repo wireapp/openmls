@@ -413,7 +413,6 @@ pub enum Ciphersuite {
     // suites. IANA hasn't assigned the real ones, so these are squatting in the
     // private-use range until it does. Do not ship these to anyone expecting them
     // to interoperate.
-
     /// ML-KEM-768+X25519 hybrid KEM | AES-GCM 128 | SHA2-256 | Ed25519
     MLS_128_MLKEM768X25519_AES128GCM_SHA256_Ed25519 = 0xF001,
 
@@ -712,9 +711,7 @@ impl Ciphersuite {
             Ciphersuite::MLS_128_DHKEMX25519_AES128GCM_SHA256_Ed25519
             | Ciphersuite::MLS_128_DHKEMP256_AES128GCM_SHA256_P256
             | Ciphersuite::MLS_128_MLKEM768X25519_AES128GCM_SHA256_Ed25519
-            | Ciphersuite::MLS_128_MLKEM768P256_AES128GCM_SHA256_P256 => {
-                HpkeAeadType::AesGcm128
-            }
+            | Ciphersuite::MLS_128_MLKEM768P256_AES128GCM_SHA256_P256 => HpkeAeadType::AesGcm128,
             Ciphersuite::MLS_128_DHKEMX25519_CHACHA20POLY1305_SHA256_Ed25519
             | Ciphersuite::MLS_256_DHKEMX448_CHACHA20POLY1305_SHA512_Ed448 => {
                 HpkeAeadType::ChaCha20Poly1305
@@ -728,9 +725,7 @@ impl Ciphersuite {
             | Ciphersuite::MLS_128_MLKEM768_AES256GCM_SHA384_P256
             | Ciphersuite::MLS_192_MLKEM1024_AES256GCM_SHA384_P384
             | Ciphersuite::MLS_192_MLKEM768_AES256GCM_SHA384_MLDSA65
-            | Ciphersuite::MLS_256_MLKEM1024_AES256GCM_SHA384_MLDSA87 => {
-                HpkeAeadType::AesGcm256
-            }
+            | Ciphersuite::MLS_256_MLKEM1024_AES256GCM_SHA384_MLDSA87 => HpkeAeadType::AesGcm256,
         }
     }
 

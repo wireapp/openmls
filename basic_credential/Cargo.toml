@@ -23,7 +23,7 @@ p521 = "0.13"
 secrecy = { version = "0.8", features = ["serde"] }
 rand_core = "0.6"
 getrandom = { version = "0.2", features = ["js"] }
-ml-dsa = "0.1.1"
+ml-dsa = { version = "0.1.1", default-features = false, features = ["alloc", "zeroize"] }
 zeroize = "1"
 
 [dev-dependencies]

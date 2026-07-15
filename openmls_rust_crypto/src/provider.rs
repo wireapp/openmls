@@ -1693,7 +1693,10 @@ mod mldsa_kat_tests {
             let seed = B32::try_from(seed.as_slice()).expect("32-byte seed");
             let signing_key = SigningKey::<MlDsa65>::from_seed(&seed);
             let pk = signing_key.expanded_key().verifying_key().encode().to_vec();
-            assert_eq!(pk, expected_pk, "ML-DSA-65 seed->pk must match Wycheproof group 0");
+            assert_eq!(
+                pk, expected_pk,
+                "ML-DSA-65 seed->pk must match Wycheproof group 0"
+            );
         }
         // group 26 (distinct seed)
         {
@@ -1704,7 +1707,10 @@ mod mldsa_kat_tests {
             let seed = B32::try_from(seed.as_slice()).expect("32-byte seed");
             let signing_key = SigningKey::<MlDsa65>::from_seed(&seed);
             let pk = signing_key.expanded_key().verifying_key().encode().to_vec();
-            assert_eq!(pk, expected_pk, "ML-DSA-65 seed->pk must match Wycheproof group 26");
+            assert_eq!(
+                pk, expected_pk,
+                "ML-DSA-65 seed->pk must match Wycheproof group 26"
+            );
         }
     }
 
@@ -1775,7 +1781,10 @@ mod mldsa_kat_tests {
             let seed = B32::try_from(seed.as_slice()).expect("32-byte seed");
             let signing_key = SigningKey::<MlDsa87>::from_seed(&seed);
             let pk = signing_key.expanded_key().verifying_key().encode().to_vec();
-            assert_eq!(pk, expected_pk, "ML-DSA-87 seed->pk must match Wycheproof group 0");
+            assert_eq!(
+                pk, expected_pk,
+                "ML-DSA-87 seed->pk must match Wycheproof group 0"
+            );
         }
         // group 26 (distinct seed)
         {
@@ -1786,7 +1795,10 @@ mod mldsa_kat_tests {
             let seed = B32::try_from(seed.as_slice()).expect("32-byte seed");
             let signing_key = SigningKey::<MlDsa87>::from_seed(&seed);
             let pk = signing_key.expanded_key().verifying_key().encode().to_vec();
-            assert_eq!(pk, expected_pk, "ML-DSA-87 seed->pk must match Wycheproof group 26");
+            assert_eq!(
+                pk, expected_pk,
+                "ML-DSA-87 seed->pk must match Wycheproof group 26"
+            );
         }
     }
 }
@@ -2248,7 +2260,10 @@ mod pq_hpke_tests {
         let listed = provider.supported_ciphersuites();
         for cs in official {
             assert!(provider.supports(cs).is_ok(), "{cs:?} must be supported");
-            assert!(listed.contains(&cs), "{cs:?} must be listed in supported_ciphersuites()");
+            assert!(
+                listed.contains(&cs),
+                "{cs:?} must be listed in supported_ciphersuites()"
+            );
         }
     }
 }
@@ -2263,7 +2278,8 @@ mod shake_kdf_tests {
         let provider = RustCrypto::default();
         // FIPS-202 SHAKE256("") first 32 bytes (distinguishes SHAKE256 from SHAKE128)
         let expected =
-            hex::decode("46b9dd2b0ba88d13233b3feb743eeb243fcd52ea62b81b82b50c27646ed5762f").unwrap();
+            hex::decode("46b9dd2b0ba88d13233b3feb743eeb243fcd52ea62b81b82b50c27646ed5762f")
+                .unwrap();
         let out = provider.shake256_kdf_derive(b"", 32).unwrap();
         assert_eq!(out.as_slice(), expected.as_slice());
         // XOF is variable length: a longer read is a prefix-extension, not a re-hash

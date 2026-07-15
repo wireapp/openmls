@@ -32,9 +32,8 @@ zeroize = { version = "1.7", features = ["derive"] }
 signature = "2.1"
 thiserror = "1.0"
 generic-array = "0.14"
-# `rev`-pinned (not `branch = "main"`) for reproducible builds; temporary fork pin until upstreamed into rozbb/rust-hpke.
-hpke = { git = "https://github.com/emil-wire/rust-hpke", rev = "082ea16b5340ad6a025af07f2c620ca315a239d1", default-features = false, features = ["alloc", "getrandom", "x25519", "p256", "p384", "p521", "aes", "chacha", "xwing", "mlkem768p256", "mlkem1024p384", "mlkem768", "mlkem1024"] }
-ml-dsa = "0.1.1"
+hpke = { version = "0.14.0", default-features = false, features = ["alloc", "getrandom", "x25519", "nistp", "aes", "chacha", "mlkem"] }
+ml-dsa = { version = "0.1.1", default-features = false, features = ["alloc", "zeroize"] }
 
 [dev-dependencies]
 hex = "0.4"

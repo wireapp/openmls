@@ -137,11 +137,11 @@ impl Secret {
 
         use openmls_traits::types::KeyScheduleKdf;
         let value = match self.ciphersuite.key_schedule_kdf() {
-            KeyScheduleKdf::Hkdf(hash) => backend.crypto().hkdf_extract(
-                hash,
-                self.value.as_slice(),
-                ikm.value.as_slice(),
-            )?,
+            KeyScheduleKdf::Hkdf(hash) => {
+                backend
+                    .crypto()
+                    .hkdf_extract(hash, self.value.as_slice(), ikm.value.as_slice())?
+            }
             KeyScheduleKdf::Shake256 => super::pq_kdf::shake256_extract(
                 backend.crypto(),
                 self.value.as_slice(),
@@ -168,10 +168,13 @@ impl Secret {
                 .crypto()
                 .hkdf_expand(hash, self.value.as_slice(), info, okm_len)
                 .map_err(|_| CryptoError::CryptoLibraryError)?,
-            KeyScheduleKdf::Shake256 => {
-                super::pq_kdf::shake256_expand(backend.crypto(), self.value.as_slice(), info, okm_len)
-                    .map_err(|_| CryptoError::CryptoLibraryError)?
-            }
+            KeyScheduleKdf::Shake256 => super::pq_kdf::shake256_expand(
+                backend.crypto(),
+                self.value.as_slice(),
+                info,
+                okm_len,
+            )
+            .map_err(|_| CryptoError::CryptoLibraryError)?,
         };
         if key.as_slice().is_empty() {
             return Err(CryptoError::InvalidLength);
@@ -270,7 +273,11 @@ mod key_schedule_nh_tests {
         // Official SHAKE256 suite: every key-schedule Secret is KDF.Nh = 64 bytes
         let shake = Ciphersuite::MLS_128_MLKEM768X25519_AES128GCM_SHA256_Ed25519;
         let s = Secret::random(shake, &backend, None).unwrap();
-        assert_eq!(s.as_slice().len(), 64, "SHAKE256 Secret must be KDF.Nh = 64");
+        assert_eq!(
+            s.as_slice().len(),
+            64,
+            "SHAKE256 Secret must be KDF.Nh = 64"
+        );
         let d = s.derive_secret(&backend, "test").unwrap();
         assert_eq!(
             d.as_slice().len(),
@@ -281,6 +288,9 @@ mod key_schedule_nh_tests {
         let classic = Ciphersuite::MLS_128_DHKEMX25519_AES128GCM_SHA256_Ed25519;
         let c = Secret::random(classic, &backend, None).unwrap();
         assert_eq!(c.as_slice().len(), 32);
-        assert_eq!(c.derive_secret(&backend, "test").unwrap().as_slice().len(), 32);
+        assert_eq!(
+            c.derive_secret(&backend, "test").unwrap().as_slice().len(),
+            32
+        );
     }
 }

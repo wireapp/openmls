@@ -12,10 +12,12 @@ fn mldsa_sign<P: ml_dsa::MlDsaParams>(payload: &[u8], private: &[u8]) -> Result<
     if private.len() != MLDSA_SEED_LEN {
         return Err(Error::SigningError);
     }
-    // The reconstructed seed is secret key material; scrub it on drop.
-    let seed =
-        zeroize::Zeroizing::new(ml_dsa::B32::try_from(private).map_err(|_| Error::SigningError)?);
-    let signing_key = ml_dsa::SigningKey::<P>::from_seed(&seed);
+    // B32 is not Zeroize in openmls_traits' own feature set, so keep the seed in a
+    // Zeroizing byte array and build a short-lived B32 from it for from_seed
+    let seed = zeroize::Zeroizing::new(
+        <[u8; MLDSA_SEED_LEN]>::try_from(private).map_err(|_| Error::SigningError)?,
+    );
+    let signing_key = ml_dsa::SigningKey::<P>::from_seed(&ml_dsa::B32::from(*seed));
     let signature = signing_key
         .expanded_key()
         .sign_deterministic(payload, b"")

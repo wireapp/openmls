@@ -28,8 +28,9 @@ pub(crate) fn shake256_extract(
     salt: &[u8],
     ikm: &[u8],
 ) -> Result<SecretVLBytes, CryptoError> {
-    let mut input =
-        Zeroizing::new(Vec::with_capacity(SHAKE_KDF_DOMAIN_SEP.len() + salt.len() + ikm.len()));
+    let mut input = Zeroizing::new(Vec::with_capacity(
+        SHAKE_KDF_DOMAIN_SEP.len() + salt.len() + ikm.len(),
+    ));
     input.extend_from_slice(SHAKE_KDF_DOMAIN_SEP);
     input.extend_from_slice(salt);
     input.extend_from_slice(ikm);
@@ -43,8 +44,9 @@ pub(crate) fn shake256_expand(
     info: &[u8],
     length: usize,
 ) -> Result<SecretVLBytes, CryptoError> {
-    let mut input =
-        Zeroizing::new(Vec::with_capacity(SHAKE_KDF_DOMAIN_SEP.len() + info.len() + prk.len()));
+    let mut input = Zeroizing::new(Vec::with_capacity(
+        SHAKE_KDF_DOMAIN_SEP.len() + info.len() + prk.len(),
+    ));
     input.extend_from_slice(SHAKE_KDF_DOMAIN_SEP);
     input.extend_from_slice(info);
     input.extend_from_slice(prk);
@@ -67,7 +69,9 @@ mod tests {
         let mut expected_input = Vec::new();
         expected_input.extend_from_slice(salt);
         expected_input.extend_from_slice(ikm);
-        let expected = crypto.shake256_kdf_derive(&expected_input, SHAKE256_NH).unwrap();
+        let expected = crypto
+            .shake256_kdf_derive(&expected_input, SHAKE256_NH)
+            .unwrap();
         let got = shake256_extract(crypto, salt, ikm).unwrap();
         assert_eq!(got.as_slice(), expected.as_slice());
         assert_eq!(got.as_slice().len(), 64, "SHAKE256 Nh");
