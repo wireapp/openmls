@@ -113,18 +113,18 @@ impl SignatureKeyPair {
         let (private, public): (SecretVec<u8>, Vec<u8>) = match signature_scheme {
             SignatureScheme::ECDSA_SECP256R1_SHA256 => {
                 let sk = p256::ecdsa::SigningKey::random(csprng);
-                let pk = sk.verifying_key().to_encoded_point(false).to_bytes().into();
+                let pk = sk.verifying_key().to_sec1_point(false).to_bytes().into();
                 (sk.to_bytes().to_vec().into(), pk)
             }
             SignatureScheme::ECDSA_SECP384R1_SHA384 => {
                 let sk = p384::ecdsa::SigningKey::random(csprng);
-                let pk = sk.verifying_key().to_encoded_point(false).to_bytes().into();
+                let pk = sk.verifying_key().to_sec1_point(false).to_bytes().into();
                 (sk.to_bytes().to_vec().into(), pk)
             }
             SignatureScheme::ECDSA_SECP521R1_SHA512 => {
                 let sk = p521::ecdsa::SigningKey::random(csprng);
                 let pk = p521::ecdsa::VerifyingKey::from(&sk)
-                    .to_encoded_point(false)
+                    .to_sec1_point(false)
                     .to_bytes()
                     .into();
                 (sk.to_bytes().to_vec().into(), pk)
@@ -202,7 +202,7 @@ impl SignatureKeyPair {
                     .map_err(|_| CryptoError::InvalidKey)?;
                 let sk_pk = p521::ecdsa::VerifyingKey::from(&sk);
 
-                if sk_pk.to_encoded_point(false) != pk.to_encoded_point(false) {
+                if sk_pk.to_sec1_point(false) != pk.to_sec1_point(false) {
                     return Err(CryptoError::MismatchKeypair);
                 }
             }

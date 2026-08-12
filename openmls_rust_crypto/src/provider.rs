@@ -260,18 +260,18 @@ impl OpenMlsCrypto for RustCrypto {
         match alg {
             SignatureScheme::ECDSA_SECP256R1_SHA256 => {
                 let sk = p256::ecdsa::SigningKey::random(&mut *rng);
-                let pk = sk.verifying_key().to_encoded_point(false).to_bytes().into();
+                let pk = sk.verifying_key().to_sec1_point(false).to_bytes().into();
                 Ok((sk.to_bytes().to_vec(), pk))
             }
             SignatureScheme::ECDSA_SECP384R1_SHA384 => {
                 let sk = p384::ecdsa::SigningKey::random(&mut *rng);
-                let pk = sk.verifying_key().to_encoded_point(false).to_bytes().into();
+                let pk = sk.verifying_key().to_sec1_point(false).to_bytes().into();
                 Ok((sk.to_bytes().to_vec(), pk))
             }
             SignatureScheme::ECDSA_SECP521R1_SHA512 => {
                 let sk = p521::ecdsa::SigningKey::random(&mut *rng);
                 let pk = p521::ecdsa::VerifyingKey::from(&sk)
-                    .to_encoded_point(false)
+                    .to_sec1_point(false)
                     .to_bytes()
                     .into();
                 Ok((sk.to_bytes().to_vec(), pk))
