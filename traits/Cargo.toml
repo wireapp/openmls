@@ -18,13 +18,13 @@ test-utils = []
 
 [dependencies]
 serde = { version = "1.0", features = ["derive"] }
-rand_core = "0.6"
+rand_core = "0.10"
 tls_codec = { workspace = true }
 async-trait = { workspace = true }
 # for the default signer
-ed25519-dalek = { version = "2.1", features = ["rand_core"] }
-p256 = "0.13"
-p384 = "0.13"
-p521 = "0.13"
-zeroize = "1.6"
-signature = "2.1"
+ed25519-dalek = { version = "3.0", features = ["rand_core"] }
+p256 = "0.14"
+p384 = "0.14"
+p521 = "0.14"
+zeroize = "1.9"
+signature = "3.0"
