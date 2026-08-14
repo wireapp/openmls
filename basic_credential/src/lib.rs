@@ -4,6 +4,7 @@
 //!
 //! For now this credential uses only RustCrypto.
 
+use elliptic_curve::Generate as _;
 use secrecy::{ExposeSecret, SecretVec};
 use std::fmt::Debug;
 
@@ -112,17 +113,17 @@ impl SignatureKeyPair {
     ) -> Result<Self, CryptoError> {
         let (private, public): (SecretVec<u8>, Vec<u8>) = match signature_scheme {
             SignatureScheme::ECDSA_SECP256R1_SHA256 => {
-                let sk = p256::ecdsa::SigningKey::random(csprng);
+                let sk = p256::ecdsa::SigningKey::generate_from_rng(csprng);
                 let pk = sk.verifying_key().to_sec1_point(false).to_bytes().into();
                 (sk.to_bytes().to_vec().into(), pk)
             }
             SignatureScheme::ECDSA_SECP384R1_SHA384 => {
-                let sk = p384::ecdsa::SigningKey::random(csprng);
+                let sk = p384::ecdsa::SigningKey::generate_from_rng(csprng);
                 let pk = sk.verifying_key().to_sec1_point(false).to_bytes().into();
                 (sk.to_bytes().to_vec().into(), pk)
             }
             SignatureScheme::ECDSA_SECP521R1_SHA512 => {
-                let sk = p521::ecdsa::SigningKey::random(csprng);
+                let sk = p521::ecdsa::SigningKey::generate_from_rng(csprng);
                 let pk = p521::ecdsa::VerifyingKey::from(&sk)
                     .to_sec1_point(false)
                     .to_bytes()
