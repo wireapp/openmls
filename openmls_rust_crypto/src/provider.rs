@@ -1,5 +1,5 @@
-use rand_core::{RngCore, SeedableRng};
 use aes_gcm::aead;
+use rand_core::{SeedableRng, TryRng as _};
 use std::sync::RwLock;
 
 use aes_gcm::{
@@ -783,7 +783,7 @@ mod hpke_core {
         info: &[u8],
         aad: &[u8],
         plaintext: &[u8],
-        csprng: &mut impl rand_core::CryptoRngCore,
+        csprng: &mut impl rand_core::CryptoRng,
     ) -> Result<HpkeCiphertext, CryptoError> {
         use hpke::{Deserializable as _, Serializable as _};
         let key =
@@ -806,7 +806,7 @@ mod hpke_core {
 
     #[allow(dead_code)]
     pub fn hpke_gen_keypair<Kem: hpke::Kem>(
-        csprng: &mut impl rand_core::CryptoRngCore,
+        csprng: &mut impl rand_core::CryptoRng,
     ) -> Result<HpkeKeyPair, CryptoError> {
         use hpke::Serializable as _;
         let (sk, pk) = Kem::gen_keypair_with_rng(csprng);
@@ -852,7 +852,7 @@ mod hpke_core {
         info: &[u8],
         export_info: &[u8],
         export_len: usize,
-        csprng: &mut impl rand_core::CryptoRngCore,
+        csprng: &mut impl rand_core::CryptoRng,
     ) -> Result<(Vec<u8>, Vec<u8>), CryptoError> {
         use hpke::{Deserializable as _, Serializable as _};
         let key =

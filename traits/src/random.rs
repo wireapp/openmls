@@ -5,7 +5,7 @@
 
 pub trait OpenMlsRand {
     type Error: std::error::Error + std::fmt::Debug;
-    type RandImpl: rand_core::CryptoRngCore;
+    type RandImpl: rand_core::CryptoRng;
     type BorrowTarget<'a>: std::ops::DerefMut<Target = Self::RandImpl>
     where
         Self: 'a;

@@ -108,7 +108,7 @@ impl SignatureKeyPair {
     /// Generates a fresh signature keypair using the [`SignatureScheme`].
     pub fn new(
         signature_scheme: SignatureScheme,
-        csprng: &mut impl rand_core::CryptoRngCore,
+        csprng: &mut impl rand_core::CryptoRng,
     ) -> Result<Self, CryptoError> {
         let (private, public): (SecretVec<u8>, Vec<u8>) = match signature_scheme {
             SignatureScheme::ECDSA_SECP256R1_SHA256 => {
