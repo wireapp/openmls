@@ -383,7 +383,7 @@ impl OpenMlsCrypto for RustCrypto {
 
         match alg {
             SignatureScheme::ECDSA_SECP256R1_SHA256 => {
-                let k = p256::ecdsa::SigningKey::from_bytes(key.into())
+                let k = p256::ecdsa::SigningKey::from_slice(key)
                     .map_err(|_| CryptoError::CryptoLibraryError)?;
                 let signature: p256::ecdsa::DerSignature = k
                     .try_sign(data)
@@ -391,7 +391,7 @@ impl OpenMlsCrypto for RustCrypto {
                 Ok(signature.to_bytes().into())
             }
             SignatureScheme::ECDSA_SECP384R1_SHA384 => {
-                let k = p384::ecdsa::SigningKey::from_bytes(key.into())
+                let k = p384::ecdsa::SigningKey::from_slice(key)
                     .map_err(|_| CryptoError::CryptoLibraryError)?;
                 let signature: p384::ecdsa::DerSignature = k
                     .try_sign(data)
@@ -401,8 +401,8 @@ impl OpenMlsCrypto for RustCrypto {
             SignatureScheme::ECDSA_SECP521R1_SHA512 => {
                 let k = p521::ecdsa::SigningKey::from_slice(&*normalize_p521_secret_key(key))
                     .map_err(|_| CryptoError::CryptoLibraryError)?;
-                let signature: p521::ecdsa::DerSignature = k
-                    .try_sign(data)
+                let signature: p521::ecdsa::DerSignature = <p521::ecdsa::SigningKey as signature::Signer<p521::ecdsa::Signature>>::
+                    try_sign(&k, data)
                     .map_err(|_| CryptoError::CryptoLibraryError)?
                     .to_der();
                 Ok(signature.to_bytes().into())
