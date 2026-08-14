@@ -19,6 +19,7 @@ aes-gcm = { version = "0.11" }
 chacha20poly1305 = { version = "0.11" }
 hmac = { version = "0.13" }
 ed25519-dalek = { version = "3.0", features = ["rand_core"] }
+elliptic-curve = "0.14"
 getrandom = { version = "0.4", features = ["wasm_js"] }
 p256 = { version = "0.14" }
 p384 = { version = "0.14" }

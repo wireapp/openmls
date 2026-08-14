@@ -17,6 +17,7 @@ serde = "1.0"
 
 # Rust Crypto
 ed25519-dalek = { version = "3.0", features = ["rand_core"] }
+elliptic-curve = "0.14"
 p256 = "0.14"
 p384 = "0.14"
 p521 = "0.14"
