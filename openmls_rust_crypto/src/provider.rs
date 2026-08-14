@@ -68,9 +68,9 @@ pub struct RustCrypto {
 
 impl Default for RustCrypto {
     fn default() -> Self {
-        Self {
-            rng: RwLock::new(rand_chacha::ChaCha20Rng::from_entropy()),
-        }
+        let mut seed = RawEntropySeed::default();
+        getrandom::fill(&mut seed).expect("system RNG has to work");
+        Self::new_with_seed(EntropySeed::from_raw(seed))
     }
 }
 
