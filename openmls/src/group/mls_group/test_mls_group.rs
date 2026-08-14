@@ -375,190 +375,193 @@ async fn test_invalid_plaintext(ciphersuite: Ciphersuite, backend: &impl OpenMls
 #[apply(ciphersuites_and_backends)]
 #[wasm_bindgen_test::wasm_bindgen_test]
 async fn test_pending_commit_logic(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider) {
-    let group_id = GroupId::from_slice(b"Test Group");
+    Box::pin(async move {
+        let group_id = GroupId::from_slice(b"Test Group");
 
-    let (alice_credential_with_key, _alice_kpb, alice_signer, _alice_pk) =
-        setup_client("Alice", ciphersuite, backend).await;
-    let (_bob_credential, bob_kpb, bob_signer, _bob_pk) =
-        setup_client("Bob", ciphersuite, backend).await;
+        let (alice_credential_with_key, _alice_kpb, alice_signer, _alice_pk) =
+            setup_client("Alice", ciphersuite, backend).await;
+        let (_bob_credential, bob_kpb, bob_signer, _bob_pk) =
+            setup_client("Bob", ciphersuite, backend).await;
 
-    // Define the MlsGroup configuration
-    let mls_group_config = MlsGroupConfig::test_default(ciphersuite);
+        // Define the MlsGroup configuration
+        let mls_group_config = MlsGroupConfig::test_default(ciphersuite);
 
-    // === Alice creates a group ===
-    let mut alice_group = MlsGroup::new_with_group_id(
-        backend,
-        &alice_signer,
-        &mls_group_config,
-        group_id,
-        alice_credential_with_key,
-    )
-    .await
-    .expect("An unexpected error occurred.");
-
-    // There should be no pending commit after group creation.
-    assert!(alice_group.pending_commit().is_none());
-
-    let bob_key_package = bob_kpb.key_package();
-
-    // Let's add bob
-    let (proposal, _) = alice_group
-        .propose_add_member(backend, &alice_signer, bob_key_package.clone().into())
+        // === Alice creates a group ===
+        let mut alice_group = MlsGroup::new_with_group_id(
+            backend,
+            &alice_signer,
+            &mls_group_config,
+            group_id,
+            alice_credential_with_key,
+        )
         .await
-        .expect("error creating self-update proposal");
+        .expect("An unexpected error occurred.");
 
-    let alice_processed_message = alice_group
-        .process_message(backend, proposal.into_protocol_message().unwrap())
-        .await
-        .expect("Could not process messages.");
-    assert!(alice_group.pending_commit().is_none());
+        // There should be no pending commit after group creation.
+        assert!(alice_group.pending_commit().is_none());
 
-    if let ProcessedMessageContent::ProposalMessage(staged_proposal) =
-        alice_processed_message.into_content()
-    {
-        alice_group.store_pending_proposal(*staged_proposal);
-    } else {
-        unreachable!("Expected a StagedCommit.");
-    }
+        let bob_key_package = bob_kpb.key_package();
 
-    // There should be no pending commit after issuing and processing a proposal.
-    assert!(alice_group.pending_commit().is_none());
-
-    println!("\nCreating commit with add proposal.");
-    let (_msg, _welcome_option, _group_info) = alice_group
-        .self_update(backend, &alice_signer)
-        .await
-        .expect("error creating self-update commit");
-    println!("Done creating commit.");
-
-    // There should be a pending commit after issueing a proposal.
-    assert!(alice_group.pending_commit().is_some());
-
-    // If there is a pending commit, other commit- or proposal-creating actions
-    // should fail.
-    let error = alice_group
-        .add_members(backend, &alice_signer, vec![bob_key_package.clone().into()])
-        .await
-        .expect_err("no error committing while a commit is pending");
-    assert!(matches!(
-        error,
-        AddMembersError::GroupStateError(MlsGroupStateError::PendingCommit)
-    ));
-    let error = alice_group
-        .propose_add_member(backend, &alice_signer, bob_key_package.clone().into())
-        .await
-        .expect_err("no error creating a proposal while a commit is pending");
-    assert!(matches!(
-        error,
-        ProposeAddMemberError::GroupStateError(MlsGroupStateError::PendingCommit)
-    ));
-    let error = alice_group
-        .remove_members(backend, &alice_signer, &[LeafNodeIndex::new(1)])
-        .await
-        .expect_err("no error committing while a commit is pending");
-    assert!(matches!(
-        error,
-        RemoveMembersError::GroupStateError(MlsGroupStateError::PendingCommit)
-    ));
-    let error = alice_group
-        .propose_remove_member(backend, &alice_signer, LeafNodeIndex::new(1))
-        .expect_err("no error creating a proposal while a commit is pending");
-    assert!(matches!(
-        error,
-        ProposeRemoveMemberError::GroupStateError(MlsGroupStateError::PendingCommit)
-    ));
-    let error = alice_group
-        .commit_to_pending_proposals(backend, &alice_signer)
-        .await
-        .expect_err("no error committing while a commit is pending");
-    assert!(matches!(
-        error,
-        CommitToPendingProposalsError::GroupStateError(MlsGroupStateError::PendingCommit)
-    ));
-    let error = alice_group
-        .self_update(backend, &alice_signer)
-        .await
-        .expect_err("no error committing while a commit is pending");
-    assert!(matches!(
-        error,
-        SelfUpdateError::GroupStateError(MlsGroupStateError::PendingCommit)
-    ));
-    let error = alice_group
-        .propose_self_update(backend, &alice_signer)
-        .await
-        .expect_err("no error creating a proposal while a commit is pending");
-    assert!(matches!(
-        error,
-        ProposeSelfUpdateError::GroupStateError(MlsGroupStateError::PendingCommit)
-    ));
-
-    // Clearing the pending commit should actually clear it.
-    alice_group.clear_pending_commit();
-    assert!(alice_group.pending_commit().is_none());
-
-    // Creating a new commit should commit the same proposals.
-    let (_msg, welcome_option, _group_info) = alice_group
-        .self_update(backend, &alice_signer)
-        .await
-        .expect("error creating self-update commit");
-
-    // Merging the pending commit should clear the pending commit and we should
-    // end up in the same state as bob.
-    alice_group
-        .merge_pending_commit(backend)
-        .await
-        .expect("error merging pending commit");
-    assert!(alice_group.pending_commit().is_none());
-
-    let mut bob_group = MlsGroup::new_from_welcome(
-        backend,
-        &mls_group_config,
-        welcome_option
-            .expect("no welcome after commit")
-            .into_welcome()
-            .expect("Unexpected message type."),
-        Some(alice_group.export_ratchet_tree().into()),
-    )
-    .await
-    .expect("error creating group from welcome");
-
-    assert_eq!(
-        bob_group.export_ratchet_tree(),
-        alice_group.export_ratchet_tree()
-    );
-    assert_eq!(
-        bob_group.export_secret(backend, "test", &[], ciphersuite.hash_length()),
-        alice_group.export_secret(backend, "test", &[], ciphersuite.hash_length())
-    );
-
-    // While a commit is pending, merging Bob's commit should clear the pending commit.
-    let (_msg, _welcome_option, _group_info) = alice_group
-        .self_update(backend, &alice_signer)
-        .await
-        .expect("error creating self-update commit");
-
-    let (msg, _welcome_option, _group_info) = bob_group
-        .self_update(backend, &bob_signer)
-        .await
-        .expect("error creating self-update commit");
-
-    let alice_processed_message = alice_group
-        .process_message(backend, msg.into_protocol_message().unwrap())
-        .await
-        .expect("Could not process messages.");
-    assert!(alice_group.pending_commit().is_some());
-
-    if let ProcessedMessageContent::StagedCommitMessage(staged_commit) =
-        alice_processed_message.into_content()
-    {
-        alice_group
-            .merge_staged_commit(backend, *staged_commit)
+        // Let's add bob
+        let (proposal, _) = alice_group
+            .propose_add_member(backend, &alice_signer, bob_key_package.clone().into())
             .await
-            .expect("Error merging commit.");
-    } else {
-        unreachable!("Expected a StagedCommit.");
-    }
-    assert!(alice_group.pending_commit().is_none());
+            .expect("error creating self-update proposal");
+
+        let alice_processed_message = alice_group
+            .process_message(backend, proposal.into_protocol_message().unwrap())
+            .await
+            .expect("Could not process messages.");
+        assert!(alice_group.pending_commit().is_none());
+
+        if let ProcessedMessageContent::ProposalMessage(staged_proposal) =
+            alice_processed_message.into_content()
+        {
+            alice_group.store_pending_proposal(*staged_proposal);
+        } else {
+            unreachable!("Expected a StagedCommit.");
+        }
+
+        // There should be no pending commit after issuing and processing a proposal.
+        assert!(alice_group.pending_commit().is_none());
+
+        println!("\nCreating commit with add proposal.");
+        let (_msg, _welcome_option, _group_info) = alice_group
+            .self_update(backend, &alice_signer)
+            .await
+            .expect("error creating self-update commit");
+        println!("Done creating commit.");
+
+        // There should be a pending commit after issueing a proposal.
+        assert!(alice_group.pending_commit().is_some());
+
+        // If there is a pending commit, other commit- or proposal-creating actions
+        // should fail.
+        let error = alice_group
+            .add_members(backend, &alice_signer, vec![bob_key_package.clone().into()])
+            .await
+            .expect_err("no error committing while a commit is pending");
+        assert!(matches!(
+            error,
+            AddMembersError::GroupStateError(MlsGroupStateError::PendingCommit)
+        ));
+        let error = alice_group
+            .propose_add_member(backend, &alice_signer, bob_key_package.clone().into())
+            .await
+            .expect_err("no error creating a proposal while a commit is pending");
+        assert!(matches!(
+            error,
+            ProposeAddMemberError::GroupStateError(MlsGroupStateError::PendingCommit)
+        ));
+        let error = alice_group
+            .remove_members(backend, &alice_signer, &[LeafNodeIndex::new(1)])
+            .await
+            .expect_err("no error committing while a commit is pending");
+        assert!(matches!(
+            error,
+            RemoveMembersError::GroupStateError(MlsGroupStateError::PendingCommit)
+        ));
+        let error = alice_group
+            .propose_remove_member(backend, &alice_signer, LeafNodeIndex::new(1))
+            .expect_err("no error creating a proposal while a commit is pending");
+        assert!(matches!(
+            error,
+            ProposeRemoveMemberError::GroupStateError(MlsGroupStateError::PendingCommit)
+        ));
+        let error = alice_group
+            .commit_to_pending_proposals(backend, &alice_signer)
+            .await
+            .expect_err("no error committing while a commit is pending");
+        assert!(matches!(
+            error,
+            CommitToPendingProposalsError::GroupStateError(MlsGroupStateError::PendingCommit)
+        ));
+        let error = alice_group
+            .self_update(backend, &alice_signer)
+            .await
+            .expect_err("no error committing while a commit is pending");
+        assert!(matches!(
+            error,
+            SelfUpdateError::GroupStateError(MlsGroupStateError::PendingCommit)
+        ));
+        let error = alice_group
+            .propose_self_update(backend, &alice_signer)
+            .await
+            .expect_err("no error creating a proposal while a commit is pending");
+        assert!(matches!(
+            error,
+            ProposeSelfUpdateError::GroupStateError(MlsGroupStateError::PendingCommit)
+        ));
+
+        // Clearing the pending commit should actually clear it.
+        alice_group.clear_pending_commit();
+        assert!(alice_group.pending_commit().is_none());
+
+        // Creating a new commit should commit the same proposals.
+        let (_msg, welcome_option, _group_info) = alice_group
+            .self_update(backend, &alice_signer)
+            .await
+            .expect("error creating self-update commit");
+
+        // Merging the pending commit should clear the pending commit and we should
+        // end up in the same state as bob.
+        alice_group
+            .merge_pending_commit(backend)
+            .await
+            .expect("error merging pending commit");
+        assert!(alice_group.pending_commit().is_none());
+
+        let mut bob_group = MlsGroup::new_from_welcome(
+            backend,
+            &mls_group_config,
+            welcome_option
+                .expect("no welcome after commit")
+                .into_welcome()
+                .expect("Unexpected message type."),
+            Some(alice_group.export_ratchet_tree().into()),
+        )
+        .await
+        .expect("error creating group from welcome");
+
+        assert_eq!(
+            bob_group.export_ratchet_tree(),
+            alice_group.export_ratchet_tree()
+        );
+        assert_eq!(
+            bob_group.export_secret(backend, "test", &[], ciphersuite.hash_length()),
+            alice_group.export_secret(backend, "test", &[], ciphersuite.hash_length())
+        );
+
+        // While a commit is pending, merging Bob's commit should clear the pending commit.
+        let (_msg, _welcome_option, _group_info) = alice_group
+            .self_update(backend, &alice_signer)
+            .await
+            .expect("error creating self-update commit");
+
+        let (msg, _welcome_option, _group_info) = bob_group
+            .self_update(backend, &bob_signer)
+            .await
+            .expect("error creating self-update commit");
+
+        let alice_processed_message = alice_group
+            .process_message(backend, msg.into_protocol_message().unwrap())
+            .await
+            .expect("Could not process messages.");
+        assert!(alice_group.pending_commit().is_some());
+
+        if let ProcessedMessageContent::StagedCommitMessage(staged_commit) =
+            alice_processed_message.into_content()
+        {
+            alice_group
+                .merge_staged_commit(backend, *staged_commit)
+                .await
+                .expect("Error merging commit.");
+        } else {
+            unreachable!("Expected a StagedCommit.");
+        }
+        assert!(alice_group.pending_commit().is_none());
+    })
+    .await
 }
 
 // Test that the key package and the corresponding private key are deleted when
