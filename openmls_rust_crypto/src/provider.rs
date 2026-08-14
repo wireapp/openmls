@@ -1,4 +1,5 @@
 use rand_core::{RngCore, SeedableRng};
+use aes_gcm::aead;
 use std::sync::RwLock;
 
 use aes_gcm::{
@@ -185,12 +186,17 @@ impl OpenMlsCrypto for RustCrypto {
         nonce: &[u8],
         aad: &[u8],
     ) -> Result<Vec<u8>, openmls_traits::types::CryptoError> {
+        // All supported algorithms use the same nonce size of 96 bits, so
+        // picking any of them for the generic parameter of Nonce<A> is fine.
+        let nonce =
+            aead::Nonce::<Aes128Gcm>::try_from(nonce).map_err(|_| CryptoError::InvalidLength)?;
+
         match alg {
             AeadType::Aes128Gcm => {
                 let aes =
                     Aes128Gcm::new_from_slice(key).map_err(|_| CryptoError::CryptoLibraryError)?;
 
-                aes.encrypt(nonce.into(), Payload { msg: data, aad })
+                aes.encrypt(&nonce, Payload { msg: data, aad })
                     .map(|r| r.as_slice().into())
                     .map_err(|_| CryptoError::AeadEncryptionError)
             }
@@ -198,7 +204,7 @@ impl OpenMlsCrypto for RustCrypto {
                 let aes =
                     Aes256Gcm::new_from_slice(key).map_err(|_| CryptoError::AeadEncryptionError)?;
 
-                aes.encrypt(nonce.into(), Payload { msg: data, aad })
+                aes.encrypt(&nonce, Payload { msg: data, aad })
                     .map(|r| r.as_slice().into())
                     .map_err(|_| CryptoError::AeadEncryptionError)
             }
@@ -207,7 +213,7 @@ impl OpenMlsCrypto for RustCrypto {
                     .map_err(|_| CryptoError::AeadEncryptionError)?;
 
                 chacha_poly
-                    .encrypt(nonce.into(), Payload { msg: data, aad })
+                    .encrypt(&nonce, Payload { msg: data, aad })
                     .map(|r| r.as_slice().into())
                     .map_err(|_| CryptoError::AeadEncryptionError)
             }
@@ -222,18 +228,23 @@ impl OpenMlsCrypto for RustCrypto {
         nonce: &[u8],
         aad: &[u8],
     ) -> Result<Vec<u8>, openmls_traits::types::CryptoError> {
+        // All supported algorithms use the same nonce size of 96 bits, so
+        // picking any of them for the generic parameter of Nonce<A> is fine.
+        let nonce =
+            aead::Nonce::<Aes128Gcm>::try_from(nonce).map_err(|_| CryptoError::InvalidLength)?;
+
         match alg {
             AeadType::Aes128Gcm => {
                 let aes =
                     Aes128Gcm::new_from_slice(key).map_err(|_| CryptoError::CryptoLibraryError)?;
-                aes.decrypt(nonce.into(), Payload { msg: ct_tag, aad })
+                aes.decrypt(&nonce, Payload { msg: ct_tag, aad })
                     .map(|r| r.as_slice().into())
                     .map_err(|_| CryptoError::AeadDecryptionError)
             }
             AeadType::Aes256Gcm => {
                 let aes =
                     Aes256Gcm::new_from_slice(key).map_err(|_| CryptoError::CryptoLibraryError)?;
-                aes.decrypt(nonce.into(), Payload { msg: ct_tag, aad })
+                aes.decrypt(&nonce, Payload { msg: ct_tag, aad })
                     .map(|r| r.as_slice().into())
                     .map_err(|_| CryptoError::AeadDecryptionError)
             }
@@ -241,7 +252,7 @@ impl OpenMlsCrypto for RustCrypto {
                 let chacha_poly = ChaCha20Poly1305::new_from_slice(key)
                     .map_err(|_| CryptoError::CryptoLibraryError)?;
                 chacha_poly
-                    .decrypt(nonce.into(), Payload { msg: ct_tag, aad })
+                    .decrypt(&nonce, Payload { msg: ct_tag, aad })
                     .map(|r| r.as_slice().into())
                     .map_err(|_| CryptoError::AeadDecryptionError)
             }
