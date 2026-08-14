@@ -31,7 +31,6 @@ use crate::{
     messages::*,
     treesync::{node::Node, LeafNode, RatchetTree, RatchetTreeIn},
 };
-use ::rand::{rngs::OsRng, RngCore};
 use async_lock::RwLock;
 use openmls_basic_credential::SignatureKeyPair;
 use openmls_rust_crypto::OpenMlsRustCrypto;
@@ -42,6 +41,7 @@ use openmls_traits::{
     types::{Ciphersuite, HpkeKeyPair, SignatureScheme},
     OpenMlsCryptoProvider,
 };
+use rand::Rng as _;
 use std::collections::HashMap;
 use tls_codec::{Deserialize as _, Serialize as _};
 
@@ -69,7 +69,7 @@ pub struct Group {
 impl Group {
     /// Return the identity of a random member of the group.
     pub fn random_group_member(&self) -> (u32, Vec<u8>) {
-        let index = (OsRng.next_u32() as usize) % self.members.len();
+        let index = (rand::rng().next_u32() as usize) % self.members.len();
         let (i, identity) = self.members[index].clone();
         (i as u32, identity)
     }
@@ -440,7 +440,7 @@ impl MlsGroupTestSetup {
     pub async fn create_group(&self, ciphersuite: Ciphersuite) -> Result<GroupId, SetupError> {
         // Pick a random group creator.
         let clients = self.clients.read().await;
-        let group_creator_id = ((OsRng.next_u32() as usize) % clients.len())
+        let group_creator_id = ((rand::rng().next_u32() as usize) % clients.len())
             .to_be_bytes()
             .to_vec();
         let group_creator = clients
@@ -495,7 +495,7 @@ impl MlsGroupTestSetup {
             // Pick a random adder.
             let adder_id = group.random_group_member();
             // Add between 1 and 5 new members.
-            let number_of_adds = ((OsRng.next_u32() as usize) % 5 % new_members.len()) + 1;
+            let number_of_adds = ((rand::rng().next_u32() as usize) % 5 % new_members.len()) + 1;
             let members_to_add = new_members.drain(0..number_of_adds).collect();
             self.add_clients(ActionType::Commit, group, &adder_id.1, members_to_add)
                 .await?;
@@ -620,14 +620,14 @@ impl MlsGroupTestSetup {
         println!("Member performing the operation: {member_id:?}");
 
         // TODO: Do both things.
-        let action_type = match (OsRng.next_u32() as usize) % 2 {
+        let action_type = match (rand::rng().next_u32() as usize) % 2 {
             0 => ActionType::Proposal,
             1 => ActionType::Commit,
             _ => return Err(SetupError::Unknown),
         };
 
         // TODO: Do multiple things.
-        let operation_type = (OsRng.next_u32() as usize) % 3;
+        let operation_type = (rand::rng().next_u32() as usize) % 3;
         match operation_type {
             0 => {
                 println!("Performing a self-update with action type: {action_type:?}");
@@ -639,7 +639,7 @@ impl MlsGroupTestSetup {
                 if group.members.len() > 1 {
                     // How many members?
                     let number_of_removals =
-                        (((OsRng.next_u32() as usize) % group.members.len()) % 5) + 1;
+                        (((rand::rng().next_u32() as usize) % group.members.len()) % 5) + 1;
 
                     let (own_index, _) = group
                         .members
@@ -657,7 +657,7 @@ impl MlsGroupTestSetup {
                     for _ in 0..number_of_removals {
                         // Get a random index.
                         let mut member_list_index =
-                            (OsRng.next_u32() as usize) % group.members.len();
+                            (rand::rng().next_u32() as usize) % group.members.len();
                         // Re-sample until the index is not our own index and
                         // not one that is not already being removed.
                         let (mut leaf_index, mut identity) =
@@ -665,7 +665,8 @@ impl MlsGroupTestSetup {
                         while leaf_index == own_index
                             || target_member_identities.contains(&identity)
                         {
-                            member_list_index = (OsRng.next_u32() as usize) % group.members.len();
+                            member_list_index =
+                                (rand::rng().next_u32() as usize) % group.members.len();
                             let (new_leaf_index, new_identity) =
                                 group.members[member_list_index].clone();
                             leaf_index = new_leaf_index;
@@ -696,7 +697,8 @@ impl MlsGroupTestSetup {
                 // First, figure out if there are clients left to add.
                 let clients_left = self.clients.read().await.len() - group.members.len();
                 if clients_left > 0 {
-                    let number_of_adds = (((OsRng.next_u32() as usize) % clients_left) % 5) + 1;
+                    let number_of_adds =
+                        (((rand::rng().next_u32() as usize) % clients_left) % 5) + 1;
                     let new_member_ids = self
                         .random_new_members_for_group(group, number_of_adds)
                         .await

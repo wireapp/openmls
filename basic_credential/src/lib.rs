@@ -264,7 +264,7 @@ pub mod tests {
             SignatureScheme::ECDSA_SECP521R1_SHA512,
         ];
         for scheme in schemes {
-            let kp = SignatureKeyPair::new(scheme, &mut rand::thread_rng()).unwrap();
+            let kp = SignatureKeyPair::new(scheme, &mut rand::rng()).unwrap();
             let sk = kp.private.expose_secret().clone();
             let pk = kp.public.clone();
             SignatureKeyPair::try_from_raw(scheme, sk, pk).unwrap();
