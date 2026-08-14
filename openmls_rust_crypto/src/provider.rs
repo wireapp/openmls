@@ -777,7 +777,7 @@ mod hpke_core {
         use hpke::{Deserializable as _, Serializable as _};
         let key =
             Kem::PublicKey::from_bytes(public_key).map_err(|_| CryptoError::HpkeEncryptionError)?;
-        let (encapped, ciphertext) = hpke::single_shot_seal::<Aead, Kdf, Kem, _>(
+        let (encapped, ciphertext) = hpke::single_shot_seal_with_rng::<Aead, Kdf, Kem>(
             &hpke::OpModeS::Base,
             &key,
             info,
@@ -798,7 +798,7 @@ mod hpke_core {
         csprng: &mut impl rand_core::CryptoRngCore,
     ) -> Result<HpkeKeyPair, CryptoError> {
         use hpke::Serializable as _;
-        let (sk, pk) = Kem::gen_keypair(csprng);
+        let (sk, pk) = Kem::gen_keypair_with_rng(csprng);
         let (private, public) = (sk.to_bytes().to_vec().into(), pk.to_bytes().to_vec());
 
         Ok(HpkeKeyPair { private, public })
@@ -847,7 +847,7 @@ mod hpke_core {
         let key =
             Kem::PublicKey::from_bytes(tx_public_key).map_err(|_| CryptoError::SenderSetupError)?;
         let (kem_output, ctx) =
-            hpke::setup_sender::<Aead, Kdf, Kem, _>(&hpke::OpModeS::Base, &key, info, csprng)
+            hpke::setup_sender_with_rng::<Aead, Kdf, Kem>(&hpke::OpModeS::Base, &key, info, csprng)
                 .map_err(|_| CryptoError::SenderSetupError)?;
 
         let mut export = vec![0u8; export_len];
