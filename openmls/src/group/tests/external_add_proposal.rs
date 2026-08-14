@@ -122,117 +122,119 @@ async fn external_add_proposal_should_succeed(
     ciphersuite: Ciphersuite,
     backend: &impl OpenMlsCryptoProvider,
 ) {
-    for policy in WIRE_FORMAT_POLICIES {
-        let ProposalValidationTestSetup {
-            alice_group,
-            bob_group,
-        } = validation_test_setup(policy, ciphersuite, backend).await;
-        let (mut alice_group, alice_signer) = alice_group;
-        let (mut bob_group, _bob_signer) = bob_group;
+    Box::pin(async move {
+        for policy in WIRE_FORMAT_POLICIES {
+            let ProposalValidationTestSetup {
+                alice_group,
+                bob_group,
+            } = validation_test_setup(policy, ciphersuite, backend).await;
+            let (mut alice_group, alice_signer) = alice_group;
+            let (mut bob_group, _bob_signer) = bob_group;
 
-        assert_eq!(alice_group.members().count(), 2);
-        assert_eq!(bob_group.members().count(), 2);
+            assert_eq!(alice_group.members().count(), 2);
+            assert_eq!(bob_group.members().count(), 2);
 
-        // A new client, Charlie, will now ask joining with an external Add proposal
-        let charlie_credential = generate_credential_with_key(
-            "Charlie".into(),
-            ciphersuite.signature_algorithm(),
-            backend,
-        )
-        .await;
+            // A new client, Charlie, will now ask joining with an external Add proposal
+            let charlie_credential = generate_credential_with_key(
+                "Charlie".into(),
+                ciphersuite.signature_algorithm(),
+                backend,
+            )
+                .await;
 
-        let charlie_kp = generate_key_package(
-            ciphersuite,
-            Extensions::empty(),
-            backend,
-            charlie_credential.clone(),
-        )
-        .await;
+            let charlie_kp = generate_key_package(
+                ciphersuite,
+                Extensions::empty(),
+                backend,
+                charlie_credential.clone(),
+            )
+                .await;
 
-        let proposal = JoinProposal::new(
-            charlie_kp.clone(),
-            alice_group.group_id().clone(),
-            alice_group.epoch(),
-            &charlie_credential.signer,
-        )
-        .unwrap();
+            let proposal = JoinProposal::new(
+                charlie_kp.clone(),
+                alice_group.group_id().clone(),
+                alice_group.epoch(),
+                &charlie_credential.signer,
+            )
+                .unwrap();
 
-        // an external proposal is always plaintext and has sender type 'new_member_proposal'
-        let verify_proposal = |msg: &PublicMessage| {
-            *msg.sender() == Sender::NewMemberProposal
-                && msg.content_type() == ContentType::Proposal
-                && matches!(msg.content(), FramedContentBody::Proposal(p) if p.proposal_type() == ProposalType::Add)
-        };
-        assert!(
-            matches!(proposal.body, MlsMessageOutBody::PublicMessage(ref msg) if verify_proposal(msg))
-        );
+            // an external proposal is always plaintext and has sender type 'new_member_proposal'
+            let verify_proposal = |msg: &PublicMessage| {
+                *msg.sender() == Sender::NewMemberProposal
+                    && msg.content_type() == ContentType::Proposal
+                    && matches!(msg.content(), FramedContentBody::Proposal(p) if p.proposal_type() == ProposalType::Add)
+            };
+            assert!(
+                matches!(proposal.body, MlsMessageOutBody::PublicMessage(ref msg) if verify_proposal(msg))
+            );
 
-        let msg = alice_group
-            .process_message(backend, proposal.clone().into_protocol_message().unwrap())
-            .await
-            .unwrap();
-
-        match msg.into_content() {
-            ProcessedMessageContent::ExternalJoinProposalMessage(proposal) => {
-                assert!(matches!(proposal.sender(), Sender::NewMemberProposal));
-                assert!(matches!(
-                    proposal.proposal(),
-                    Proposal::Add(AddProposal { key_package }) if key_package == &charlie_kp
-                ));
-                alice_group.store_pending_proposal(*proposal)
-            }
-            _ => unreachable!(),
-        }
-
-        let msg = bob_group
-            .process_message(backend, proposal.into_protocol_message().unwrap())
-            .await
-            .unwrap();
-
-        match msg.into_content() {
-            ProcessedMessageContent::ExternalJoinProposalMessage(proposal) => {
-                bob_group.store_pending_proposal(*proposal)
-            }
-            _ => unreachable!(),
-        }
-
-        // and Alice will commit it
-        let (commit, welcome, _group_info) = alice_group
-            .commit_to_pending_proposals(backend, &alice_signer)
-            .await
-            .unwrap();
-        alice_group.merge_pending_commit(backend).await.unwrap();
-        assert_eq!(alice_group.members().count(), 3);
-
-        // Bob will also process the commit
-        let msg = bob_group
-            .process_message(backend, commit.into_protocol_message().unwrap())
-            .await
-            .unwrap();
-        match msg.into_content() {
-            ProcessedMessageContent::StagedCommitMessage(commit) => bob_group
-                .merge_staged_commit(backend, *commit)
+            let msg = alice_group
+                .process_message(backend, proposal.clone().into_protocol_message().unwrap())
                 .await
-                .unwrap(),
-            _ => unreachable!(),
-        }
-        assert_eq!(bob_group.members().count(), 3);
+                .unwrap();
 
-        // Finally, Charlie can join with the Welcome
-        let cfg = MlsGroupConfig::builder()
-            .wire_format_policy(policy)
-            .crypto_config(CryptoConfig::with_default_version(ciphersuite))
-            .build();
-        let charlie_group = MlsGroup::new_from_welcome(
-            backend,
-            &cfg,
-            welcome.unwrap().into_welcome().unwrap(),
-            Some(alice_group.export_ratchet_tree().into()),
-        )
-        .await
-        .unwrap();
-        assert_eq!(charlie_group.members().count(), 3);
-    }
+            match msg.into_content() {
+                ProcessedMessageContent::ExternalJoinProposalMessage(proposal) => {
+                    assert!(matches!(proposal.sender(), Sender::NewMemberProposal));
+                    assert!(matches!(
+                            proposal.proposal(),
+                            Proposal::Add(AddProposal { key_package }) if key_package == &charlie_kp
+                    ));
+                    alice_group.store_pending_proposal(*proposal)
+                }
+                _ => unreachable!(),
+            }
+
+            let msg = bob_group
+                .process_message(backend, proposal.into_protocol_message().unwrap())
+                .await
+                .unwrap();
+
+            match msg.into_content() {
+                ProcessedMessageContent::ExternalJoinProposalMessage(proposal) => {
+                    bob_group.store_pending_proposal(*proposal)
+                }
+                _ => unreachable!(),
+            }
+
+            // and Alice will commit it
+            let (commit, welcome, _group_info) = alice_group
+                .commit_to_pending_proposals(backend, &alice_signer)
+                .await
+                .unwrap();
+            alice_group.merge_pending_commit(backend).await.unwrap();
+            assert_eq!(alice_group.members().count(), 3);
+
+            // Bob will also process the commit
+            let msg = bob_group
+                .process_message(backend, commit.into_protocol_message().unwrap())
+                .await
+                .unwrap();
+            match msg.into_content() {
+                ProcessedMessageContent::StagedCommitMessage(commit) => bob_group
+                    .merge_staged_commit(backend, *commit)
+                    .await
+                    .unwrap(),
+                _ => unreachable!(),
+            }
+            assert_eq!(bob_group.members().count(), 3);
+
+            // Finally, Charlie can join with the Welcome
+            let cfg = MlsGroupConfig::builder()
+                .wire_format_policy(policy)
+                .crypto_config(CryptoConfig::with_default_version(ciphersuite))
+                .build();
+            let charlie_group = MlsGroup::new_from_welcome(
+                backend,
+                &cfg,
+                welcome.unwrap().into_welcome().unwrap(),
+                Some(alice_group.export_ratchet_tree().into()),
+            )
+                .await
+                .unwrap();
+            assert_eq!(charlie_group.members().count(), 3);
+        }
+    }).await
 }
 
 #[apply(ciphersuites_and_backends)]
@@ -290,90 +292,93 @@ async fn new_member_proposal_sender_should_be_reserved_for_join_proposals(
     ciphersuite: Ciphersuite,
     backend: &impl OpenMlsCryptoProvider,
 ) {
-    let ProposalValidationTestSetup {
-        alice_group,
-        bob_group,
-    } = validation_test_setup(PURE_PLAINTEXT_WIRE_FORMAT_POLICY, ciphersuite, backend).await;
-    let (mut alice_group, alice_signer) = alice_group;
-    let (mut bob_group, _bob_signer) = bob_group;
+    Box::pin(async move {
+        let ProposalValidationTestSetup {
+            alice_group,
+            bob_group,
+        } = validation_test_setup(PURE_PLAINTEXT_WIRE_FORMAT_POLICY, ciphersuite, backend).await;
+        let (mut alice_group, alice_signer) = alice_group;
+        let (mut bob_group, _bob_signer) = bob_group;
 
-    // Add proposal can have a 'new_member_proposal' sender
-    let any_credential =
-        generate_credential_with_key("Any".into(), ciphersuite.signature_algorithm(), backend)
-            .await;
+        // Add proposal can have a 'new_member_proposal' sender
+        let any_credential =
+            generate_credential_with_key("Any".into(), ciphersuite.signature_algorithm(), backend)
+                .await;
 
-    let any_kp = generate_key_package(
-        ciphersuite,
-        Extensions::empty(),
-        backend,
-        any_credential.clone(),
-    )
-    .await;
+        let any_kp = generate_key_package(
+            ciphersuite,
+            Extensions::empty(),
+            backend,
+            any_credential.clone(),
+        )
+        .await;
 
-    let join_proposal = JoinProposal::new(
-        any_kp,
-        alice_group.group_id().clone(),
-        alice_group.epoch(),
-        &any_credential.signer,
-    )
-    .unwrap();
+        let join_proposal = JoinProposal::new(
+            any_kp,
+            alice_group.group_id().clone(),
+            alice_group.epoch(),
+            &any_credential.signer,
+        )
+        .unwrap();
 
-    if let MlsMessageOutBody::PublicMessage(plaintext) = &join_proposal.body {
-        // Make sure it's an add proposal...
-        assert!(matches!(
-            plaintext.content(),
-            FramedContentBody::Proposal(Proposal::Add(_))
-        ));
+        if let MlsMessageOutBody::PublicMessage(plaintext) = &join_proposal.body {
+            // Make sure it's an add proposal...
+            assert!(matches!(
+                plaintext.content(),
+                FramedContentBody::Proposal(Proposal::Add(_))
+            ));
 
-        // ... and that it has the right sender type
-        assert!(matches!(plaintext.sender(), Sender::NewMemberProposal));
+            // ... and that it has the right sender type
+            assert!(matches!(plaintext.sender(), Sender::NewMemberProposal));
 
-        // Finally check that the message can be processed without errors
-        assert!(bob_group
-            .process_message(backend, join_proposal.into_protocol_message().unwrap())
+            // Finally check that the message can be processed without errors
+            assert!(bob_group
+                .process_message(backend, join_proposal.into_protocol_message().unwrap())
+                .await
+                .is_ok());
+        } else {
+            panic!()
+        };
+        alice_group.clear_pending_proposals();
+
+        // Remove proposal cannot have a 'new_member_proposal' sender
+        let remove_proposal = alice_group
+            .propose_remove_member(backend, &alice_signer, LeafNodeIndex::new(1))
+            .map(|(out, _)| MlsMessageIn::from(out))
+            .unwrap();
+        if let MlsMessageInBody::PublicMessage(mut plaintext) = remove_proposal.body {
+            plaintext.set_sender(Sender::NewMemberProposal);
+            assert!(matches!(
+                bob_group
+                    .process_message(backend, plaintext)
+                    .await
+                    .unwrap_err(),
+                ProcessMessageError::ValidationError(ValidationError::NotAnExternalAddProposal)
+            ));
+        } else {
+            panic!()
+        };
+        alice_group.clear_pending_proposals();
+
+        // Update proposal cannot have a 'new_member_proposal' sender
+        let update_proposal = alice_group
+            .propose_self_update(backend, &alice_signer)
             .await
-            .is_ok());
-    } else {
-        panic!()
-    };
-    alice_group.clear_pending_proposals();
-
-    // Remove proposal cannot have a 'new_member_proposal' sender
-    let remove_proposal = alice_group
-        .propose_remove_member(backend, &alice_signer, LeafNodeIndex::new(1))
-        .map(|(out, _)| MlsMessageIn::from(out))
-        .unwrap();
-    if let MlsMessageInBody::PublicMessage(mut plaintext) = remove_proposal.body {
-        plaintext.set_sender(Sender::NewMemberProposal);
-        assert!(matches!(
-            bob_group
-                .process_message(backend, plaintext)
-                .await
-                .unwrap_err(),
-            ProcessMessageError::ValidationError(ValidationError::NotAnExternalAddProposal)
-        ));
-    } else {
-        panic!()
-    };
-    alice_group.clear_pending_proposals();
-
-    // Update proposal cannot have a 'new_member_proposal' sender
-    let update_proposal = alice_group
-        .propose_self_update(backend, &alice_signer)
-        .await
-        .map(|(out, _)| MlsMessageIn::from(out))
-        .unwrap();
-    if let MlsMessageInBody::PublicMessage(mut plaintext) = update_proposal.body {
-        plaintext.set_sender(Sender::NewMemberProposal);
-        assert!(matches!(
-            bob_group
-                .process_message(backend, plaintext)
-                .await
-                .unwrap_err(),
-            ProcessMessageError::ValidationError(ValidationError::NotAnExternalAddProposal)
-        ));
-    } else {
-        panic!()
-    };
-    alice_group.clear_pending_proposals();
+            .map(|(out, _)| MlsMessageIn::from(out))
+            .unwrap();
+        if let MlsMessageInBody::PublicMessage(mut plaintext) = update_proposal.body {
+            plaintext.set_sender(Sender::NewMemberProposal);
+            assert!(matches!(
+                bob_group
+                    .process_message(backend, plaintext)
+                    .await
+                    .unwrap_err(),
+                ProcessMessageError::ValidationError(ValidationError::NotAnExternalAddProposal)
+            ));
+        } else {
+            panic!()
+        };
+        alice_group.clear_pending_proposals();
+    })
+    .await
 }

@@ -370,6 +370,7 @@ async fn gce_proposal_must_be_applied_first_then_used_to_validate_other_add_prop
             &alice_signer,
             charlie_key_package_bundle.key_package().clone().into(),
         )
+        .await
         .unwrap();
 
     let processed_message = bob_group

@@ -281,6 +281,7 @@ impl Client {
                 for key_package in key_packages {
                     let message = group
                         .propose_add_member(&self.crypto, &signer, key_package.clone())
+                        .await
                         .map(|(out, _)| out)?;
                     messages.push(message);
                 }

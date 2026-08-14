@@ -16,15 +16,17 @@ async-trait = { workspace = true }
 serde = "1.0"
 
 # Rust Crypto
-ed25519-dalek = { version = "2.0.0-rc.3", features = ["rand_core"] }
-p256 = "0.13"
-p384 = "0.13"
+ed25519-dalek = { version = "3.0", features = ["rand_core"] }
+elliptic-curve = "0.14"
+p256 = "0.14"
+p384 = "0.14"
+p521 = "0.14"
 secrecy = { version = "0.8", features = ["serde"] }
-rand_core = "0.6"
-getrandom = { version = "0.2", features = ["js"] }
+rand_core = "0.10"
+getrandom = { version = "0.4", features = ["wasm_js"] }
 
 [dev-dependencies]
-rand = "0.8"
+rand = "0.10"
 
 [features]
 clonable = [] # Make the keys clonable

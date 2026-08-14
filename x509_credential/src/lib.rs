@@ -117,50 +117,46 @@ impl X509Ext for Certificate {
 
     fn is_time_valid(&self) -> Result<bool, CryptoError> {
         // 'not_before' < now < 'not_after'
-        let x509_cert::time::Validity {
-            not_before,
-            not_after,
-        } = self.tbs_certificate.validity;
-
-        let now = fluvio_wasm_timer::SystemTime::now();
+        let validity = self.tbs_certificate().validity();
+        let now = web_time::SystemTime::now();
         let now = now
-            .duration_since(fluvio_wasm_timer::UNIX_EPOCH)
+            .duration_since(web_time::UNIX_EPOCH)
             .map_err(|_| CryptoError::TimeError)?;
 
-        let is_nbf = now > not_before.to_unix_duration();
-        let is_naf = now < not_after.to_unix_duration();
+        let is_nbf = now > validity.not_before.to_unix_duration();
+        let is_naf = now < validity.not_after.to_unix_duration();
         Ok(is_nbf && is_naf)
     }
 
     fn public_key(&self) -> Result<&[u8], CryptoError> {
-        self.tbs_certificate
-            .subject_public_key_info
+        self.tbs_certificate()
+            .subject_public_key_info()
             .subject_public_key
             .as_bytes()
             .ok_or(CryptoError::IncompleteCertificate("spki"))
     }
 
     fn signature_scheme(&self) -> Result<SignatureScheme, CryptoError> {
-        let alg = self.tbs_certificate.subject_public_key_info.algorithm.oid;
-        let alg = oid_registry::Oid::new(std::borrow::Cow::Borrowed(alg.as_bytes()));
-
-        let scheme = if alg == oid_registry::OID_SIG_ED25519 {
-            SignatureScheme::ED25519
-        } else if alg == oid_registry::OID_SIG_ED448 {
-            SignatureScheme::ED448
-        } else if alg == oid_registry::OID_SIG_ECDSA_WITH_SHA256
-            || alg == oid_registry::OID_KEY_TYPE_EC_PUBLIC_KEY
-        //                         ☝️
-        // this is a mess but we will soon move to a x509 crate doing this for us
-        {
-            SignatureScheme::ECDSA_SECP256R1_SHA256
-        } else if alg == oid_registry::OID_SIG_ECDSA_WITH_SHA384 {
-            SignatureScheme::ECDSA_SECP384R1_SHA384
-        } else if alg == oid_registry::OID_SIG_ECDSA_WITH_SHA512 {
-            SignatureScheme::ECDSA_SECP521R1_SHA512
-        } else {
-            return Err(CryptoError::UnsupportedSignatureScheme);
+        use const_oid::db::{
+            rfc5912::{ID_EC_PUBLIC_KEY, SECP_256_R_1, SECP_384_R_1, SECP_521_R_1},
+            rfc8410::{ID_ED_25519, ID_ED_448},
         };
+        let spki = self.tbs_certificate().subject_public_key_info();
+        let alg = spki.algorithm.oid;
+        let params =
+            spki.algorithm.parameters.as_ref().and_then(|param| {
+                x509_cert::spki::ObjectIdentifier::from_bytes(param.value()).ok()
+            });
+
+        let scheme = match (alg, params) {
+            (ID_ED_25519, None) => SignatureScheme::ED25519,
+            (ID_ED_448, None) => SignatureScheme::ED448,
+            (ID_EC_PUBLIC_KEY, Some(SECP_256_R_1)) => SignatureScheme::ECDSA_SECP256R1_SHA256,
+            (ID_EC_PUBLIC_KEY, Some(SECP_384_R_1)) => SignatureScheme::ECDSA_SECP384R1_SHA384,
+            (ID_EC_PUBLIC_KEY, Some(SECP_521_R_1)) => SignatureScheme::ECDSA_SECP521R1_SHA512,
+            _ => return Err(CryptoError::UnsupportedSignatureScheme),
+        };
+
         Ok(scheme)
     }
 
@@ -171,13 +167,13 @@ impl X509Ext for Certificate {
     ) -> Result<(), CryptoError> {
         let issuer_pk = issuer.public_key()?;
         let cert_signature = self
-            .signature
+            .signature()
             .as_bytes()
             .ok_or(CryptoError::InvalidCertificate)?;
 
         use x509_cert::der::Encode as _;
         let mut raw_tbs: Vec<u8> = vec![];
-        self.tbs_certificate
+        self.tbs_certificate()
             .encode(&mut raw_tbs)
             .map_err(|_| CryptoError::CertificateEncodingError)?;
         let sc = issuer.signature_scheme()?;
@@ -187,16 +183,11 @@ impl X509Ext for Certificate {
     }
 
     fn identity(&self) -> Result<Vec<u8>, CryptoError> {
-        let extensions = self
-            .tbs_certificate
-            .extensions
-            .as_ref()
-            .ok_or(CryptoError::InvalidCertificate)?;
+        let extensions = self.tbs_certificate().extensions();
+        let extensions = extensions.as_ref().ok_or(CryptoError::InvalidCertificate)?;
         let san = extensions
             .iter()
-            .find(|e| {
-                e.extn_id.as_bytes() == oid_registry::OID_X509_EXT_SUBJECT_ALT_NAME.as_bytes()
-            })
+            .find(|e| e.extn_id == const_oid::db::rfc5280::ID_CE_SUBJECT_ALT_NAME)
             .and_then(|e| {
                 x509_cert::ext::pkix::SubjectAltName::from_der(e.extn_value.as_bytes()).ok()
             })

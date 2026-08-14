@@ -77,6 +77,17 @@ pub trait OpenMlsCrypto {
     /// generation fails.
     fn signature_key_gen(&self, alg: SignatureScheme) -> Result<(Vec<u8>, Vec<u8>), CryptoError>;
 
+    /// Gives the length of a signature public key, in bytes
+    fn signature_public_key_len(&self, alg: SignatureScheme) -> usize;
+
+    /// Parses and validate a signature public key
+    fn validate_signature_key(&self, alg: SignatureScheme, key: &[u8]) -> Result<(), CryptoError> {
+        if self.signature_public_key_len(alg) != key.len() {
+            return Err(CryptoError::InvalidKey);
+        }
+        Ok(())
+    }
+
     /// Verify the signature
     ///
     /// Returns an error if the [`SignatureScheme`] is not supported or the

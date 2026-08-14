@@ -330,7 +330,7 @@ impl ProposalQueue {
 
     /// Returns an iterator over all Add proposals in the queue
     /// in the order of the the Commit message
-    pub fn add_proposals(&self) -> impl Iterator<Item = QueuedAddProposal> {
+    pub fn add_proposals(&self) -> impl Iterator<Item = QueuedAddProposal<'_>> {
         self.queued_proposals().filter_map(|queued_proposal| {
             if let Proposal::Add(add_proposal) = queued_proposal.proposal() {
                 let sender = queued_proposal.sender();
@@ -346,7 +346,7 @@ impl ProposalQueue {
 
     /// Returns an iterator over all Remove proposals in the queue
     /// in the order of the the Commit message
-    pub fn remove_proposals(&self) -> impl Iterator<Item = QueuedRemoveProposal> {
+    pub fn remove_proposals(&self) -> impl Iterator<Item = QueuedRemoveProposal<'_>> {
         self.queued_proposals().filter_map(|queued_proposal| {
             if let Proposal::Remove(remove_proposal) = queued_proposal.proposal() {
                 let sender = queued_proposal.sender();
@@ -362,7 +362,7 @@ impl ProposalQueue {
 
     /// Returns an iterator over all Update in the queue
     /// in the order of the the Commit message
-    pub fn update_proposals(&self) -> impl Iterator<Item = QueuedUpdateProposal> {
+    pub fn update_proposals(&self) -> impl Iterator<Item = QueuedUpdateProposal<'_>> {
         self.queued_proposals().filter_map(|queued_proposal| {
             if let Proposal::Update(update_proposal) = queued_proposal.proposal() {
                 let sender = queued_proposal.sender();
@@ -378,7 +378,7 @@ impl ProposalQueue {
 
     /// Returns an iterator over all PresharedKey proposals in the queue
     /// in the order of the the Commit message
-    pub fn psk_proposals(&self) -> impl Iterator<Item = QueuedPskProposal> {
+    pub fn psk_proposals(&self) -> impl Iterator<Item = QueuedPskProposal<'_>> {
         self.queued_proposals().filter_map(|queued_proposal| {
             if let Proposal::PreSharedKey(psk_proposal) = queued_proposal.proposal() {
                 let sender = queued_proposal.sender();
@@ -540,7 +540,7 @@ impl ProposalQueue {
             }
         }
         // Check for presence of Removes and delete Updates
-        for (_, member) in members.iter_mut() {
+        for member in members.values_mut() {
             // Check if there are Removes
             if let Some(last_remove) = member.removes.last() {
                 // Delete all Updates when a Remove is found
@@ -603,7 +603,7 @@ pub struct QueuedAddProposal<'a> {
     sender: &'a Sender,
 }
 
-impl<'a> QueuedAddProposal<'a> {
+impl QueuedAddProposal<'_> {
     /// Returns a reference to the proposal
     pub fn add_proposal(&self) -> &AddProposal {
         self.add_proposal
@@ -622,7 +622,7 @@ pub struct QueuedRemoveProposal<'a> {
     sender: &'a Sender,
 }
 
-impl<'a> QueuedRemoveProposal<'a> {
+impl QueuedRemoveProposal<'_> {
     /// Returns a reference to the proposal
     pub fn remove_proposal(&self) -> &RemoveProposal {
         self.remove_proposal
@@ -641,7 +641,7 @@ pub struct QueuedUpdateProposal<'a> {
     sender: &'a Sender,
 }
 
-impl<'a> QueuedUpdateProposal<'a> {
+impl QueuedUpdateProposal<'_> {
     /// Returns a reference to the proposal
     pub fn update_proposal(&self) -> &UpdateProposal {
         self.update_proposal
@@ -660,7 +660,7 @@ pub struct QueuedPskProposal<'a> {
     sender: &'a Sender,
 }
 
-impl<'a> QueuedPskProposal<'a> {
+impl QueuedPskProposal<'_> {
     /// Returns a reference to the proposal
     pub fn psk_proposal(&self) -> &PreSharedKeyProposal {
         self.psk_proposal

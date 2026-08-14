@@ -29,7 +29,10 @@ use crate::treesync::errors::LeafNodeValidationError;
 mod capabilities;
 mod codec;
 
+use crate::prelude::PublicGroup;
+use crate::treesync::node::validate::ValidatableLeafNode;
 pub use capabilities::*;
+use openmls_traits::types::SignatureScheme;
 
 /// Private module to ensure protection.
 mod private_mod {
@@ -354,6 +357,13 @@ impl LeafNode {
     /// Returns the `signature_key` as byte slice.
     pub fn credential(&self) -> &Credential {
         &self.payload.credential
+    }
+    /// Returns the `signature_key` as byte slice.
+    pub fn to_credential_with_key(&self) -> CredentialWithKey {
+        CredentialWithKey {
+            credential: self.credential().clone(),
+            signature_key: self.signature_key().clone(),
+        }
     }
 
     /// Returns the `parent_hash` as byte slice or `None`.
@@ -706,7 +716,8 @@ impl LeafNodeIn {
                 })
             }
             LeafNodeSource::Update => {
-                let tree_position = tree_position.ok_or(LibraryError::custom("Internal error"))?;
+                let tree_position = tree_position
+                    .ok_or(LibraryError::custom("No tree position for Update LeafNode"))?;
                 VerifiableLeafNode::Update(VerifiableUpdateLeafNode {
                     payload: self.payload,
                     signature: self.signature,
@@ -714,7 +725,8 @@ impl LeafNodeIn {
                 })
             }
             LeafNodeSource::Commit(_) => {
-                let tree_position = tree_position.ok_or(LibraryError::custom("Internal error"))?;
+                let tree_position = tree_position
+                    .ok_or(LibraryError::custom("No tree position for Commit LeafNode"))?;
                 VerifiableLeafNode::Commit(VerifiableCommitLeafNode {
                     payload: self.payload,
                     signature: self.signature,
@@ -772,6 +784,35 @@ impl VerifiableLeafNode {
             VerifiableLeafNode::KeyPackage(v) => v.signature_key(),
             VerifiableLeafNode::Update(v) => v.signature_key(),
             VerifiableLeafNode::Commit(v) => v.signature_key(),
+        }
+    }
+
+    pub(crate) async fn validate(
+        self,
+        backend: &impl OpenMlsCryptoProvider,
+        sc: SignatureScheme,
+        group: Option<&PublicGroup>,
+        sender: bool,
+    ) -> Result<LeafNode, LeafNodeValidationError> {
+        match (self, group) {
+            (VerifiableLeafNode::KeyPackage(ln), None) => {
+                ln.standalone_validate(backend, sc, sender).await
+            }
+            (VerifiableLeafNode::KeyPackage(ln), Some(group)) => {
+                ln.validate(group, backend, sender).await
+            }
+            (VerifiableLeafNode::Update(ln), None) => {
+                ln.standalone_validate(backend, sc, sender).await
+            }
+            (VerifiableLeafNode::Update(ln), Some(group)) => {
+                ln.validate(group, backend, sender).await
+            }
+            (VerifiableLeafNode::Commit(ln), None) => {
+                ln.standalone_validate(backend, sc, sender).await
+            }
+            (VerifiableLeafNode::Commit(ln), Some(group)) => {
+                ln.validate(group, backend, sender).await
+            }
         }
     }
 }

@@ -12,7 +12,7 @@ use crate::{
     },
     versions::ProtocolVersion,
 };
-use openmls_traits::{crypto::OpenMlsCrypto, types::Ciphersuite};
+use openmls_traits::{types::Ciphersuite, OpenMlsCryptoProvider};
 use serde::{Deserialize, Serialize};
 use tls_codec::{Serialize as TlsSerializeTrait, TlsDeserialize, TlsSerialize, TlsSize};
 
@@ -74,7 +74,7 @@ mod private_mod {
 /// } KeyPackageTBS;
 /// ```
 #[derive(
-Debug, Clone, PartialEq, TlsSize, TlsSerialize, TlsDeserialize, Serialize, Deserialize,
+    Debug, Clone, PartialEq, TlsSize, TlsSerialize, TlsDeserialize, Serialize, Deserialize,
 )]
 struct KeyPackageTbsIn {
     protocol_version: ProtocolVersion,
@@ -86,7 +86,7 @@ struct KeyPackageTbsIn {
 
 /// The key package struct.
 #[derive(
-Debug, PartialEq, Clone, Serialize, Deserialize, TlsSerialize, TlsDeserialize, TlsSize,
+    Debug, PartialEq, Clone, Serialize, Deserialize, TlsSerialize, TlsDeserialize, TlsSize,
 )]
 pub struct KeyPackageIn {
     payload: KeyPackageTbsIn,
@@ -114,29 +114,34 @@ impl KeyPackageIn {
     ///
     /// Returns a [`KeyPackage`] after having verified the signature or a
     /// [`KeyPackageVerifyError`] otherwise.
-    pub fn validate(
+    pub async fn validate(
         self,
-        crypto: &impl OpenMlsCrypto,
+        backend: &impl OpenMlsCryptoProvider,
         protocol_version: ProtocolVersion,
         group: &PublicGroup,
+        sender: bool,
     ) -> Result<KeyPackage, KeyPackageVerifyError> {
-        self._validate(crypto, protocol_version, Some(group))
+        self._validate(backend, protocol_version, Some(group), sender)
+            .await
     }
 
     /// Verify that this key package is valid disregarding the group it is supposed to be used with.
-    pub fn standalone_validate(
+    pub async fn standalone_validate(
         self,
-        crypto: &impl OpenMlsCrypto,
+        backend: &impl OpenMlsCryptoProvider,
         protocol_version: ProtocolVersion,
+        sender: bool,
     ) -> Result<KeyPackage, KeyPackageVerifyError> {
-        self._validate(crypto, protocol_version, None)
+        self._validate(backend, protocol_version, None, sender)
+            .await
     }
 
-    fn _validate(
+    async fn _validate(
         self,
-        crypto: &impl OpenMlsCrypto,
+        backend: &impl OpenMlsCryptoProvider,
         protocol_version: ProtocolVersion,
         group: Option<&PublicGroup>,
+        sender: bool,
     ) -> Result<KeyPackage, KeyPackageVerifyError> {
         // We first need to verify the LeafNode inside the KeyPackage
 
@@ -154,9 +159,11 @@ impl KeyPackageIn {
         let leaf_node = match verifiable_leaf_node {
             VerifiableLeafNode::KeyPackage(leaf_node) => {
                 if let Some(group) = group {
-                    leaf_node.validate(group, crypto)?
+                    leaf_node.validate(group, backend, sender).await?
                 } else {
-                    leaf_node.standalone_validate(crypto, signature_scheme)?
+                    leaf_node
+                        .standalone_validate(backend, signature_scheme, sender)
+                        .await?
                 }
             }
             _ => return Err(KeyPackageVerifyError::InvalidLeafNodeSourceType),
@@ -174,7 +181,7 @@ impl KeyPackageIn {
 
         // Verify the KeyPackage signature
         let key_package = VerifiableKeyPackage::new(self.payload.into(), self.signature)
-            .verify::<KeyPackage>(crypto, signature_key)
+            .verify::<KeyPackage>(backend.crypto(), signature_key)
             .map_err(|_| KeyPackageVerifyError::InvalidSignature)?;
 
         // Extension included in the extensions or leaf_node.extensions fields

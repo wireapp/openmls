@@ -1,9 +1,9 @@
-use openmls_traits::OpenMlsCryptoProvider;
 use tls_codec::Serialize;
+
+use openmls_traits::OpenMlsCryptoProvider;
 
 use crate::{
     ciphersuite::OpenMlsSignaturePublicKey,
-    credentials::CredentialWithKey,
     error::LibraryError,
     framing::{
         mls_content::FramedContentBody, ApplicationMessage, DecryptedMessage, ProcessedMessage,
@@ -72,10 +72,7 @@ impl PublicGroup {
         //  - Prepares ValSem246 by setting the right credential. The remainder
         //    of ValSem246 is validated as part of ValSem010.
         // External senders are not supported yet #106/#151.
-        let CredentialWithKey {
-            credential,
-            signature_key,
-        } = decrypted_message.credential(
+        let credential = decrypted_message.credential(
             self.treesync(),
             message_secrets_store_option
                 .map(|store| store.leaves_for_epoch(decrypted_message.verifiable_content().epoch()))
@@ -84,7 +81,7 @@ impl PublicGroup {
         )?;
 
         let signature_public_key = OpenMlsSignaturePublicKey::from_signature_key(
-            signature_key,
+            credential.signature_key.clone(),
             self.ciphersuite().signature_algorithm(),
         );
 
@@ -131,7 +128,7 @@ impl PublicGroup {
     ///  - ValSem244
     ///  - ValSem245
     ///  - ValSem246 (as part of ValSem010)
-    pub fn process_message(
+    pub async fn process_message(
         &self,
         backend: &impl OpenMlsCryptoProvider,
         message: impl Into<ProtocolMessage>,
@@ -162,6 +159,7 @@ impl PublicGroup {
             .parse_message(decrypted_message, None)
             .map_err(ProcessMessageError::from)?;
         self.process_unverified_message(backend, unverified_message, &self.proposal_store, self)
+            .await
     }
 }
 
@@ -193,7 +191,7 @@ impl PublicGroup {
     ///  - ValSem243
     ///  - ValSem244
     ///  - ValSem246 (as part of ValSem010)
-    pub(crate) fn process_unverified_message(
+    pub(crate) async fn process_unverified_message(
         &self,
         backend: &impl OpenMlsCryptoProvider,
         unverified_message: UnverifiedMessage,
@@ -203,12 +201,9 @@ impl PublicGroup {
         // Checks the following semantic validation:
         //  - ValSem010
         //  - ValSem246 (as part of ValSem010)
-        let (content, credential) = unverified_message.verify(
-            self.ciphersuite(),
-            backend.crypto(),
-            self.version(),
-            group,
-        )?;
+        let (content, credential) = unverified_message
+            .verify(self.ciphersuite(), backend, self.version(), group)
+            .await?;
 
         match content.sender() {
             Sender::Member(_) | Sender::NewMemberCommit | Sender::NewMemberProposal => {

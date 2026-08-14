@@ -176,6 +176,7 @@ impl MlsMessageIn {
 /// Enum containing a message for use with `process_message` and an
 /// [`MlsGroup`]. Both [`PublicMessage`] and [`PrivateMessage`] implement
 /// [`Into<ProtocolMessage>`].
+#[allow(clippy::large_enum_variant)]
 #[derive(Debug, Clone)]
 pub enum ProtocolMessage {
     /// A [`ProtocolMessage`] containing a [`PrivateMessage`].

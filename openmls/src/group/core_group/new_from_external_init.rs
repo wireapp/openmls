@@ -52,7 +52,9 @@ impl CoreGroup {
             verifiable_group_info,
             // Existing proposals are discarded when joining by external commit.
             ProposalStore::new(),
-        )?;
+            false,
+        )
+        .await?;
         let group_context = public_group.group_context();
 
         // Obtain external_pub from GroupInfo extensions.

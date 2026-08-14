@@ -188,7 +188,9 @@ impl MlsGroup {
             )
             .into());
         };
-        let own_leaf = own_leaf.validate(self.group().public_group(), backend.crypto())?;
+        let own_leaf = own_leaf
+            .validate(self.group().public_group(), backend, true)
+            .await?;
 
         let update_proposal = self.group.create_update_proposal(
             self.framing_parameters(),
@@ -269,7 +271,9 @@ impl MlsGroup {
             )
             .into());
         };
-        let own_leaf = own_leaf.validate(self.group().public_group(), backend.crypto())?;
+        let own_leaf = own_leaf
+            .validate(self.group().public_group(), backend, true)
+            .await?;
 
         let update_proposal = self.group.create_update_proposal(
             self.framing_parameters(),

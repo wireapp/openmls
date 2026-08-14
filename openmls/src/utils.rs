@@ -1,22 +1,21 @@
 // === The folowing functions aren't necessarily cryptographically secure!
-
 #[cfg(any(feature = "test-utils", test))]
-use rand::{rngs::OsRng, RngCore};
+use rand::Rng as _;
 
 #[cfg(any(feature = "test-utils", test))]
 pub fn random_u32() -> u32 {
-    OsRng.next_u32()
+    rand::rng().next_u32()
 }
 
 #[cfg(any(feature = "test-utils", test))]
 pub fn random_u64() -> u64 {
-    OsRng.next_u64()
+    rand::rng().next_u64()
 }
 
 #[cfg(any(feature = "test-utils", test))]
 pub fn random_u8() -> u8 {
     let mut b = [0u8; 1];
-    OsRng.fill_bytes(&mut b);
+    rand::rng().fill_bytes(&mut b);
     b[0]
 }
 

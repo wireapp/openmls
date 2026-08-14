@@ -19,7 +19,7 @@ use super::{
 };
 
 use crate::prelude::PublicGroup;
-use openmls_traits::{crypto::OpenMlsCrypto, types::Ciphersuite};
+use openmls_traits::{types::Ciphersuite, OpenMlsCryptoProvider};
 use serde::{Deserialize, Serialize};
 use tls_codec::{
     Deserialize as TlsDeserializeTrait, Serialize as TlsSerializeTrait, Size, TlsDeserialize,
@@ -50,26 +50,31 @@ pub struct FramedContentIn {
 
 impl FramedContentIn {
     /// Returns a [`FramedContent`] after successful validation.
-    pub fn validate(
+    pub async fn validate(
         self,
         ciphersuite: Ciphersuite,
-        crypto: &impl OpenMlsCrypto,
+        backend: &impl OpenMlsCryptoProvider,
         sender_context: Option<SenderContext>,
         protocol_version: ProtocolVersion,
         group: &PublicGroup,
+        sender: bool,
     ) -> Result<FramedContent, ValidationError> {
         Ok(FramedContent {
             group_id: self.group_id,
             epoch: self.epoch,
             sender: self.sender,
             authenticated_data: self.authenticated_data,
-            body: self.body.validate(
-                ciphersuite,
-                crypto,
-                sender_context,
-                protocol_version,
-                group,
-            )?,
+            body: self
+                .body
+                .validate(
+                    ciphersuite,
+                    backend,
+                    sender_context,
+                    protocol_version,
+                    group,
+                    sender,
+                )
+                .await?,
         })
     }
 }
@@ -135,35 +140,44 @@ impl FramedContentBodyIn {
     }
 
     /// Returns a [`FramedContentBody`] after successful validation.
-    pub fn validate(
+    pub async fn validate(
         self,
         ciphersuite: Ciphersuite,
-        crypto: &impl OpenMlsCrypto,
+        backend: &impl OpenMlsCryptoProvider,
         sender_context: Option<SenderContext>,
         protocol_version: ProtocolVersion,
         group: &PublicGroup,
+        sender: bool,
     ) -> Result<FramedContentBody, ValidationError> {
         Ok(match self {
             FramedContentBodyIn::Application(bytes) => FramedContentBody::Application(bytes),
-            FramedContentBodyIn::Proposal(proposal_in) => {
-                FramedContentBody::Proposal(proposal_in.validate(
-                    crypto,
-                    ciphersuite,
-                    sender_context,
-                    protocol_version,
-                    group,
-                )?)
-            }
+            FramedContentBodyIn::Proposal(proposal_in) => FramedContentBody::Proposal(
+                proposal_in
+                    .validate(
+                        backend,
+                        ciphersuite,
+                        sender_context,
+                        protocol_version,
+                        group,
+                        sender,
+                    )
+                    .await?,
+            ),
             FramedContentBodyIn::Commit(commit_in) => {
                 let sender_context = sender_context
                     .ok_or(LibraryError::custom("Forgot the commit sender context"))?;
-                FramedContentBody::Commit(commit_in.validate(
-                    ciphersuite,
-                    crypto,
-                    sender_context,
-                    protocol_version,
-                    group,
-                )?)
+                FramedContentBody::Commit(
+                    commit_in
+                        .validate(
+                            ciphersuite,
+                            backend,
+                            sender_context,
+                            protocol_version,
+                            group,
+                            sender,
+                        )
+                        .await?,
+                )
             }
         })
     }

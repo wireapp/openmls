@@ -92,7 +92,7 @@ impl<'a> From<&'a TreeSync> for TreeSyncDiff<'a> {
     }
 }
 
-impl<'a> TreeSyncDiff<'a> {
+impl TreeSyncDiff<'_> {
     /// Filtered direct path, skips the nodes whose copath resolution is empty.
     pub(crate) fn filtered_direct_path(&self, leaf_index: LeafNodeIndex) -> Vec<ParentNodeIndex> {
         // Full direct path
@@ -144,7 +144,7 @@ impl<'a> TreeSyncDiff<'a> {
 
     /// Trims the tree by shrinking it until the last full leaf is in the
     /// right part of the tree.
-    fn trim_tree(&mut self) {
+    pub(crate) fn trim_tree(&mut self) {
         // Nothing to trim if there's only one leaf left.
         if self.leaf_count() == MIN_TREE_SIZE {
             return;
@@ -257,7 +257,6 @@ impl<'a> TreeSyncDiff<'a> {
         // This also erases any cached tree hash in the direct path.
         self.diff
             .set_direct_path_to_node(leaf_index, &TreeSyncParentNode::blank());
-        self.trim_tree();
     }
 
     /// Derive a new direct path for the leaf with the given index.
@@ -460,7 +459,7 @@ impl<'a> TreeSyncDiff<'a> {
         &self,
         node_index: TreeNodeIndex,
         excluded_indices: &HashSet<&LeafNodeIndex>,
-    ) -> Vec<(TreeNodeIndex, NodeReference)> {
+    ) -> Vec<(TreeNodeIndex, NodeReference<'_>)> {
         match node_index {
             TreeNodeIndex::Leaf(leaf_index) => {
                 // If the node is a leaf, check if it is in the exclusion list.
@@ -528,7 +527,7 @@ impl<'a> TreeSyncDiff<'a> {
     pub(crate) fn copath_resolutions(
         &self,
         leaf_index: LeafNodeIndex,
-    ) -> Vec<Vec<(TreeNodeIndex, NodeReference)>> {
+    ) -> Vec<Vec<(TreeNodeIndex, NodeReference<'_>)>> {
         // If we're the only node in the tree, there's no copath.
         if self.diff.leaf_count() == MIN_TREE_SIZE {
             return vec![];
@@ -549,7 +548,7 @@ impl<'a> TreeSyncDiff<'a> {
         &self,
         leaf_index: LeafNodeIndex,
         exclusion_list: &HashSet<&LeafNodeIndex>,
-    ) -> Vec<Vec<(TreeNodeIndex, NodeReference)>> {
+    ) -> Vec<Vec<(TreeNodeIndex, NodeReference<'_>)>> {
         // If we're the only node in the tree, there's no copath.
         if self.diff.leaf_count() == 1 {
             return vec![];

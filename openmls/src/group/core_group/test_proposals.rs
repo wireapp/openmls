@@ -50,7 +50,8 @@ async fn proposal_queue_functions(ciphersuite: Ciphersuite, backend: &impl OpenM
     let kpi = KeyPackageIn::from(alice_update_key_package.clone());
 
     assert!(kpi
-        .standalone_validate(backend.crypto(), ProtocolVersion::Mls10)
+        .standalone_validate(backend, ProtocolVersion::Mls10, true)
+        .await
         .is_ok());
 
     let group_context = GroupContext::new(
@@ -196,7 +197,8 @@ async fn proposal_queue_order(ciphersuite: Ciphersuite, backend: &impl OpenMlsCr
     let kpi = KeyPackageIn::from(alice_update_key_package.clone());
 
     assert!(kpi
-        .standalone_validate(backend.crypto(), ProtocolVersion::Mls10)
+        .standalone_validate(backend, ProtocolVersion::Mls10, true)
+        .await
         .is_ok());
 
     let group_context = GroupContext::new(

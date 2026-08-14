@@ -24,7 +24,6 @@
 // TODO #106/#151: Update the above diagram
 
 use openmls_traits::{
-    crypto::OpenMlsCrypto,
     types::{Ciphersuite, CryptoError},
     OpenMlsCryptoProvider,
 };
@@ -106,9 +105,8 @@ impl DecryptedMessage {
         let ciphersuite = group.ciphersuite();
         // TODO: #819 The old leaves should not be needed any more.
         //       Revisit when the transition is further along.
-        let (message_secrets, _old_leaves) = group
-            .message_secrets_and_leaves_mut(ciphertext.epoch())
-            .map_err(MessageDecryptionError::from)?;
+        let (message_secrets, _old_leaves) =
+            group.message_secrets_and_leaves_mut(ciphertext.epoch())?;
         let sender_data = ciphertext.sender_data(message_secrets, backend, ciphersuite)?;
         let message_secrets = group
             .message_secrets_mut(ciphertext.epoch())
@@ -250,7 +248,7 @@ pub enum SenderContext {
 #[derive(Debug, Clone)]
 pub(crate) struct UnverifiedMessage {
     verifiable_content: VerifiableAuthenticatedContentIn,
-    credential: Credential,
+    credential: CredentialWithKey,
     sender_pk: OpenMlsSignaturePublicKey,
     sender_context: Option<SenderContext>,
 }
@@ -259,7 +257,7 @@ impl UnverifiedMessage {
     /// Construct an [UnverifiedMessage] from a [DecryptedMessage] and an optional [Credential].
     pub(crate) fn from_decrypted_message(
         decrypted_message: DecryptedMessage,
-        credential: Credential,
+        credential: CredentialWithKey,
         sender_pk: OpenMlsSignaturePublicKey,
         sender_context: Option<SenderContext>,
     ) -> Self {
@@ -273,17 +271,17 @@ impl UnverifiedMessage {
 
     /// Verify the [`UnverifiedMessage`]. Returns the [`AuthenticatedContent`]
     /// and the internal [`Credential`].
-    pub(crate) fn verify(
+    pub(crate) async fn verify(
         self,
         ciphersuite: Ciphersuite,
-        crypto: &impl OpenMlsCrypto,
+        backend: &impl OpenMlsCryptoProvider,
         protocol_version: ProtocolVersion,
         group: &PublicGroup,
-    ) -> Result<(AuthenticatedContent, Credential), ProcessMessageError> {
-        let content: AuthenticatedContentIn = match self.credential.mls_credential() {
+    ) -> Result<(AuthenticatedContent, CredentialWithKey), ProcessMessageError> {
+        let content: AuthenticatedContentIn = match self.credential.credential.mls_credential() {
             MlsCredentialType::Basic(_) => self
                 .verifiable_content
-                .verify(crypto, &self.sender_pk)
+                .verify(backend.crypto(), &self.sender_pk)
                 .map_err(|_| ProcessMessageError::InvalidSignature)?,
             MlsCredentialType::X509(certificate_chain) => {
                 certificate_chain
@@ -296,11 +294,9 @@ impl UnverifiedMessage {
                             use openmls_x509_credential::X509Ext;
                             let (_, child_cert) = a?;
                             let (parent_idx, parent_cert) = b?;
-                            // verify not expired
-                            child_cert.is_valid()?;
 
                             // verify that child is signed by parent
-                            child_cert.is_signed_by(crypto, parent_cert)?;
+                            child_cert.is_signed_by(backend.crypto(), parent_cert)?;
 
                             Ok((parent_idx, parent_cert))
                         },
@@ -312,17 +308,20 @@ impl UnverifiedMessage {
                     })??;
                 self.verifiable_content
                     // sender pk should be the leaf certificate
-                    .verify(crypto, &self.sender_pk)
+                    .verify(backend.crypto(), &self.sender_pk)
                     .map_err(|_| ProcessMessageError::InvalidSignature)?
             }
         };
-        let content = content.validate(
-            ciphersuite,
-            crypto,
-            self.sender_context,
-            protocol_version,
-            group,
-        )?;
+        let content = content
+            .validate(
+                ciphersuite,
+                backend,
+                self.sender_context,
+                protocol_version,
+                group,
+                false,
+            )
+            .await?;
         Ok((content, self.credential))
     }
 
@@ -340,7 +339,7 @@ pub struct ProcessedMessage {
     sender: Sender,
     authenticated_data: Vec<u8>,
     content: ProcessedMessageContent,
-    credential: Credential,
+    credential: CredentialWithKey,
 }
 
 impl ProcessedMessage {
@@ -351,7 +350,7 @@ impl ProcessedMessage {
         sender: Sender,
         authenticated_data: Vec<u8>,
         content: ProcessedMessageContent,
-        credential: Credential,
+        credential: CredentialWithKey,
     ) -> Self {
         Self {
             group_id,
@@ -394,7 +393,7 @@ impl ProcessedMessage {
     }
 
     /// Returns the credential of the message.
-    pub fn credential(&self) -> &Credential {
+    pub fn credential(&self) -> &CredentialWithKey {
         &self.credential
     }
 }

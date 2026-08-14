@@ -43,6 +43,7 @@ async fn generate_key_package<KeyStore: OpenMlsKeyStore>(
 ///  - Test saving the group state
 #[apply(ciphersuites_and_backends)]
 async fn mls_group_operations(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider) {
+    Box::pin(async {
     for wire_format_policy in WIRE_FORMAT_POLICIES.iter() {
         let group_id = GroupId::from_slice(b"Test Group");
 
@@ -169,7 +170,7 @@ async fn mls_group_operations(ciphersuite: Ciphersuite, backend: &impl OpenMlsCr
             assert_eq!(application_message.into_bytes(), message_alice);
             // Check that Alice sent the message
             assert_eq!(
-                &sender,
+                &sender.credential,
                 alice_group
                     .credential()
                     .expect("An unexpected error occurred.")
@@ -648,6 +649,7 @@ async fn mls_group_operations(ciphersuite: Ciphersuite, backend: &impl OpenMlsCr
         // Create AddProposal and process it
         let (queued_message, _) = alice_group
             .propose_add_member(backend, &alice_signer, bob_key_package.into())
+            .await
             .expect("Could not create proposal to add Bob");
 
         let charlie_processed_message = charlie_group
@@ -784,7 +786,7 @@ async fn mls_group_operations(ciphersuite: Ciphersuite, backend: &impl OpenMlsCr
             assert_eq!(application_message.into_bytes(), message_alice);
             // Check that Alice sent the message
             assert_eq!(
-                &sender,
+                &sender.credential,
                 alice_group.credential().expect("Expected a credential")
             );
         } else {
@@ -971,6 +973,7 @@ async fn mls_group_operations(ciphersuite: Ciphersuite, backend: &impl OpenMlsCr
             bob_group.export_secret(backend, "after load", &[], 32)
         );
     }
+    }).await
 }
 
 #[apply(ciphersuites_and_backends)]

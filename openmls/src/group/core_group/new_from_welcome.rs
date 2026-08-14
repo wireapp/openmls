@@ -151,13 +151,13 @@ impl CoreGroup {
             ratchet_tree,
             verifiable_group_info,
             ProposalStore::new(),
-        )?;
+            false,
+        )
+        .await?;
 
-        KeyPackageIn::from(key_package.clone()).validate(
-            backend.crypto(),
-            ProtocolVersion::Mls10,
-            &public_group,
-        )?;
+        KeyPackageIn::from(key_package.clone())
+            .validate(backend, ProtocolVersion::Mls10, &public_group, false)
+            .await?;
 
         // Find our own leaf in the tree.
         let own_leaf_index = public_group
@@ -316,7 +316,7 @@ mod tests {
     fn psk_ids_should_be_valid() {
         let group_id = GroupId::from_slice(b"test");
         let epoch = GroupEpoch(1);
-        let psks = vec![
+        let psks = [
             ResumptionPsk::new(ResumptionPskUsage::Reinit, group_id.clone(), epoch),
             ResumptionPsk::new(ResumptionPskUsage::Branch, group_id.clone(), epoch),
             ResumptionPsk::new(ResumptionPskUsage::Application, group_id, epoch),
@@ -328,7 +328,7 @@ mod tests {
     fn psk_ids_should_be_valid_application() {
         let group_id = GroupId::from_slice(b"test");
         let epoch = GroupEpoch(1);
-        let psks = vec![
+        let psks = [
             ResumptionPsk::new(ResumptionPskUsage::Application, group_id.clone(), epoch),
             ResumptionPsk::new(ResumptionPskUsage::Application, group_id.clone(), epoch),
             ResumptionPsk::new(ResumptionPskUsage::Application, group_id.clone(), epoch),
@@ -341,7 +341,7 @@ mod tests {
     fn psk_ids_should_be_invalid_reinit() {
         let group_id = GroupId::from_slice(b"test");
         let epoch = GroupEpoch(1);
-        let psks = vec![
+        let psks = [
             ResumptionPsk::new(ResumptionPskUsage::Reinit, group_id.clone(), epoch),
             ResumptionPsk::new(ResumptionPskUsage::Branch, group_id.clone(), epoch),
             ResumptionPsk::new(ResumptionPskUsage::Reinit, group_id.clone(), epoch),
@@ -357,7 +357,7 @@ mod tests {
     fn psk_ids_should_be_invalid_branch() {
         let group_id = GroupId::from_slice(b"test");
         let epoch = GroupEpoch(1);
-        let psks = vec![
+        let psks = [
             ResumptionPsk::new(ResumptionPskUsage::Reinit, group_id.clone(), epoch),
             ResumptionPsk::new(ResumptionPskUsage::Branch, group_id.clone(), epoch),
             ResumptionPsk::new(ResumptionPskUsage::Branch, group_id.clone(), epoch),
@@ -373,7 +373,7 @@ mod tests {
     fn psk_ids_should_be_invalid() {
         let group_id = GroupId::from_slice(b"test");
         let epoch = GroupEpoch(1);
-        let psks = vec![
+        let psks = [
             ResumptionPsk::new(ResumptionPskUsage::Reinit, group_id.clone(), epoch),
             ResumptionPsk::new(ResumptionPskUsage::Branch, group_id.clone(), epoch),
             ResumptionPsk::new(ResumptionPskUsage::Reinit, group_id.clone(), epoch),

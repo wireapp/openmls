@@ -1,11 +1,13 @@
-use rand_core::{RngCore, SeedableRng};
+use aes_gcm::aead;
+use rand_core::{SeedableRng, TryRng as _};
 use std::sync::RwLock;
 
 use aes_gcm::{
     aead::{Aead, Payload},
-    Aes128Gcm, Aes256Gcm, NewAead,
+    Aes128Gcm, Aes256Gcm, KeyInit,
 };
 use chacha20poly1305::ChaCha20Poly1305;
+use elliptic_curve::Generate as _;
 use hkdf::Hkdf;
 use openmls_traits::{
     crypto::OpenMlsCrypto,
@@ -68,9 +70,9 @@ pub struct RustCrypto {
 
 impl Default for RustCrypto {
     fn default() -> Self {
-        Self {
-            rng: RwLock::new(rand_chacha::ChaCha20Rng::from_entropy()),
-        }
+        let mut seed = RawEntropySeed::default();
+        getrandom::fill(&mut seed).expect("system RNG has to work");
+        Self::new_with_seed(EntropySeed::from_raw(seed))
     }
 }
 
@@ -82,6 +84,13 @@ impl RustCrypto {
     }
 }
 
+#[inline]
+fn normalize_p521_secret_key(sk: &[u8]) -> zeroize::Zeroizing<[u8; 66]> {
+    let mut sk_buf = zeroize::Zeroizing::new([0u8; 66]);
+    sk_buf[66 - sk.len()..].copy_from_slice(sk);
+    sk_buf
+}
+
 impl OpenMlsCrypto for RustCrypto {
     fn supports(&self, ciphersuite: Ciphersuite) -> Result<(), CryptoError> {
         match ciphersuite {
@@ -89,7 +98,7 @@ impl OpenMlsCrypto for RustCrypto {
             | Ciphersuite::MLS_128_DHKEMX25519_CHACHA20POLY1305_SHA256_Ed25519
             | Ciphersuite::MLS_128_DHKEMP256_AES128GCM_SHA256_P256
             | Ciphersuite::MLS_256_DHKEMP384_AES256GCM_SHA384_P384
-            | Ciphersuite::MLS_128_X25519KYBER768DRAFT00_AES128GCM_SHA256_Ed25519 => Ok(()),
+            | Ciphersuite::MLS_256_DHKEMP521_AES256GCM_SHA512_P521 => Ok(()),
             _ => Err(CryptoError::UnsupportedCiphersuite),
         }
     }
@@ -100,7 +109,7 @@ impl OpenMlsCrypto for RustCrypto {
             Ciphersuite::MLS_128_DHKEMX25519_CHACHA20POLY1305_SHA256_Ed25519,
             Ciphersuite::MLS_128_DHKEMP256_AES128GCM_SHA256_P256,
             Ciphersuite::MLS_256_DHKEMP384_AES256GCM_SHA384_P384,
-            Ciphersuite::MLS_128_X25519KYBER768DRAFT00_AES128GCM_SHA256_Ed25519,
+            Ciphersuite::MLS_256_DHKEMP521_AES256GCM_SHA512_P521,
         ]
     }
 
@@ -178,12 +187,17 @@ impl OpenMlsCrypto for RustCrypto {
         nonce: &[u8],
         aad: &[u8],
     ) -> Result<Vec<u8>, openmls_traits::types::CryptoError> {
+        // All supported algorithms use the same nonce size of 96 bits, so
+        // picking any of them for the generic parameter of Nonce<A> is fine.
+        let nonce =
+            aead::Nonce::<Aes128Gcm>::try_from(nonce).map_err(|_| CryptoError::InvalidLength)?;
+
         match alg {
             AeadType::Aes128Gcm => {
                 let aes =
                     Aes128Gcm::new_from_slice(key).map_err(|_| CryptoError::CryptoLibraryError)?;
 
-                aes.encrypt(nonce.into(), Payload { msg: data, aad })
+                aes.encrypt(&nonce, Payload { msg: data, aad })
                     .map(|r| r.as_slice().into())
                     .map_err(|_| CryptoError::AeadEncryptionError)
             }
@@ -191,7 +205,7 @@ impl OpenMlsCrypto for RustCrypto {
                 let aes =
                     Aes256Gcm::new_from_slice(key).map_err(|_| CryptoError::AeadEncryptionError)?;
 
-                aes.encrypt(nonce.into(), Payload { msg: data, aad })
+                aes.encrypt(&nonce, Payload { msg: data, aad })
                     .map(|r| r.as_slice().into())
                     .map_err(|_| CryptoError::AeadEncryptionError)
             }
@@ -200,7 +214,7 @@ impl OpenMlsCrypto for RustCrypto {
                     .map_err(|_| CryptoError::AeadEncryptionError)?;
 
                 chacha_poly
-                    .encrypt(nonce.into(), Payload { msg: data, aad })
+                    .encrypt(&nonce, Payload { msg: data, aad })
                     .map(|r| r.as_slice().into())
                     .map_err(|_| CryptoError::AeadEncryptionError)
             }
@@ -215,18 +229,23 @@ impl OpenMlsCrypto for RustCrypto {
         nonce: &[u8],
         aad: &[u8],
     ) -> Result<Vec<u8>, openmls_traits::types::CryptoError> {
+        // All supported algorithms use the same nonce size of 96 bits, so
+        // picking any of them for the generic parameter of Nonce<A> is fine.
+        let nonce =
+            aead::Nonce::<Aes128Gcm>::try_from(nonce).map_err(|_| CryptoError::InvalidLength)?;
+
         match alg {
             AeadType::Aes128Gcm => {
                 let aes =
                     Aes128Gcm::new_from_slice(key).map_err(|_| CryptoError::CryptoLibraryError)?;
-                aes.decrypt(nonce.into(), Payload { msg: ct_tag, aad })
+                aes.decrypt(&nonce, Payload { msg: ct_tag, aad })
                     .map(|r| r.as_slice().into())
                     .map_err(|_| CryptoError::AeadDecryptionError)
             }
             AeadType::Aes256Gcm => {
                 let aes =
                     Aes256Gcm::new_from_slice(key).map_err(|_| CryptoError::CryptoLibraryError)?;
-                aes.decrypt(nonce.into(), Payload { msg: ct_tag, aad })
+                aes.decrypt(&nonce, Payload { msg: ct_tag, aad })
                     .map(|r| r.as_slice().into())
                     .map_err(|_| CryptoError::AeadDecryptionError)
             }
@@ -234,7 +253,7 @@ impl OpenMlsCrypto for RustCrypto {
                 let chacha_poly = ChaCha20Poly1305::new_from_slice(key)
                     .map_err(|_| CryptoError::CryptoLibraryError)?;
                 chacha_poly
-                    .decrypt(nonce.into(), Payload { msg: ct_tag, aad })
+                    .decrypt(&nonce, Payload { msg: ct_tag, aad })
                     .map(|r| r.as_slice().into())
                     .map_err(|_| CryptoError::AeadDecryptionError)
             }
@@ -252,13 +271,21 @@ impl OpenMlsCrypto for RustCrypto {
 
         match alg {
             SignatureScheme::ECDSA_SECP256R1_SHA256 => {
-                let sk = p256::ecdsa::SigningKey::random(&mut *rng);
-                let pk = sk.verifying_key().to_encoded_point(false).to_bytes().into();
+                let sk = p256::ecdsa::SigningKey::generate_from_rng(&mut *rng);
+                let pk = sk.verifying_key().to_sec1_point(false).to_bytes().into();
                 Ok((sk.to_bytes().to_vec(), pk))
             }
             SignatureScheme::ECDSA_SECP384R1_SHA384 => {
-                let sk = p384::ecdsa::SigningKey::random(&mut *rng);
-                let pk = sk.verifying_key().to_encoded_point(false).to_bytes().into();
+                let sk = p384::ecdsa::SigningKey::generate_from_rng(&mut *rng);
+                let pk = sk.verifying_key().to_sec1_point(false).to_bytes().into();
+                Ok((sk.to_bytes().to_vec(), pk))
+            }
+            SignatureScheme::ECDSA_SECP521R1_SHA512 => {
+                let sk = p521::ecdsa::SigningKey::generate_from_rng(&mut *rng);
+                let pk = p521::ecdsa::VerifyingKey::from(&sk)
+                    .to_sec1_point(false)
+                    .to_bytes()
+                    .into();
                 Ok((sk.to_bytes().to_vec(), pk))
             }
             SignatureScheme::ED25519 => {
@@ -271,6 +298,23 @@ impl OpenMlsCrypto for RustCrypto {
                 Ok((k.to_bytes().into(), pk.to_bytes().into()))
             }
             _ => Err(CryptoError::UnsupportedSignatureScheme),
+        }
+    }
+
+    fn signature_public_key_len(&self, alg: SignatureScheme) -> usize {
+        use generic_array::typenum::Unsigned;
+        match alg {
+            SignatureScheme::ECDSA_SECP256R1_SHA256 => {
+                <p256::NistP256 as p256::elliptic_curve::Curve>::FieldBytesSize::to_usize()
+            }
+            SignatureScheme::ECDSA_SECP384R1_SHA384 => {
+                <p384::NistP384 as p384::elliptic_curve::Curve>::FieldBytesSize::to_usize()
+            }
+            SignatureScheme::ECDSA_SECP521R1_SHA512 => {
+                <p521::NistP521 as p521::elliptic_curve::Curve>::FieldBytesSize::to_usize()
+            }
+            SignatureScheme::ED25519 => ed25519_dalek::PUBLIC_KEY_LENGTH,
+            SignatureScheme::ED448 => 57,
         }
     }
 
@@ -303,6 +347,16 @@ impl OpenMlsCrypto for RustCrypto {
                 k.verify(data, &signature)
                     .map_err(|_| CryptoError::InvalidSignature)
             }
+            SignatureScheme::ECDSA_SECP521R1_SHA512 => {
+                let k = p521::ecdsa::VerifyingKey::from_sec1_bytes(pk)
+                    .map_err(|_| CryptoError::CryptoLibraryError)?;
+
+                let signature = p521::ecdsa::Signature::from_der(signature)
+                    .map_err(|_| CryptoError::InvalidSignature)?;
+
+                k.verify(data, &signature)
+                    .map_err(|_| CryptoError::InvalidSignature)
+            }
             SignatureScheme::ED25519 => {
                 let k = ed25519_dalek::VerifyingKey::try_from(pk)
                     .map_err(|_| CryptoError::CryptoLibraryError)?;
@@ -330,7 +384,7 @@ impl OpenMlsCrypto for RustCrypto {
 
         match alg {
             SignatureScheme::ECDSA_SECP256R1_SHA256 => {
-                let k = p256::ecdsa::SigningKey::from_bytes(key.into())
+                let k = p256::ecdsa::SigningKey::from_slice(key)
                     .map_err(|_| CryptoError::CryptoLibraryError)?;
                 let signature: p256::ecdsa::DerSignature = k
                     .try_sign(data)
@@ -338,11 +392,20 @@ impl OpenMlsCrypto for RustCrypto {
                 Ok(signature.to_bytes().into())
             }
             SignatureScheme::ECDSA_SECP384R1_SHA384 => {
-                let k = p384::ecdsa::SigningKey::from_bytes(key.into())
+                let k = p384::ecdsa::SigningKey::from_slice(key)
                     .map_err(|_| CryptoError::CryptoLibraryError)?;
                 let signature: p384::ecdsa::DerSignature = k
                     .try_sign(data)
                     .map_err(|_| CryptoError::CryptoLibraryError)?;
+                Ok(signature.to_bytes().into())
+            }
+            SignatureScheme::ECDSA_SECP521R1_SHA512 => {
+                let k = p521::ecdsa::SigningKey::from_slice(&*normalize_p521_secret_key(key))
+                    .map_err(|_| CryptoError::CryptoLibraryError)?;
+                let signature: p521::ecdsa::DerSignature = <p521::ecdsa::SigningKey as signature::Signer<p521::ecdsa::Signature>>::
+                    try_sign(&k, data)
+                    .map_err(|_| CryptoError::CryptoLibraryError)?
+                    .to_der();
                 Ok(signature.to_bytes().into())
             }
             SignatureScheme::ED25519 => {
@@ -422,13 +485,13 @@ impl OpenMlsCrypto for RustCrypto {
                 hpke::kem::DhP384HkdfSha384,
             >(pk_r, info, aad, ptxt, &mut *rng),
             HpkeConfig(
-                HpkeKemType::X25519Kyber768Draft00,
-                HpkeKdfType::HkdfSha256,
-                HpkeAeadType::AesGcm128,
+                HpkeKemType::DhKemP521,
+                HpkeKdfType::HkdfSha512,
+                HpkeAeadType::AesGcm256,
             ) => hpke_core::hpke_seal::<
-                hpke::aead::AesGcm128,
-                hpke::kdf::HkdfSha256,
-                hpke::kem::X25519Kyber768Draft00,
+                hpke::aead::AesGcm256,
+                hpke::kdf::HkdfSha512,
+                hpke::kem::DhP521HkdfSha512,
             >(pk_r, info, aad, ptxt, &mut *rng),
             _ => Err(CryptoError::UnsupportedKem),
         }
@@ -504,13 +567,13 @@ impl OpenMlsCrypto for RustCrypto {
                 input.ciphertext.as_slice(),
             )?,
             HpkeConfig(
-                HpkeKemType::X25519Kyber768Draft00,
-                HpkeKdfType::HkdfSha256,
-                HpkeAeadType::AesGcm128,
+                HpkeKemType::DhKemP521,
+                HpkeKdfType::HkdfSha512,
+                HpkeAeadType::AesGcm256,
             ) => hpke_core::hpke_open::<
-                hpke::aead::AesGcm128,
-                hpke::kdf::HkdfSha256,
-                hpke::kem::X25519Kyber768Draft00,
+                hpke::aead::AesGcm256,
+                hpke::kdf::HkdfSha512,
+                hpke::kem::DhP521HkdfSha512,
             >(
                 sk_r,
                 input.kem_output.as_slice(),
@@ -575,13 +638,13 @@ impl OpenMlsCrypto for RustCrypto {
                 hpke::kem::DhP384HkdfSha384,
             >(pk_r, info, exporter_context, exporter_length, &mut *rng)?,
             HpkeConfig(
-                HpkeKemType::X25519Kyber768Draft00,
-                HpkeKdfType::HkdfSha256,
-                HpkeAeadType::AesGcm128,
+                HpkeKemType::DhKemP521,
+                HpkeKdfType::HkdfSha512,
+                HpkeAeadType::AesGcm256,
             ) => hpke_core::hpke_export_tx::<
-                hpke::aead::AesGcm128,
-                hpke::kdf::HkdfSha256,
-                hpke::kem::X25519Kyber768Draft00,
+                hpke::aead::AesGcm256,
+                hpke::kdf::HkdfSha512,
+                hpke::kem::DhP521HkdfSha512,
             >(pk_r, info, exporter_context, exporter_length, &mut *rng)?,
             _ => return Err(CryptoError::UnsupportedKem),
         };
@@ -638,13 +701,13 @@ impl OpenMlsCrypto for RustCrypto {
                 hpke::kem::DhP384HkdfSha384,
             >(enc, sk_r, info, exporter_context, exporter_length)?,
             HpkeConfig(
-                HpkeKemType::X25519Kyber768Draft00,
-                HpkeKdfType::HkdfSha256,
-                HpkeAeadType::AesGcm128,
+                HpkeKemType::DhKemP521,
+                HpkeKdfType::HkdfSha512,
+                HpkeAeadType::AesGcm256,
             ) => hpke_core::hpke_export_rx::<
-                hpke::aead::AesGcm128,
-                hpke::kdf::HkdfSha256,
-                hpke::kem::X25519Kyber768Draft00,
+                hpke::aead::AesGcm256,
+                hpke::kdf::HkdfSha512,
+                hpke::kem::DhP521HkdfSha512,
             >(enc, sk_r, info, exporter_context, exporter_length)?,
             _ => return Err(CryptoError::UnsupportedKem),
         };
@@ -666,11 +729,11 @@ impl OpenMlsCrypto for RustCrypto {
             HpkeKemType::DhKemP384 => {
                 hpke_core::hpke_derive_keypair::<hpke::kem::DhP384HkdfSha384>(ikm)
             }
+            HpkeKemType::DhKemP521 => {
+                hpke_core::hpke_derive_keypair::<hpke::kem::DhP521HkdfSha512>(ikm)
+            }
             HpkeKemType::DhKem25519 => {
                 hpke_core::hpke_derive_keypair::<hpke::kem::X25519HkdfSha256>(ikm)
-            }
-            HpkeKemType::X25519Kyber768Draft00 => {
-                hpke_core::hpke_derive_keypair::<hpke::kem::X25519Kyber768Draft00>(ikm)
             }
             _ => Err(CryptoError::UnsupportedKem),
         }
@@ -687,11 +750,22 @@ mod hpke_core {
         aad: &[u8],
         ciphertext: &[u8],
     ) -> Result<Vec<u8>, CryptoError> {
-        use hpke::Deserializable as _;
+        use hpke::{Deserializable as _, Serializable as _};
         let encapped_key = Kem::EncappedKey::from_bytes(kem_output)
             .map_err(|_| CryptoError::HpkeDecryptionError)?;
-        let key = Kem::PrivateKey::from_bytes(private_key)
-            .map_err(|_| CryptoError::HpkeDecryptionError)?;
+
+        // Systematically normalize private keys
+        let sk_len = Kem::PrivateKey::size();
+        let mut sk_buf = zeroize::Zeroizing::new(Vec::with_capacity(sk_len));
+        if private_key.len() < sk_len {
+            for _ in 0..(sk_len - private_key.len()) {
+                sk_buf.push(0x00);
+            }
+        }
+        sk_buf.extend_from_slice(private_key);
+        let key =
+            Kem::PrivateKey::from_bytes(&sk_buf).map_err(|_| CryptoError::HpkeDecryptionError)?;
+
         let plaintext = hpke::single_shot_open::<Aead, Kdf, Kem>(
             &hpke::OpModeR::Base,
             &key,
@@ -710,12 +784,12 @@ mod hpke_core {
         info: &[u8],
         aad: &[u8],
         plaintext: &[u8],
-        csprng: &mut impl rand_core::CryptoRngCore,
+        csprng: &mut impl rand_core::CryptoRng,
     ) -> Result<HpkeCiphertext, CryptoError> {
         use hpke::{Deserializable as _, Serializable as _};
         let key =
             Kem::PublicKey::from_bytes(public_key).map_err(|_| CryptoError::HpkeEncryptionError)?;
-        let (encapped, ciphertext) = hpke::single_shot_seal::<Aead, Kdf, Kem, _>(
+        let (encapped, ciphertext) = hpke::single_shot_seal_with_rng::<Aead, Kdf, Kem>(
             &hpke::OpModeS::Base,
             &key,
             info,
@@ -733,10 +807,10 @@ mod hpke_core {
 
     #[allow(dead_code)]
     pub fn hpke_gen_keypair<Kem: hpke::Kem>(
-        csprng: &mut impl rand_core::CryptoRngCore,
+        csprng: &mut impl rand_core::CryptoRng,
     ) -> Result<HpkeKeyPair, CryptoError> {
         use hpke::Serializable as _;
-        let (sk, pk) = Kem::gen_keypair(csprng);
+        let (sk, pk) = Kem::gen_keypair_with_rng(csprng);
         let (private, public) = (sk.to_bytes().to_vec().into(), pk.to_bytes().to_vec());
 
         Ok(HpkeKeyPair { private, public })
@@ -779,13 +853,13 @@ mod hpke_core {
         info: &[u8],
         export_info: &[u8],
         export_len: usize,
-        csprng: &mut impl rand_core::CryptoRngCore,
+        csprng: &mut impl rand_core::CryptoRng,
     ) -> Result<(Vec<u8>, Vec<u8>), CryptoError> {
         use hpke::{Deserializable as _, Serializable as _};
         let key =
             Kem::PublicKey::from_bytes(tx_public_key).map_err(|_| CryptoError::SenderSetupError)?;
         let (kem_output, ctx) =
-            hpke::setup_sender::<Aead, Kdf, Kem, _>(&hpke::OpModeS::Base, &key, info, csprng)
+            hpke::setup_sender_with_rng::<Aead, Kdf, Kem>(&hpke::OpModeS::Base, &key, info, csprng)
                 .map_err(|_| CryptoError::SenderSetupError)?;
 
         let mut export = vec![0u8; export_len];

@@ -7,7 +7,6 @@
 use std::collections::HashSet;
 
 use openmls_traits::{
-    crypto::OpenMlsCrypto,
     types::{Ciphersuite, HpkeCiphertext},
     OpenMlsCryptoProvider,
 };
@@ -36,7 +35,7 @@ use crate::{
     versions::ProtocolVersion,
 };
 
-impl<'a> TreeSyncDiff<'a> {
+impl TreeSyncDiff<'_> {
     /// Encrypt the given `path` to the nodes in the copath resolution of the
     /// owner of this [`TreeSyncDiff`]. The `group_context` is used in the
     /// encryption of the nodes, while the `exclusion_list` is used to filter
@@ -379,18 +378,19 @@ impl UpdatePathIn {
     }
 
     /// Return a verified [`UpdatePath`].
-    pub(crate) fn into_verified(
+    pub(crate) async fn into_verified(
         self,
-        crypto: &impl OpenMlsCrypto,
+        backend: &impl OpenMlsCryptoProvider,
         tree_position: TreePosition,
         group: &PublicGroup,
+        sender: bool,
     ) -> Result<UpdatePath, UpdatePathError> {
         let leaf_node_in = self.leaf_node().clone();
         let verifiable_leaf_node =
             leaf_node_in.try_into_verifiable_leaf_node(Some(tree_position))?;
         match verifiable_leaf_node {
             VerifiableLeafNode::Commit(commit_leaf_node) => {
-                let leaf_node = commit_leaf_node.validate(group, crypto)?;
+                let leaf_node = commit_leaf_node.validate(group, backend, sender).await?;
                 Ok(UpdatePath {
                     leaf_node,
                     nodes: self.nodes,

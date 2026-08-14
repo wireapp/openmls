@@ -74,7 +74,7 @@ mod test {
 
     #[apply(ciphersuites)]
     async fn test_serialize_deserialize(ciphersuite: Ciphersuite) {
-        let mut rng = rand::thread_rng();
+        let mut rng = rand::rng();
         let tests = {
             let mut external_sender_extensions = Vec::new();
 

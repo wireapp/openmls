@@ -85,7 +85,10 @@ struct TestElement {
     tree_hashes: Vec<TreeHash>,
 }
 
-fn run_test_vector(test: TestElement, backend: &impl OpenMlsCryptoProvider) -> Result<(), String> {
+async fn run_test_vector(
+    test: TestElement,
+    backend: &impl OpenMlsCryptoProvider,
+) -> Result<(), String> {
     let ciphersuite = Ciphersuite::try_from(test.cipher_suite).unwrap();
     // Skip unsupported ciphersuites.
     if !backend
@@ -106,8 +109,16 @@ fn run_test_vector(test: TestElement, backend: &impl OpenMlsCryptoProvider) -> R
         .into_verified(ciphersuite, backend.crypto(), group_id)
         .unwrap();
 
-    let treesync = TreeSync::from_ratchet_tree(backend, ciphersuite, ratchet_tree.clone())
-        .map_err(|e| format!("Error while creating tree sync: {e:?}"))?;
+    let treesync = TreeSync::from_ratchet_tree(
+        backend,
+        ciphersuite,
+        ratchet_tree.clone(),
+        group_id,
+        true,
+        false,
+    )
+    .await
+    .map_err(|e| format!("Error while creating tree sync: {e:?}"))?;
 
     let diff = treesync.empty_diff();
 
@@ -141,7 +152,7 @@ async fn read_test_vectors_tree_validation(backend: &impl OpenMlsCryptoProvider)
     let tests: Vec<TestElement> = read("test_vectors/tree-validation.json");
 
     for test_vector in tests {
-        match run_test_vector(test_vector, backend) {
+        match run_test_vector(test_vector, backend).await {
             Ok(_) => {}
             Err(e) => panic!("Error while checking tree validation test vector.\n{e:?}"),
         }

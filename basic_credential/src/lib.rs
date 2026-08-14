@@ -4,6 +4,7 @@
 //!
 //! For now this credential uses only RustCrypto.
 
+use elliptic_curve::Generate as _;
 use secrecy::{ExposeSecret, SecretVec};
 use std::fmt::Debug;
 
@@ -108,17 +109,25 @@ impl SignatureKeyPair {
     /// Generates a fresh signature keypair using the [`SignatureScheme`].
     pub fn new(
         signature_scheme: SignatureScheme,
-        csprng: &mut impl rand_core::CryptoRngCore,
+        csprng: &mut impl rand_core::CryptoRng,
     ) -> Result<Self, CryptoError> {
         let (private, public): (SecretVec<u8>, Vec<u8>) = match signature_scheme {
             SignatureScheme::ECDSA_SECP256R1_SHA256 => {
-                let sk = p256::ecdsa::SigningKey::random(csprng);
-                let pk = sk.verifying_key().to_encoded_point(false).to_bytes().into();
+                let sk = p256::ecdsa::SigningKey::generate_from_rng(csprng);
+                let pk = sk.verifying_key().to_sec1_point(false).to_bytes().into();
                 (sk.to_bytes().to_vec().into(), pk)
             }
             SignatureScheme::ECDSA_SECP384R1_SHA384 => {
-                let sk = p384::ecdsa::SigningKey::random(csprng);
-                let pk = sk.verifying_key().to_encoded_point(false).to_bytes().into();
+                let sk = p384::ecdsa::SigningKey::generate_from_rng(csprng);
+                let pk = sk.verifying_key().to_sec1_point(false).to_bytes().into();
+                (sk.to_bytes().to_vec().into(), pk)
+            }
+            SignatureScheme::ECDSA_SECP521R1_SHA512 => {
+                let sk = p521::ecdsa::SigningKey::generate_from_rng(csprng);
+                let pk = p521::ecdsa::VerifyingKey::from(&sk)
+                    .to_sec1_point(false)
+                    .to_bytes()
+                    .into();
                 (sk.to_bytes().to_vec().into(), pk)
             }
             SignatureScheme::ED25519 => {
@@ -159,7 +168,7 @@ impl SignatureKeyPair {
                     &private[..ed25519_dalek::SECRET_KEY_LENGTH],
                 )
                 .map_err(|_| CryptoError::InvalidKey)?;
-                let pk = ed25519_dalek::VerifyingKey::try_from(&public[..])
+                let pk = ed25519_dalek::VerifyingKey::try_from(public.as_slice())
                     .map_err(|_| CryptoError::InvalidKey)?;
 
                 if sk.verifying_key() != pk {
@@ -167,20 +176,34 @@ impl SignatureKeyPair {
                 }
             }
             SignatureScheme::ECDSA_SECP256R1_SHA256 => {
-                let sk = p256::ecdsa::SigningKey::try_from(&private[..])
+                let sk = p256::ecdsa::SigningKey::from_slice(&private)
                     .map_err(|_| CryptoError::InvalidKey)?;
-                let pk = p256::ecdsa::VerifyingKey::try_from(&public[..])
+                let pk = p256::ecdsa::VerifyingKey::from_sec1_bytes(&public)
                     .map_err(|_| CryptoError::InvalidKey)?;
+
                 if sk.verifying_key() != &pk {
                     return Err(CryptoError::MismatchKeypair);
                 }
             }
             SignatureScheme::ECDSA_SECP384R1_SHA384 => {
-                let sk = p384::ecdsa::SigningKey::try_from(&private[..])
+                let sk = p384::ecdsa::SigningKey::from_slice(&private)
                     .map_err(|_| CryptoError::InvalidKey)?;
-                let pk = p384::ecdsa::VerifyingKey::try_from(&public[..])
+
+                let pk = p384::ecdsa::VerifyingKey::from_sec1_bytes(&public)
                     .map_err(|_| CryptoError::InvalidKey)?;
+
                 if sk.verifying_key() != &pk {
+                    return Err(CryptoError::MismatchKeypair);
+                }
+            }
+            SignatureScheme::ECDSA_SECP521R1_SHA512 => {
+                let sk = p521::ecdsa::SigningKey::from_slice(&private)
+                    .map_err(|_| CryptoError::InvalidKey)?;
+                let pk = p521::ecdsa::VerifyingKey::from_sec1_bytes(&public)
+                    .map_err(|_| CryptoError::InvalidKey)?;
+                let sk_pk = p521::ecdsa::VerifyingKey::from(&sk);
+
+                if sk_pk.to_sec1_point(false) != pk.to_sec1_point(false) {
                     return Err(CryptoError::MismatchKeypair);
                 }
             }
@@ -238,9 +261,10 @@ pub mod tests {
             SignatureScheme::ED25519,
             SignatureScheme::ECDSA_SECP256R1_SHA256,
             SignatureScheme::ECDSA_SECP384R1_SHA384,
+            SignatureScheme::ECDSA_SECP521R1_SHA512,
         ];
         for scheme in schemes {
-            let kp = SignatureKeyPair::new(scheme, &mut rand::thread_rng()).unwrap();
+            let kp = SignatureKeyPair::new(scheme, &mut rand::rng()).unwrap();
             let sk = kp.private.expose_secret().clone();
             let pk = kp.public.clone();
             SignatureKeyPair::try_from_raw(scheme, sk, pk).unwrap();

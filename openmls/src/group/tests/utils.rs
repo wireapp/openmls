@@ -13,7 +13,7 @@ use openmls_basic_credential::SignatureKeyPair;
 use openmls_traits::{
     key_store::OpenMlsKeyStore, signatures::Signer, types::SignatureScheme, OpenMlsCryptoProvider,
 };
-use rand::{rngs::OsRng, RngCore};
+use rand::Rng as _;
 use tls_codec::Serialize;
 
 use crate::{
@@ -295,13 +295,13 @@ pub(crate) async fn setup(
 }
 
 pub fn random_usize() -> usize {
-    OsRng.next_u64() as usize
+    rand::rng().next_u64() as usize
 }
 
 /// No crypto randomness!
 pub fn randombytes(n: usize) -> Vec<u8> {
     let mut out = vec![0u8; n];
-    OsRng.fill_bytes(&mut out);
+    rand::rng().fill_bytes(&mut out);
     out
 }
 

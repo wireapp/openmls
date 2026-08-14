@@ -1,4 +1,5 @@
 use crate::{
+    credentials::Credential,
     prelude::{
         Capabilities, CredentialType, ExtensionType, Extensions, SignaturePublicKey, Verifiable,
     },
@@ -12,8 +13,8 @@ use crate::{
         },
     },
 };
-use itertools::Itertools;
-use openmls_traits::{crypto::OpenMlsCrypto, types::SignatureScheme};
+use openmls_traits::{crypto::OpenMlsCrypto, types::SignatureScheme, OpenMlsCryptoProvider};
+use std::collections::HashSet;
 
 impl ValidatableLeafNode for VerifiableCommitLeafNode {
     fn signature_key(&self) -> &SignaturePublicKey {
@@ -28,19 +29,26 @@ impl ValidatableLeafNode for VerifiableCommitLeafNode {
         &self.payload.credential.credential_type
     }
 
+    fn credential(&self) -> &Credential {
+        &self.payload.credential
+    }
+
     fn extensions(&self) -> &Extensions {
         &self.payload.extensions
     }
 }
 
+#[cfg_attr(target_family = "wasm", async_trait::async_trait(?Send))]
+#[cfg_attr(not(target_family = "wasm"), async_trait::async_trait)]
 impl ValidatableLeafNode for VerifiableUpdateLeafNode {
-    fn validate(
+    async fn validate(
         self,
         group: &PublicGroup,
-        crypto: &impl OpenMlsCrypto,
+        backend: &impl OpenMlsCryptoProvider,
+        sender: bool,
     ) -> Result<LeafNode, LeafNodeValidationError> {
         self.validate_replaced_encryption_key(group)?;
-        self.generic_validate(crypto, group)
+        self.validate_default(group, backend, sender).await
     }
 
     fn signature_key(&self) -> &SignaturePublicKey {
@@ -53,6 +61,10 @@ impl ValidatableLeafNode for VerifiableUpdateLeafNode {
 
     fn credential_type(&self) -> &CredentialType {
         &self.payload.credential.credential_type
+    }
+
+    fn credential(&self) -> &Credential {
+        &self.payload.credential
     }
 
     fn extensions(&self) -> &Extensions {
@@ -77,14 +89,28 @@ impl VerifiableUpdateLeafNode {
     }
 }
 
+#[cfg_attr(target_family = "wasm", async_trait::async_trait(?Send))]
+#[cfg_attr(not(target_family = "wasm"), async_trait::async_trait)]
 impl ValidatableLeafNode for VerifiableKeyPackageLeafNode {
-    fn validate(
+    async fn standalone_validate(
+        self,
+        backend: &impl OpenMlsCryptoProvider,
+        signature_scheme: SignatureScheme,
+        sender: bool,
+    ) -> Result<LeafNode, LeafNodeValidationError> {
+        self.validate_lifetime(sender)?;
+        self.standalone_validate_default(backend, signature_scheme)
+            .await
+    }
+
+    async fn validate(
         self,
         group: &PublicGroup,
-        crypto: &impl OpenMlsCrypto,
+        backend: &impl OpenMlsCryptoProvider,
+        sender: bool,
     ) -> Result<LeafNode, LeafNodeValidationError> {
-        self.validate_lifetime()?;
-        self.generic_validate(crypto, group)
+        self.validate_lifetime(sender)?;
+        self.validate_default(group, backend, sender).await
     }
 
     fn signature_key(&self) -> &SignaturePublicKey {
@@ -99,69 +125,88 @@ impl ValidatableLeafNode for VerifiableKeyPackageLeafNode {
         &self.payload.credential.credential_type
     }
 
+    fn credential(&self) -> &Credential {
+        &self.payload.credential
+    }
+
     fn extensions(&self) -> &Extensions {
         &self.payload.extensions
     }
 }
 
 impl VerifiableKeyPackageLeafNode {
-    fn validate_lifetime(&self) -> Result<(), LeafNodeValidationError> {
+    /// about `sender` see https://www.rfc-editor.org/rfc/rfc9420.html#section-7.3-4.5.1
+    /// We only validate the lifetime if we are the message sender
+    fn validate_lifetime(&self, sender: bool) -> Result<(), LeafNodeValidationError> {
         let LeafNodeSource::KeyPackage(lifetime) = self.payload.leaf_node_source else {
             return Err(LeafNodeValidationError::InvalidLeafNodeSource);
         };
-        if !lifetime.is_valid() {
+        if sender && !lifetime.is_valid() {
             return Err(LeafNodeValidationError::Lifetime(LifetimeError::NotCurrent));
         }
         Ok(())
     }
 }
 
-pub(crate) trait ValidatableLeafNode: Verifiable + Sized
+#[cfg_attr(target_family = "wasm", async_trait::async_trait(?Send))]
+#[cfg_attr(not(target_family = "wasm"), async_trait::async_trait)]
+pub(crate) trait ValidatableLeafNode: Verifiable + Send + Sync + Sized
 where
     LeafNode: VerifiedStruct<Self>,
 {
-    fn standalone_validate(
+    async fn standalone_validate(
         self,
-        crypto: &impl OpenMlsCrypto,
+        backend: &impl OpenMlsCryptoProvider,
+        signature_scheme: SignatureScheme,
+        _sender: bool,
+    ) -> Result<LeafNode, LeafNodeValidationError> {
+        self.standalone_validate_default(backend, signature_scheme)
+            .await
+    }
+
+    async fn standalone_validate_default(
+        self,
+        backend: &impl OpenMlsCryptoProvider,
         signature_scheme: SignatureScheme,
     ) -> Result<LeafNode, LeafNodeValidationError> {
+        self.validate_credential(backend).await?;
+
         let extension_types = self.extension_types();
-        let leaf_node = self.verify_signature(crypto, signature_scheme)?;
+        let leaf_node = self.verify_signature(backend.crypto(), signature_scheme)?;
         Self::validate_extension_support(&leaf_node, &extension_types[..])?;
+
         Ok(leaf_node)
     }
 
     /// Validate a LeafNode as per https://www.rfc-editor.org/rfc/rfc9420.html#name-leaf-node-validation
-    fn validate(
+    async fn validate(
         self,
         group: &PublicGroup,
-        crypto: &impl OpenMlsCrypto,
+        backend: &impl OpenMlsCryptoProvider,
+        sender: bool,
     ) -> Result<LeafNode, LeafNodeValidationError> {
-        self.generic_validate(crypto, group)
+        self.validate_default(group, backend, sender).await
     }
 
-    /// Validation regardless of [LeafNode]'s source
-    fn generic_validate(
+    async fn validate_default(
         self,
-        crypto: &impl OpenMlsCrypto,
         group: &PublicGroup,
+        backend: &impl OpenMlsCryptoProvider,
+        sender: bool,
     ) -> Result<LeafNode, LeafNodeValidationError> {
         self.validate_capabilities(group)?;
         self.validate_credential_type(group)?;
         let tree = group.treesync();
-        self.validate_signature_key_unique(tree)?;
-        self.validate_encryption_key_unique(tree)?;
-
-        let extension_types = self.extension_types();
+        self.validate_signature_encryption_key_unique(tree)?;
         let signature_scheme = group.ciphersuite().signature_algorithm();
-        let leaf_node = self.verify_signature(crypto, signature_scheme)?;
-        Self::validate_extension_support(&leaf_node, &extension_types[..])?;
-        Ok(leaf_node)
+        self.standalone_validate(backend, signature_scheme, sender)
+            .await
     }
 
     fn signature_key(&self) -> &SignaturePublicKey;
     fn capabilities(&self) -> &Capabilities;
     fn credential_type(&self) -> &CredentialType;
+    fn credential(&self) -> &Credential;
     fn extensions(&self) -> &Extensions;
 
     fn extension_types(&self) -> Vec<ExtensionType> {
@@ -201,25 +246,29 @@ where
         Ok(())
     }
 
-    /// Verify that the following fields are unique among the members of the group: signature_key
-    fn validate_signature_key_unique(
+    async fn validate_credential(
         &self,
-        tree: &TreeSync,
+        backend: &impl OpenMlsCryptoProvider,
     ) -> Result<(), LeafNodeValidationError> {
-        if !tree.raw_leaves().map(LeafNode::signature_key).all_unique() {
-            return Err(LeafNodeValidationError::SignatureKeyAlreadyInUse);
-        }
-        Ok(())
+        Ok(self.credential().validate(backend).await?)
     }
-    /// Verify that the following fields are unique among the members of the group: encryption_key
-    fn validate_encryption_key_unique(
+
+    /// Verify that the following fields are unique among the members of the group: signature_key
+    fn validate_signature_encryption_key_unique(
         &self,
         tree: &TreeSync,
     ) -> Result<(), LeafNodeValidationError> {
-        if !tree.raw_leaves().map(LeafNode::encryption_key).all_unique() {
-            return Err(LeafNodeValidationError::EncryptionKeyAlreadyInUse);
+        let size = tree.tree_size().leaf_count() as usize;
+        let mut used_signature_keys = HashSet::with_capacity(size);
+        let mut used_encryption_keys = HashSet::with_capacity(size);
+        for ln in tree.raw_leaves() {
+            if !used_signature_keys.insert(ln.signature_key()) {
+                return Err(LeafNodeValidationError::SignatureKeyAlreadyInUse);
+            }
+            if !used_encryption_keys.insert(ln.encryption_key()) {
+                return Err(LeafNodeValidationError::EncryptionKeyAlreadyInUse);
+            }
         }
-
         Ok(())
     }
 

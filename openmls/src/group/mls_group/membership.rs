@@ -45,17 +45,18 @@ impl MlsGroup {
         self.is_operational()?;
 
         // Create inline add proposals from key packages
-        let inline_proposals = key_packages
-            .into_iter()
-            .map(|key_package| {
-                let key_package = key_package.validate(
-                    backend.crypto(),
+        let mut inline_proposals = Vec::with_capacity(key_packages.len());
+        for key_package in key_packages.into_iter() {
+            let key_package = key_package
+                .validate(
+                    backend,
                     ProtocolVersion::Mls10,
                     self.group().public_group(),
-                )?;
-                Ok(Proposal::Add(AddProposal { key_package }))
-            })
-            .collect::<Result<Vec<_>, AddMembersError<KeyStore::Error>>>()?;
+                    true,
+                )
+                .await?;
+            inline_proposals.push(Proposal::Add(AddProposal { key_package }));
+        }
 
         // Create Commit over all proposals
         // TODO #751
@@ -108,7 +109,6 @@ impl MlsGroup {
     /// The [Welcome] is [Some] when the queue of pending proposals contained
     /// add proposals
     /// The [GroupInfo] is [Some] if the group has the `use_ratchet_tree_extension` flag set.
-
     ///
     /// Returns an error if there is a pending commit.
     // FIXME: #1217

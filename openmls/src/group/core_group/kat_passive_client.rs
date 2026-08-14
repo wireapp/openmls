@@ -115,6 +115,7 @@ pub async fn run_test_vector(test_vector: PassiveClientWelcomeTestVector) {
         warn!("Skipping {}", cipher_suite);
         return;
     }
+    info!("Ciphersuite: {cipher_suite}");
 
     let group_config = MlsGroupConfig::builder()
         .crypto_config(CryptoConfig::with_default_version(cipher_suite))

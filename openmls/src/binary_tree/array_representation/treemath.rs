@@ -58,8 +58,8 @@ impl LeafNodeIndex {
     }
 
     /// Warning: Only use when the node index represents a leaf node
-    fn from_tree_index(node_index: u32) -> Self {
-        debug_assert!(node_index % 2 == 0);
+    pub fn from_tree_index(node_index: u32) -> Self {
+        debug_assert!(node_index.is_multiple_of(2));
         LeafNodeIndex(node_index / 2)
     }
 }
@@ -140,7 +140,7 @@ pub enum TreeNodeIndex {
 impl TreeNodeIndex {
     /// Create a new `TreeNodeIndex` from a `u32`.
     fn new(index: u32) -> Self {
-        if index % 2 == 0 {
+        if index.is_multiple_of(2) {
             TreeNodeIndex::Leaf(LeafNodeIndex::from_tree_index(index))
         } else {
             TreeNodeIndex::Parent(ParentNodeIndex::from_tree_index(index))
@@ -239,7 +239,7 @@ impl TreeSize {
     pub(super) fn dec(&mut self) {
         debug_assert!(self.0 >= 2);
         if self.0 >= 2 {
-            self.0 = (self.0 + 1) / 2 - 1;
+            self.0 = self.0.div_ceil(2) - 1;
         } else {
             self.0 = 0;
         }

@@ -76,7 +76,7 @@ struct LeafNodeInfoTest {
     signature_keypair: SignatureKeyPair,
 }
 
-pub fn run_test_vector(test: TreeKemTest, backend: &impl OpenMlsCryptoProvider) {
+pub async fn run_test_vector(test: TreeKemTest, backend: &impl OpenMlsCryptoProvider) {
     // Skip unsupported cipher suites (for now).
     let ciphersuite = Ciphersuite::try_from(test.cipher_suite).unwrap();
 
@@ -98,7 +98,9 @@ pub fn run_test_vector(test: TreeKemTest, backend: &impl OpenMlsCryptoProvider) 
             .into_verified(ciphersuite, backend.crypto(), group_id)
             .unwrap();
 
-        TreeSync::from_ratchet_tree(backend, ciphersuite, ratchet_tree).unwrap()
+        TreeSync::from_ratchet_tree(backend, ciphersuite, ratchet_tree, group_id, true, true)
+            .await
+            .unwrap()
     };
 
     let full_leaf_nodes = {
@@ -379,14 +381,14 @@ fn apply_update_path(
     commit_secret
 }
 
-#[test]
-fn read_test_vectors_treekem() {
+#[async_std::test]
+async fn read_test_vectors_treekem() {
     let _ = pretty_env_logger::try_init();
     let tests: Vec<TreeKemTest> = read("test_vectors/treekem.json");
 
     let backend = OpenMlsRustCrypto::default();
 
     for test in tests.into_iter() {
-        run_test_vector(test, &backend);
+        run_test_vector(test, &backend).await;
     }
 }

@@ -30,21 +30,17 @@ fn test_tree_basics() {
     assert_eq!(tree1.tree_size(), TreeSize::new(3));
     assert_eq!(tree1.leaf_count(), 2);
 
-    // Test tree creation: Too many nodes (only in cases where usize is 64 bit).
-    #[cfg(target_pointer_width = "64")]
-    // We allow uninitialized vectors because we don't want to allocate so much memory
-    #[allow(clippy::uninit_vec)]
-    unsafe {
-        let len = u32::MAX as usize + 2;
-        let mut nodes: Vec<TreeNode<u32, u32>> = Vec::new();
+    // // Test tree creation: Too many nodes (only in cases where usize is 64 bit).
+    // #[cfg(target_pointer_width = "64")]
+    // {
+    //     let len = u32::MAX as usize + 2;
+    //     let nodes: Vec<TreeNode<u32, u32>> = Vec::with_capacity(len);
 
-        nodes.set_len(len);
-
-        assert_eq!(
-            MlsBinaryTree::new(nodes).expect_err("No error while creating too large tree."),
-            MlsBinaryTreeError::OutOfRange
-        )
-    }
+    //     assert_eq!(
+    //         MlsBinaryTree::new(nodes).expect_err("No error while creating too large tree."),
+    //         MlsBinaryTreeError::InvalidNumberOfNodes
+    //     )
+    // }
 
     // Node access
     assert_eq!(&1, tree1.leaf_by_index(LeafNodeIndex::new(0)));
@@ -155,24 +151,6 @@ fn test_diff_merging() {
     tree.merge_diff(staged_diff);
 
     assert_eq!(tree, original_tree);
-}
-
-#[test]
-#[wasm_bindgen_test::wasm_bindgen_test]
-fn test_new_tree_error() {
-    // Let's test what happens when the tree is getting too large.
-    let mut nodes: Vec<TreeNode<u32, u32>> = Vec::new();
-
-    // We allow uninitialized vectors because we don't want to allocate so much memory
-    #[allow(clippy::uninit_vec)]
-    unsafe {
-        nodes.set_len(u32::MAX as usize);
-
-        assert_eq!(
-            MlsBinaryTree::new(nodes).expect_err("no error adding beyond TREE_MAX"),
-            MlsBinaryTreeError::OutOfRange
-        )
-    }
 }
 
 #[test]

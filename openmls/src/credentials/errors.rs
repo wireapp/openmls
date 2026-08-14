@@ -3,10 +3,11 @@
 //! This module exposes [`CredentialError`].
 
 use crate::error::LibraryError;
+use openmls_traits::authentication_service::CredentialAuthenticationStatus;
 use thiserror::Error;
 
 /// An error that occurs in methods of a [`super::Credential`].
-#[derive(Error, Debug, PartialEq, Clone)]
+#[derive(Error, Debug, PartialEq, Eq, Clone)]
 pub enum CredentialError {
     /// A library error occurred.
     #[error(transparent)]
@@ -26,4 +27,6 @@ pub enum CredentialError {
     /// x509 certificate chain is either unordered or a child is missigned by its issuer
     #[error("Invalid x509 certificate chain.")]
     InvalidCertificateChain,
+    #[error("The Authentication Service callback rejected this credential for the following reason: {0}")]
+    AuthenticationServiceValidationFailure(CredentialAuthenticationStatus),
 }

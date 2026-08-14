@@ -14,7 +14,7 @@ use crate::{
         config::CryptoConfig, core_group::create_commit_params::CommitType,
         errors::CreateCommitError,
     },
-    key_packages::{KeyPackage, KeyPackageCreationResult},
+    key_packages::{KeyPackage, KeyPackageSecretEncapsulation},
     schedule::CommitSecret,
     treesync::{
         node::{
@@ -37,7 +37,7 @@ pub(crate) struct PathComputationResult {
     pub(crate) new_keypairs: Vec<EncryptionKeyPair>,
 }
 
-impl<'a> PublicGroupDiff<'a> {
+impl PublicGroupDiff<'_> {
     #[allow(clippy::too_many_arguments)]
     pub(crate) fn compute_path<KeyStore: OpenMlsKeyStore>(
         &mut self,
@@ -58,7 +58,7 @@ impl<'a> PublicGroupDiff<'a> {
             // If this is an external commit we add a fresh leaf to the diff.
             // Generate a KeyPackageBundle to generate a payload from for later
             // path generation.
-            let KeyPackageCreationResult {
+            let KeyPackageSecretEncapsulation {
                 key_package,
                 encryption_keypair,
                 // The KeyPackage is immediately put into the group. No need for
@@ -74,7 +74,7 @@ impl<'a> PublicGroupDiff<'a> {
                             Ciphersuite::MLS_128_DHKEMP256_AES128GCM_SHA256_P256,
                             Ciphersuite::MLS_128_DHKEMX25519_CHACHA20POLY1305_SHA256_Ed25519,
                             Ciphersuite::MLS_256_DHKEMP384_AES256GCM_SHA384_P384,
-                            Ciphersuite::MLS_128_X25519KYBER768DRAFT00_AES128GCM_SHA256_Ed25519,
+                            Ciphersuite::MLS_256_DHKEMP521_AES256GCM_SHA512_P521,
                         ]),
                         Some(&[]),
                         Some(&[]),
