@@ -402,6 +402,9 @@ pub enum ProposalError<KeyStoreError> {
     /// See [`ProposeRemoveMemberError`] for more details.
     #[error(transparent)]
     ProposeRemoveMemberError(#[from] ProposeRemoveMemberError),
+    /// See [`ProposeGroupContextExtensionError`] for more details.
+    #[error(transparent)]
+    ProposeGroupContextExtensionError(#[from] ProposeGroupContextExtensionError),
     /// See [`MlsGroupStateError`] for more details.
     #[error(transparent)]
     GroupStateError(#[from] MlsGroupStateError),
