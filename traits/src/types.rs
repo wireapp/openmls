@@ -232,12 +232,6 @@ pub enum HpkeKdfType {
 
     /// HKDF SHA 512
     HkdfSha512 = 0x0003,
-
-    /// SHAKE-128.
-    Shake128 = 0x0010,
-
-    /// SHAKE-256.
-    Shake256 = 0x0011,
 }
 
 /// AEAD Types for HPKE.
@@ -753,12 +747,6 @@ mod pq_enum_tests {
         let _ = HpkeKemType::MlKem1024P384;
         let _ = HpkeKemType::MlKem768;
         let _ = HpkeKemType::MlKem1024;
-    }
-
-    #[test]
-    fn hpke_kdf_type_pq_variants_exist() {
-        let _ = HpkeKdfType::Shake128;
-        let _ = HpkeKdfType::Shake256;
     }
 
     #[test]
