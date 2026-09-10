@@ -24,9 +24,12 @@ p521 = "0.14"
 secrecy = { version = "0.8", features = ["serde"] }
 rand_core = "0.10"
 getrandom = { version = "0.4", features = ["wasm_js"] }
+ml-dsa = { version = "0.1.1", default-features = false, features = ["alloc", "zeroize"] }
+zeroize = "1"
 
 [dev-dependencies]
 rand = "0.10"
+openmls_rust_crypto = { version = "0.2.0", path = "../openmls_rust_crypto" }
 
 [features]
 clonable = [] # Make the keys clonable

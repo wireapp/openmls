@@ -1,5 +1,26 @@
 use crate::types::{Error, SignatureScheme};
 
+/// Stored ML-DSA seed length.
+const MLDSA_SEED_LEN: usize = 32;
+
+/// Sign with deterministic ML-DSA and an empty context.
+fn mldsa_sign<P: ml_dsa::MlDsaParams>(payload: &[u8], private: &[u8]) -> Result<Vec<u8>, Error> {
+    use ml_dsa::SignatureEncoding;
+    if private.len() != MLDSA_SEED_LEN {
+        return Err(Error::SigningError);
+    }
+    // B32 is not Zeroize, so keep the seed in a zeroizing byte array.
+    let seed = zeroize::Zeroizing::new(
+        <[u8; MLDSA_SEED_LEN]>::try_from(private).map_err(|_| Error::SigningError)?,
+    );
+    let signing_key = ml_dsa::SigningKey::<P>::from_seed(&ml_dsa::B32::from(*seed));
+    let signature = signing_key
+        .expanded_key()
+        .sign_deterministic(payload, b"")
+        .map_err(|_| Error::SigningError)?;
+    Ok(signature.to_vec())
+}
+
 /// Sign the provided payload and return a signature.
 pub trait Signer {
     /// Sign the provided payload.
@@ -68,6 +89,9 @@ impl<T: DefaultSigner> Signer for T {
                 let signature = k.try_sign(payload).map_err(|_| Error::SigningError)?;
                 Ok(signature.to_bytes().into())
             }
+            SignatureScheme::MLDSA44 => mldsa_sign::<ml_dsa::MlDsa44>(payload, self.private_key()),
+            SignatureScheme::MLDSA65 => mldsa_sign::<ml_dsa::MlDsa65>(payload, self.private_key()),
+            SignatureScheme::MLDSA87 => mldsa_sign::<ml_dsa::MlDsa87>(payload, self.private_key()),
             _ => Err(Error::SigningError),
         }
     }
