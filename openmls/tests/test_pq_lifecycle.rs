@@ -314,148 +314,35 @@ async fn run_removed_member_cannot_decrypt(ciphersuite: Ciphersuite, backend: &O
     );
 }
 
+#[rstest::rstest]
+#[case(Ciphersuite::MLS_128_MLKEM768X25519_AES128GCM_SHA256_Ed25519)]
+#[case(Ciphersuite::MLS_192_MLKEM768_AES256GCM_SHA384_MLDSA65)]
 #[tokio::test]
-async fn pq_wrong_epoch_rejected_f001_ed25519() {
-    run_wrong_epoch_rejected(
-        Ciphersuite::MLS_128_MLKEM768X25519_AES128GCM_SHA256_Ed25519,
-        &OpenMlsRustCrypto::default(),
-    )
-    .await;
+async fn pq_wrong_epoch_rejected(#[case] ciphersuite: Ciphersuite) {
+    run_wrong_epoch_rejected(ciphersuite, &OpenMlsRustCrypto::default()).await;
 }
 
+#[rstest::rstest]
+#[case(Ciphersuite::MLS_128_MLKEM768X25519_AES128GCM_SHA256_Ed25519)]
+#[case(Ciphersuite::MLS_192_MLKEM768_AES256GCM_SHA384_MLDSA65)]
 #[tokio::test]
-async fn pq_wrong_epoch_rejected_f008_mldsa65() {
-    run_wrong_epoch_rejected(
-        Ciphersuite::MLS_192_MLKEM768_AES256GCM_SHA384_MLDSA65,
-        &OpenMlsRustCrypto::default(),
-    )
-    .await;
+async fn pq_removed_member_cannot_decrypt(#[case] ciphersuite: Ciphersuite) {
+    run_removed_member_cannot_decrypt(ciphersuite, &OpenMlsRustCrypto::default()).await;
 }
 
+#[rstest::rstest]
+#[case(Ciphersuite::MLS_128_MLKEM768X25519_AES128GCM_SHA256_Ed25519)]
+#[case(Ciphersuite::MLS_128_MLKEM768X25519_AES256GCM_SHA384_Ed25519)]
+#[case(Ciphersuite::MLS_128_MLKEM768P256_AES128GCM_SHA256_P256)]
+#[case(Ciphersuite::MLS_128_MLKEM768P256_AES256GCM_SHA384_P256)]
+#[case(Ciphersuite::MLS_192_MLKEM1024P384_AES256GCM_SHA384_P384)]
+#[case(Ciphersuite::MLS_128_MLKEM768_AES256GCM_SHA384_P256)]
+#[case(Ciphersuite::MLS_192_MLKEM1024_AES256GCM_SHA384_P384)]
+#[case(Ciphersuite::MLS_192_MLKEM768_AES256GCM_SHA384_MLDSA65)]
+#[case(Ciphersuite::MLS_256_MLKEM1024_AES256GCM_SHA384_MLDSA87)]
+#[case(Ciphersuite::MLS_128_MLKEM768_AES256GCM_SHA384_Ed25519)]
+#[case(Ciphersuite::MLS_128_MLKEM768X25519_CHACHA20POLY1305_SHA384_MLDSA44)]
 #[tokio::test]
-async fn pq_removed_member_cannot_decrypt_f001_ed25519() {
-    run_removed_member_cannot_decrypt(
-        Ciphersuite::MLS_128_MLKEM768X25519_AES128GCM_SHA256_Ed25519,
-        &OpenMlsRustCrypto::default(),
-    )
-    .await;
-}
-
-#[tokio::test]
-async fn pq_removed_member_cannot_decrypt_f008_mldsa65() {
-    run_removed_member_cannot_decrypt(
-        Ciphersuite::MLS_192_MLKEM768_AES256GCM_SHA384_MLDSA65,
-        &OpenMlsRustCrypto::default(),
-    )
-    .await;
-}
-
-/// 0xF001 - X-Wing (MlKem768 + X25519) / Ed25519 / AES-128-GCM / SHA-256
-#[tokio::test]
-async fn pq_lifecycle_f001_mlkem768x25519_ed25519() {
-    run_lifecycle(
-        Ciphersuite::MLS_128_MLKEM768X25519_AES128GCM_SHA256_Ed25519,
-        &OpenMlsRustCrypto::default(),
-    )
-    .await;
-}
-
-/// 0xF002 - X-Wing (MlKem768 + X25519) / Ed25519 / AES-256-GCM / SHA-384
-#[tokio::test]
-async fn pq_lifecycle_f002_mlkem768x25519_ed25519() {
-    run_lifecycle(
-        Ciphersuite::MLS_128_MLKEM768X25519_AES256GCM_SHA384_Ed25519,
-        &OpenMlsRustCrypto::default(),
-    )
-    .await;
-}
-
-/// 0xF003 - MlKem768P256 / P-256 / AES-128-GCM / SHA-256
-#[tokio::test]
-async fn pq_lifecycle_f003_mlkem768p256_p256() {
-    run_lifecycle(
-        Ciphersuite::MLS_128_MLKEM768P256_AES128GCM_SHA256_P256,
-        &OpenMlsRustCrypto::default(),
-    )
-    .await;
-}
-
-/// 0xF004 - MlKem768P256 / P-256 / AES-256-GCM / SHA-384
-#[tokio::test]
-async fn pq_lifecycle_f004_mlkem768p256_p256() {
-    run_lifecycle(
-        Ciphersuite::MLS_128_MLKEM768P256_AES256GCM_SHA384_P256,
-        &OpenMlsRustCrypto::default(),
-    )
-    .await;
-}
-
-/// 0xF005 - MlKem1024P384 / P-384 / AES-256-GCM / SHA-384
-#[tokio::test]
-async fn pq_lifecycle_f005_mlkem1024p384_p384() {
-    run_lifecycle(
-        Ciphersuite::MLS_192_MLKEM1024P384_AES256GCM_SHA384_P384,
-        &OpenMlsRustCrypto::default(),
-    )
-    .await;
-}
-
-/// 0xF006 - pure MlKem768 / P-256 / AES-256-GCM / SHA-384
-#[tokio::test]
-async fn pq_lifecycle_f006_mlkem768_p256() {
-    run_lifecycle(
-        Ciphersuite::MLS_128_MLKEM768_AES256GCM_SHA384_P256,
-        &OpenMlsRustCrypto::default(),
-    )
-    .await;
-}
-
-/// 0xF007 - pure MlKem1024 / P-384 / AES-256-GCM / SHA-384
-#[tokio::test]
-async fn pq_lifecycle_f007_mlkem1024_p384() {
-    run_lifecycle(
-        Ciphersuite::MLS_192_MLKEM1024_AES256GCM_SHA384_P384,
-        &OpenMlsRustCrypto::default(),
-    )
-    .await;
-}
-
-/// 0xF008 - MlKem768 / ML-DSA-65 / AES-256-GCM / SHA-384
-#[tokio::test]
-async fn pq_lifecycle_f008_mlkem768_mldsa65() {
-    run_lifecycle(
-        Ciphersuite::MLS_192_MLKEM768_AES256GCM_SHA384_MLDSA65,
-        &OpenMlsRustCrypto::default(),
-    )
-    .await;
-}
-
-/// 0xF009 - MlKem1024 / ML-DSA-87 / AES-256-GCM / SHA-384
-#[tokio::test]
-async fn pq_lifecycle_f009_mlkem1024_mldsa87() {
-    run_lifecycle(
-        Ciphersuite::MLS_256_MLKEM1024_AES256GCM_SHA384_MLDSA87,
-        &OpenMlsRustCrypto::default(),
-    )
-    .await;
-}
-
-/// 0xF00A - pure MlKem768 / Ed25519 / AES-256-GCM / SHA-384
-#[tokio::test]
-async fn pq_lifecycle_f00a_mlkem768_ed25519() {
-    run_lifecycle(
-        Ciphersuite::MLS_128_MLKEM768_AES256GCM_SHA384_Ed25519,
-        &OpenMlsRustCrypto::default(),
-    )
-    .await;
-}
-
-/// 0xF00B - X-Wing (MlKem768 + X25519) / ML-DSA-44 / ChaCha20Poly1305 / SHA-384
-#[tokio::test]
-async fn pq_lifecycle_f00b_mlkem768x25519_mldsa44() {
-    run_lifecycle(
-        Ciphersuite::MLS_128_MLKEM768X25519_CHACHA20POLY1305_SHA384_MLDSA44,
-        &OpenMlsRustCrypto::default(),
-    )
-    .await;
+async fn pq_lifecycle(#[case] ciphersuite: Ciphersuite) {
+    run_lifecycle(ciphersuite, &OpenMlsRustCrypto::default()).await;
 }

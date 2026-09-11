@@ -741,12 +741,12 @@ mod pq_enum_tests {
     use std::convert::TryFrom;
 
     #[test]
-    fn hpke_kem_type_tryfrom_pq_variants() {
-        let _ = HpkeKemType::MlKem768X25519;
-        let _ = HpkeKemType::MlKem768P256;
-        let _ = HpkeKemType::MlKem1024P384;
-        let _ = HpkeKemType::MlKem768;
-        let _ = HpkeKemType::MlKem1024;
+    fn pq_kem_codepoints_are_stable() {
+        assert_eq!(HpkeKemType::MlKem768 as u16, 0x0041);
+        assert_eq!(HpkeKemType::MlKem1024 as u16, 0x0042);
+        assert_eq!(HpkeKemType::MlKem768P256 as u16, 0x0050);
+        assert_eq!(HpkeKemType::MlKem1024P384 as u16, 0x0051);
+        assert_eq!(HpkeKemType::MlKem768X25519 as u16, 0x647a);
     }
 
     #[test]
