@@ -1346,4 +1346,59 @@ mod pq_hpke_tests {
             );
         }
     }
+
+    // supports, supported_ciphersuites and the lookup table are three manual lists; this is the only check that they agree
+    #[test]
+    fn every_supported_ciphersuite_reaches_every_hpke_entry_point() {
+        let provider = RustCrypto::default();
+        for ciphersuite in provider.supported_ciphersuites() {
+            provider
+                .supports(ciphersuite)
+                .unwrap_or_else(|e| panic!("supports({ciphersuite:?}): {e:?}"));
+            let kp = provider
+                .derive_hpke_keypair(ciphersuite.hpke_config(), &[0x42u8; 64])
+                .unwrap_or_else(|e| panic!("derive_hpke_keypair({ciphersuite:?}): {e:?}"));
+            let sealed = provider
+                .hpke_seal(
+                    ciphersuite.hpke_config(),
+                    &kp.public,
+                    b"info",
+                    b"aad",
+                    b"message",
+                )
+                .unwrap_or_else(|e| panic!("hpke_seal({ciphersuite:?}): {e:?}"));
+            let opened = provider
+                .hpke_open(
+                    ciphersuite.hpke_config(),
+                    &sealed,
+                    &kp.private,
+                    b"info",
+                    b"aad",
+                )
+                .unwrap_or_else(|e| panic!("hpke_open({ciphersuite:?}): {e:?}"));
+            assert_eq!(opened, b"message");
+            let (enc, sender_secret) = provider
+                .hpke_setup_sender_and_export(
+                    ciphersuite.hpke_config(),
+                    &kp.public,
+                    b"info",
+                    b"exporter",
+                    32,
+                )
+                .unwrap_or_else(|e| panic!("hpke_setup_sender_and_export({ciphersuite:?}): {e:?}"));
+            let receiver_secret = provider
+                .hpke_setup_receiver_and_export(
+                    ciphersuite.hpke_config(),
+                    &enc,
+                    &kp.private,
+                    b"info",
+                    b"exporter",
+                    32,
+                )
+                .unwrap_or_else(|e| {
+                    panic!("hpke_setup_receiver_and_export({ciphersuite:?}): {e:?}")
+                });
+            assert_eq!(&*sender_secret, &*receiver_secret);
+        }
+    }
 }
