@@ -93,6 +93,57 @@ fn normalize_p521_secret_key(sk: &[u8]) -> zeroize::Zeroizing<[u8; 66]> {
     sk_buf
 }
 
+macro_rules! hpke_dispatch {
+    ($config:expr, $f:ident $(, $arg:expr)* $(,)?) => {
+        match $config {
+            HpkeConfig(HpkeKemType::DhKem25519, HpkeKdfType::HkdfSha256, HpkeAeadType::AesGcm128) =>
+                hpke_core::$f::<hpke::aead::AesGcm128, hpke::kdf::HkdfSha256, hpke::kem::X25519HkdfSha256>($($arg),*),
+            HpkeConfig(HpkeKemType::DhKem25519, HpkeKdfType::HkdfSha256, HpkeAeadType::ChaCha20Poly1305) =>
+                hpke_core::$f::<hpke::aead::ChaCha20Poly1305, hpke::kdf::HkdfSha256, hpke::kem::X25519HkdfSha256>($($arg),*),
+            HpkeConfig(HpkeKemType::DhKemP256, HpkeKdfType::HkdfSha256, HpkeAeadType::AesGcm128) =>
+                hpke_core::$f::<hpke::aead::AesGcm128, hpke::kdf::HkdfSha256, hpke::kem::DhP256HkdfSha256>($($arg),*),
+            HpkeConfig(HpkeKemType::DhKemP384, HpkeKdfType::HkdfSha384, HpkeAeadType::AesGcm256) =>
+                hpke_core::$f::<hpke::aead::AesGcm256, hpke::kdf::HkdfSha384, hpke::kem::DhP384HkdfSha384>($($arg),*),
+            HpkeConfig(HpkeKemType::DhKemP521, HpkeKdfType::HkdfSha512, HpkeAeadType::AesGcm256) =>
+                hpke_core::$f::<hpke::aead::AesGcm256, hpke::kdf::HkdfSha512, hpke::kem::DhP521HkdfSha512>($($arg),*),
+            HpkeConfig(HpkeKemType::MlKem768X25519, HpkeKdfType::HkdfSha256, HpkeAeadType::AesGcm128) =>
+                hpke_core::$f::<hpke::aead::AesGcm128, hpke::kdf::HkdfSha256, hpke::kem::XWing>($($arg),*),
+            HpkeConfig(HpkeKemType::MlKem768X25519, HpkeKdfType::HkdfSha384, HpkeAeadType::AesGcm256) =>
+                hpke_core::$f::<hpke::aead::AesGcm256, hpke::kdf::HkdfSha384, hpke::kem::XWing>($($arg),*),
+            HpkeConfig(HpkeKemType::MlKem768X25519, HpkeKdfType::HkdfSha384, HpkeAeadType::ChaCha20Poly1305) =>
+                hpke_core::$f::<hpke::aead::ChaCha20Poly1305, hpke::kdf::HkdfSha384, hpke::kem::XWing>($($arg),*),
+            HpkeConfig(HpkeKemType::MlKem768P256, HpkeKdfType::HkdfSha256, HpkeAeadType::AesGcm128) =>
+                hpke_core::$f::<hpke::aead::AesGcm128, hpke::kdf::HkdfSha256, hpke::kem::MlKem768P256>($($arg),*),
+            HpkeConfig(HpkeKemType::MlKem768P256, HpkeKdfType::HkdfSha384, HpkeAeadType::AesGcm256) =>
+                hpke_core::$f::<hpke::aead::AesGcm256, hpke::kdf::HkdfSha384, hpke::kem::MlKem768P256>($($arg),*),
+            HpkeConfig(HpkeKemType::MlKem1024P384, HpkeKdfType::HkdfSha384, HpkeAeadType::AesGcm256) =>
+                hpke_core::$f::<hpke::aead::AesGcm256, hpke::kdf::HkdfSha384, hpke::kem::MlKem1024P384>($($arg),*),
+            HpkeConfig(HpkeKemType::MlKem768, HpkeKdfType::HkdfSha384, HpkeAeadType::AesGcm256) =>
+                hpke_core::$f::<hpke::aead::AesGcm256, hpke::kdf::HkdfSha384, hpke::kem::MlKem768>($($arg),*),
+            HpkeConfig(HpkeKemType::MlKem1024, HpkeKdfType::HkdfSha384, HpkeAeadType::AesGcm256) =>
+                hpke_core::$f::<hpke::aead::AesGcm256, hpke::kdf::HkdfSha384, hpke::kem::MlKem1024>($($arg),*),
+            _ => Err(CryptoError::UnsupportedKem),
+        }
+    };
+}
+
+macro_rules! hpke_kem_dispatch {
+    ($kem:expr, $f:ident $(, $arg:expr)* $(,)?) => {
+        match $kem {
+            HpkeKemType::DhKem25519 => hpke_core::$f::<hpke::kem::X25519HkdfSha256>($($arg),*),
+            HpkeKemType::DhKemP256 => hpke_core::$f::<hpke::kem::DhP256HkdfSha256>($($arg),*),
+            HpkeKemType::DhKemP384 => hpke_core::$f::<hpke::kem::DhP384HkdfSha384>($($arg),*),
+            HpkeKemType::DhKemP521 => hpke_core::$f::<hpke::kem::DhP521HkdfSha512>($($arg),*),
+            HpkeKemType::MlKem768X25519 => hpke_core::$f::<hpke::kem::XWing>($($arg),*),
+            HpkeKemType::MlKem768P256 => hpke_core::$f::<hpke::kem::MlKem768P256>($($arg),*),
+            HpkeKemType::MlKem1024P384 => hpke_core::$f::<hpke::kem::MlKem1024P384>($($arg),*),
+            HpkeKemType::MlKem768 => hpke_core::$f::<hpke::kem::MlKem768>($($arg),*),
+            HpkeKemType::MlKem1024 => hpke_core::$f::<hpke::kem::MlKem1024>($($arg),*),
+            HpkeKemType::DhKem448 => Err(CryptoError::UnsupportedKem),
+        }
+    };
+}
+
 impl OpenMlsCrypto for RustCrypto {
     fn supports(&self, ciphersuite: Ciphersuite) -> Result<(), CryptoError> {
         match ciphersuite {
@@ -497,125 +548,8 @@ impl OpenMlsCrypto for RustCrypto {
         let mut rng = self
             .rng
             .write()
-            .map_err(|_| CryptoError::HpkeEncryptionError)?;
-        match config {
-            HpkeConfig(
-                HpkeKemType::DhKem25519,
-                HpkeKdfType::HkdfSha256,
-                HpkeAeadType::AesGcm128,
-            ) => hpke_core::hpke_seal::<
-                hpke::aead::AesGcm128,
-                hpke::kdf::HkdfSha256,
-                hpke::kem::X25519HkdfSha256,
-            >(pk_r, info, aad, ptxt, &mut rng),
-            HpkeConfig(
-                HpkeKemType::DhKem25519,
-                HpkeKdfType::HkdfSha256,
-                HpkeAeadType::ChaCha20Poly1305,
-            ) => hpke_core::hpke_seal::<
-                hpke::aead::ChaCha20Poly1305,
-                hpke::kdf::HkdfSha256,
-                hpke::kem::X25519HkdfSha256,
-            >(pk_r, info, aad, ptxt, &mut rng),
-            HpkeConfig(
-                HpkeKemType::DhKemP256,
-                HpkeKdfType::HkdfSha256,
-                HpkeAeadType::AesGcm128,
-            ) => hpke_core::hpke_seal::<
-                hpke::aead::AesGcm128,
-                hpke::kdf::HkdfSha256,
-                hpke::kem::DhP256HkdfSha256,
-            >(pk_r, info, aad, ptxt, &mut rng),
-            HpkeConfig(
-                HpkeKemType::DhKemP384,
-                HpkeKdfType::HkdfSha384,
-                HpkeAeadType::AesGcm256,
-            ) => hpke_core::hpke_seal::<
-                hpke::aead::AesGcm256,
-                hpke::kdf::HkdfSha384,
-                hpke::kem::DhP384HkdfSha384,
-            >(pk_r, info, aad, ptxt, &mut rng),
-            HpkeConfig(
-                HpkeKemType::DhKemP521,
-                HpkeKdfType::HkdfSha512,
-                HpkeAeadType::AesGcm256,
-            ) => hpke_core::hpke_seal::<
-                hpke::aead::AesGcm256,
-                hpke::kdf::HkdfSha512,
-                hpke::kem::DhP521HkdfSha512,
-            >(pk_r, info, aad, ptxt, &mut rng),
-            HpkeConfig(
-                HpkeKemType::MlKem768X25519,
-                HpkeKdfType::HkdfSha256,
-                HpkeAeadType::AesGcm128,
-            ) => {
-                hpke_core::hpke_seal::<hpke::aead::AesGcm128, hpke::kdf::HkdfSha256, hpke::kem::XWing>(
-                    pk_r, info, aad, ptxt, &mut rng,
-                )
-            }
-            HpkeConfig(
-                HpkeKemType::MlKem768X25519,
-                HpkeKdfType::HkdfSha384,
-                HpkeAeadType::AesGcm256,
-            ) => {
-                hpke_core::hpke_seal::<hpke::aead::AesGcm256, hpke::kdf::HkdfSha384, hpke::kem::XWing>(
-                    pk_r, info, aad, ptxt, &mut rng,
-                )
-            }
-            HpkeConfig(
-                HpkeKemType::MlKem768X25519,
-                HpkeKdfType::HkdfSha384,
-                HpkeAeadType::ChaCha20Poly1305,
-            ) => hpke_core::hpke_seal::<
-                hpke::aead::ChaCha20Poly1305,
-                hpke::kdf::HkdfSha384,
-                hpke::kem::XWing,
-            >(pk_r, info, aad, ptxt, &mut rng),
-            HpkeConfig(
-                HpkeKemType::MlKem768P256,
-                HpkeKdfType::HkdfSha256,
-                HpkeAeadType::AesGcm128,
-            ) => hpke_core::hpke_seal::<
-                hpke::aead::AesGcm128,
-                hpke::kdf::HkdfSha256,
-                hpke::kem::MlKem768P256,
-            >(pk_r, info, aad, ptxt, &mut rng),
-            HpkeConfig(
-                HpkeKemType::MlKem768P256,
-                HpkeKdfType::HkdfSha384,
-                HpkeAeadType::AesGcm256,
-            ) => hpke_core::hpke_seal::<
-                hpke::aead::AesGcm256,
-                hpke::kdf::HkdfSha384,
-                hpke::kem::MlKem768P256,
-            >(pk_r, info, aad, ptxt, &mut rng),
-            HpkeConfig(
-                HpkeKemType::MlKem1024P384,
-                HpkeKdfType::HkdfSha384,
-                HpkeAeadType::AesGcm256,
-            ) => hpke_core::hpke_seal::<
-                hpke::aead::AesGcm256,
-                hpke::kdf::HkdfSha384,
-                hpke::kem::MlKem1024P384,
-            >(pk_r, info, aad, ptxt, &mut rng),
-            HpkeConfig(HpkeKemType::MlKem768, HpkeKdfType::HkdfSha384, HpkeAeadType::AesGcm256) => {
-                hpke_core::hpke_seal::<
-                    hpke::aead::AesGcm256,
-                    hpke::kdf::HkdfSha384,
-                    hpke::kem::MlKem768,
-                >(pk_r, info, aad, ptxt, &mut rng)
-            }
-            HpkeConfig(
-                HpkeKemType::MlKem1024,
-                HpkeKdfType::HkdfSha384,
-                HpkeAeadType::AesGcm256,
-            ) => hpke_core::hpke_seal::<
-                hpke::aead::AesGcm256,
-                hpke::kdf::HkdfSha384,
-                hpke::kem::MlKem1024,
-            >(pk_r, info, aad, ptxt, &mut rng),
-            _ => Err(CryptoError::UnsupportedKem),
-        }
+            .map_err(|_| CryptoError::InsufficientRandomness)?;
+        hpke_dispatch!(config, hpke_seal, pk_r, info, aad, ptxt, &mut rng)
     }
 
     fn hpke_open(
@@ -626,204 +560,15 @@ impl OpenMlsCrypto for RustCrypto {
         info: &[u8],
         aad: &[u8],
     ) -> Result<Vec<u8>, CryptoError> {
-        let plaintext = match config {
-            HpkeConfig(
-                HpkeKemType::DhKem25519,
-                HpkeKdfType::HkdfSha256,
-                HpkeAeadType::AesGcm128,
-            ) => hpke_core::hpke_open::<
-                hpke::aead::AesGcm128,
-                hpke::kdf::HkdfSha256,
-                hpke::kem::X25519HkdfSha256,
-            >(
-                sk_r,
-                input.kem_output.as_slice(),
-                info,
-                aad,
-                input.ciphertext.as_slice(),
-            )?,
-            HpkeConfig(
-                HpkeKemType::DhKem25519,
-                HpkeKdfType::HkdfSha256,
-                HpkeAeadType::ChaCha20Poly1305,
-            ) => hpke_core::hpke_open::<
-                hpke::aead::ChaCha20Poly1305,
-                hpke::kdf::HkdfSha256,
-                hpke::kem::X25519HkdfSha256,
-            >(
-                sk_r,
-                input.kem_output.as_slice(),
-                info,
-                aad,
-                input.ciphertext.as_slice(),
-            )?,
-            HpkeConfig(
-                HpkeKemType::DhKemP256,
-                HpkeKdfType::HkdfSha256,
-                HpkeAeadType::AesGcm128,
-            ) => hpke_core::hpke_open::<
-                hpke::aead::AesGcm128,
-                hpke::kdf::HkdfSha256,
-                hpke::kem::DhP256HkdfSha256,
-            >(
-                sk_r,
-                input.kem_output.as_slice(),
-                info,
-                aad,
-                input.ciphertext.as_slice(),
-            )?,
-            HpkeConfig(
-                HpkeKemType::DhKemP384,
-                HpkeKdfType::HkdfSha384,
-                HpkeAeadType::AesGcm256,
-            ) => hpke_core::hpke_open::<
-                hpke::aead::AesGcm256,
-                hpke::kdf::HkdfSha384,
-                hpke::kem::DhP384HkdfSha384,
-            >(
-                sk_r,
-                input.kem_output.as_slice(),
-                info,
-                aad,
-                input.ciphertext.as_slice(),
-            )?,
-            HpkeConfig(
-                HpkeKemType::DhKemP521,
-                HpkeKdfType::HkdfSha512,
-                HpkeAeadType::AesGcm256,
-            ) => hpke_core::hpke_open::<
-                hpke::aead::AesGcm256,
-                hpke::kdf::HkdfSha512,
-                hpke::kem::DhP521HkdfSha512,
-            >(
-                sk_r,
-                input.kem_output.as_slice(),
-                info,
-                aad,
-                input.ciphertext.as_slice(),
-            )?,
-            HpkeConfig(
-                HpkeKemType::MlKem768X25519,
-                HpkeKdfType::HkdfSha256,
-                HpkeAeadType::AesGcm128,
-            ) => hpke_core::hpke_open::<
-                hpke::aead::AesGcm128,
-                hpke::kdf::HkdfSha256,
-                hpke::kem::XWing,
-            >(
-                sk_r,
-                input.kem_output.as_slice(),
-                info,
-                aad,
-                input.ciphertext.as_slice(),
-            )?,
-            HpkeConfig(
-                HpkeKemType::MlKem768X25519,
-                HpkeKdfType::HkdfSha384,
-                HpkeAeadType::AesGcm256,
-            ) => hpke_core::hpke_open::<
-                hpke::aead::AesGcm256,
-                hpke::kdf::HkdfSha384,
-                hpke::kem::XWing,
-            >(
-                sk_r,
-                input.kem_output.as_slice(),
-                info,
-                aad,
-                input.ciphertext.as_slice(),
-            )?,
-            HpkeConfig(
-                HpkeKemType::MlKem768X25519,
-                HpkeKdfType::HkdfSha384,
-                HpkeAeadType::ChaCha20Poly1305,
-            ) => hpke_core::hpke_open::<
-                hpke::aead::ChaCha20Poly1305,
-                hpke::kdf::HkdfSha384,
-                hpke::kem::XWing,
-            >(
-                sk_r,
-                input.kem_output.as_slice(),
-                info,
-                aad,
-                input.ciphertext.as_slice(),
-            )?,
-            HpkeConfig(
-                HpkeKemType::MlKem768P256,
-                HpkeKdfType::HkdfSha256,
-                HpkeAeadType::AesGcm128,
-            ) => hpke_core::hpke_open::<
-                hpke::aead::AesGcm128,
-                hpke::kdf::HkdfSha256,
-                hpke::kem::MlKem768P256,
-            >(
-                sk_r,
-                input.kem_output.as_slice(),
-                info,
-                aad,
-                input.ciphertext.as_slice(),
-            )?,
-            HpkeConfig(
-                HpkeKemType::MlKem768P256,
-                HpkeKdfType::HkdfSha384,
-                HpkeAeadType::AesGcm256,
-            ) => hpke_core::hpke_open::<
-                hpke::aead::AesGcm256,
-                hpke::kdf::HkdfSha384,
-                hpke::kem::MlKem768P256,
-            >(
-                sk_r,
-                input.kem_output.as_slice(),
-                info,
-                aad,
-                input.ciphertext.as_slice(),
-            )?,
-            HpkeConfig(
-                HpkeKemType::MlKem1024P384,
-                HpkeKdfType::HkdfSha384,
-                HpkeAeadType::AesGcm256,
-            ) => hpke_core::hpke_open::<
-                hpke::aead::AesGcm256,
-                hpke::kdf::HkdfSha384,
-                hpke::kem::MlKem1024P384,
-            >(
-                sk_r,
-                input.kem_output.as_slice(),
-                info,
-                aad,
-                input.ciphertext.as_slice(),
-            )?,
-            HpkeConfig(HpkeKemType::MlKem768, HpkeKdfType::HkdfSha384, HpkeAeadType::AesGcm256) => {
-                hpke_core::hpke_open::<
-                    hpke::aead::AesGcm256,
-                    hpke::kdf::HkdfSha384,
-                    hpke::kem::MlKem768,
-                >(
-                    sk_r,
-                    input.kem_output.as_slice(),
-                    info,
-                    aad,
-                    input.ciphertext.as_slice(),
-                )?
-            }
-            HpkeConfig(
-                HpkeKemType::MlKem1024,
-                HpkeKdfType::HkdfSha384,
-                HpkeAeadType::AesGcm256,
-            ) => hpke_core::hpke_open::<
-                hpke::aead::AesGcm256,
-                hpke::kdf::HkdfSha384,
-                hpke::kem::MlKem1024,
-            >(
-                sk_r,
-                input.kem_output.as_slice(),
-                info,
-                aad,
-                input.ciphertext.as_slice(),
-            )?,
-            _ => return Err(CryptoError::UnsupportedKem),
-        };
-
-        Ok(plaintext)
+        hpke_dispatch!(
+            config,
+            hpke_open,
+            sk_r,
+            input.kem_output.as_slice(),
+            info,
+            aad,
+            input.ciphertext.as_slice(),
+        )
     }
 
     fn hpke_setup_sender_and_export(
@@ -837,125 +582,16 @@ impl OpenMlsCrypto for RustCrypto {
         let mut rng = self
             .rng
             .write()
-            .map_err(|_| CryptoError::SenderSetupError)?;
-        let (kem_output, export) = match config {
-            HpkeConfig(
-                HpkeKemType::DhKem25519,
-                HpkeKdfType::HkdfSha256,
-                HpkeAeadType::AesGcm128,
-            ) => hpke_core::hpke_export_tx::<
-                hpke::aead::AesGcm128,
-                hpke::kdf::HkdfSha256,
-                hpke::kem::X25519HkdfSha256,
-            >(pk_r, info, exporter_context, exporter_length, &mut rng)?,
-            HpkeConfig(
-                HpkeKemType::DhKem25519,
-                HpkeKdfType::HkdfSha256,
-                HpkeAeadType::ChaCha20Poly1305,
-            ) => hpke_core::hpke_export_tx::<
-                hpke::aead::ChaCha20Poly1305,
-                hpke::kdf::HkdfSha256,
-                hpke::kem::X25519HkdfSha256,
-            >(pk_r, info, exporter_context, exporter_length, &mut rng)?,
-            HpkeConfig(
-                HpkeKemType::DhKemP256,
-                HpkeKdfType::HkdfSha256,
-                HpkeAeadType::AesGcm128,
-            ) => hpke_core::hpke_export_tx::<
-                hpke::aead::AesGcm128,
-                hpke::kdf::HkdfSha256,
-                hpke::kem::DhP256HkdfSha256,
-            >(pk_r, info, exporter_context, exporter_length, &mut rng)?,
-            HpkeConfig(
-                HpkeKemType::DhKemP384,
-                HpkeKdfType::HkdfSha384,
-                HpkeAeadType::AesGcm256,
-            ) => hpke_core::hpke_export_tx::<
-                hpke::aead::AesGcm256,
-                hpke::kdf::HkdfSha384,
-                hpke::kem::DhP384HkdfSha384,
-            >(pk_r, info, exporter_context, exporter_length, &mut rng)?,
-            HpkeConfig(
-                HpkeKemType::DhKemP521,
-                HpkeKdfType::HkdfSha512,
-                HpkeAeadType::AesGcm256,
-            ) => hpke_core::hpke_export_tx::<
-                hpke::aead::AesGcm256,
-                hpke::kdf::HkdfSha512,
-                hpke::kem::DhP521HkdfSha512,
-            >(pk_r, info, exporter_context, exporter_length, &mut rng)?,
-            HpkeConfig(
-                HpkeKemType::MlKem768X25519,
-                HpkeKdfType::HkdfSha256,
-                HpkeAeadType::AesGcm128,
-            ) => hpke_core::hpke_export_tx::<
-                hpke::aead::AesGcm128,
-                hpke::kdf::HkdfSha256,
-                hpke::kem::XWing,
-            >(pk_r, info, exporter_context, exporter_length, &mut rng)?,
-            HpkeConfig(
-                HpkeKemType::MlKem768X25519,
-                HpkeKdfType::HkdfSha384,
-                HpkeAeadType::AesGcm256,
-            ) => hpke_core::hpke_export_tx::<
-                hpke::aead::AesGcm256,
-                hpke::kdf::HkdfSha384,
-                hpke::kem::XWing,
-            >(pk_r, info, exporter_context, exporter_length, &mut rng)?,
-            HpkeConfig(
-                HpkeKemType::MlKem768X25519,
-                HpkeKdfType::HkdfSha384,
-                HpkeAeadType::ChaCha20Poly1305,
-            ) => hpke_core::hpke_export_tx::<
-                hpke::aead::ChaCha20Poly1305,
-                hpke::kdf::HkdfSha384,
-                hpke::kem::XWing,
-            >(pk_r, info, exporter_context, exporter_length, &mut rng)?,
-            HpkeConfig(
-                HpkeKemType::MlKem768P256,
-                HpkeKdfType::HkdfSha256,
-                HpkeAeadType::AesGcm128,
-            ) => hpke_core::hpke_export_tx::<
-                hpke::aead::AesGcm128,
-                hpke::kdf::HkdfSha256,
-                hpke::kem::MlKem768P256,
-            >(pk_r, info, exporter_context, exporter_length, &mut rng)?,
-            HpkeConfig(
-                HpkeKemType::MlKem768P256,
-                HpkeKdfType::HkdfSha384,
-                HpkeAeadType::AesGcm256,
-            ) => hpke_core::hpke_export_tx::<
-                hpke::aead::AesGcm256,
-                hpke::kdf::HkdfSha384,
-                hpke::kem::MlKem768P256,
-            >(pk_r, info, exporter_context, exporter_length, &mut rng)?,
-            HpkeConfig(
-                HpkeKemType::MlKem1024P384,
-                HpkeKdfType::HkdfSha384,
-                HpkeAeadType::AesGcm256,
-            ) => hpke_core::hpke_export_tx::<
-                hpke::aead::AesGcm256,
-                hpke::kdf::HkdfSha384,
-                hpke::kem::MlKem1024P384,
-            >(pk_r, info, exporter_context, exporter_length, &mut rng)?,
-            HpkeConfig(HpkeKemType::MlKem768, HpkeKdfType::HkdfSha384, HpkeAeadType::AesGcm256) => {
-                hpke_core::hpke_export_tx::<
-                    hpke::aead::AesGcm256,
-                    hpke::kdf::HkdfSha384,
-                    hpke::kem::MlKem768,
-                >(pk_r, info, exporter_context, exporter_length, &mut rng)?
-            }
-            HpkeConfig(
-                HpkeKemType::MlKem1024,
-                HpkeKdfType::HkdfSha384,
-                HpkeAeadType::AesGcm256,
-            ) => hpke_core::hpke_export_tx::<
-                hpke::aead::AesGcm256,
-                hpke::kdf::HkdfSha384,
-                hpke::kem::MlKem1024,
-            >(pk_r, info, exporter_context, exporter_length, &mut rng)?,
-            _ => return Err(CryptoError::UnsupportedKem),
-        };
+            .map_err(|_| CryptoError::InsufficientRandomness)?;
+        let (kem_output, export) = hpke_dispatch!(
+            config,
+            hpke_export_tx,
+            pk_r,
+            info,
+            exporter_context,
+            exporter_length,
+            &mut rng,
+        )?;
 
         debug_assert_eq!(export.len(), exporter_length);
 
@@ -971,124 +607,15 @@ impl OpenMlsCrypto for RustCrypto {
         exporter_context: &[u8],
         exporter_length: usize,
     ) -> Result<ExporterSecret, CryptoError> {
-        let export = match config {
-            HpkeConfig(
-                HpkeKemType::DhKem25519,
-                HpkeKdfType::HkdfSha256,
-                HpkeAeadType::AesGcm128,
-            ) => hpke_core::hpke_export_rx::<
-                hpke::aead::AesGcm128,
-                hpke::kdf::HkdfSha256,
-                hpke::kem::X25519HkdfSha256,
-            >(enc, sk_r, info, exporter_context, exporter_length)?,
-            HpkeConfig(
-                HpkeKemType::DhKem25519,
-                HpkeKdfType::HkdfSha256,
-                HpkeAeadType::ChaCha20Poly1305,
-            ) => hpke_core::hpke_export_rx::<
-                hpke::aead::ChaCha20Poly1305,
-                hpke::kdf::HkdfSha256,
-                hpke::kem::X25519HkdfSha256,
-            >(enc, sk_r, info, exporter_context, exporter_length)?,
-            HpkeConfig(
-                HpkeKemType::DhKemP256,
-                HpkeKdfType::HkdfSha256,
-                HpkeAeadType::AesGcm128,
-            ) => hpke_core::hpke_export_rx::<
-                hpke::aead::AesGcm128,
-                hpke::kdf::HkdfSha256,
-                hpke::kem::DhP256HkdfSha256,
-            >(enc, sk_r, info, exporter_context, exporter_length)?,
-            HpkeConfig(
-                HpkeKemType::DhKemP384,
-                HpkeKdfType::HkdfSha384,
-                HpkeAeadType::AesGcm256,
-            ) => hpke_core::hpke_export_rx::<
-                hpke::aead::AesGcm256,
-                hpke::kdf::HkdfSha384,
-                hpke::kem::DhP384HkdfSha384,
-            >(enc, sk_r, info, exporter_context, exporter_length)?,
-            HpkeConfig(
-                HpkeKemType::DhKemP521,
-                HpkeKdfType::HkdfSha512,
-                HpkeAeadType::AesGcm256,
-            ) => hpke_core::hpke_export_rx::<
-                hpke::aead::AesGcm256,
-                hpke::kdf::HkdfSha512,
-                hpke::kem::DhP521HkdfSha512,
-            >(enc, sk_r, info, exporter_context, exporter_length)?,
-            HpkeConfig(
-                HpkeKemType::MlKem768X25519,
-                HpkeKdfType::HkdfSha256,
-                HpkeAeadType::AesGcm128,
-            ) => hpke_core::hpke_export_rx::<
-                hpke::aead::AesGcm128,
-                hpke::kdf::HkdfSha256,
-                hpke::kem::XWing,
-            >(enc, sk_r, info, exporter_context, exporter_length)?,
-            HpkeConfig(
-                HpkeKemType::MlKem768X25519,
-                HpkeKdfType::HkdfSha384,
-                HpkeAeadType::AesGcm256,
-            ) => hpke_core::hpke_export_rx::<
-                hpke::aead::AesGcm256,
-                hpke::kdf::HkdfSha384,
-                hpke::kem::XWing,
-            >(enc, sk_r, info, exporter_context, exporter_length)?,
-            HpkeConfig(
-                HpkeKemType::MlKem768X25519,
-                HpkeKdfType::HkdfSha384,
-                HpkeAeadType::ChaCha20Poly1305,
-            ) => hpke_core::hpke_export_rx::<
-                hpke::aead::ChaCha20Poly1305,
-                hpke::kdf::HkdfSha384,
-                hpke::kem::XWing,
-            >(enc, sk_r, info, exporter_context, exporter_length)?,
-            HpkeConfig(
-                HpkeKemType::MlKem768P256,
-                HpkeKdfType::HkdfSha256,
-                HpkeAeadType::AesGcm128,
-            ) => hpke_core::hpke_export_rx::<
-                hpke::aead::AesGcm128,
-                hpke::kdf::HkdfSha256,
-                hpke::kem::MlKem768P256,
-            >(enc, sk_r, info, exporter_context, exporter_length)?,
-            HpkeConfig(
-                HpkeKemType::MlKem768P256,
-                HpkeKdfType::HkdfSha384,
-                HpkeAeadType::AesGcm256,
-            ) => hpke_core::hpke_export_rx::<
-                hpke::aead::AesGcm256,
-                hpke::kdf::HkdfSha384,
-                hpke::kem::MlKem768P256,
-            >(enc, sk_r, info, exporter_context, exporter_length)?,
-            HpkeConfig(
-                HpkeKemType::MlKem1024P384,
-                HpkeKdfType::HkdfSha384,
-                HpkeAeadType::AesGcm256,
-            ) => hpke_core::hpke_export_rx::<
-                hpke::aead::AesGcm256,
-                hpke::kdf::HkdfSha384,
-                hpke::kem::MlKem1024P384,
-            >(enc, sk_r, info, exporter_context, exporter_length)?,
-            HpkeConfig(HpkeKemType::MlKem768, HpkeKdfType::HkdfSha384, HpkeAeadType::AesGcm256) => {
-                hpke_core::hpke_export_rx::<
-                    hpke::aead::AesGcm256,
-                    hpke::kdf::HkdfSha384,
-                    hpke::kem::MlKem768,
-                >(enc, sk_r, info, exporter_context, exporter_length)?
-            }
-            HpkeConfig(
-                HpkeKemType::MlKem1024,
-                HpkeKdfType::HkdfSha384,
-                HpkeAeadType::AesGcm256,
-            ) => hpke_core::hpke_export_rx::<
-                hpke::aead::AesGcm256,
-                hpke::kdf::HkdfSha384,
-                hpke::kem::MlKem1024,
-            >(enc, sk_r, info, exporter_context, exporter_length)?,
-            _ => return Err(CryptoError::UnsupportedKem),
-        };
+        let export = hpke_dispatch!(
+            config,
+            hpke_export_rx,
+            enc,
+            sk_r,
+            info,
+            exporter_context,
+            exporter_length,
+        )?;
 
         debug_assert_eq!(export.len(), exporter_length);
 
@@ -1100,30 +627,7 @@ impl OpenMlsCrypto for RustCrypto {
         config: HpkeConfig,
         ikm: &[u8],
     ) -> Result<types::HpkeKeyPair, CryptoError> {
-        match config.0 {
-            HpkeKemType::DhKemP256 => {
-                hpke_core::hpke_derive_keypair::<hpke::kem::DhP256HkdfSha256>(ikm)
-            }
-            HpkeKemType::DhKemP384 => {
-                hpke_core::hpke_derive_keypair::<hpke::kem::DhP384HkdfSha384>(ikm)
-            }
-            HpkeKemType::DhKemP521 => {
-                hpke_core::hpke_derive_keypair::<hpke::kem::DhP521HkdfSha512>(ikm)
-            }
-            HpkeKemType::DhKem25519 => {
-                hpke_core::hpke_derive_keypair::<hpke::kem::X25519HkdfSha256>(ikm)
-            }
-            HpkeKemType::MlKem768X25519 => hpke_core::hpke_derive_keypair::<hpke::kem::XWing>(ikm),
-            HpkeKemType::MlKem768P256 => {
-                hpke_core::hpke_derive_keypair::<hpke::kem::MlKem768P256>(ikm)
-            }
-            HpkeKemType::MlKem1024P384 => {
-                hpke_core::hpke_derive_keypair::<hpke::kem::MlKem1024P384>(ikm)
-            }
-            HpkeKemType::MlKem768 => hpke_core::hpke_derive_keypair::<hpke::kem::MlKem768>(ikm),
-            HpkeKemType::MlKem1024 => hpke_core::hpke_derive_keypair::<hpke::kem::MlKem1024>(ikm),
-            _ => Err(CryptoError::UnsupportedKem),
-        }
+        hpke_kem_dispatch!(config.0, hpke_derive_keypair, ikm)
     }
 }
 
