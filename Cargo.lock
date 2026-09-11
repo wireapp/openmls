@@ -1421,7 +1421,6 @@ dependencies = [
  "secrecy",
  "serde",
  "tls_codec",
- "zeroize",
 ]
 
 [[package]]
@@ -1474,6 +1473,7 @@ dependencies = [
  "p256",
  "p384",
  "p521",
+ "rand 0.10.2",
  "rand_core 0.10.1",
  "serde",
  "signature",

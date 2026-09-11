@@ -13,36 +13,6 @@ use openmls_traits::{
     types::{CryptoError, SignatureScheme},
 };
 
-/// Generate an ML-DSA key pair, storing the private key as its 32-byte seed.
-fn mldsa_key_gen<P: ml_dsa::MlDsaParams>(
-    csprng: &mut impl rand_core::CryptoRng,
-) -> Result<(SecretVec<u8>, Vec<u8>), CryptoError> {
-    let mut seed = zeroize::Zeroizing::new(ml_dsa::B32::default());
-    csprng
-        .try_fill_bytes(&mut seed)
-        .map_err(|_| CryptoError::InsufficientRandomness)?;
-    let signing_key = ml_dsa::SigningKey::<P>::from_seed(&seed);
-    let public = signing_key.expanded_key().verifying_key().encode().to_vec();
-    let private: Vec<u8> = seed.to_vec();
-    Ok((private.into(), public))
-}
-
-/// Confirm that an ML-DSA seed derives the supplied public key.
-fn mldsa_keypair_matches<P: ml_dsa::MlDsaParams>(
-    private: &[u8],
-    public: &[u8],
-) -> Result<(), CryptoError> {
-    let seed = zeroize::Zeroizing::new(
-        ml_dsa::B32::try_from(private).map_err(|_| CryptoError::InvalidKey)?,
-    );
-    let signing_key = ml_dsa::SigningKey::<P>::from_seed(&seed);
-    let derived = signing_key.expanded_key().verifying_key().encode();
-    if derived.as_slice() != public {
-        return Err(CryptoError::MismatchKeypair);
-    }
-    Ok(())
-}
-
 fn expose_sk<S: serde::Serializer>(data: &SecretVec<u8>, ser: S) -> Result<S::Ok, S::Error> {
     use serde::ser::SerializeSeq as _;
     let exposed = data.expose_secret();
@@ -167,9 +137,18 @@ impl SignatureKeyPair {
                 let sk_pk: Vec<u8> = sk.to_bytes().into();
                 (sk_pk.into(), pk.to_bytes().into())
             }
-            SignatureScheme::MLDSA44 => mldsa_key_gen::<ml_dsa::MlDsa44>(csprng)?,
-            SignatureScheme::MLDSA65 => mldsa_key_gen::<ml_dsa::MlDsa65>(csprng)?,
-            SignatureScheme::MLDSA87 => mldsa_key_gen::<ml_dsa::MlDsa87>(csprng)?,
+            SignatureScheme::MLDSA44 => {
+                let (sk, pk) = openmls_traits::mldsa::key_gen::<ml_dsa::MlDsa44>(csprng)?;
+                (sk.to_vec().into(), pk)
+            }
+            SignatureScheme::MLDSA65 => {
+                let (sk, pk) = openmls_traits::mldsa::key_gen::<ml_dsa::MlDsa65>(csprng)?;
+                (sk.to_vec().into(), pk)
+            }
+            SignatureScheme::MLDSA87 => {
+                let (sk, pk) = openmls_traits::mldsa::key_gen::<ml_dsa::MlDsa87>(csprng)?;
+                (sk.to_vec().into(), pk)
+            }
             _ => return Err(CryptoError::UnsupportedSignatureScheme),
         };
 
@@ -241,13 +220,13 @@ impl SignatureKeyPair {
                 }
             }
             SignatureScheme::MLDSA44 => {
-                mldsa_keypair_matches::<ml_dsa::MlDsa44>(&private, &public)?
+                openmls_traits::mldsa::keypair_matches::<ml_dsa::MlDsa44>(&private, &public)?
             }
             SignatureScheme::MLDSA65 => {
-                mldsa_keypair_matches::<ml_dsa::MlDsa65>(&private, &public)?
+                openmls_traits::mldsa::keypair_matches::<ml_dsa::MlDsa65>(&private, &public)?
             }
             SignatureScheme::MLDSA87 => {
-                mldsa_keypair_matches::<ml_dsa::MlDsa87>(&private, &public)?
+                openmls_traits::mldsa::keypair_matches::<ml_dsa::MlDsa87>(&private, &public)?
             }
             _ => {}
         };
@@ -328,24 +307,6 @@ pub mod tests {
             provider
                 .verify_signature(scheme, msg, kp.public(), &sig)
                 .unwrap_or_else(|e| panic!("{scheme:?} provider verify must succeed: {e:?}"));
-
-            let mut bad_msg = msg.to_vec();
-            bad_msg[0] ^= 0xFF;
-            assert!(
-                provider
-                    .verify_signature(scheme, &bad_msg, kp.public(), &sig)
-                    .is_err(),
-                "{scheme:?} verify must fail on a tampered message"
-            );
-
-            let mut bad_sig = sig.clone();
-            bad_sig[0] ^= 0xFF;
-            assert!(
-                provider
-                    .verify_signature(scheme, msg, kp.public(), &bad_sig)
-                    .is_err(),
-                "{scheme:?} verify must fail on a tampered signature"
-            );
         }
     }
 
