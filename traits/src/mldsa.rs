@@ -1,5 +1,4 @@
 //! ML-DSA helpers.
-//!
 
 use crate::types::CryptoError;
 use ml_dsa::{

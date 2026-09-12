@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- [#110](https://github.com/wireapp/openmls/pull/110): Add the eleven post-quantum cipher suites from draft-ietf-mls-pq-ciphersuites-06 on code points `0xF001` to `0xF00B`. `Ciphersuite`, `SignatureScheme` and `HpkeKemType` get new variants. Code that matches all variants of these enums must add them.
+
 ### Changed
 
 - [#902](https://github.com/openmls/openmls/pull/902): Implement External Add proposal (NewMember sender only) and replace ~~`Sender::NewMember`~~ by `Sender::NewMemberProposal` and `Sender::NewMemberCommit` for external proposals and external commits repectively
