@@ -5,9 +5,6 @@ use openmls_rust_crypto::OpenMlsRustCrypto;
 use openmls_traits::{types::Ciphersuite, OpenMlsCryptoProvider};
 use tls_codec::{Deserialize, Serialize};
 
-use rstest::*;
-use rstest_reuse::{self, *};
-
 use crate::{
     binary_tree::LeafNodeIndex,
     framing::*,
