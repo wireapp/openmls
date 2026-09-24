@@ -20,10 +20,6 @@
 // encryption and decryption of updates to the tree.
 
 #[cfg(test)]
-use openmls_rust_crypto::OpenMlsRustCrypto;
-#[cfg(test)]
-use rstest::*;
-#[cfg(test)]
 use rstest_reuse::apply;
 
 use openmls_traits::{
