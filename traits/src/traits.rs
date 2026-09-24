@@ -6,6 +6,7 @@
 pub mod authentication_service;
 pub mod crypto;
 pub mod key_store;
+pub mod mldsa;
 pub mod random;
 pub mod signatures;
 pub mod types;

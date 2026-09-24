@@ -9,8 +9,10 @@ use aes_gcm::{
 use chacha20poly1305::ChaCha20Poly1305;
 use elliptic_curve::Generate as _;
 use hkdf::Hkdf;
+use ml_dsa::{MlDsa44, MlDsa65, MlDsa87};
 use openmls_traits::{
     crypto::OpenMlsCrypto,
+    mldsa,
     random::OpenMlsRand,
     types::{
         self, AeadType, Ciphersuite, CryptoError, ExporterSecret, HashType, HpkeAeadType,
@@ -91,6 +93,57 @@ fn normalize_p521_secret_key(sk: &[u8]) -> zeroize::Zeroizing<[u8; 66]> {
     sk_buf
 }
 
+macro_rules! hpke_dispatch {
+    ($config:expr, $f:ident $(, $arg:expr)* $(,)?) => {
+        match $config {
+            HpkeConfig(HpkeKemType::DhKem25519, HpkeKdfType::HkdfSha256, HpkeAeadType::AesGcm128) =>
+                hpke_core::$f::<hpke::aead::AesGcm128, hpke::kdf::HkdfSha256, hpke::kem::X25519HkdfSha256>($($arg),*),
+            HpkeConfig(HpkeKemType::DhKem25519, HpkeKdfType::HkdfSha256, HpkeAeadType::ChaCha20Poly1305) =>
+                hpke_core::$f::<hpke::aead::ChaCha20Poly1305, hpke::kdf::HkdfSha256, hpke::kem::X25519HkdfSha256>($($arg),*),
+            HpkeConfig(HpkeKemType::DhKemP256, HpkeKdfType::HkdfSha256, HpkeAeadType::AesGcm128) =>
+                hpke_core::$f::<hpke::aead::AesGcm128, hpke::kdf::HkdfSha256, hpke::kem::DhP256HkdfSha256>($($arg),*),
+            HpkeConfig(HpkeKemType::DhKemP384, HpkeKdfType::HkdfSha384, HpkeAeadType::AesGcm256) =>
+                hpke_core::$f::<hpke::aead::AesGcm256, hpke::kdf::HkdfSha384, hpke::kem::DhP384HkdfSha384>($($arg),*),
+            HpkeConfig(HpkeKemType::DhKemP521, HpkeKdfType::HkdfSha512, HpkeAeadType::AesGcm256) =>
+                hpke_core::$f::<hpke::aead::AesGcm256, hpke::kdf::HkdfSha512, hpke::kem::DhP521HkdfSha512>($($arg),*),
+            HpkeConfig(HpkeKemType::MlKem768X25519, HpkeKdfType::HkdfSha256, HpkeAeadType::AesGcm128) =>
+                hpke_core::$f::<hpke::aead::AesGcm128, hpke::kdf::HkdfSha256, hpke::kem::XWing>($($arg),*),
+            HpkeConfig(HpkeKemType::MlKem768X25519, HpkeKdfType::HkdfSha384, HpkeAeadType::AesGcm256) =>
+                hpke_core::$f::<hpke::aead::AesGcm256, hpke::kdf::HkdfSha384, hpke::kem::XWing>($($arg),*),
+            HpkeConfig(HpkeKemType::MlKem768X25519, HpkeKdfType::HkdfSha384, HpkeAeadType::ChaCha20Poly1305) =>
+                hpke_core::$f::<hpke::aead::ChaCha20Poly1305, hpke::kdf::HkdfSha384, hpke::kem::XWing>($($arg),*),
+            HpkeConfig(HpkeKemType::MlKem768P256, HpkeKdfType::HkdfSha256, HpkeAeadType::AesGcm128) =>
+                hpke_core::$f::<hpke::aead::AesGcm128, hpke::kdf::HkdfSha256, hpke::kem::MlKem768P256>($($arg),*),
+            HpkeConfig(HpkeKemType::MlKem768P256, HpkeKdfType::HkdfSha384, HpkeAeadType::AesGcm256) =>
+                hpke_core::$f::<hpke::aead::AesGcm256, hpke::kdf::HkdfSha384, hpke::kem::MlKem768P256>($($arg),*),
+            HpkeConfig(HpkeKemType::MlKem1024P384, HpkeKdfType::HkdfSha384, HpkeAeadType::AesGcm256) =>
+                hpke_core::$f::<hpke::aead::AesGcm256, hpke::kdf::HkdfSha384, hpke::kem::MlKem1024P384>($($arg),*),
+            HpkeConfig(HpkeKemType::MlKem768, HpkeKdfType::HkdfSha384, HpkeAeadType::AesGcm256) =>
+                hpke_core::$f::<hpke::aead::AesGcm256, hpke::kdf::HkdfSha384, hpke::kem::MlKem768>($($arg),*),
+            HpkeConfig(HpkeKemType::MlKem1024, HpkeKdfType::HkdfSha384, HpkeAeadType::AesGcm256) =>
+                hpke_core::$f::<hpke::aead::AesGcm256, hpke::kdf::HkdfSha384, hpke::kem::MlKem1024>($($arg),*),
+            _ => Err(CryptoError::UnsupportedKem),
+        }
+    };
+}
+
+macro_rules! hpke_kem_dispatch {
+    ($kem:expr, $f:ident $(, $arg:expr)* $(,)?) => {
+        match $kem {
+            HpkeKemType::DhKem25519 => hpke_core::$f::<hpke::kem::X25519HkdfSha256>($($arg),*),
+            HpkeKemType::DhKemP256 => hpke_core::$f::<hpke::kem::DhP256HkdfSha256>($($arg),*),
+            HpkeKemType::DhKemP384 => hpke_core::$f::<hpke::kem::DhP384HkdfSha384>($($arg),*),
+            HpkeKemType::DhKemP521 => hpke_core::$f::<hpke::kem::DhP521HkdfSha512>($($arg),*),
+            HpkeKemType::MlKem768X25519 => hpke_core::$f::<hpke::kem::XWing>($($arg),*),
+            HpkeKemType::MlKem768P256 => hpke_core::$f::<hpke::kem::MlKem768P256>($($arg),*),
+            HpkeKemType::MlKem1024P384 => hpke_core::$f::<hpke::kem::MlKem1024P384>($($arg),*),
+            HpkeKemType::MlKem768 => hpke_core::$f::<hpke::kem::MlKem768>($($arg),*),
+            HpkeKemType::MlKem1024 => hpke_core::$f::<hpke::kem::MlKem1024>($($arg),*),
+            HpkeKemType::DhKem448 => Err(CryptoError::UnsupportedKem),
+        }
+    };
+}
+
 impl OpenMlsCrypto for RustCrypto {
     fn supports(&self, ciphersuite: Ciphersuite) -> Result<(), CryptoError> {
         match ciphersuite {
@@ -98,7 +151,18 @@ impl OpenMlsCrypto for RustCrypto {
             | Ciphersuite::MLS_128_DHKEMX25519_CHACHA20POLY1305_SHA256_Ed25519
             | Ciphersuite::MLS_128_DHKEMP256_AES128GCM_SHA256_P256
             | Ciphersuite::MLS_256_DHKEMP384_AES256GCM_SHA384_P384
-            | Ciphersuite::MLS_256_DHKEMP521_AES256GCM_SHA512_P521 => Ok(()),
+            | Ciphersuite::MLS_256_DHKEMP521_AES256GCM_SHA512_P521
+            | Ciphersuite::MLS_128_MLKEM768X25519_AES128GCM_SHA256_Ed25519
+            | Ciphersuite::MLS_128_MLKEM768X25519_AES256GCM_SHA384_Ed25519
+            | Ciphersuite::MLS_128_MLKEM768P256_AES128GCM_SHA256_P256
+            | Ciphersuite::MLS_128_MLKEM768P256_AES256GCM_SHA384_P256
+            | Ciphersuite::MLS_192_MLKEM1024P384_AES256GCM_SHA384_P384
+            | Ciphersuite::MLS_128_MLKEM768_AES256GCM_SHA384_P256
+            | Ciphersuite::MLS_192_MLKEM1024_AES256GCM_SHA384_P384
+            | Ciphersuite::MLS_192_MLKEM768_AES256GCM_SHA384_MLDSA65
+            | Ciphersuite::MLS_256_MLKEM1024_AES256GCM_SHA384_MLDSA87
+            | Ciphersuite::MLS_128_MLKEM768_AES256GCM_SHA384_Ed25519
+            | Ciphersuite::MLS_128_MLKEM768X25519_CHACHA20POLY1305_SHA384_MLDSA44 => Ok(()),
             _ => Err(CryptoError::UnsupportedCiphersuite),
         }
     }
@@ -110,6 +174,17 @@ impl OpenMlsCrypto for RustCrypto {
             Ciphersuite::MLS_128_DHKEMP256_AES128GCM_SHA256_P256,
             Ciphersuite::MLS_256_DHKEMP384_AES256GCM_SHA384_P384,
             Ciphersuite::MLS_256_DHKEMP521_AES256GCM_SHA512_P521,
+            Ciphersuite::MLS_128_MLKEM768X25519_AES128GCM_SHA256_Ed25519,
+            Ciphersuite::MLS_128_MLKEM768X25519_AES256GCM_SHA384_Ed25519,
+            Ciphersuite::MLS_128_MLKEM768P256_AES128GCM_SHA256_P256,
+            Ciphersuite::MLS_128_MLKEM768P256_AES256GCM_SHA384_P256,
+            Ciphersuite::MLS_192_MLKEM1024P384_AES256GCM_SHA384_P384,
+            Ciphersuite::MLS_128_MLKEM768_AES256GCM_SHA384_P256,
+            Ciphersuite::MLS_192_MLKEM1024_AES256GCM_SHA384_P384,
+            Ciphersuite::MLS_192_MLKEM768_AES256GCM_SHA384_MLDSA65,
+            Ciphersuite::MLS_256_MLKEM1024_AES256GCM_SHA384_MLDSA87,
+            Ciphersuite::MLS_128_MLKEM768_AES256GCM_SHA384_Ed25519,
+            Ciphersuite::MLS_128_MLKEM768X25519_CHACHA20POLY1305_SHA384_MLDSA44,
         ]
     }
 
@@ -289,13 +364,18 @@ impl OpenMlsCrypto for RustCrypto {
                 Ok((sk.to_bytes().to_vec(), pk))
             }
             SignatureScheme::ED25519 => {
-                let mut rng = self
-                    .rng
-                    .write()
-                    .map_err(|_| CryptoError::InsufficientRandomness)?;
                 let k = ed25519_dalek::SigningKey::generate(&mut *rng);
                 let pk = k.verifying_key();
                 Ok((k.to_bytes().into(), pk.to_bytes().into()))
+            }
+            SignatureScheme::MLDSA44 => {
+                mldsa::key_gen::<MlDsa44>(&mut *rng).map(|(sk, pk)| (sk.to_vec(), pk))
+            }
+            SignatureScheme::MLDSA65 => {
+                mldsa::key_gen::<MlDsa65>(&mut *rng).map(|(sk, pk)| (sk.to_vec(), pk))
+            }
+            SignatureScheme::MLDSA87 => {
+                mldsa::key_gen::<MlDsa87>(&mut *rng).map(|(sk, pk)| (sk.to_vec(), pk))
             }
             _ => Err(CryptoError::UnsupportedSignatureScheme),
         }
@@ -315,6 +395,23 @@ impl OpenMlsCrypto for RustCrypto {
             }
             SignatureScheme::ED25519 => ed25519_dalek::PUBLIC_KEY_LENGTH,
             SignatureScheme::ED448 => 57,
+            SignatureScheme::MLDSA44 => 1312,
+            SignatureScheme::MLDSA65 => 1952,
+            SignatureScheme::MLDSA87 => 2592,
+        }
+    }
+
+    fn validate_signature_key(&self, alg: SignatureScheme, key: &[u8]) -> Result<(), CryptoError> {
+        match alg {
+            SignatureScheme::MLDSA44 => mldsa::validate_key::<MlDsa44>(key),
+            SignatureScheme::MLDSA65 => mldsa::validate_key::<MlDsa65>(key),
+            SignatureScheme::MLDSA87 => mldsa::validate_key::<MlDsa87>(key),
+            _ => {
+                if self.signature_public_key_len(alg) != key.len() {
+                    return Err(CryptoError::InvalidKey);
+                }
+                Ok(())
+            }
         }
     }
 
@@ -370,6 +467,9 @@ impl OpenMlsCrypto for RustCrypto {
                 k.verify_strict(data, &ed25519_dalek::Signature::from(sig))
                     .map_err(|_| CryptoError::InvalidSignature)
             }
+            SignatureScheme::MLDSA44 => mldsa::verify::<MlDsa44>(data, pk, signature),
+            SignatureScheme::MLDSA65 => mldsa::verify::<MlDsa65>(data, pk, signature),
+            SignatureScheme::MLDSA87 => mldsa::verify::<MlDsa87>(data, pk, signature),
             _ => Err(CryptoError::UnsupportedSignatureScheme),
         }
     }
@@ -430,6 +530,9 @@ impl OpenMlsCrypto for RustCrypto {
                     .map_err(|_| CryptoError::CryptoLibraryError)?;
                 Ok(signature.to_bytes().into())
             }
+            SignatureScheme::MLDSA44 => mldsa::sign::<MlDsa44>(data, key),
+            SignatureScheme::MLDSA65 => mldsa::sign::<MlDsa65>(data, key),
+            SignatureScheme::MLDSA87 => mldsa::sign::<MlDsa87>(data, key),
             _ => Err(CryptoError::UnsupportedSignatureScheme),
         }
     }
@@ -446,55 +549,7 @@ impl OpenMlsCrypto for RustCrypto {
             .rng
             .write()
             .map_err(|_| CryptoError::InsufficientRandomness)?;
-
-        match config {
-            HpkeConfig(
-                HpkeKemType::DhKem25519,
-                HpkeKdfType::HkdfSha256,
-                HpkeAeadType::AesGcm128,
-            ) => hpke_core::hpke_seal::<
-                hpke::aead::AesGcm128,
-                hpke::kdf::HkdfSha256,
-                hpke::kem::X25519HkdfSha256,
-            >(pk_r, info, aad, ptxt, &mut *rng),
-            HpkeConfig(
-                HpkeKemType::DhKem25519,
-                HpkeKdfType::HkdfSha256,
-                HpkeAeadType::ChaCha20Poly1305,
-            ) => hpke_core::hpke_seal::<
-                hpke::aead::ChaCha20Poly1305,
-                hpke::kdf::HkdfSha256,
-                hpke::kem::X25519HkdfSha256,
-            >(pk_r, info, aad, ptxt, &mut *rng),
-            HpkeConfig(
-                HpkeKemType::DhKemP256,
-                HpkeKdfType::HkdfSha256,
-                HpkeAeadType::AesGcm128,
-            ) => hpke_core::hpke_seal::<
-                hpke::aead::AesGcm128,
-                hpke::kdf::HkdfSha256,
-                hpke::kem::DhP256HkdfSha256,
-            >(pk_r, info, aad, ptxt, &mut *rng),
-            HpkeConfig(
-                HpkeKemType::DhKemP384,
-                HpkeKdfType::HkdfSha384,
-                HpkeAeadType::AesGcm256,
-            ) => hpke_core::hpke_seal::<
-                hpke::aead::AesGcm256,
-                hpke::kdf::HkdfSha384,
-                hpke::kem::DhP384HkdfSha384,
-            >(pk_r, info, aad, ptxt, &mut *rng),
-            HpkeConfig(
-                HpkeKemType::DhKemP521,
-                HpkeKdfType::HkdfSha512,
-                HpkeAeadType::AesGcm256,
-            ) => hpke_core::hpke_seal::<
-                hpke::aead::AesGcm256,
-                hpke::kdf::HkdfSha512,
-                hpke::kem::DhP521HkdfSha512,
-            >(pk_r, info, aad, ptxt, &mut *rng),
-            _ => Err(CryptoError::UnsupportedKem),
-        }
+        hpke_dispatch!(config, hpke_seal, pk_r, info, aad, ptxt, &mut rng)
     }
 
     fn hpke_open(
@@ -505,86 +560,15 @@ impl OpenMlsCrypto for RustCrypto {
         info: &[u8],
         aad: &[u8],
     ) -> Result<Vec<u8>, CryptoError> {
-        let plaintext = match config {
-            HpkeConfig(
-                HpkeKemType::DhKem25519,
-                HpkeKdfType::HkdfSha256,
-                HpkeAeadType::AesGcm128,
-            ) => hpke_core::hpke_open::<
-                hpke::aead::AesGcm128,
-                hpke::kdf::HkdfSha256,
-                hpke::kem::X25519HkdfSha256,
-            >(
-                sk_r,
-                input.kem_output.as_slice(),
-                info,
-                aad,
-                input.ciphertext.as_slice(),
-            )?,
-            HpkeConfig(
-                HpkeKemType::DhKem25519,
-                HpkeKdfType::HkdfSha256,
-                HpkeAeadType::ChaCha20Poly1305,
-            ) => hpke_core::hpke_open::<
-                hpke::aead::ChaCha20Poly1305,
-                hpke::kdf::HkdfSha256,
-                hpke::kem::X25519HkdfSha256,
-            >(
-                sk_r,
-                input.kem_output.as_slice(),
-                info,
-                aad,
-                input.ciphertext.as_slice(),
-            )?,
-            HpkeConfig(
-                HpkeKemType::DhKemP256,
-                HpkeKdfType::HkdfSha256,
-                HpkeAeadType::AesGcm128,
-            ) => hpke_core::hpke_open::<
-                hpke::aead::AesGcm128,
-                hpke::kdf::HkdfSha256,
-                hpke::kem::DhP256HkdfSha256,
-            >(
-                sk_r,
-                input.kem_output.as_slice(),
-                info,
-                aad,
-                input.ciphertext.as_slice(),
-            )?,
-            HpkeConfig(
-                HpkeKemType::DhKemP384,
-                HpkeKdfType::HkdfSha384,
-                HpkeAeadType::AesGcm256,
-            ) => hpke_core::hpke_open::<
-                hpke::aead::AesGcm256,
-                hpke::kdf::HkdfSha384,
-                hpke::kem::DhP384HkdfSha384,
-            >(
-                sk_r,
-                input.kem_output.as_slice(),
-                info,
-                aad,
-                input.ciphertext.as_slice(),
-            )?,
-            HpkeConfig(
-                HpkeKemType::DhKemP521,
-                HpkeKdfType::HkdfSha512,
-                HpkeAeadType::AesGcm256,
-            ) => hpke_core::hpke_open::<
-                hpke::aead::AesGcm256,
-                hpke::kdf::HkdfSha512,
-                hpke::kem::DhP521HkdfSha512,
-            >(
-                sk_r,
-                input.kem_output.as_slice(),
-                info,
-                aad,
-                input.ciphertext.as_slice(),
-            )?,
-            _ => return Err(CryptoError::UnsupportedKem),
-        };
-
-        Ok(plaintext)
+        hpke_dispatch!(
+            config,
+            hpke_open,
+            sk_r,
+            input.kem_output.as_slice(),
+            info,
+            aad,
+            input.ciphertext.as_slice(),
+        )
     }
 
     fn hpke_setup_sender_and_export(
@@ -599,55 +583,15 @@ impl OpenMlsCrypto for RustCrypto {
             .rng
             .write()
             .map_err(|_| CryptoError::InsufficientRandomness)?;
-
-        let (kem_output, export) = match config {
-            HpkeConfig(
-                HpkeKemType::DhKem25519,
-                HpkeKdfType::HkdfSha256,
-                HpkeAeadType::AesGcm128,
-            ) => hpke_core::hpke_export_tx::<
-                hpke::aead::AesGcm128,
-                hpke::kdf::HkdfSha256,
-                hpke::kem::X25519HkdfSha256,
-            >(pk_r, info, exporter_context, exporter_length, &mut *rng)?,
-            HpkeConfig(
-                HpkeKemType::DhKem25519,
-                HpkeKdfType::HkdfSha256,
-                HpkeAeadType::ChaCha20Poly1305,
-            ) => hpke_core::hpke_export_tx::<
-                hpke::aead::ChaCha20Poly1305,
-                hpke::kdf::HkdfSha256,
-                hpke::kem::X25519HkdfSha256,
-            >(pk_r, info, exporter_context, exporter_length, &mut *rng)?,
-            HpkeConfig(
-                HpkeKemType::DhKemP256,
-                HpkeKdfType::HkdfSha256,
-                HpkeAeadType::AesGcm128,
-            ) => hpke_core::hpke_export_tx::<
-                hpke::aead::AesGcm128,
-                hpke::kdf::HkdfSha256,
-                hpke::kem::DhP256HkdfSha256,
-            >(pk_r, info, exporter_context, exporter_length, &mut *rng)?,
-            HpkeConfig(
-                HpkeKemType::DhKemP384,
-                HpkeKdfType::HkdfSha384,
-                HpkeAeadType::AesGcm256,
-            ) => hpke_core::hpke_export_tx::<
-                hpke::aead::AesGcm256,
-                hpke::kdf::HkdfSha384,
-                hpke::kem::DhP384HkdfSha384,
-            >(pk_r, info, exporter_context, exporter_length, &mut *rng)?,
-            HpkeConfig(
-                HpkeKemType::DhKemP521,
-                HpkeKdfType::HkdfSha512,
-                HpkeAeadType::AesGcm256,
-            ) => hpke_core::hpke_export_tx::<
-                hpke::aead::AesGcm256,
-                hpke::kdf::HkdfSha512,
-                hpke::kem::DhP521HkdfSha512,
-            >(pk_r, info, exporter_context, exporter_length, &mut *rng)?,
-            _ => return Err(CryptoError::UnsupportedKem),
-        };
+        let (kem_output, export) = hpke_dispatch!(
+            config,
+            hpke_export_tx,
+            pk_r,
+            info,
+            exporter_context,
+            exporter_length,
+            &mut rng,
+        )?;
 
         debug_assert_eq!(export.len(), exporter_length);
 
@@ -663,54 +607,15 @@ impl OpenMlsCrypto for RustCrypto {
         exporter_context: &[u8],
         exporter_length: usize,
     ) -> Result<ExporterSecret, CryptoError> {
-        let export = match config {
-            HpkeConfig(
-                HpkeKemType::DhKem25519,
-                HpkeKdfType::HkdfSha256,
-                HpkeAeadType::AesGcm128,
-            ) => hpke_core::hpke_export_rx::<
-                hpke::aead::AesGcm128,
-                hpke::kdf::HkdfSha256,
-                hpke::kem::X25519HkdfSha256,
-            >(enc, sk_r, info, exporter_context, exporter_length)?,
-            HpkeConfig(
-                HpkeKemType::DhKem25519,
-                HpkeKdfType::HkdfSha256,
-                HpkeAeadType::ChaCha20Poly1305,
-            ) => hpke_core::hpke_export_rx::<
-                hpke::aead::ChaCha20Poly1305,
-                hpke::kdf::HkdfSha256,
-                hpke::kem::X25519HkdfSha256,
-            >(enc, sk_r, info, exporter_context, exporter_length)?,
-            HpkeConfig(
-                HpkeKemType::DhKemP256,
-                HpkeKdfType::HkdfSha256,
-                HpkeAeadType::AesGcm128,
-            ) => hpke_core::hpke_export_rx::<
-                hpke::aead::AesGcm128,
-                hpke::kdf::HkdfSha256,
-                hpke::kem::DhP256HkdfSha256,
-            >(enc, sk_r, info, exporter_context, exporter_length)?,
-            HpkeConfig(
-                HpkeKemType::DhKemP384,
-                HpkeKdfType::HkdfSha384,
-                HpkeAeadType::AesGcm256,
-            ) => hpke_core::hpke_export_rx::<
-                hpke::aead::AesGcm256,
-                hpke::kdf::HkdfSha384,
-                hpke::kem::DhP384HkdfSha384,
-            >(enc, sk_r, info, exporter_context, exporter_length)?,
-            HpkeConfig(
-                HpkeKemType::DhKemP521,
-                HpkeKdfType::HkdfSha512,
-                HpkeAeadType::AesGcm256,
-            ) => hpke_core::hpke_export_rx::<
-                hpke::aead::AesGcm256,
-                hpke::kdf::HkdfSha512,
-                hpke::kem::DhP521HkdfSha512,
-            >(enc, sk_r, info, exporter_context, exporter_length)?,
-            _ => return Err(CryptoError::UnsupportedKem),
-        };
+        let export = hpke_dispatch!(
+            config,
+            hpke_export_rx,
+            enc,
+            sk_r,
+            info,
+            exporter_context,
+            exporter_length,
+        )?;
 
         debug_assert_eq!(export.len(), exporter_length);
 
@@ -722,21 +627,7 @@ impl OpenMlsCrypto for RustCrypto {
         config: HpkeConfig,
         ikm: &[u8],
     ) -> Result<types::HpkeKeyPair, CryptoError> {
-        match config.0 {
-            HpkeKemType::DhKemP256 => {
-                hpke_core::hpke_derive_keypair::<hpke::kem::DhP256HkdfSha256>(ikm)
-            }
-            HpkeKemType::DhKemP384 => {
-                hpke_core::hpke_derive_keypair::<hpke::kem::DhP384HkdfSha384>(ikm)
-            }
-            HpkeKemType::DhKemP521 => {
-                hpke_core::hpke_derive_keypair::<hpke::kem::DhP521HkdfSha512>(ikm)
-            }
-            HpkeKemType::DhKem25519 => {
-                hpke_core::hpke_derive_keypair::<hpke::kem::X25519HkdfSha256>(ikm)
-            }
-            _ => Err(CryptoError::UnsupportedKem),
-        }
+        hpke_kem_dispatch!(config.0, hpke_derive_keypair, ikm)
     }
 }
 
@@ -908,4 +799,224 @@ pub enum RandError {
         "The provided entropy seed has an incorrect length: expected {expected}, found {actual}"
     )]
     EntropySeedLengthError { actual: usize, expected: usize },
+}
+
+#[cfg(test)]
+mod mldsa_tests {
+    use super::*;
+    use openmls_traits::crypto::OpenMlsCrypto;
+
+    const MLDSA44: (SignatureScheme, usize, usize) = (SignatureScheme::MLDSA44, 1312, 2420);
+    const MLDSA65: (SignatureScheme, usize, usize) = (SignatureScheme::MLDSA65, 1952, 3309);
+    const MLDSA87: (SignatureScheme, usize, usize) = (SignatureScheme::MLDSA87, 2592, 4627);
+
+    #[test]
+    fn keygen_sign_verify_round_trip() {
+        for (scheme, pk_len, sig_len) in [MLDSA44, MLDSA65, MLDSA87] {
+            let provider = RustCrypto::default();
+            let (private_key, public_key) = provider
+                .signature_key_gen(scheme)
+                .expect("key generation should succeed");
+
+            assert_eq!(public_key.len(), pk_len, "public key length for {scheme:?}");
+
+            let message = b"the quick brown fox jumps over the lazy dog";
+            let signature = provider
+                .sign(scheme, message, &private_key)
+                .expect("signing should succeed");
+
+            assert_eq!(signature.len(), sig_len, "signature length for {scheme:?}");
+
+            provider
+                .verify_signature(scheme, message, &public_key, &signature)
+                .expect("verification of a valid signature should succeed");
+        }
+    }
+
+    #[test]
+    fn mldsa_uses_the_deterministic_variant() {
+        for (scheme, _, _) in [MLDSA44, MLDSA65, MLDSA87] {
+            let provider = RustCrypto::default();
+            let (private_key, _) = provider.signature_key_gen(scheme).unwrap();
+            let message = b"deterministic";
+            let sig_a = provider.sign(scheme, message, &private_key).unwrap();
+            let sig_b = provider.sign(scheme, message, &private_key).unwrap();
+            assert_eq!(
+                sig_a, sig_b,
+                "signatures must be deterministic for {scheme:?}"
+            );
+        }
+    }
+
+    #[test]
+    fn validate_signature_key_accepts_valid_and_rejects_invalid() {
+        for (scheme, pk_len, _) in [MLDSA44, MLDSA65, MLDSA87] {
+            let provider = RustCrypto::default();
+            let (_, public_key) = provider.signature_key_gen(scheme).unwrap();
+
+            provider
+                .validate_signature_key(scheme, &public_key)
+                .expect("a freshly generated public key must validate");
+
+            let too_short = vec![0u8; pk_len - 1];
+            assert!(
+                provider.validate_signature_key(scheme, &too_short).is_err(),
+                "an undersized key must be rejected for {scheme:?}"
+            );
+        }
+    }
+}
+// PQ HPKE round trips; KEM KATs live in the underlying crates.
+#[cfg(test)]
+mod pq_hpke_tests {
+    use super::*;
+    use openmls_traits::{
+        crypto::OpenMlsCrypto,
+        types::{HpkeAeadType, HpkeConfig, HpkeKdfType, HpkeKemType},
+    };
+
+    /// Ensures classical and PQ sender operations use the provider RNG.
+    #[test]
+    fn hpke_seal_is_deterministic_under_seeded_rng() {
+        let seed = EntropySeed::from_raw([0x5Au8; EntropySeed::EXPECTED_LEN]);
+
+        let info = b"determinism-info";
+        let aad = b"determinism-aad";
+        let plaintext = b"determinism plaintext payload";
+
+        let cases: Vec<(HpkeConfig, Vec<u8>)> = vec![
+            (
+                HpkeConfig(
+                    HpkeKemType::DhKem25519,
+                    HpkeKdfType::HkdfSha256,
+                    HpkeAeadType::AesGcm128,
+                ),
+                vec![0x11u8; 64],
+            ),
+            (
+                HpkeConfig(
+                    HpkeKemType::MlKem768X25519,
+                    HpkeKdfType::HkdfSha384,
+                    HpkeAeadType::AesGcm256,
+                ),
+                vec![0x22u8; 64],
+            ),
+        ];
+
+        for (config, ikm) in cases {
+            let HpkeConfig(kem, kdf, aead) = config;
+
+            let recip = RustCrypto::default()
+                .derive_hpke_keypair(HpkeConfig(kem, kdf, aead), &ikm)
+                .unwrap_or_else(|e| panic!("derive_hpke_keypair failed for {kem:?}: {e:?}"));
+
+            let provider_a = RustCrypto::new_with_seed(seed.clone());
+            let provider_b = RustCrypto::new_with_seed(seed.clone());
+
+            let ct_a = provider_a
+                .hpke_seal(
+                    HpkeConfig(kem, kdf, aead),
+                    &recip.public,
+                    info,
+                    aad,
+                    plaintext,
+                )
+                .unwrap_or_else(|e| panic!("hpke_seal A failed for {kem:?}: {e:?}"));
+            let ct_b = provider_b
+                .hpke_seal(
+                    HpkeConfig(kem, kdf, aead),
+                    &recip.public,
+                    info,
+                    aad,
+                    plaintext,
+                )
+                .unwrap_or_else(|e| panic!("hpke_seal B failed for {kem:?}: {e:?}"));
+
+            assert_eq!(
+                ct_a.kem_output.as_slice(),
+                ct_b.kem_output.as_slice(),
+                "kem_output must be deterministic under identical seeded RNG for {kem:?}"
+            );
+            assert_eq!(
+                ct_a.ciphertext.as_slice(),
+                ct_b.ciphertext.as_slice(),
+                "ciphertext must be deterministic under identical seeded RNG for {kem:?}"
+            );
+
+            let ct_next = provider_a
+                .hpke_seal(
+                    HpkeConfig(kem, kdf, aead),
+                    &recip.public,
+                    info,
+                    aad,
+                    plaintext,
+                )
+                .unwrap_or_else(|e| panic!("second hpke_seal failed for {kem:?}: {e:?}"));
+            assert_ne!(
+                ct_a.kem_output.as_slice(),
+                ct_next.kem_output.as_slice(),
+                "successive encapsulations must advance the RNG for {kem:?}"
+            );
+
+            let recovered = provider_a
+                .hpke_open(HpkeConfig(kem, kdf, aead), &ct_a, &recip.private, info, aad)
+                .unwrap_or_else(|e| panic!("hpke_open failed for {kem:?}: {e:?}"));
+            assert_eq!(recovered, plaintext, "round-trip mismatch for {kem:?}");
+        }
+    }
+
+    // supports, supported_ciphersuites and the lookup table are three manual lists; this is the only check that they agree
+    #[test]
+    fn every_supported_ciphersuite_reaches_every_hpke_entry_point() {
+        let provider = RustCrypto::default();
+        for ciphersuite in provider.supported_ciphersuites() {
+            provider
+                .supports(ciphersuite)
+                .unwrap_or_else(|e| panic!("supports({ciphersuite:?}): {e:?}"));
+            let kp = provider
+                .derive_hpke_keypair(ciphersuite.hpke_config(), &[0x42u8; 64])
+                .unwrap_or_else(|e| panic!("derive_hpke_keypair({ciphersuite:?}): {e:?}"));
+            let sealed = provider
+                .hpke_seal(
+                    ciphersuite.hpke_config(),
+                    &kp.public,
+                    b"info",
+                    b"aad",
+                    b"message",
+                )
+                .unwrap_or_else(|e| panic!("hpke_seal({ciphersuite:?}): {e:?}"));
+            let opened = provider
+                .hpke_open(
+                    ciphersuite.hpke_config(),
+                    &sealed,
+                    &kp.private,
+                    b"info",
+                    b"aad",
+                )
+                .unwrap_or_else(|e| panic!("hpke_open({ciphersuite:?}): {e:?}"));
+            assert_eq!(opened, b"message");
+            let (enc, sender_secret) = provider
+                .hpke_setup_sender_and_export(
+                    ciphersuite.hpke_config(),
+                    &kp.public,
+                    b"info",
+                    b"exporter",
+                    32,
+                )
+                .unwrap_or_else(|e| panic!("hpke_setup_sender_and_export({ciphersuite:?}): {e:?}"));
+            let receiver_secret = provider
+                .hpke_setup_receiver_and_export(
+                    ciphersuite.hpke_config(),
+                    &enc,
+                    &kp.private,
+                    b"info",
+                    b"exporter",
+                    32,
+                )
+                .unwrap_or_else(|e| {
+                    panic!("hpke_setup_receiver_and_export({ciphersuite:?}): {e:?}")
+                });
+            assert_eq!(&*sender_secret, &*receiver_secret);
+        }
+    }
 }
