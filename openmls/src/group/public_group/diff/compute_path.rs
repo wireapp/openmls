@@ -1,10 +1,9 @@
 use std::collections::HashSet;
 
-use openmls_traits::types::Ciphersuite;
 use openmls_traits::{key_store::OpenMlsKeyStore, signatures::Signer, OpenMlsCryptoProvider};
 use tls_codec::Serialize;
 
-use crate::prelude::{Capabilities, CredentialType, ProtocolVersion};
+use crate::prelude::{Capabilities, CredentialType};
 use crate::{
     binary_tree::LeafNodeIndex,
     credentials::CredentialWithKey,
@@ -68,14 +67,8 @@ impl PublicGroupDiff<'_> {
                 .leaf_node_capabilities(
                     // TODO: factorize & have this injected by client
                     Capabilities::new(
-                        Some(&[ProtocolVersion::Mls10]),
-                        Some(&[
-                            Ciphersuite::MLS_128_DHKEMX25519_AES128GCM_SHA256_Ed25519,
-                            Ciphersuite::MLS_128_DHKEMP256_AES128GCM_SHA256_P256,
-                            Ciphersuite::MLS_128_DHKEMX25519_CHACHA20POLY1305_SHA256_Ed25519,
-                            Ciphersuite::MLS_256_DHKEMP384_AES256GCM_SHA384_P384,
-                            Ciphersuite::MLS_256_DHKEMP521_AES256GCM_SHA512_P521,
-                        ]),
+                        None,
+                        None,
                         Some(&[]),
                         Some(&[]),
                         Some(&[CredentialType::Basic, CredentialType::X509]),

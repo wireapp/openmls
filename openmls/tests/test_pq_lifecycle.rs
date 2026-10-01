@@ -378,3 +378,108 @@ fn pq_ciphersuites(ciphersuite: Ciphersuite) {}
 async fn pq_lifecycle(ciphersuite: Ciphersuite) {
     run_lifecycle(ciphersuite, &OpenMlsRustCrypto::default()).await;
 }
+
+async fn run_external_join_then_commit(ciphersuite: Ciphersuite, backend: &OpenMlsRustCrypto) {
+    let (alice_cred, alice_signer) =
+        new_credential(backend, b"Alice", ciphersuite.signature_algorithm()).await;
+    let (bob_cred, bob_signer) =
+        new_credential(backend, b"Bob", ciphersuite.signature_algorithm()).await;
+
+    let group_config = MlsGroupConfig::builder()
+        .crypto_config(CryptoConfig::with_default_version(ciphersuite))
+        .use_ratchet_tree_extension(true)
+        .build();
+    let mut alice_group = MlsGroup::new(backend, &alice_signer, &group_config, alice_cred)
+        .await
+        .unwrap_or_else(|e| panic!("[{ciphersuite}] Alice could not create group: {e:?}"));
+
+    let group_info = alice_group
+        .export_group_info(backend, &alice_signer, true)
+        .unwrap_or_else(|e| panic!("[{ciphersuite}] Alice could not export group info: {e:?}"));
+    let verifiable_group_info = MlsMessageIn::tls_deserialize_exact(group_info.to_bytes().unwrap())
+        .unwrap()
+        .into_verifiable_group_info()
+        .unwrap_or_else(|| panic!("[{ciphersuite}] expected a GroupInfo message"));
+
+    let (mut bob_group, external_commit, _) = MlsGroup::join_by_external_commit(
+        backend,
+        &bob_signer,
+        None,
+        verifiable_group_info,
+        &group_config,
+        b"",
+        bob_cred,
+    )
+    .await
+    .unwrap_or_else(|e| panic!("[{ciphersuite}] Bob could not join by external commit: {e:?}"));
+    bob_group
+        .merge_pending_commit(backend)
+        .await
+        .unwrap_or_else(|e| panic!("[{ciphersuite}] Bob could not merge external commit: {e:?}"));
+
+    let processed = alice_group
+        .process_message(
+            backend,
+            external_commit
+                .into_protocol_message()
+                .expect("unexpected message type"),
+        )
+        .await
+        .unwrap_or_else(|e| {
+            panic!("[{ciphersuite}] Alice could not process external commit: {e:?}")
+        });
+    match processed.into_content() {
+        ProcessedMessageContent::StagedCommitMessage(sc) => {
+            alice_group
+                .merge_staged_commit(backend, *sc)
+                .await
+                .unwrap_or_else(|e| {
+                    panic!("[{ciphersuite}] Alice could not merge external commit: {e:?}")
+                });
+        }
+        other => panic!("[{ciphersuite}] expected StagedCommitMessage, got {other:?}"),
+    }
+
+    // The joiner's first regular commit rekeys the leaf created by the external commit.
+    let (update_commit, _, _) = bob_group
+        .self_update(backend, &bob_signer)
+        .await
+        .unwrap_or_else(|e| panic!("[{ciphersuite}] Bob could not commit after joining: {e:?}"));
+    bob_group
+        .merge_pending_commit(backend)
+        .await
+        .unwrap_or_else(|e| panic!("[{ciphersuite}] Bob could not merge his update: {e:?}"));
+
+    let processed = alice_group
+        .process_message(
+            backend,
+            update_commit
+                .into_protocol_message()
+                .expect("unexpected message type"),
+        )
+        .await
+        .unwrap_or_else(|e| panic!("[{ciphersuite}] Alice could not process Bob's update: {e:?}"));
+    match processed.into_content() {
+        ProcessedMessageContent::StagedCommitMessage(sc) => {
+            alice_group
+                .merge_staged_commit(backend, *sc)
+                .await
+                .unwrap_or_else(|e| {
+                    panic!("[{ciphersuite}] Alice could not merge Bob's update: {e:?}")
+                });
+        }
+        other => panic!("[{ciphersuite}] expected StagedCommitMessage, got {other:?}"),
+    }
+
+    assert_eq!(
+        alice_group.epoch_authenticator().as_slice(),
+        bob_group.epoch_authenticator().as_slice(),
+        "[{ciphersuite}] epoch authenticators differ after Bob's update"
+    );
+}
+
+#[apply(pq_ciphersuites)]
+#[tokio::test]
+async fn pq_external_join_then_commit(ciphersuite: Ciphersuite) {
+    run_external_join_then_commit(ciphersuite, &OpenMlsRustCrypto::default()).await;
+}
