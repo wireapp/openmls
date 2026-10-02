@@ -68,6 +68,18 @@ impl<T: DefaultSigner> Signer for T {
                 let signature = k.try_sign(payload).map_err(|_| Error::SigningError)?;
                 Ok(signature.to_bytes().into())
             }
+            SignatureScheme::MLDSA44 => {
+                crate::mldsa::sign::<ml_dsa::MlDsa44>(payload, self.private_key())
+                    .map_err(Error::CryptoError)
+            }
+            SignatureScheme::MLDSA65 => {
+                crate::mldsa::sign::<ml_dsa::MlDsa65>(payload, self.private_key())
+                    .map_err(Error::CryptoError)
+            }
+            SignatureScheme::MLDSA87 => {
+                crate::mldsa::sign::<ml_dsa::MlDsa87>(payload, self.private_key())
+                    .map_err(Error::CryptoError)
+            }
             _ => Err(Error::SigningError),
         }
     }
