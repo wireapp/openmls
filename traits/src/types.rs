@@ -203,6 +203,21 @@ pub enum HpkeKemType {
 
     /// DH KEM on x448
     DhKem448 = 0x0021,
+
+    /// ML-KEM-768.
+    MlKem768 = 0x0041,
+
+    /// ML-KEM-1024.
+    MlKem1024 = 0x0042,
+
+    /// ML-KEM-768 + P-256.
+    MlKem768P256 = 0x0050,
+
+    /// ML-KEM-1024 + P-384.
+    MlKem1024P384 = 0x0051,
+
+    /// X-Wing (ML-KEM-768 + X25519).
+    MlKem768X25519 = 0x647a,
 }
 
 /// KDF Types for HPKE
