@@ -9,8 +9,10 @@ use aes_gcm::{
 use chacha20poly1305::ChaCha20Poly1305;
 use elliptic_curve::Generate as _;
 use hkdf::Hkdf;
+use ml_dsa::{MlDsa44, MlDsa65, MlDsa87};
 use openmls_traits::{
     crypto::OpenMlsCrypto,
+    mldsa,
     random::OpenMlsRand,
     types::{
         self, AeadType, Ciphersuite, CryptoError, ExporterSecret, HashType, HpkeAeadType,
@@ -297,6 +299,15 @@ impl OpenMlsCrypto for RustCrypto {
                 let pk = k.verifying_key();
                 Ok((k.to_bytes().into(), pk.to_bytes().into()))
             }
+            SignatureScheme::MLDSA44 => {
+                mldsa::key_gen::<MlDsa44>(&mut *rng).map(|(sk, pk)| (sk.to_vec(), pk))
+            }
+            SignatureScheme::MLDSA65 => {
+                mldsa::key_gen::<MlDsa65>(&mut *rng).map(|(sk, pk)| (sk.to_vec(), pk))
+            }
+            SignatureScheme::MLDSA87 => {
+                mldsa::key_gen::<MlDsa87>(&mut *rng).map(|(sk, pk)| (sk.to_vec(), pk))
+            }
             _ => Err(CryptoError::UnsupportedSignatureScheme),
         }
     }
@@ -315,6 +326,23 @@ impl OpenMlsCrypto for RustCrypto {
             }
             SignatureScheme::ED25519 => ed25519_dalek::PUBLIC_KEY_LENGTH,
             SignatureScheme::ED448 => 57,
+            SignatureScheme::MLDSA44 => 1312,
+            SignatureScheme::MLDSA65 => 1952,
+            SignatureScheme::MLDSA87 => 2592,
+        }
+    }
+
+    fn validate_signature_key(&self, alg: SignatureScheme, key: &[u8]) -> Result<(), CryptoError> {
+        match alg {
+            SignatureScheme::MLDSA44 => mldsa::validate_key::<MlDsa44>(key),
+            SignatureScheme::MLDSA65 => mldsa::validate_key::<MlDsa65>(key),
+            SignatureScheme::MLDSA87 => mldsa::validate_key::<MlDsa87>(key),
+            _ => {
+                if self.signature_public_key_len(alg) != key.len() {
+                    return Err(CryptoError::InvalidKey);
+                }
+                Ok(())
+            }
         }
     }
 
@@ -370,6 +398,9 @@ impl OpenMlsCrypto for RustCrypto {
                 k.verify_strict(data, &ed25519_dalek::Signature::from(sig))
                     .map_err(|_| CryptoError::InvalidSignature)
             }
+            SignatureScheme::MLDSA44 => mldsa::verify::<MlDsa44>(data, pk, signature),
+            SignatureScheme::MLDSA65 => mldsa::verify::<MlDsa65>(data, pk, signature),
+            SignatureScheme::MLDSA87 => mldsa::verify::<MlDsa87>(data, pk, signature),
             _ => Err(CryptoError::UnsupportedSignatureScheme),
         }
     }
@@ -430,6 +461,9 @@ impl OpenMlsCrypto for RustCrypto {
                     .map_err(|_| CryptoError::CryptoLibraryError)?;
                 Ok(signature.to_bytes().into())
             }
+            SignatureScheme::MLDSA44 => mldsa::sign::<MlDsa44>(data, key),
+            SignatureScheme::MLDSA65 => mldsa::sign::<MlDsa65>(data, key),
+            SignatureScheme::MLDSA87 => mldsa::sign::<MlDsa87>(data, key),
             _ => Err(CryptoError::UnsupportedSignatureScheme),
         }
     }
