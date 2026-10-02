@@ -100,6 +100,12 @@ pub enum SignatureScheme {
     ED25519 = 0x0807,
     /// ED448
     ED448 = 0x0808,
+    /// ML-DSA-44.
+    MLDSA44 = 0x0904,
+    /// ML-DSA-65.
+    MLDSA65 = 0x0905,
+    /// ML-DSA-87.
+    MLDSA87 = 0x0906,
 }
 
 impl TryFrom<u16> for SignatureScheme {
@@ -112,6 +118,9 @@ impl TryFrom<u16> for SignatureScheme {
             0x0603 => Ok(SignatureScheme::ECDSA_SECP521R1_SHA512),
             0x0807 => Ok(SignatureScheme::ED25519),
             0x0808 => Ok(SignatureScheme::ED448),
+            0x0904 => Ok(SignatureScheme::MLDSA44),
+            0x0905 => Ok(SignatureScheme::MLDSA65),
+            0x0906 => Ok(SignatureScheme::MLDSA87),
             _ => Err(format!("Unsupported SignatureScheme: {value}")),
         }
     }
