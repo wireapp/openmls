@@ -1678,7 +1678,6 @@ async fn test_valsem108(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoPr
 /// Encryption key must be unique among existing members
 #[apply(ciphersuites_and_backends)]
 #[wasm_bindgen_test::wasm_bindgen_test]
-#[ignore] // Not testable since update proposal methods impose rekeying and do not delegate this to callers
 async fn test_valsem110(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoProvider) {
     // Before we can test creation or reception of (invalid) proposals, we set
     // up a new group with Alice and Bob.
@@ -1693,16 +1692,7 @@ async fn test_valsem110(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoPr
     // to have Bob propose the update. This is due to the commit logic filtering
     // out own proposals and just including a path instead.
 
-    // We first try to make Alice create a commit, where she commits an update
-    // proposal by bob that contains alice's existing encryption key.
-
-    // We begin by creating a leaf node with a colliding encryption key.
-    let bob_leaf_node = bob_group
-        .group()
-        .own_leaf_node()
-        .expect("error getting own leaf node")
-        .clone();
-
+    // We begin by creating a leaf node for Bob with a colliding encryption key.
     let alice_encryption_key = alice_group
         .group()
         .own_leaf_node()
@@ -1710,28 +1700,41 @@ async fn test_valsem110(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoPr
         .encryption_key()
         .clone();
 
-    let mut update_leaf_node = bob_leaf_node;
+    let mut update_leaf_node = bob_group
+        .group()
+        .own_leaf_node()
+        .expect("error getting own leaf node")
+        .clone();
     update_leaf_node
         .update_and_re_sign(
-            Some(alice_encryption_key.clone()),
+            Some(alice_encryption_key),
             None,
             bob_group.group_id().clone(),
-            LeafNodeIndex::new(1),
+            bob_group.own_leaf_index(),
             &bob_credential_with_key_and_signer.signer,
         )
         .unwrap();
 
-    // We first go the manual route
-    let update_proposal: MlsMessageIn = bob_group
-        .propose_explicit_self_update(
-            backend,
-            &bob_credential_with_key_and_signer.signer,
-            update_leaf_node.clone(),
+    // The public API always rekeys the leaf node of an update proposal, so we
+    // have to create the proposal through the internal API instead.
+    let update_proposal_content = bob_group
+        .group()
+        .create_update_proposal(
+            bob_group.framing_parameters(),
+            update_leaf_node,
             &bob_credential_with_key_and_signer.signer,
         )
-        .await
-        .map(|(out, ..)| MlsMessageIn::from(out))
-        .expect("error while creating remove proposal");
+        .expect("error creating update proposal");
+
+    let mut update_proposal_plaintext = PublicMessage::from(update_proposal_content.clone());
+    update_proposal_plaintext
+        .set_membership_tag(
+            backend,
+            bob_group.group().message_secrets().membership_key(),
+            bob_group.group().message_secrets().serialized_context(),
+        )
+        .expect("error setting membership tag");
+    let update_proposal = MlsMessageIn::from(MlsMessageOut::from(update_proposal_plaintext));
 
     // Have Alice process this proposal.
     if let ProcessedMessageContent::ProposalMessage(proposal) = alice_group
@@ -1749,7 +1752,7 @@ async fn test_valsem110(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoPr
     let err = alice_group
         .commit_to_pending_proposals(backend, &alice_credential_with_key_and_signer.signer)
         .await
-        .expect_err("no error while trying to commit to update proposal with differing identity");
+        .expect_err("no error while trying to commit to update proposal with colliding key");
 
     assert!(matches!(
         err,
@@ -1760,15 +1763,21 @@ async fn test_valsem110(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoPr
         )
     ));
 
-    // Clear commit to see if Bob will process a commit containing two colliding
-    // keys.
-    alice_group.clear_pending_commit();
     alice_group.clear_pending_proposals();
 
-    // We now have Alice create a commit. Then we artificially add an
-    // update proposal with a colliding encryption key.
+    // Now we test the receiving side. Bob stores his own proposal, so that
+    // Alice can commit to it by reference.
+    let queued_proposal = QueuedProposal::from_authenticated_content_by_ref(
+        ciphersuite,
+        backend,
+        update_proposal_content,
+    )
+    .expect("error creating queued proposal");
+    let proposal_ref = queued_proposal.proposal_reference().clone();
+    bob_group.store_pending_proposal(queued_proposal);
 
-    // Create the Commit.
+    // We now have Alice create a commit. Then we artificially add the update
+    // proposal with the colliding encryption key by reference.
     let serialized_update = alice_group
         .self_update(backend, &alice_credential_with_key_and_signer.signer)
         .await
@@ -1783,14 +1792,9 @@ async fn test_valsem110(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoPr
 
     let original_plaintext = plaintext.clone();
 
-    let update_proposal = Proposal::Update(UpdateProposal {
-        leaf_node: update_leaf_node,
-    });
-
-    // Artificially add the proposal.
     let verifiable_plaintext = insert_proposal_and_resign(
         backend,
-        vec![ProposalOrRef::Proposal(update_proposal)],
+        vec![ProposalOrRef::Reference(proposal_ref)],
         plaintext,
         &original_plaintext,
         &alice_group,
@@ -1799,24 +1803,17 @@ async fn test_valsem110(ciphersuite: Ciphersuite, backend: &impl OpenMlsCryptoPr
 
     let update_message_in = ProtocolMessage::from(verifiable_plaintext);
 
-    // We have to store the keypair with the proper label s.t. Bob can actually
-    // process the commit.
-    let alice_epoch_keypairs = alice_group.group().read_epoch_keypairs(backend).await;
-    let leaf_keypair = alice_epoch_keypairs
-        .iter()
-        .find(|keypair| keypair.public_key() == &alice_encryption_key)
-        .unwrap();
-    leaf_keypair.write_to_key_store(backend).await.unwrap();
-
     // Have bob process the resulting plaintext
     let err = bob_group
         .process_message(backend, update_message_in)
         .await
-        .expect_err("Could process message despite modified public key in path.");
+        .expect_err("Could process message despite colliding encryption key.");
 
     assert_eq!(
         err,
-        ProcessMessageError::ValidationError(ValidationError::CommitterIncludedOwnUpdate)
+        ProcessMessageError::InvalidCommit(StageCommitError::ProposalValidationError(
+            ProposalValidationError::DuplicateEncryptionKey
+        ))
     );
 }
 
