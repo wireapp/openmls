@@ -15,11 +15,11 @@ resolver = "2"
 async-trait = "0.1"
 
 [workspace.dependencies.tls_codec]
-version = "0.4"
+version = "0.5"
 features = ["derive", "serde", "mls"]
 
 [workspace.dependencies.tls_codec_derive]
-version = "0.4"
+version = "0.5"
 features = ["derive", "serde", "mls"]
 
 # We're hit by https://github.com/rust-lang/libc/issues/5601 with libc 0.2.190,
