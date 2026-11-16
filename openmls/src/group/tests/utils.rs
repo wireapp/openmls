@@ -132,8 +132,7 @@ pub(crate) async fn setup(
     // Initialize all of the groups, each group gets assigned a sequential group
     // id. TODO: Depending on the use case, it might be hard to figure out which
     // group is which.
-    for group_id in 0..config.groups.len() {
-        let group_config = &config.groups[group_id];
+    for (group_id, group_config) in config.groups.iter().enumerate() {
         // The first party in the members array is going to be the group
         // initiator.
         let initial_group_member = test_clients
@@ -227,9 +226,9 @@ pub(crate) async fn setup(
                 .expect("Error merging commit.");
 
             // Distribute the Welcome message to the other members.
-            for client_id in 1..group_config.members.len() {
+            for member in group_config.members.iter().skip(1) {
                 let new_group_member = test_clients
-                    .get(group_config.members[client_id].name)
+                    .get(member.name)
                     .expect("An unexpected error occurred.")
                     .borrow_mut();
                 // Figure out which key package bundle we should use. This is
