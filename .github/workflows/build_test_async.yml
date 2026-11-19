@@ -35,7 +35,8 @@ jobs:
           test_utils_all_features="test-utils,migration-import,0-8-1-storage-format"
           test_utils_all_features+=",extensions-draft,extensions-draft-test-dependencies"
           test_utils_all_features+=",virtual-clients-draft,virtual-clients-draft-test-dependencies"
-          test_utils_all_features+=",targeted-messages-draft,draft-ietf-mls-pq-ciphersuites"
+          test_utils_all_features+=",targeted-messages-draft"
+          test_utils_all_features+=",draft-ietf-mls-pq-ciphersuites,draft-ietf-mls-pq-ciphersuites-test-dependencies"
           test_utils_all_features+=",fork-resolution"
           for features in \
             "" \
