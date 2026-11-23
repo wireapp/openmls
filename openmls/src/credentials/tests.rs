@@ -74,3 +74,48 @@ fn that_unknown_credential_types_are_de_serialized_correctly() {
         assert_eq!(test, got_serialized);
     }
 }
+
+#[test]
+fn x509_credential_is_encoded_as_in_the_rfc() {
+    let x509 = X509Credential::new(vec![
+        Certificate::new(b"leaf".to_vec()),
+        Certificate::new(b"ca".to_vec()),
+    ]);
+    let credential = Credential::try_from(x509.clone()).unwrap();
+
+    // struct { CredentialType credential_type; Certificate chain<V>; }, where
+    // each Certificate is an opaque cert_data<V>. All lengths fit into a
+    // single-byte variable-length prefix.
+    let expected = [&[0x00, 0x02][..], &[8], &[4], b"leaf", &[2], b"ca"].concat();
+    assert_eq!(credential.tls_serialize_detached().unwrap(), expected);
+
+    let decoded = Credential::tls_deserialize_exact(&expected).unwrap();
+    assert_eq!(X509Credential::try_from(decoded).unwrap(), x509);
+}
+
+#[test]
+fn x509_credential_with_empty_chain_roundtrips() {
+    let x509 = X509Credential::new(vec![]);
+    let credential = Credential::try_from(x509.clone()).unwrap();
+    assert!(credential.serialized_content().is_empty());
+    assert_eq!(X509Credential::try_from(credential).unwrap(), x509);
+}
+
+#[test]
+fn x509_credential_from_other_credential_type_fails() {
+    let credential: Credential = BasicCredential::new(b"Alice".to_vec()).into();
+    assert_eq!(
+        X509Credential::try_from(credential),
+        Err(X509CredentialError::WrongCredentialType)
+    );
+}
+
+#[test]
+fn x509_credential_with_truncated_certificate_fails() {
+    // The certificate claims 4 bytes, but only 2 follow.
+    let credential = Credential::new(CredentialType::X509, vec![4, b'l', b'e']);
+    assert!(matches!(
+        X509Credential::try_from(credential),
+        Err(X509CredentialError::TlsCodecError(_))
+    ));
+}
