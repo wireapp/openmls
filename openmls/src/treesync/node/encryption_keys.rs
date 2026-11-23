@@ -41,7 +41,7 @@ impl EncryptionKey {
     }
 
     /// Return the internal [`HpkePublicKey`] as slice.
-    pub(crate) fn as_slice(&self) -> &[u8] {
+    pub fn as_slice(&self) -> &[u8] {
         self.key.as_slice()
     }
 
@@ -154,7 +154,6 @@ impl EncryptionPrivateKey {
     }
 }
 
-#[cfg(any(test, feature = "test-utils"))]
 impl EncryptionPrivateKey {
     pub(crate) fn key(&self) -> &HpkePrivateKey {
         &self.key
