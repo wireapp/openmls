@@ -16,7 +16,7 @@ use crate::{
         commit_builder::{CommitBuilder, ExternalCommitInfo, Initial},
         past_secrets::MessageSecretsStore,
         public_group::errors::CreationFromExternalError,
-        ExternalCommitBuilderFinalizeError, GroupContext, LeafNodeLifetimePolicy, MlsGroup,
+        ExternalCommitBuilderFinalizeError, GroupContext, LeafNodeLifetimePolicy, Member, MlsGroup,
         MlsGroupJoinConfig, MlsGroupState, PendingCommitState, ProposalStore, PublicGroup,
         QueuedProposal, ValidationError, PURE_PLAINTEXT_WIRE_FORMAT_POLICY,
     },
@@ -268,6 +268,12 @@ impl VerifiedExternalCommitBuilder {
     /// Returns the [`GroupContext`] of the group to be joined.
     pub fn group_context(&self) -> &GroupContext {
         self.public_group.group_context()
+    }
+
+    /// Returns the members of the group to be joined, from its verified
+    /// ratchet tree.
+    pub fn members(&self) -> impl Iterator<Item = Member> + '_ {
+        self.public_group.members()
     }
 
     /// Build the [`MlsGroup`] from the verified group and the provided

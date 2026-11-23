@@ -703,6 +703,10 @@ fn verify_group_exposes_group_info_and_context() {
         verified.group_info().group_context(),
         bob_group.export_group_context()
     );
+    assert_eq!(
+        verified.members().collect::<Vec<_>>(),
+        bob_group.members().collect::<Vec<_>>()
+    );
 
     let (charlie_group, commit_message_bundle) = verified
         .build_group(charlie_provider, charlie_credential_with_key)
