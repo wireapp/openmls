@@ -483,7 +483,7 @@ fn test_valsem102() {
                     KeyPackageBundle::new(
                         kp,
                         charlie_key_package.init_private_key().clone(),
-                        encryption_private_key.into(),
+                        encryption_private_key,
                     )
                 };
             }

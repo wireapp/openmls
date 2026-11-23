@@ -199,6 +199,7 @@ pub(crate) fn generate_group_candidate(
                 key_package_creation_result
                     .encryption_keypair
                     .private_key()
+                    .key()
                     .clone(),
             )
         }

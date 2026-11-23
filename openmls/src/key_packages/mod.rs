@@ -907,9 +907,31 @@ impl KeyPackageBundle {
         self.key_package
     }
 
+    /// Creates a key package bundle from a key package and its private keys.
+    ///
+    /// The caller must make sure that `private_init_key` belongs to the key
+    /// package's init key, and `private_encryption_key` to the encryption key
+    /// of its leaf node. This is not checked.
+    pub fn new(
+        key_package: KeyPackage,
+        private_init_key: HpkePrivateKey,
+        private_encryption_key: HpkePrivateKey,
+    ) -> Self {
+        Self {
+            key_package,
+            private_init_key,
+            private_encryption_key: private_encryption_key.into(),
+        }
+    }
+
     /// Get a reference to the private init key.
     pub fn init_private_key(&self) -> &HpkePrivateKey {
         &self.private_init_key
+    }
+
+    /// Get a reference to the private key of the leaf node's encryption key.
+    pub fn encryption_private_key(&self) -> &HpkePrivateKey {
+        self.private_encryption_key.key()
     }
 
     /// Get the encryption key pair.
@@ -918,27 +940,6 @@ impl KeyPackageBundle {
             self.key_package.leaf_node().encryption_key().clone(),
             self.private_encryption_key.clone(),
         ))
-    }
-}
-
-#[cfg(any(test, feature = "test-utils"))]
-impl KeyPackageBundle {
-    /// Generate a new key package bundle with the private key.
-    pub fn new(
-        key_package: KeyPackage,
-        private_init_key: HpkePrivateKey,
-        private_encryption_key: EncryptionPrivateKey,
-    ) -> Self {
-        Self {
-            key_package,
-            private_init_key,
-            private_encryption_key,
-        }
-    }
-
-    /// Get a reference to the private encryption key.
-    pub fn encryption_private_key(&self) -> &HpkePrivateKey {
-        self.private_encryption_key.key()
     }
 }
 
