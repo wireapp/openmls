@@ -29,3 +29,15 @@ pub enum BasicCredentialError {
     #[error("Wrong credential type.")]
     WrongCredentialType,
 }
+
+/// An error that occurs when converting a [`super::Credential`] into an
+/// [`super::X509Credential`].
+#[derive(Error, Debug, PartialEq, Clone)]
+pub enum X509CredentialError {
+    /// The certificate chain could not be decoded.
+    #[error(transparent)]
+    TlsCodecError(#[from] tls_codec::Error),
+    /// Wrong credential type
+    #[error("Wrong credential type.")]
+    WrongCredentialType,
+}

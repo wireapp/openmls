@@ -184,17 +184,42 @@ impl From<CredentialType> for u16 {
 
 /// X.509 Certificate.
 ///
-/// This struct contains an X.509 certificate chain.  Note that X.509
-/// certificates are not yet supported by OpenMLS.
+/// A single certificate in the chain of an [`X509Credential`]. OpenMLS does
+/// not parse or validate it.
 ///
 /// ```c
 /// struct {
 ///     opaque cert_data<V>;
 /// } Certificate;
 /// ```
-#[derive(Debug, PartialEq, Eq, Clone, Serialize, Deserialize)]
+#[derive(
+    Debug,
+    PartialEq,
+    Eq,
+    Clone,
+    Serialize,
+    Deserialize,
+    TlsSize,
+    TlsSerialize,
+    TlsDeserialize,
+    TlsDeserializeBytes,
+)]
 pub struct Certificate {
-    cert_data: Vec<u8>,
+    cert_data: VLBytes,
+}
+
+impl Certificate {
+    /// Create a certificate from its encoding, usually DER.
+    pub fn new(cert_data: Vec<u8>) -> Self {
+        Self {
+            cert_data: cert_data.into(),
+        }
+    }
+
+    /// Get the encoding of this certificate as byte slice.
+    pub fn as_slice(&self) -> &[u8] {
+        self.cert_data.as_slice()
+    }
 }
 
 /// Credential.
@@ -327,6 +352,70 @@ impl TryFrom<Credential> for BasicCredential {
             )),
             _ => Err(errors::BasicCredentialError::WrongCredentialType),
         }
+    }
+}
+
+/// X509 Credential.
+///
+/// An `X509Credential` as defined in the MLS protocol spec. It holds a chain
+/// of certificates, the leaf first.
+///
+/// OpenMLS does not parse or validate the certificates. Checking them is up to
+/// the application, as for any other credential.
+///
+/// ```c
+/// Certificate chain<V>;
+/// ```
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct X509Credential {
+    certificates: Vec<Certificate>,
+}
+
+impl X509Credential {
+    /// Create a new X509 credential from a certificate chain, the leaf first.
+    pub fn new(certificates: Vec<Certificate>) -> Self {
+        Self { certificates }
+    }
+
+    /// Get the certificate chain of this credential, the leaf first.
+    pub fn certificates(&self) -> &[Certificate] {
+        &self.certificates
+    }
+}
+
+impl TryFrom<X509Credential> for Credential {
+    type Error = Error;
+
+    fn try_from(credential: X509Credential) -> Result<Self, Self::Error> {
+        // The credential adds the length of the chain as a whole when it is
+        // encoded, so its content is the certificates back to back.
+        let mut content = Vec::new();
+        for certificate in &credential.certificates {
+            certificate.tls_serialize(&mut content)?;
+        }
+        Ok(Credential::new(CredentialType::X509, content))
+    }
+}
+
+impl TryFrom<Credential> for X509Credential {
+    type Error = X509CredentialError;
+
+    fn try_from(credential: Credential) -> Result<Self, Self::Error> {
+        if credential.credential_type != CredentialType::X509 {
+            return Err(X509CredentialError::WrongCredentialType);
+        }
+        let mut content = credential.serialized_content();
+        let mut certificates = Vec::new();
+        while !content.is_empty() {
+            // Each certificate is an opaque cert_data<V>. We split it off by
+            // hand instead of decoding a `VLBytes`, which asserts in debug
+            // builds when the data is truncated.
+            let (length, _) = tls_codec::vlen::read_length(&mut content)?;
+            let (cert_data, rest) = content.split_at_checked(length).ok_or(Error::EndOfStream)?;
+            certificates.push(Certificate::new(cert_data.to_vec()));
+            content = rest;
+        }
+        Ok(Self { certificates })
     }
 }
 
