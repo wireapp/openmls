@@ -15,6 +15,7 @@ use tls_codec::{
 use crate::{
     binary_tree::array_representation::LeafNodeIndex,
     ciphersuite::hash_ref::{make_proposal_ref, KeyPackageRef, ProposalRef},
+    credentials::Credential,
     error::LibraryError,
     extensions::Extensions,
     framing::{
@@ -373,6 +374,33 @@ impl Proposal {
     /// Indicates whether a Commit containing this [Proposal] requires a path.
     pub fn is_path_required(&self) -> bool {
         self.proposal_type().is_path_required()
+    }
+
+    /// Returns the credentials in this proposal that the caller needs to verify are valid.
+    ///
+    /// These are the credential of the leaf node in an Add or Update proposal,
+    /// and those of the external senders in a GroupContextExtensions proposal.
+    pub fn credentials_to_verify(&self) -> impl Iterator<Item = &Credential> {
+        let leaf_node_credential = match self {
+            Proposal::Update(update_proposal) => Some(update_proposal.leaf_node().credential()),
+            Proposal::Add(add_proposal) => {
+                Some(add_proposal.key_package().leaf_node().credential())
+            }
+            _ => None,
+        };
+        let external_sender_credentials = match self {
+            Proposal::GroupContextExtensions(gce_proposal) => {
+                gce_proposal.extensions().external_senders()
+            }
+            _ => None,
+        }
+        .into_iter()
+        .flatten()
+        .map(|external_sender| external_sender.credential());
+
+        leaf_node_credential
+            .into_iter()
+            .chain(external_sender_credentials)
     }
 
     pub(crate) fn has_lower_priority_than(&self, new_proposal: &Proposal) -> bool {

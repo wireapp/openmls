@@ -10,14 +10,16 @@ use super::proposal_store::{
 };
 
 #[cfg(feature = "virtual-clients-draft")]
+use super::Proposal;
+#[cfg(feature = "virtual-clients-draft")]
 use super::Sender;
 #[cfg(feature = "extensions-draft")]
 use super::StagedCommitSafeExport;
 use super::{
-    super::errors::*, Credential, ExportedSecret, Extension, GroupContext, GroupEpochSecrets,
-    GroupId, JoinerSecret, KeySchedule, LeafNode, LibraryError, MessageSecrets, MlsGroup,
-    MlsGroupState, OpenMlsProvider, PendingCommitState, Proposal, ProposalQueue, PskSecret,
-    QueuedProposal, ReInitProposal, StagedCommitExport,
+    super::errors::*, Credential, ExportedSecret, GroupContext, GroupEpochSecrets, GroupId,
+    JoinerSecret, KeySchedule, LeafNode, LibraryError, MessageSecrets, MlsGroup, MlsGroupState,
+    OpenMlsProvider, PendingCommitState, ProposalQueue, PskSecret, QueuedProposal, ReInitProposal,
+    StagedCommitExport,
 };
 use crate::group::diff::PublicGroupDiff;
 use crate::group::{GroupEpoch, LeafNodeLifetimePolicy};
@@ -1104,43 +1106,10 @@ impl StagedCommit {
             vec![]
         };
 
-        update_path_leaf_node_cred
-            .into_iter()
-            .chain(
-                self.queued_proposals()
-                    .flat_map(|proposal: &QueuedProposal| match proposal.proposal() {
-                        Proposal::Update(update_proposal) => {
-                            vec![update_proposal.leaf_node().credential()].into_iter()
-                        }
-                        Proposal::Add(add_proposal) => {
-                            vec![add_proposal.key_package().leaf_node().credential()].into_iter()
-                        }
-                        Proposal::GroupContextExtensions(gce_proposal) => gce_proposal
-                            .extensions()
-                            .iter()
-                            .flat_map(|extension| {
-                                match extension {
-                                    Extension::ExternalSenders(external_senders) => {
-                                        external_senders
-                                            .iter()
-                                            .map(|external_sender| external_sender.credential())
-                                            .collect()
-                                    }
-                                    _ => vec![],
-                                }
-                                .into_iter()
-                            })
-                            // TODO: ideally we wouldn't collect in between here, but the match arms
-                            //       have to all return the same type. We solve this by having them all
-                            //       be vec::IntoIter, but it would be nice if we just didn't have to
-                            //       do this.
-                            //       It might be possible to solve this by letting all match arms
-                            //       evaluate to a dyn Iterator.
-                            .collect::<Vec<_>>()
-                            .into_iter(),
-                        _ => vec![].into_iter(),
-                    }),
-            )
+        update_path_leaf_node_cred.into_iter().chain(
+            self.queued_proposals()
+                .flat_map(|proposal| proposal.proposal().credentials_to_verify()),
+        )
     }
 
     /// Returns `true` if the member was removed through a proposal covered by this Commit message
