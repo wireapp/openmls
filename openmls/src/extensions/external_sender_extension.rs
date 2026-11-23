@@ -38,11 +38,13 @@ impl ExternalSender {
         }
     }
 
-    pub(crate) fn credential(&self) -> &Credential {
+    /// Returns the credential of the external sender.
+    pub fn credential(&self) -> &Credential {
         &self.credential
     }
 
-    pub(crate) fn signature_key(&self) -> &SignaturePublicKey {
+    /// Returns the signature key the external sender signs its messages with.
+    pub fn signature_key(&self) -> &SignaturePublicKey {
         &self.signature_key
     }
 }
@@ -76,8 +78,9 @@ impl SenderExtensionIndex {
         Self(index)
     }
 
-    /// Returns the internal index as usize
-    pub(crate) fn index(&self) -> usize {
+    /// Returns the position of the external sender in the group's
+    /// `ExternalSendersExtension`.
+    pub fn index(&self) -> usize {
         self.0 as usize
     }
 }
