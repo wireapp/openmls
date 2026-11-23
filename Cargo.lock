@@ -2240,6 +2240,7 @@ dependencies = [
  "openmls_sqlite_storage",
  "openmls_test",
  "openmls_traits",
+ "postcard",
  "pretty_env_logger",
  "rand",
  "rayon",
