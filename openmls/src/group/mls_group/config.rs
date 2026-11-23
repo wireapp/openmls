@@ -89,6 +89,16 @@ impl Serialize for PastEpochDeletionPolicy {
 
 impl<'de> Deserialize<'de> for PastEpochDeletionPolicy {
     fn deserialize<D: serde::Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
+        // Reading the old tagged format below needs `deserialize_any`, which
+        // formats that aren't self-describing, such as postcard or bincode,
+        // don't support. They only ever see the plain integer.
+        if !deserializer.is_human_readable() {
+            return Ok(match u64::deserialize(deserializer)? {
+                u64::MAX => Self::KeepAll,
+                n => Self::MaxEpochs(usize::try_from(n).map_err(serde::de::Error::custom)?),
+            });
+        }
+
         // Previously supported format (changed to plain integer in 8bdba6f)
         #[derive(Deserialize)]
         enum Tagged {
@@ -901,6 +911,19 @@ mod tests {
         let json = serde_json::to_string(&PastEpochDeletionPolicy::MaxEpochs(usize::MAX)).unwrap();
         let deserialized: PastEpochDeletionPolicy = serde_json::from_str(&json).unwrap();
         assert_eq!(deserialized, PastEpochDeletionPolicy::KeepAll);
+    }
+
+    #[test]
+    fn past_epoch_deletion_policy_roundtrips_in_a_non_self_describing_format() {
+        for policy in [
+            PastEpochDeletionPolicy::MaxEpochs(0),
+            PastEpochDeletionPolicy::MaxEpochs(42),
+            PastEpochDeletionPolicy::KeepAll,
+        ] {
+            let bytes = postcard::to_allocvec(&policy).unwrap();
+            let deserialized: PastEpochDeletionPolicy = postcard::from_bytes(&bytes).unwrap();
+            assert_eq!(deserialized, policy);
+        }
     }
 
     #[test]
