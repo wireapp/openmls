@@ -78,3 +78,60 @@ fn add_proposal_checks_ciphersuite_before_signature() {
         .unwrap_err();
     assert_eq!(err, ValidationError::InvalidAddProposalCiphersuite);
 }
+
+/// A proposal reports the credentials it introduces into the group, and no
+/// others.
+#[openmls_test::openmls_test]
+fn proposal_credentials_to_verify() {
+    use crate::{
+        credentials::Credential,
+        extensions::{Extension, ExternalSender},
+        messages::proposals::GroupContextExtensionProposal,
+    };
+
+    let provider = &Provider::default();
+
+    let alice = generate_credential_with_key(
+        b"Alice".to_vec(),
+        ciphersuite.signature_algorithm(),
+        provider,
+    );
+    let alice_credential = alice.credential_with_key.credential.clone();
+    let key_package = generate_key_package(ciphersuite, Extensions::empty(), provider, alice)
+        .key_package()
+        .clone();
+    let add = Proposal::add(AddProposal { key_package });
+    assert_eq!(
+        add.credentials_to_verify().collect::<Vec<_>>(),
+        vec![&alice_credential]
+    );
+
+    let delivery_service = generate_credential_with_key(
+        b"Delivery Service".to_vec(),
+        ciphersuite.signature_algorithm(),
+        provider,
+    )
+    .credential_with_key;
+    let external_senders = vec![ExternalSender::new(
+        delivery_service.signature_key,
+        delivery_service.credential.clone(),
+    )];
+    let group_context_extensions =
+        Proposal::group_context_extensions(GroupContextExtensionProposal::new(
+            Extensions::single(Extension::ExternalSenders(external_senders)).unwrap(),
+        ));
+    assert_eq!(
+        group_context_extensions
+            .credentials_to_verify()
+            .collect::<Vec<_>>(),
+        vec![&delivery_service.credential]
+    );
+
+    let remove = Proposal::remove(RemoveProposal {
+        removed: LeafNodeIndex::new(1),
+    });
+    assert_eq!(
+        remove.credentials_to_verify().collect::<Vec<&Credential>>(),
+        Vec::<&Credential>::new()
+    );
+}
