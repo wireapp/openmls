@@ -6,7 +6,7 @@ use tls_codec::Serialize;
 
 use crate::{
     ciphersuite::OpenMlsSignaturePublicKey,
-    credentials::{Credential, CredentialWithKey},
+    credentials::CredentialWithKey,
     error::LibraryError,
     framing::{
         mls_auth_content::AuthenticatedContent, mls_content::FramedContentBody, ApplicationMessage,
@@ -321,7 +321,7 @@ impl PublicGroup {
             lifetime_policy,
         )?;
         let content = verified.content;
-        let credential = verified.credential;
+        let credential = verified.credential_with_key;
 
         #[cfg_attr(not(feature = "extensions-draft"), allow(unused_mut))]
         let mut processed = match content.sender() {
@@ -349,7 +349,7 @@ impl PublicGroup {
         &self,
         crypto: &impl OpenMlsCrypto,
         content: AuthenticatedContent,
-        credential: Credential,
+        credential: CredentialWithKey,
         lifetime_policy: LeafNodeLifetimePolicy,
     ) -> Result<ProcessedMessage, PublicProcessMessageError> {
         let sender = content.sender().clone();
@@ -428,7 +428,7 @@ impl PublicGroup {
         &self,
         crypto: &impl OpenMlsCrypto,
         content: AuthenticatedContent,
-        credential: Credential,
+        credential: CredentialWithKey,
     ) -> Result<ProcessedMessage, PublicProcessMessageError> {
         let sender = content.sender().clone();
         let data = content.authenticated_data().to_owned();

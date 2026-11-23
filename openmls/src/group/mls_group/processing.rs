@@ -14,6 +14,7 @@ use openmls_traits::signatures::Signer;
 #[cfg(any(not(feature = "virtual-clients-draft"), feature = "test-utils", test))]
 use crate::messages::group_info::GroupInfo;
 use crate::{
+    credentials::CredentialWithKey,
     framing::mls_content::FramedContentBody,
     group::{errors::MergeCommitError, LeafNodeLifetimePolicy, StageCommitError, ValidationError},
     storage::OpenMlsProvider,
@@ -304,7 +305,12 @@ impl MlsGroup {
                 epoch,
                 authenticated_data,
             } => {
-                let credential = self.credential()?.clone();
+                // Fails if the group is inactive.
+                self.credential()?;
+                let credential = self
+                    .own_leaf_node()
+                    .map(CredentialWithKey::from)
+                    .ok_or_else(|| LibraryError::custom("Own leaf node missing"))?;
                 #[cfg_attr(not(feature = "extensions-draft"), allow(unused_mut))]
                 let mut processed = ProcessedMessage::new(
                     self.group_id().clone(),
@@ -994,7 +1000,7 @@ impl MlsGroup {
                 self.process_internal_authenticated_content(
                     provider,
                     verified.content,
-                    verified.credential,
+                    verified.credential_with_key,
                     lifetime_policy,
                     #[cfg(feature = "virtual-clients-draft")]
                     verified.emulator_sender_leaf_index,
@@ -1004,7 +1010,7 @@ impl MlsGroup {
             Sender::External(_) => self.process_external_authenticated_content(
                 provider,
                 verified.content,
-                verified.credential,
+                verified.credential_with_key,
             )?,
         };
         #[cfg(feature = "extensions-draft")]
@@ -1021,7 +1027,7 @@ impl MlsGroup {
         &self,
         provider: &Provider,
         content: AuthenticatedContent,
-        credential: Credential,
+        credential_with_key: CredentialWithKey,
         lifetime_policy: LeafNodeLifetimePolicy,
         #[cfg(feature = "virtual-clients-draft")] emulator_sender_leaf_index: Option<LeafNodeIndex>,
     ) -> Result<ProcessedMessage, ProcessMessageError<Provider::StorageError>> {
@@ -1067,7 +1073,7 @@ impl MlsGroup {
                             sender,
                             authenticated_data,
                             ProcessedMessageContent::OwnPendingCommit,
-                            credential,
+                            credential_with_key,
                             #[cfg(feature = "virtual-clients-draft")]
                             emulator_sender_leaf_index,
                         ));
@@ -1142,7 +1148,7 @@ impl MlsGroup {
                             ProcessedMessageContent::UnresolvedAppDataCommit(Box::new(
                                 unresolved_commit,
                             )),
-                            credential,
+                            credential_with_key,
                             #[cfg(feature = "virtual-clients-draft")]
                             emulator_sender_leaf_index,
                         ));
@@ -1176,7 +1182,7 @@ impl MlsGroup {
             sender,
             authenticated_data,
             content,
-            credential,
+            credential_with_key,
             #[cfg(feature = "virtual-clients-draft")]
             emulator_sender_leaf_index,
         ))
@@ -1191,7 +1197,7 @@ impl MlsGroup {
         &self,
         provider: &Provider,
         content: AuthenticatedContent,
-        credential: Credential,
+        credential_with_key: CredentialWithKey,
     ) -> Result<ProcessedMessage, ProcessMessageError<Provider::StorageError>> {
         #[cfg(feature = "virtual-clients-draft")]
         let emulator_sender_leaf_index: Option<crate::binary_tree::LeafNodeIndex> = None;
@@ -1220,7 +1226,7 @@ impl MlsGroup {
                     sender,
                     data,
                     content,
-                    credential,
+                    credential_with_key,
                     #[cfg(feature = "virtual-clients-draft")]
                     emulator_sender_leaf_index,
                 ))
@@ -1240,7 +1246,7 @@ impl MlsGroup {
                     sender,
                     data,
                     content,
-                    credential,
+                    credential_with_key,
                     #[cfg(feature = "virtual-clients-draft")]
                     emulator_sender_leaf_index,
                 ))
@@ -1259,7 +1265,7 @@ impl MlsGroup {
                     sender,
                     data,
                     content,
-                    credential,
+                    credential_with_key,
                     #[cfg(feature = "virtual-clients-draft")]
                     emulator_sender_leaf_index,
                 ))
@@ -1280,7 +1286,7 @@ impl MlsGroup {
                     sender,
                     data,
                     content,
-                    credential,
+                    credential_with_key,
                     #[cfg(feature = "virtual-clients-draft")]
                     emulator_sender_leaf_index,
                 ))
@@ -1301,7 +1307,7 @@ impl MlsGroup {
                     sender,
                     data,
                     content,
-                    credential,
+                    credential_with_key,
                     #[cfg(feature = "virtual-clients-draft")]
                     emulator_sender_leaf_index,
                 ))

@@ -347,7 +347,8 @@ impl DecryptedMessage {
 /// Result of [`UnverifiedMessage::verify`].
 pub(crate) struct VerifiedMessage {
     pub(crate) content: AuthenticatedContent,
-    pub(crate) credential: Credential,
+    /// The sender's credential, and the signature key the message was verified with.
+    pub(crate) credential_with_key: CredentialWithKey,
     #[cfg(feature = "virtual-clients-draft")]
     pub(crate) emulator_sender_leaf_index: Option<LeafNodeIndex>,
 }
@@ -423,7 +424,10 @@ impl UnverifiedMessage {
         )?;
         Ok(VerifiedMessage {
             content,
-            credential: self.credential,
+            credential_with_key: CredentialWithKey {
+                credential: self.credential,
+                signature_key: self.sender_pk.into(),
+            },
             #[cfg(feature = "virtual-clients-draft")]
             emulator_sender_leaf_index: self.emulator_sender_leaf_index,
         })
@@ -438,7 +442,7 @@ pub struct ProcessedMessage {
     sender: Sender,
     authenticated_data: Vec<u8>,
     content: ProcessedMessageContent,
-    credential: Credential,
+    credential_with_key: CredentialWithKey,
     /// See [`Self::emulator_sender_leaf_index`].
     #[cfg(feature = "virtual-clients-draft")]
     emulator_sender_leaf_index: Option<LeafNodeIndex>,
@@ -460,7 +464,7 @@ impl ProcessedMessage {
         sender: Sender,
         authenticated_data: Vec<u8>,
         content: ProcessedMessageContent,
-        credential: Credential,
+        credential_with_key: CredentialWithKey,
         #[cfg(feature = "virtual-clients-draft")] emulator_sender_leaf_index: Option<LeafNodeIndex>,
     ) -> Self {
         Self {
@@ -469,7 +473,7 @@ impl ProcessedMessage {
             sender,
             authenticated_data,
             content,
-            credential,
+            credential_with_key,
             #[cfg(feature = "virtual-clients-draft")]
             emulator_sender_leaf_index,
             #[cfg(feature = "extensions-draft")]
@@ -596,7 +600,16 @@ impl ProcessedMessage {
 
     /// Returns the credential of the message.
     pub fn credential(&self) -> &Credential {
-        &self.credential
+        &self.credential_with_key.credential
+    }
+
+    /// Returns the signature key of the sender.
+    ///
+    /// This is the key the message's signature was verified with. For a
+    /// message from a past epoch, it is the key the sender had in that epoch,
+    /// which may differ from the one in the current tree.
+    pub fn signature_key(&self) -> &SignaturePublicKey {
+        &self.credential_with_key.signature_key
     }
 
     /// Safely export a value if the content of the processed message is a
