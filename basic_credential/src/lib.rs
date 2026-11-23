@@ -335,7 +335,7 @@ impl SignatureKeyPair {
         self.signature_scheme
     }
 
-    #[cfg(feature = "test-utils")]
+    /// Get the private key as byte slice.
     pub fn private(&self) -> &[u8] {
         self.private.as_slice()
     }
