@@ -225,14 +225,14 @@ pub enum HpkeKemType {
     #[cfg(feature = "draft-ietf-mls-pq-ciphersuites")]
     MlKem1024P384 = 0x0051,
 
-    /// XWing combiner for ML-KEM and X25519
+    /// ML-KEM-768 + X25519 hybrid KEM (X-Wing)
     ///
     /// Code point from [draft-ietf-hpke-pq], which registers it as
     /// `MLKEM768-X25519`.
     ///
     /// [draft-ietf-hpke-pq]: https://datatracker.ietf.org/doc/html/draft-ietf-hpke-pq
     #[cfg(feature = "draft-ietf-mls-pq-ciphersuites")]
-    XWingKemDraft6 = 0x647a,
+    MlKem768X25519 = 0x647a,
 }
 
 /// KDF Types for HPKE
@@ -481,39 +481,39 @@ pub enum Ciphersuite {
 
     /// ML-KEM768 + X25519 (XWing) | AES-GCM128 | SHA2-256 | Ed25519
     ///
-    /// [draft-ietf-mls-pq-ciphersuites] TBD1 (provisional code point)
+    /// [draft-ietf-mls-pq-ciphersuites] (code point from draft)
     ///
     /// [draft-ietf-mls-pq-ciphersuites]: https://datatracker.ietf.org/doc/draft-ietf-mls-pq-ciphersuites
     #[cfg(feature = "draft-ietf-mls-pq-ciphersuites")]
-    MLS_128_MLKEM768X25519_AES128GCM_SHA256_Ed25519 = 0x004F,
+    MLS_128_MLKEM768X25519_AES128GCM_SHA256_Ed25519 = 0x0010,
 
     /// ML-KEM768 + X25519 (XWing) | AES-GCM256 | SHA2-384 | Ed25519
     ///
-    /// [draft-ietf-mls-pq-ciphersuites] TBD2 (provisional code point)
+    /// [draft-ietf-mls-pq-ciphersuites] (code point from draft)
     ///
     /// [draft-ietf-mls-pq-ciphersuites]: https://datatracker.ietf.org/doc/draft-ietf-mls-pq-ciphersuites
     #[cfg(feature = "draft-ietf-mls-pq-ciphersuites")]
-    MLS_128_MLKEM768X25519_AES256GCM_SHA384_Ed25519 = 0x004E,
+    MLS_128_MLKEM768X25519_AES256GCM_SHA384_Ed25519 = 0x0011,
 
     /// ML-KEM768 + P-256 | AES-GCM128 | SHA2-256 | EcDSA P256
     ///
-    /// [draft-ietf-mls-pq-ciphersuites] TBD3 (custom provisional code point)
+    /// [draft-ietf-mls-pq-ciphersuites] (code point from draft)
     ///
     /// [draft-ietf-mls-pq-ciphersuites]: https://datatracker.ietf.org/doc/draft-ietf-mls-pq-ciphersuites
     #[cfg(feature = "draft-ietf-mls-pq-ciphersuites")]
-    MLS_128_MLKEM768P256_AES128GCM_SHA256_P256 = 0xF050,
+    MLS_128_MLKEM768P256_AES128GCM_SHA256_P256 = 0x0012,
 
     /// ML-KEM768 + P-256 | AES-GCM256 | SHA2-384 | EcDSA P256
     ///
-    /// [draft-ietf-mls-pq-ciphersuites] TBD4 (custom provisional code point)
+    /// [draft-ietf-mls-pq-ciphersuites] (code point from draft)
     ///
     /// [draft-ietf-mls-pq-ciphersuites]: https://datatracker.ietf.org/doc/draft-ietf-mls-pq-ciphersuites
     #[cfg(feature = "draft-ietf-mls-pq-ciphersuites")]
-    MLS_128_MLKEM768P256_AES256GCM_SHA384_P256 = 0xF051,
+    MLS_128_MLKEM768P256_AES256GCM_SHA384_P256 = 0x0013,
 
     /// ML-KEM1024 + P-384 | AES-GCM256 | SHA2-384 | EcDSA P384
     ///
-    /// [draft-ietf-mls-pq-ciphersuites] TBD5 (custom provisional code point)
+    /// [draft-ietf-mls-pq-ciphersuites] (code point from draft)
     ///
     /// Not supported by any of the OpenMLS crypto providers yet: libcrux has no
     /// ECDSA P-384 implementation and the RustCrypto HPKE backend has no
@@ -521,56 +521,55 @@ pub enum Ciphersuite {
     ///
     /// [draft-ietf-mls-pq-ciphersuites]: https://datatracker.ietf.org/doc/draft-ietf-mls-pq-ciphersuites
     #[cfg(feature = "draft-ietf-mls-pq-ciphersuites")]
-    MLS_192_MLKEM1024P384_AES256GCM_SHA384_P384 = 0xF052,
+    MLS_192_MLKEM1024P384_AES256GCM_SHA384_P384 = 0x0014,
 
     /// ML-KEM768 | AES-GCM256 | SHA2-384 | Ed25519
     ///
-    /// [draft-ietf-mls-pq-ciphersuites] TBD6 (custom provisional code point, kept from the
-    /// former AIR_128_MLKEM768_AES256GCM_SHA384_Ed25519 ciphersuite for backwards compatibility)
+    /// [draft-ietf-mls-pq-ciphersuites] (code point from draft)
     ///
     /// [draft-ietf-mls-pq-ciphersuites]: https://datatracker.ietf.org/doc/draft-ietf-mls-pq-ciphersuites
     #[cfg(feature = "draft-ietf-mls-pq-ciphersuites")]
-    MLS_128_MLKEM768_AES256GCM_SHA384_Ed25519 = 0xF042,
+    MLS_128_MLKEM768_AES256GCM_SHA384_Ed25519 = 0x0015,
 
     /// ML-KEM768 | AES-GCM256 | SHA2-384 | EcDSA P256
     ///
-    /// [draft-ietf-mls-pq-ciphersuites] TBD7 (provisional code point)
+    /// [draft-ietf-mls-pq-ciphersuites] (code point from draft)
     ///
     /// [draft-ietf-mls-pq-ciphersuites]: https://datatracker.ietf.org/doc/draft-ietf-mls-pq-ciphersuites
     #[cfg(feature = "draft-ietf-mls-pq-ciphersuites")]
-    MLS_128_MLKEM768_AES256GCM_SHA384_P256 = 0x0050,
+    MLS_128_MLKEM768_AES256GCM_SHA384_P256 = 0x0016,
 
     /// ML-KEM1024 | AES-GCM256 | SHA2-384 | EcDSA P384
     ///
-    /// [draft-ietf-mls-pq-ciphersuites] TBD8 (provisional code point)
+    /// [draft-ietf-mls-pq-ciphersuites] (code point from draft)
     ///
     /// [draft-ietf-mls-pq-ciphersuites]: https://datatracker.ietf.org/doc/draft-ietf-mls-pq-ciphersuites
     #[cfg(feature = "draft-ietf-mls-pq-ciphersuites")]
-    MLS_192_MLKEM1024_AES256GCM_SHA384_P384 = 0x0042,
+    MLS_192_MLKEM1024_AES256GCM_SHA384_P384 = 0x0017,
 
     /// ML-KEM768 + X25519 (XWing) | Chacha20Poly1305 | SHA2-384 | ML-DSA44
     ///
-    /// [draft-ietf-mls-pq-ciphersuites] TBD9 (provisional code point)
+    /// [draft-ietf-mls-pq-ciphersuites] (code point from draft)
     ///
     /// [draft-ietf-mls-pq-ciphersuites]: https://datatracker.ietf.org/doc/draft-ietf-mls-pq-ciphersuites
     #[cfg(feature = "draft-ietf-mls-pq-ciphersuites")]
-    MLS_128_MLKEM768X25519_CHACHA20POLY1305_SHA384_MLDSA44 = 0x0052,
+    MLS_128_MLKEM768X25519_CHACHA20POLY1305_SHA384_MLDSA44 = 0x0020,
 
     /// ML-KEM768 | AES-GCM256 | SHA2-384 | ML-DSA65
     ///
-    /// [draft-ietf-mls-pq-ciphersuites] TBD10 (provisional code point)
+    /// [draft-ietf-mls-pq-ciphersuites] (code point from draft)
     ///
     /// [draft-ietf-mls-pq-ciphersuites]: https://datatracker.ietf.org/doc/draft-ietf-mls-pq-ciphersuites
     #[cfg(feature = "draft-ietf-mls-pq-ciphersuites")]
-    MLS_192_MLKEM768_AES256GCM_SHA384_MLDSA65 = 0x0051,
+    MLS_192_MLKEM768_AES256GCM_SHA384_MLDSA65 = 0x0021,
 
     /// ML-KEM1024 | AES-GCM256 | SHA2-384 | ML-DSA87
     ///
-    /// [draft-ietf-mls-pq-ciphersuites] TBD11 (provisional code point)
+    /// [draft-ietf-mls-pq-ciphersuites] (code point from draft)
     ///
     /// [draft-ietf-mls-pq-ciphersuites]: https://datatracker.ietf.org/doc/draft-ietf-mls-pq-ciphersuites
     #[cfg(feature = "draft-ietf-mls-pq-ciphersuites")]
-    MLS_256_MLKEM1024_AES256GCM_SHA384_MLDSA87 = 0x0907,
+    MLS_256_MLKEM1024_AES256GCM_SHA384_MLDSA87 = 0x0022,
 }
 
 impl core::fmt::Display for Ciphersuite {
@@ -702,17 +701,17 @@ impl Ciphersuite {
         use SignatureScheme::*;
 
         match self {
-            Self::MLS_256_XWING_CHACHA20POLY1305_SHA256_Ed25519          => (XWingKemDraft6, HkdfSha256, ChaCha20Poly1305, Sha2_256, ED25519),
+            Self::MLS_256_XWING_CHACHA20POLY1305_SHA256_Ed25519          => (MlKem768X25519, HkdfSha256, ChaCha20Poly1305, Sha2_256, ED25519),
             Self::MLS_256_MLKEM1024_AES256GCM_SHA512_MLDSA87             => (MlKem1024,      HkdfSha512, Aes256Gcm,        Sha2_512, MLDSA87),
-            Self::MLS_128_MLKEM768X25519_AES128GCM_SHA256_Ed25519        => (XWingKemDraft6, HkdfSha256, Aes128Gcm,        Sha2_256, ED25519),
-            Self::MLS_128_MLKEM768X25519_AES256GCM_SHA384_Ed25519        => (XWingKemDraft6, HkdfSha384, Aes256Gcm,        Sha2_384, ED25519),
+            Self::MLS_128_MLKEM768X25519_AES128GCM_SHA256_Ed25519        => (MlKem768X25519, HkdfSha256, Aes128Gcm,        Sha2_256, ED25519),
+            Self::MLS_128_MLKEM768X25519_AES256GCM_SHA384_Ed25519        => (MlKem768X25519, HkdfSha384, Aes256Gcm,        Sha2_384, ED25519),
             Self::MLS_128_MLKEM768P256_AES128GCM_SHA256_P256             => (MlKem768P256,   HkdfSha256, Aes128Gcm,        Sha2_256, ECDSA_SECP256R1_SHA256),
             Self::MLS_128_MLKEM768P256_AES256GCM_SHA384_P256             => (MlKem768P256,   HkdfSha384, Aes256Gcm,        Sha2_384, ECDSA_SECP256R1_SHA256),
             Self::MLS_192_MLKEM1024P384_AES256GCM_SHA384_P384            => (MlKem1024P384,  HkdfSha384, Aes256Gcm,        Sha2_384, ECDSA_SECP384R1_SHA384),
             Self::MLS_128_MLKEM768_AES256GCM_SHA384_Ed25519              => (MlKem768,       HkdfSha384, Aes256Gcm,        Sha2_384, ED25519),
             Self::MLS_128_MLKEM768_AES256GCM_SHA384_P256                 => (MlKem768,       HkdfSha384, Aes256Gcm,        Sha2_384, ECDSA_SECP256R1_SHA256),
             Self::MLS_192_MLKEM1024_AES256GCM_SHA384_P384                => (MlKem1024,      HkdfSha384, Aes256Gcm,        Sha2_384, ECDSA_SECP384R1_SHA384),
-            Self::MLS_128_MLKEM768X25519_CHACHA20POLY1305_SHA384_MLDSA44 => (XWingKemDraft6, HkdfSha384, ChaCha20Poly1305, Sha2_384, MLDSA44),
+            Self::MLS_128_MLKEM768X25519_CHACHA20POLY1305_SHA384_MLDSA44 => (MlKem768X25519, HkdfSha384, ChaCha20Poly1305, Sha2_384, MLDSA44),
             Self::MLS_192_MLKEM768_AES256GCM_SHA384_MLDSA65              => (MlKem768,       HkdfSha384, Aes256Gcm,        Sha2_384, MLDSA65),
             Self::MLS_256_MLKEM1024_AES256GCM_SHA384_MLDSA87             => (MlKem1024,      HkdfSha384, Aes256Gcm,        Sha2_384, MLDSA87),
             // Listed explicitly rather than `_`, so that a ciphersuite missing
@@ -735,17 +734,17 @@ impl Ciphersuite {
         Some(match v {
             0x004D => Self::MLS_256_XWING_CHACHA20POLY1305_SHA256_Ed25519,
             0x0906 => Self::MLS_256_MLKEM1024_AES256GCM_SHA512_MLDSA87,
-            0x004F => Self::MLS_128_MLKEM768X25519_AES128GCM_SHA256_Ed25519,
-            0x004E => Self::MLS_128_MLKEM768X25519_AES256GCM_SHA384_Ed25519,
-            0xF050 => Self::MLS_128_MLKEM768P256_AES128GCM_SHA256_P256,
-            0xF051 => Self::MLS_128_MLKEM768P256_AES256GCM_SHA384_P256,
-            0xF052 => Self::MLS_192_MLKEM1024P384_AES256GCM_SHA384_P384,
-            0xF042 => Self::MLS_128_MLKEM768_AES256GCM_SHA384_Ed25519,
-            0x0050 => Self::MLS_128_MLKEM768_AES256GCM_SHA384_P256,
-            0x0042 => Self::MLS_192_MLKEM1024_AES256GCM_SHA384_P384,
-            0x0052 => Self::MLS_128_MLKEM768X25519_CHACHA20POLY1305_SHA384_MLDSA44,
-            0x0051 => Self::MLS_192_MLKEM768_AES256GCM_SHA384_MLDSA65,
-            0x0907 => Self::MLS_256_MLKEM1024_AES256GCM_SHA384_MLDSA87,
+            0x0010 => Self::MLS_128_MLKEM768X25519_AES128GCM_SHA256_Ed25519,
+            0x0011 => Self::MLS_128_MLKEM768X25519_AES256GCM_SHA384_Ed25519,
+            0x0012 => Self::MLS_128_MLKEM768P256_AES128GCM_SHA256_P256,
+            0x0013 => Self::MLS_128_MLKEM768P256_AES256GCM_SHA384_P256,
+            0x0014 => Self::MLS_192_MLKEM1024P384_AES256GCM_SHA384_P384,
+            0x0015 => Self::MLS_128_MLKEM768_AES256GCM_SHA384_Ed25519,
+            0x0016 => Self::MLS_128_MLKEM768_AES256GCM_SHA384_P256,
+            0x0017 => Self::MLS_192_MLKEM1024_AES256GCM_SHA384_P384,
+            0x0020 => Self::MLS_128_MLKEM768X25519_CHACHA20POLY1305_SHA384_MLDSA44,
+            0x0021 => Self::MLS_192_MLKEM768_AES256GCM_SHA384_MLDSA65,
+            0x0022 => Self::MLS_256_MLKEM1024_AES256GCM_SHA384_MLDSA87,
             _ => return None,
         })
     }

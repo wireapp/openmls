@@ -83,7 +83,7 @@ impl OpenMlsCrypto for CryptoProvider {
         match ciphersuite.hpke_kem_algorithm() {
             HpkeKemType::DhKemP256 | HpkeKemType::DhKem25519 => Ok(()),
             #[cfg(feature = "draft-ietf-mls-pq-ciphersuites")]
-            HpkeKemType::XWingKemDraft6 => Ok(()),
+            HpkeKemType::MlKem768X25519 => Ok(()),
             HpkeKemType::DhKemP384 | HpkeKemType::DhKemP521 | HpkeKemType::DhKem448 => {
                 Err(CryptoError::UnsupportedCiphersuite)
             }
@@ -630,14 +630,14 @@ fn hpke_kdf(kdf: HpkeKdfType) -> hpke_rs_crypto::types::KdfAlgorithm {
 
 /// The HPKE configuration of `MLS_256_XWING_CHACHA20POLY1305_SHA256_Ed25519`
 /// (0x004D). No draft-ietf-mls-pq-ciphersuites suite uses this combination
-/// (TBD1 uses AES-128-GCM, TBD9 HKDF-SHA384), so matching on it only affects
+/// (0x0010 uses AES-128-GCM, 0x0020 HKDF-SHA384), so matching on it only affects
 /// the legacy suite.
 #[cfg(feature = "legacy-pq-key-derivation")]
 fn is_legacy_xwing_config(config: &HpkeConfig) -> bool {
     matches!(
         config,
         HpkeConfig(
-            HpkeKemType::XWingKemDraft6,
+            HpkeKemType::MlKem768X25519,
             HpkeKdfType::HkdfSha256,
             HpkeAeadType::ChaCha20Poly1305,
         )
@@ -670,7 +670,7 @@ fn hpke_kem(kem: HpkeKemType) -> hpke_rs_crypto::types::KemAlgorithm {
         HpkeKemType::DhKem25519 => hpke_rs_crypto::types::KemAlgorithm::DhKem25519,
         HpkeKemType::DhKem448 => hpke_rs_crypto::types::KemAlgorithm::DhKem448,
         #[cfg(feature = "draft-ietf-mls-pq-ciphersuites")]
-        HpkeKemType::XWingKemDraft6 => hpke_rs_crypto::types::KemAlgorithm::XWingDraft06,
+        HpkeKemType::MlKem768X25519 => hpke_rs_crypto::types::KemAlgorithm::XWingDraft06,
         #[cfg(feature = "draft-ietf-mls-pq-ciphersuites")]
         HpkeKemType::MlKem768 => hpke_rs_crypto::types::KemAlgorithm::MlKem768,
         #[cfg(feature = "draft-ietf-mls-pq-ciphersuites")]

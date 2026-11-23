@@ -61,7 +61,7 @@ fn kem_mode(kem: HpkeKemType) -> hpke_types::KemAlgorithm {
         HpkeKemType::DhKem25519 => hpke_types::KemAlgorithm::DhKem25519,
         HpkeKemType::DhKem448 => hpke_types::KemAlgorithm::DhKem448,
         #[cfg(feature = "draft-ietf-mls-pq-ciphersuites")]
-        HpkeKemType::XWingKemDraft6 => hpke_types::KemAlgorithm::XWingDraft06,
+        HpkeKemType::MlKem768X25519 => hpke_types::KemAlgorithm::XWingDraft06,
         #[cfg(feature = "draft-ietf-mls-pq-ciphersuites")]
         HpkeKemType::MlKem768 => hpke_types::KemAlgorithm::MlKem768,
         #[cfg(feature = "draft-ietf-mls-pq-ciphersuites")]
